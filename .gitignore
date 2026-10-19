@@ -1,0 +1,32 @@
+# VCS & Tools
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+release/
+**/release/
+build/
+buildRes/
+target/
+**/target/
+*.exe
+*.zip
+*.7z
+*.tar.gz
+*.parquet
+*.log
+*.map
+.DS_Store
+npm-debug.log
+lerna-debug.log
+.vscode/
+.idea/
+
+# Portable app test data & runtime dirs
+toadAppData*/
+releases/toadAppData*/
+data_sample/
+mingit/
+node-v18.20.4-win-x64/
+node-v18.20.4-win-x64/**
+tools/jj/jj.exe

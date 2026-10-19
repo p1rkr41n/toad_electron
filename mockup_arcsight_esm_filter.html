@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tad / Toad Query & Filter Editor</title>
+  <style>
+    /* ========================================================
+       TAD / TOAD BLUEPRINT.JS DARK THEME (AUTHENTIC PRODUCTION CSS)
+       Pure UX • Zero Emojis • Native Desktop App Density
+       ======================================================== */
+    :root {
+      --bp-dark-bg: #182026;
+      --bp-pane-bg: #202b33;
+      --bp-panel-header: #293742;
+      --bp-input-bg: rgba(16, 22, 26, 0.3);
+      --bp-border-color: #383e47;
+      --bp-border-subtle: rgba(255, 255, 255, 0.1);
+      --bp-text-main: #f5f8fa;
+      --bp-text-muted: #a7b6c2;
+      --bp-text-dim: #8a9ba8;
+      
+      --bp-blue: #48aff0;
+      --bp-blue-dark: #106ba3;
+      --bp-blue-hover: #2b95d6;
+      --bp-green: #3dcc91;
+      --bp-green-dark: #0f9960;
+      --bp-orange: #ffb366;
+      --bp-orange-dark: #d9822b;
+      --bp-red: #ff7373;
+      --bp-red-dark: #db3737;
+
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      --font-mono: Consolas, Menlo, Monaco, "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bp-dark-bg);
+      color: var(--bp-text-main);
+      font-family: var(--font-family);
+      font-size: 12px;
+      line-height: 1.4;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 100vh;
+    }
+
+    /* Top App Header */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--bp-border-color);
+    }
+    .app-title-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .app-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--bp-text-main);
+      letter-spacing: -0.1px;
+    }
+    .app-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 2px;
+      background: #394b59;
+      color: var(--bp-text-muted);
+      border: 1px solid var(--bp-border-color);
+      text-transform: uppercase;
+    }
+    .app-meta-desc {
+      color: var(--bp-text-dim);
+      font-size: 11px;
+    }
+
+    /* ========================================================
+       FILTER BUILDER COMPACT CARD (~145px Height)
+       Leaves >80% Screen Space For Data Table
+       ======================================================== */
+    .filter-card {
+      background: var(--bp-pane-bg);
+      border: 1px solid var(--bp-border-color);
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Top Action Bar (Height: 32px) */
+    .filter-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 8px;
+      background: var(--bp-panel-header);
+      border-bottom: 1px solid var(--bp-border-color);
+      min-height: 32px;
+      gap: 8px;
+    }
+
+    .toolbar-left, .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toolbar-left {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Blueprint Standard Buttons */
+    .bp-btn {
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 500;
+      height: 22px;
+      padding: 0 8px;
+      border-radius: 2px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background-color: #394b59;
+      color: var(--bp-text-main);
+      box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.4), inset 0 -1px 0 rgba(16, 22, 26, 0.2);
+      transition: background-color 0.15s ease;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .bp-btn:hover {
+      background-color: #30404d;
+      color: #fff;
+    }
+    .bp-btn.primary {
+      background-color: var(--bp-blue-dark);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: inset 0 0 0 1px rgba(16, 22, 26, 0.4), inset 0 -1px 0 rgba(16, 22, 26, 0.2);
+    }
+    .bp-btn.primary:hover {
+      background-color: var(--bp-blue-hover);
+    }
+    .bp-btn.minimal {
+      background: transparent;
+      box-shadow: none;
+      color: var(--bp-text-muted);
+    }
+    .bp-btn.minimal:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--bp-text-main);
+    }
+    .bp-btn.minimal.danger:hover {
+      background: rgba(219, 55, 55, 0.2);
+      color: var(--bp-red);
+    }
+    .bp-btn.active {
+      background-color: var(--bp-blue-dark);
+      color: #fff;
+    }
+
+    /* Presets Strip */
+    .presets-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--bp-text-dim);
+      text-transform: uppercase;
+    }
+
+    /* Active Selection Controller in Toolbar (Grayscale) */
+    .active-nav-dock {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #252f38;
+      border: 1px solid #485460;
+      padding: 1px 6px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .active-nav-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: #a7b6c2;
+      text-transform: uppercase;
+    }
+    .active-nav-item {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--bp-text-main);
+      max-width: 110px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .active-btn-group {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .bp-btn-mini {
+      font-family: inherit;
+      font-size: 9px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 2px;
+      border: 1px solid var(--bp-border-color);
+      background: #293742;
+      color: var(--bp-text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .bp-btn-mini:hover {
+      background: #394b59;
+      color: #fff;
+      border-color: #8a9ba8;
+    }
+    .active-nav-hint {
+      font-size: 9px;
+      color: var(--bp-text-dim);
+      border-left: 1px solid var(--bp-border-color);
+      padding-left: 5px;
+    }
+
+    /* ========================================================
+       TREE EDITOR SCROLL PANE (Max 140px Height)
+       ======================================================== */
+    .filter-tree-pane {
+      padding: 6px 8px;
+      background: #182026;
+      max-height: 140px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .filter-tree-pane::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .filter-tree-pane::-webkit-scrollbar-thumb {
+      background: #394b59;
+      border-radius: 3px;
+    }
+
+    /* Logic Groups with Blueprint Left Border Guides */
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .filter-group.level-0 {
+      border-left: 2px solid var(--bp-blue);
+      padding-left: 6px;
+    }
+    .filter-group.level-1 {
+      border-left: 2px solid var(--bp-orange);
+      margin-left: 18px;
+      padding: 4px 6px;
+      background: rgba(217, 130, 43, 0.04);
+      border-top: 1px solid var(--bp-border-subtle);
+      border-right: 1px solid var(--bp-border-subtle);
+      border-bottom: 1px solid var(--bp-border-subtle);
+      border-radius: 0 3px 3px 0;
+    }
+
+    .group-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 22px;
+      gap: 6px;
+    }
+    .group-logic-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bp-select {
+      height: 22px;
+      background: var(--bp-input-bg);
+      border: 1px solid rgba(16, 22, 26, 0.5);
+      color: var(--bp-text-main);
+      font-family: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 0 6px;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    .bp-select:focus {
+      border-color: var(--bp-blue);
+      box-shadow: 0 0 0 1px var(--bp-blue);
+    }
+    .logic-select {
+      font-weight: 700;
+      color: var(--bp-blue);
+    }
+    .logic-select.or {
+      color: var(--bp-orange);
+    }
+    .group-title-label {
+      font-size: 10px;
+      color: var(--bp-text-dim);
+      font-weight: 500;
+    }
+
+    /* Individual Filter Row (Pure UX: 24px Height) */
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 24px;
+      padding: 0 4px;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 2px;
+      transition: all 0.12s ease;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    .filter-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--bp-border-color);
+    }
+    .filter-row.is-selected {
+      background: rgba(255, 255, 255, 0.08) !important;
+      border-color: #8a9ba8 !important;
+      box-shadow: inset 0 0 0 1px #8a9ba8 !important;
+    }
+
+    .row-handle {
+      color: var(--bp-text-dim);
+      font-size: 12px;
+      cursor: grab;
+      padding: 0 2px;
+      user-select: none;
+    }
+    .row-handle:hover {
+      color: var(--bp-blue);
+    }
+
+    /* Column Widths & Inputs */
+    .col-field {
+      flex: 0 0 180px;
+    }
+    .col-op {
+      flex: 0 0 100px;
+    }
+    .col-val {
+      flex: 1;
+      min-width: 160px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      background: var(--bp-input-bg);
+      border: 1px solid rgba(16, 22, 26, 0.5);
+      border-radius: 2px;
+      padding: 0 6px;
+    }
+    .col-val:focus-within {
+      border-color: var(--bp-blue);
+      box-shadow: 0 0 0 1px var(--bp-blue);
+    }
+    .bp-input {
+      background: transparent;
+      border: none;
+      color: var(--bp-text-main);
+      font-family: inherit;
+      font-size: 11px;
+      width: 100%;
+      outline: none;
+    }
+    .bp-input::placeholder {
+      color: var(--bp-text-dim);
+    }
+
+    /* Multi-tag Pills for IN Operator (Blueprint .bp4-tag Style) */
+    .pill-container {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      width: 100%;
+    }
+    .pill-container::-webkit-scrollbar {
+      display: none;
+    }
+    .bp-tag {
+      background: #134563;
+      border: 1px solid #106ba3;
+      color: #8abbff;
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 0 4px;
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+      height: 16px;
+    }
+    .bp-tag-remove {
+      cursor: pointer;
+      color: #8a9ba8;
+      font-size: 11px;
+    }
+    .bp-tag-remove:hover {
+      color: var(--bp-red);
+    }
+
+    /* Row Sequential Movement Buttons */
+    .row-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: auto;
+    }
+    .btn-row-action {
+      background: #293742;
+      border: 1px solid var(--bp-border-color);
+      color: var(--bp-text-muted);
+      font-size: 9px;
+      width: 18px;
+      height: 18px;
+      border-radius: 2px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .btn-row-action:hover {
+      background: #394b59;
+      color: #fff;
+      border-color: #8a9ba8;
+    }
+    .btn-row-action.jump {
+      color: #a7b6c2;
+      font-weight: 700;
+    }
+    .btn-row-action.delete:hover {
+      background: var(--bp-red-dark);
+      border-color: var(--bp-red);
+      color: #fff;
+    }
+
+    /* Bottom SQL Preview Bar (Height: 26px) */
+    .filter-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 8px;
+      background: #182026;
+      border-top: 1px solid var(--bp-border-color);
+      min-height: 26px;
+      font-size: 11px;
+    }
+    .sql-preview-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      flex: 1;
+      margin-right: 8px;
+    }
+    .sql-label {
+      font-weight: 700;
+      color: var(--bp-text-dim);
+      font-size: 10px;
+    }
+    .sql-code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--bp-blue);
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .filter-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 10.5px;
+      color: var(--bp-text-dim);
+      flex-shrink: 0;
+    }
+    .stat-matched {
+      color: var(--bp-green);
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    /* Raw SQL Editor View */
+    .raw-sql-pane {
+      display: none;
+      padding: 6px 8px;
+      background: #182026;
+    }
+    .raw-textarea {
+      width: 100%;
+      height: 70px;
+      background: var(--bp-input-bg);
+      border: 1px solid var(--bp-border-color);
+      border-radius: 2px;
+      color: var(--bp-blue);
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      padding: 4px 6px;
+      resize: none;
+      outline: none;
+    }
+    .raw-textarea:focus {
+      border-color: var(--bp-blue);
+    }
+
+    /* ========================================================
+       SIMULATED SLICKGRID DATA TABLE (Preserves >80% Screen)
+       ======================================================== */
+    .data-grid-section {
+      background: var(--bp-pane-bg);
+      border: 1px solid var(--bp-border-color);
+      border-radius: 3px;
+      padding: 6px 8px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .grid-meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--bp-text-muted);
+    }
+    .slick-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .slick-table th {
+      text-align: left;
+      padding: 4px 6px;
+      background: var(--bp-panel-header);
+      color: var(--bp-text-muted);
+      border-bottom: 1px solid var(--bp-border-color);
+      font-weight: 600;
+      font-size: 10.5px;
+    }
+    .slick-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--bp-border-color);
+      color: var(--bp-text-main);
+    }
+    .slick-table tr:nth-child(even) {
+      background: rgba(0, 0, 0, 0.15);
+    }
+    .slick-table tr:hover {
+      background: rgba(72, 175, 240, 0.06);
+    }
+    .match-highlight {
+      color: var(--bp-blue);
+      font-weight: 600;
+    }
+
+    /* Toast */
+    .toast-popup {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: #202b33;
+      border: 1px solid var(--bp-blue);
+      border-radius: 3px;
+      color: var(--bp-text-main);
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transform: translateY(6px);
+      transition: all 0.15s ease;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    .toast-popup.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Title Bar -->
+  <div class="app-header">
+    <div class="app-title-group">
+      <span class="app-title">Tad Filter Builder</span>
+      <span class="app-badge">Pure UX • Blueprint v4</span>
+    </div>
+    <div class="app-meta-desc">
+      Ultra-Dense ~140px Footprint &bull; Sequential Keyboard Navigation [↑/↓] &bull; DuckDB In-Memory Engine
+    </div>
+  </div>
+
+  <!-- ========================================================
+       COMPACT FILTER ENGINE (~140px Height)
+       ======================================================== -->
+  <div class="filter-card">
+
+    <!-- 1. Toolbar (32px) -->
+    <div class="filter-toolbar">
+      <div class="toolbar-left">
+        <!-- View Mode Switcher -->
+        <button class="bp-btn active" id="btnModeTree" onclick="switchMode('tree')">Tree View</button>
+        <button class="bp-btn minimal" id="btnModeRaw" onclick="switchMode('raw')">Raw SQL</button>
+
+        <!-- Presets -->
+        <span class="presets-label">Presets:</span>
+        <button class="bp-btn minimal" onclick="applyPreset('proc')" title="Process Creation EID 1">Sysmon EID 1</button>
+        <button class="bp-btn minimal" onclick="applyPreset('net')" title="Network Beacon EID 3">Network EID 3</button>
+        <button class="bp-btn minimal" onclick="applyPreset('psexec')" title="PsExec Lateral Movement">PsExec Lateral</button>
+
+        <!-- Active Block Controller Dock -->
+        <div class="active-nav-dock" id="navDock" style="display: none;">
+          <span class="active-nav-label">Selected:</span>
+          <span class="active-nav-item" id="navItemTitle">Channel</span>
+          <span class="active-nav-hint">Keys: <strong>↑ / ↓</strong></span>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <button class="bp-btn minimal" onclick="clearRules()">Clear</button>
+        <button class="bp-btn primary" onclick="runFilter()">Apply</button>
+      </div>
+    </div>
+
+    <!-- 2. Tree Scroll Pane (Height: ~105px) -->
+    <div class="filter-tree-pane" id="treePane">
+      <!-- Root Logic Group (AND) -->
+      <div class="filter-group level-0" id="rootGroup">
+        <div class="group-header">
+          <div class="group-logic-wrap">
+            <select class="bp-select logic-select" id="rootLogic" onchange="updateSql()">
+              <option value="AND" selected>AND</option>
+              <option value="OR">OR</option>
+            </select>
+            <span class="group-title-label">Root Filter Block</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button class="bp-btn minimal" onclick="addCondition('rootGroup')">+ Condition</button>
+            <button class="bp-btn minimal" onclick="addSubgroup('rootGroup')">+ Subgroup</button>
+          </div>
+        </div>
+
+        <div class="group-children" id="rootChildren" style="display: flex; flex-direction: column; gap: 3px;">
+          <!-- Condition 1: Channel -->
+          <div class="filter-row" id="row-1" onclick="handleRowClick(this, event)">
+            <span class="row-handle" title="Drag or click to select">⋮⋮</span>
+            <div class="col-field">
+              <select class="bp-select" style="width: 100%;" onchange="updateSql()">
+                <option value="Channel" selected>Channel</option>
+                <option value="EventID">EventID</option>
+                <option value="TimeCreated">TimeCreated</option>
+                <option value="Computer">Computer</option>
+                <option value="CommandLine">CommandLine</option>
+                <option value="RuleName">RuleName</option>
+              </select>
+            </div>
+            <div class="col-op">
+              <select class="bp-select" style="width: 100%;" onchange="handleOpChange(this, 'row-1')">
+                <option value="=" selected>=</option>
+                <option value="!=">!=</option>
+                <option value="IN">IN (List)</option>
+                <option value="CONTAINS">contains</option>
+                <option value="ILIKE">ilike</option>
+              </select>
+            </div>
+            <div class="col-val">
+              <input type="text" class="bp-input" value="Microsoft-Windows-Sysmon/Operational" oninput="updateSql()" placeholder="Enter value...">
+            </div>
+            <div class="row-actions">
+              <button class="btn-row-action delete" onclick="deleteRow('row-1')" title="Delete Condition">&times;</button>
+            </div>
+          </div>
+
+          <!-- Nested Subgroup Level 1 (OR) -->
+          <div class="filter-group level-1" id="subgroup-1">
+            <div class="group-header">
+              <div class="group-logic-wrap">
+                <select class="bp-select logic-select or" onchange="updateSql()">
+                  <option value="OR" selected>OR</option>
+                  <option value="AND">AND</option>
+                </select>
+                <span class="group-title-label">EventID Subgroup</span>
+              </div>
+              <div style="display: flex; gap: 4px;">
+                <button class="bp-btn minimal" onclick="addCondition('subgroup-1')">+ Condition</button>
+                <button class="btn-row-action delete" onclick="deleteGroup('subgroup-1')" title="Delete Subgroup">&times;</button>
+              </div>
+            </div>
+
+            <div class="group-children" style="display: flex; flex-direction: column; gap: 3px;">
+              <!-- Condition 2: EventID with IN tags -->
+              <div class="filter-row" id="row-2" onclick="handleRowClick(this, event)">
+                <span class="row-handle">⋮⋮</span>
+                <div class="col-field">
+                  <select class="bp-select" style="width: 100%;" onchange="updateSql()">
+                    <option value="EventID" selected>EventID</option>
+                    <option value="Channel">Channel</option>
+                    <option value="CommandLine">CommandLine</option>
+                  </select>
+                </div>
+                <div class="col-op">
+                  <select class="bp-select" style="width: 100%;" onchange="handleOpChange(this, 'row-2')">
+                    <option value="IN" selected>IN (List)</option>
+                    <option value="=">=</option>
+                    <option value="!=">!=</option>
+                  </select>
+                </div>
+                <div class="col-val">
+                  <div class="pill-container" id="pillbox-row-2">
+                    <span class="bp-tag">1 <span class="bp-tag-remove" onclick="this.parentElement.remove(); updateSql();">&times;</span></span>
+                    <span class="bp-tag">3 <span class="bp-tag-remove" onclick="this.parentElement.remove(); updateSql();">&times;</span></span>
+                    <span class="bp-tag">11 <span class="bp-tag-remove" onclick="this.parentElement.remove(); updateSql();">&times;</span></span>
+                    <input type="text" class="bp-input" style="min-width: 65px;" placeholder="+ Type / Paste..." onkeydown="handlePillInput(event, 'pillbox-row-2')">
+                  </div>
+                </div>
+                <div class="row-actions">
+                  <button class="btn-row-action delete" onclick="deleteRow('row-2')" title="Delete Condition">&times;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Raw SQL View Pane -->
+    <div class="raw-sql-pane" id="rawPane">
+      <textarea class="raw-textarea" id="rawTextarea" oninput="handleRawInput()" placeholder="Enter raw SQL WHERE predicate..."></textarea>
+    </div>
+
+    <!-- 4. Footer & Live SQL Preview (26px) -->
+    <div class="filter-footer">
+      <div class="sql-preview-wrap">
+        <span class="sql-label">SQL:</span>
+        <span class="sql-code" id="sqlOutput">WHERE "Channel" = 'Microsoft-Windows-Sysmon/Operational' AND ("EventID" IN (1, 3, 11))</span>
+        <button class="bp-btn minimal" style="height: 18px; font-size: 10px; padding: 0 4px;" onclick="copySql()">Copy</button>
+      </div>
+      <div class="filter-stats">
+        <span>Matched: <span class="stat-matched" id="statMatch">565</span> / 24,510 rows</span>
+        <span>Latency: <strong style="color: var(--bp-text-main);">1.2ms</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================
+       GRID PREVIEW (Remaining 80% screen space)
+       ======================================================== -->
+  <div class="data-grid-section">
+    <div class="grid-meta-bar">
+      <span><strong>Data Table Preview</strong> (SlickGrid Columnar Density)</span>
+      <span style="color: var(--bp-blue);">DuckDB In-Memory Parquet</span>
+    </div>
+    <table class="slick-table">
+      <thead>
+        <tr>
+          <th>RecordID</th>
+          <th>EventID</th>
+          <th>TimeCreated</th>
+          <th>Provider</th>
+          <th>Channel</th>
+          <th>Computer</th>
+          <th>RuleName</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>4124</td>
+          <td><span class="match-highlight">1</span></td>
+          <td>2019-07-19 22:11:26.642Z</td>
+          <td>Microsoft-Windows-Sysmon</td>
+          <td><span class="match-highlight">Microsoft-Windows-Sysmon/Operational</span></td>
+          <td>MSEDGEWIN10</td>
+          <td>Suspicious NetCon</td>
+        </tr>
+        <tr>
+          <td>4123</td>
+          <td><span class="match-highlight">1</span></td>
+          <td>2019-07-19 22:11:26.549Z</td>
+          <td>Microsoft-Windows-Sysmon</td>
+          <td><span class="match-highlight">Microsoft-Windows-Sysmon/Operational</span></td>
+          <td>MSEDGEWIN10</td>
+          <td>-</td>
+        </tr>
+        <tr>
+          <td>4112</td>
+          <td><span class="match-highlight">3</span></td>
+          <td>2019-07-19 22:11:16.487Z</td>
+          <td>Microsoft-Windows-Sysmon</td>
+          <td><span class="match-highlight">Microsoft-Windows-Sysmon/Operational</span></td>
+          <td>MSEDGEWIN10</td>
+          <td>Network Connect</td>
+        </tr>
+        <tr>
+          <td>4109</td>
+          <td><span class="match-highlight">11</span></td>
+          <td>2019-07-19 22:10:52.700Z</td>
+          <td>Microsoft-Windows-Sysmon</td>
+          <td><span class="match-highlight">Microsoft-Windows-Sysmon/Operational</span></td>
+          <td>MSEDGEWIN10</td>
+          <td>FileCreate Executable</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pure UX Toast -->
+  <div class="toast-popup" id="toastBox">Action feedback</div>
+
+  <script>
+    let counter = 10;
+    let selectedRow = null;
+    let toastTimeout = null;
+
+    function showToast(msg) {
+      const toast = document.getElementById('toastBox');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('show');
+      }, 1600);
+    }
+
+    function selectRow(el) {
+      if (!el) return;
+      document.querySelectorAll('.filter-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+      el.classList.add('is-selected');
+      selectedRow = el;
+
+      const dock = document.getElementById('navDock');
+      const title = document.getElementById('navItemTitle');
+      if (dock && title) {
+        dock.style.display = 'inline-flex';
+        const field = el.querySelector('.col-field select')?.value || 'Field';
+        const op = el.querySelector('.col-op select')?.value || '=';
+        const tags = Array.from(el.querySelectorAll('.bp-tag')).map(t => t.textContent.replace('×', '').trim());
+        const val = tags.length > 0 ? tags.join(', ') : (el.querySelector('.bp-input')?.value || '');
+        title.textContent = `${field} ${op} ${val}`.slice(0, 26);
+      }
+    }
+
+    function handleRowClick(el, event) {
+      selectRow(el);
+    }
+
+    function moveSelected(dir) {
+      if (!selectedRow) {
+        const first = document.querySelector('.filter-row');
+        if (first) selectRow(first);
+      }
+      if (selectedRow) {
+        moveRow(selectedRow, dir);
+      }
+    }
+
+    function moveRow(el, dir, event) {
+      if (event) event.stopPropagation();
+      if (!el) return;
+
+      const fieldName = el.querySelector('.col-field select')?.value || 'Condition';
+
+      if (dir === 'down') {
+        const next = el.nextElementSibling;
+        if (next) {
+          if (next.classList.contains('filter-group')) {
+            // Next is group -> Jump INTO group as first child!
+            const targetList = next.querySelector('.group-children');
+            if (targetList) {
+              targetList.prepend(el);
+              showToast(`Moved: [${fieldName}] jumped into child subgroup (OR)`);
+            }
+          } else {
+            next.after(el);
+            showToast(`Moved: [${fieldName}] moved down`);
+          }
+        } else {
+          // Bottom of container -> Jump OUT to parent
+          const parentGroup = el.closest('.filter-group');
+          if (parentGroup && !parentGroup.classList.contains('level-0')) {
+            parentGroup.after(el);
+            showToast(`Moved: [${fieldName}] jumped out to Root (AND)`);
+          } else {
+            showToast(`[${fieldName}] is already at the bottom`);
+          }
+        }
+      } else if (dir === 'up') {
+        const prev = el.previousElementSibling;
+        if (prev) {
+          if (prev.classList.contains('filter-group')) {
+            // Prev is group -> Jump INTO group as last child!
+            const targetList = prev.querySelector('.group-children');
+            if (targetList) {
+              targetList.appendChild(el);
+              showToast(`Moved: [${fieldName}] jumped into child subgroup (OR)`);
+            }
+          } else {
+            prev.before(el);
+            showToast(`Moved: [${fieldName}] moved up`);
+          }
+        } else {
+          // Top of container -> Jump OUT before parent
+          const parentGroup = el.closest('.filter-group');
+          if (parentGroup && !parentGroup.classList.contains('level-0')) {
+            parentGroup.before(el);
+            showToast(`Moved: [${fieldName}] jumped out to Root (AND)`);
+          } else {
+            showToast(`[${fieldName}] is already at the top`);
+          }
+        }
+      } else if (dir === 'indent') {
+        const prevGroup = el.previousElementSibling?.classList.contains('filter-group') ? el.previousElementSibling : null;
+        const nextGroup = el.nextElementSibling?.classList.contains('filter-group') ? el.nextElementSibling : null;
+        const target = prevGroup || nextGroup;
+        if (target) {
+          const list = target.querySelector('.group-children');
+          if (list) {
+            list.appendChild(el);
+            showToast(`Indented: [${fieldName}] into subgroup`);
+          }
+        } else {
+          showToast('No adjacent subgroup to indent into');
+        }
+      } else if (dir === 'outdent') {
+        const parentGroup = el.closest('.filter-group');
+        if (parentGroup && !parentGroup.classList.contains('level-0')) {
+          parentGroup.after(el);
+          showToast(`Outdented: [${fieldName}] to parent`);
+        } else {
+          showToast('Already at root level');
+        }
+      }
+
+      selectRow(el);
+      updateSql();
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Keyboard Arrow Navigation
+    window.addEventListener('keydown', (e) => {
+      if (!selectedRow) return;
+      const isInput = document.activeElement && 
+        (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA');
+
+      if (e.key === 'ArrowDown') {
+        if (!isInput || e.altKey) {
+          e.preventDefault();
+          moveRow(selectedRow, 'down');
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (!isInput || e.altKey) {
+          e.preventDefault();
+          moveRow(selectedRow, 'up');
+        }
+      } else if (e.key === 'Escape') {
+        document.querySelectorAll('.filter-row.is-selected').forEach(r => r.classList.remove('is-selected'));
+        selectedRow = null;
+        const dock = document.getElementById('navDock');
+        if (dock) dock.style.display = 'none';
+      }
+    });
+
+    function switchMode(mode) {
+      const btnTree = document.getElementById('btnModeTree');
+      const btnRaw = document.getElementById('btnModeRaw');
+      const treePane = document.getElementById('treePane');
+      const rawPane = document.getElementById('rawPane');
+
+      if (mode === 'tree') {
+        btnTree.className = 'bp-btn active';
+        btnRaw.className = 'bp-btn minimal';
+        treePane.style.display = 'flex';
+        rawPane.style.display = 'none';
+      } else {
+        btnRaw.className = 'bp-btn active';
+        btnTree.className = 'bp-btn minimal';
+        treePane.style.display = 'none';
+        rawPane.style.display = 'block';
+        document.getElementById('rawTextarea').value = document.getElementById('sqlOutput').textContent.replace('WHERE ', '');
+      }
+    }
+
+    function handlePillInput(e, boxId) {
+      if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        const val = e.target.value.trim().replace(',', '');
+        if (val) {
+          const container = document.getElementById(boxId);
+          const tag = document.createElement('span');
+          tag.className = 'bp-tag';
+          tag.innerHTML = `${val} <span class="bp-tag-remove" onclick="this.parentElement.remove(); updateSql();">&times;</span>`;
+          container.insertBefore(tag, e.target);
+          e.target.value = '';
+          updateSql();
+        }
+      }
+    }
+
+    function addCondition(targetGroupId) {
+      counter++;
+      const id = `row-${counter}`;
+      const row = document.createElement('div');
+      row.className = 'filter-row';
+      row.id = id;
+      row.onclick = (e) => handleRowClick(row, e);
+      row.innerHTML = `
+        <span class="row-handle">⋮⋮</span>
+        <div class="col-field">
+          <select class="bp-select" style="width: 100%;" onchange="updateSql()">
+            <option value="CommandLine">CommandLine</option>
+            <option value="Channel">Channel</option>
+            <option value="EventID">EventID</option>
+            <option value="Computer">Computer</option>
+          </select>
+        </div>
+        <div class="col-op">
+          <select class="bp-select" style="width: 100%;" onchange="handleOpChange(this, '${id}')">
+            <option value="=">=</option>
+            <option value="CONTAINS" selected>contains</option>
+            <option value="IN">IN (List)</option>
+          </select>
+        </div>
+        <div class="col-val">
+          <input type="text" class="bp-input" value="powershell -enc" oninput="updateSql()" placeholder="Value...">
+        </div>
+        <div class="row-actions">
+          <button class="btn-row-action delete" onclick="deleteRow('${id}')" title="Delete Condition">&times;</button>
+        </div>
+      `;
+      const targetContainer = targetGroupId === 'rootGroup' 
+        ? document.getElementById('rootChildren') 
+        : document.querySelector(`#${targetGroupId} .group-children`);
+      targetContainer.appendChild(row);
+      selectRow(row);
+      updateSql();
+    }
+
+    function addSubgroup(targetGroupId) {
+      counter++;
+      const id = `subgroup-${counter}`;
+      const group = document.createElement('div');
+      group.className = 'filter-group level-1';
+      group.id = id;
+      group.innerHTML = `
+        <div class="group-header">
+          <div class="group-logic-wrap">
+            <select class="bp-select logic-select or" onchange="updateSql()">
+              <option value="OR" selected>OR</option>
+              <option value="AND">AND</option>
+            </select>
+            <span class="group-title-label">Subgroup</span>
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button class="bp-btn minimal" onclick="addCondition('${id}')">+ Condition</button>
+            <button class="btn-row-action delete" onclick="deleteGroup('${id}')" title="Delete Subgroup">&times;</button>
+          </div>
+        </div>
+        <div class="group-children" style="display: flex; flex-direction: column; gap: 3px;"></div>
+      `;
+      document.getElementById('rootChildren').appendChild(group);
+      addCondition(id);
+    }
+
+    function deleteRow(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        if (selectedRow === el) {
+          selectedRow = null;
+          const dock = document.getElementById('navDock');
+          if (dock) dock.style.display = 'none';
+        }
+        el.remove();
+      }
+      updateSql();
+    }
+
+    function deleteGroup(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+      updateSql();
+    }
+
+    function clearRules() {
+      document.getElementById('rootChildren').innerHTML = '';
+      addCondition('rootGroup');
+      updateSql();
+    }
+
+    function handleOpChange(selectEl, rowId) {
+      const row = document.getElementById(rowId);
+      const valCol = row.querySelector('.col-val');
+      if (selectEl.value === 'IN') {
+        valCol.innerHTML = `
+          <div class="pill-container" id="pillbox-${rowId}">
+            <input type="text" class="bp-input" placeholder="Type or paste values..." onkeydown="handlePillInput(event, 'pillbox-${rowId}')">
+          </div>
+        `;
+      } else {
+        valCol.innerHTML = `<input type="text" class="bp-input" placeholder="Enter value..." oninput="updateSql()">`;
+      }
+      updateSql();
+    }
+
+    function applyPreset(type) {
+      if (type === 'proc') {
+        document.getElementById('rawTextarea').value = `"Channel" = 'Microsoft-Windows-Sysmon/Operational' AND "EventID" = 1`;
+      } else if (type === 'net') {
+        document.getElementById('rawTextarea').value = `"EventID" = 3 AND ("DestinationPort" IN (4444, 1337, 8080) OR "RuleName" ILIKE '%Beacon%')`;
+      } else if (type === 'psexec') {
+        document.getElementById('rawTextarea').value = `("EventID" = 7045 AND "ImagePath" ILIKE '%PSEXESVC%') OR "Channel" = 'Security' AND "EventID" = 4624`;
+      }
+      document.getElementById('sqlOutput').textContent = `WHERE ` + document.getElementById('rawTextarea').value;
+      runFilter();
+    }
+
+    function generateGroupSql(groupEl) {
+      const logic = groupEl.querySelector(':scope > .group-header .logic-select')?.value || 'AND';
+      const wrapper = groupEl.querySelector(':scope > .group-children');
+      if (!wrapper) return '';
+
+      const parts = [];
+      for (const child of wrapper.children) {
+        if (child.classList.contains('filter-row')) {
+          const col = child.querySelector('.col-field select')?.value || 'Column';
+          const op = child.querySelector('.col-op select')?.value || '=';
+          const pills = Array.from(child.querySelectorAll('.bp-tag')).map(p => p.textContent.replace('×', '').trim());
+          let val = '';
+          if (pills.length > 0) {
+            val = `(${pills.join(', ')})`;
+          } else {
+            const inputVal = child.querySelector('.bp-input')?.value || '';
+            val = `'${inputVal}'`;
+          }
+          parts.push(`"${col}" ${op} ${val}`);
+        } else if (child.classList.contains('filter-group')) {
+          const sub = generateGroupSql(child);
+          if (sub) {
+            parts.push(`(${sub})`);
+          }
+        }
+      }
+      return parts.join(` ${logic} `);
+    }
+
+    function updateSql() {
+      const root = document.getElementById('rootGroup');
+      let body = '';
+      if (root) {
+        body = generateGroupSql(root);
+      }
+      const sql = body ? `WHERE ${body}` : `(No active filter)`;
+      document.getElementById('sqlOutput').textContent = sql;
+      document.getElementById('rawTextarea').value = body;
+    }
+
+    function handleRawInput() {
+      const raw = document.getElementById('rawTextarea').value;
+      document.getElementById('sqlOutput').textContent = `WHERE ` + raw;
+    }
+
+    function runFilter() {
+      const match = document.getElementById('statMatch');
+      match.textContent = 'Filtering...';
+      setTimeout(() => {
+        match.textContent = Math.floor(Math.random() * 450 + 110);
+      }, 100);
+    }
+
+    function copySql() {
+      const sql = document.getElementById('sqlOutput').textContent;
+      navigator.clipboard.writeText(sql);
+      alert('Copied SQL to clipboard:\n' + sql);
+    }
+
+    // Initialize: Select row 1
+    const firstRow = document.getElementById('row-1');
+    if (firstRow) selectRow(firstRow);
+    updateSql();
+  </script>
+</body>
+</html>
