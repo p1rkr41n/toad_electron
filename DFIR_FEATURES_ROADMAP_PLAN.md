@@ -1,11 +1,11 @@
 # KẾ HOẠCH NÂNG CẤP VÀ PHÁT TRIỂN HỆ THỐNG TOAD (DFIR LOG ANALYSIS TOOL)
-> **Phiên bản hiện tại:** v1.3.3 (Filter Builder & Grid Unification)  
+> **Phiên bản hiện tại:** v1.3.7.4 (Native I/O Ingest Tracking & Anti-Overthinking)  
+> **Phiên bản kế hoạch tiếp theo:** v1.3.7.5 (SQL Escape Syntax Guard, Freeze Expand Column, Smart Vertical Arrow Navigation)  
+> **Tài liệu chi tiết:** Xem [releases/PLAN_AND_TEST_CASES_v1.3.7.5.md](file:///d:/Shared_UserData/Downloads/tad/releases/PLAN_AND_TEST_CASES_v1.3.7.5.md)  
 > **Trạng thái thực hiện:**
-> - ✅ **Phase 1 (v1.3.0 - Speed & Pivot)**: Hoàn thành, đóng gói binary `toad_v1.3.0_portable.exe` & QA Test 11/11 Passed.
-> - ✅ **Phase 2 (v1.3.1 - Forensic Deep-Dive)**: Hoàn thành, đóng gói binary `toad_v1.3.1_portable.exe` & `Toad.exe` (92.18 MB) & QA Test 20/20 Passed.
-> - ✅ **Bản vá ổn định (v1.3.2 - Filter & IPC Fix)**: Sửa triệt để lỗi IPC deserialization `subExp.toSqlWhere is not a function` khi dùng Omnisearch và Right-Click Filter; tích hợp hệ thống kiểm soát phiên bản **Jujutsu (`jj`)** local cho dự án.
-> - ✅ **Bản chuẩn hóa (v1.3.3 - Filter Unification)**: Loại bỏ Omnisearch toolbar (tránh lỗi xung đột cột ảo `Rec` trên DuckDB); đồng nhất 100% bộ lọc chuột phải trên ô lưới với panel Filter Builder bên dưới; gán phím tắt `Ctrl+F` mở Filter Builder; toàn bộ mã nguồn được version control bằng Jujutsu (`jj`).
-> - 🛑 **Phạm vi hoàn tất:** Đã hoàn thiện và chuẩn hóa trọn vẹn 4 tính năng đầu tiên theo chỉ đạo của người dùng. Các tính năng từ Severity trở đi được giữ nguyên/không làm theo yêu cầu.
+> - ✅ **v1.3.0 -> v1.3.7.3**: Hoàn thành các tính năng Right-click Pivot, Filter Builder, Decoders, Hover-to-Sort, Distinct Suggestions.
+> - ✅ **v1.3.7.4**: Hoàn thành Resizable File Sidebar, Windows Backslash Path Search, Native Process Disk Read I/O Ingest Tracking (-10% scaling), 29/29 QA Test Cases Passed.
+> - 🚀 **v1.3.7.5 (Đang lập kế hoạch & Sẵn sàng triển khai)**: Sửa triệt để lỗi DuckDB `Invalid escape string`, Cố định cột Expand (`frozenColumn`), Chuẩn hóa điều hướng phím mũi tên thẳng đứng và đồng bộ Event Details.
 
 ---
 
