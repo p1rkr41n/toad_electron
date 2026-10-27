@@ -19,6 +19,12 @@ Phiên bản **Toad v1.3.7.4** là bản cập nhật hoàn thiện trải nghi�
      - Tối ưu hóa truy vấn gợi ý giá trị trong `distinctCache.ts` sang cơ chế lấy mẫu siêu tốc (<15ms): `SELECT DISTINCT val FROM (SELECT col FROM table LIMIT 30000) GROUP BY val ORDER BY val ASC LIMIT 300`, loại bỏ hoàn toàn độ trễ khi nạp gợi ý trên tệp lớn.
      - Cập nhật `MultiTagPillInput` (cho `IN` và `NOT IN`): Khi click vào bất kỳ giá trị nào trong menu gợi ý, giá trị đó lập tức được đóng gói thành thẻ pill hoàn chỉnh và lưu vào cây lọc.
      - Bổ sung `SingleValueSuggestInput` với menu thả xuống tương tác cho các toán tử so sánh đơn (`=`, `!=`, `<`, `>`, `contains`), click vào mục gợi ý sẽ tự động điền giá trị tức thì vào ô lọc.
+5. **Theo dõi Tiến trình Đọc Ổ đĩa Tiến trình (Native Process Disk Read I/O Ingest Tracking & Anti-Overthinking 10% Cushion)**:
+   - *Vấn đề*: Trước đây tiến trình nạp tệp dựa trên việc đo dung lượng file Parquet nén ghi xuống đĩa. Do Parquet ghi đệm theo Row Group (50MB-100MB trong RAM rồi mới flush một lần), tốc độ hiển thị thường xuyên bị nhảy về `0.0 MB/s`, và tỷ lệ % nén ước tính không phản ánh đúng lượng dữ liệu input đã đọc.
+   - *Giải pháp*: 
+     - Tích hợp công cụ `toad-core` với lệnh `watch-io` gọi trực tiếp Windows Win32 API `GetProcessIoCounters` (lấy `ReadTransferCount` của tiến trình). Chạy độc lập hoàn toàn ở luồng phụ, không cần quyền Administrator, không tốn CPU (< 0.001ms) và không ảnh hưởng đến băng thông đĩa.
+     - Đo trực tiếp số byte thực tế của tệp input đã được DuckDB đọc vào bộ nhớ mỗi 1 giây.
+     - **Cơ chế chống Overthinking (-10% scaling)**: Tiến trình đọc tệp input được co giãn tỷ lệ từ $0\% \to 90\%$. Dành $10\%$ cuối cùng ($90\% \to 99\%$) cho giai đoạn DuckDB nén nốt footer, đóng file và mở Virtual SQL View. Tránh hoàn toàn hiện tượng thanh tiến trình vọt lên 100% nhưng ứng dụng vẫn mất 2-3 giây để mở bảng khiến người dùng lầm tưởng phần mềm bị đơ/treo.
 
 ---
 
@@ -31,6 +37,7 @@ Phiên bản **Toad v1.3.7.4** là bản cập nhật hoàn thiện trải nghi�
 | **BA-02** | Chuyên viên cần rà soát nhanh hàng trăm dòng log liên tiếp (Triage workflow) trong thanh Event Details. | Điều hướng lên/xuống giữa các sự kiện bằng bàn phím (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>) mà không cần click chuột. | - Khi Event Details mở, bấm <kbd>&darr;</kbd> xem dòng kế tiếp, bấm <kbd>&uarr;</kbd> xem dòng trước đó.<br>- Độ trễ cập nhật < 5ms, không giật màn hình.<br>- Ô đang chọn trong bảng chính di chuyển theo và tự cuộn vào khung nhìn.<br>- Không bị mất tiêu điểm khi thao tác liên tục. |
 | **BA-03** | Tìm kiếm mã độc hoặc tiến trình hệ thống qua đường dẫn tệp Windows (`C:\Windows\System32\cmd.exe` hoặc `\\10.0.0.1\share`). | Bộ lọc DuckDB và tìm kiếm OmniSearch phải khớp chính xác đường dẫn chứa dấu `\` hoặc `\\`. | - Gõ `C:\Windows\System32` khớp tất cả dòng chứa đường dẫn này.<br>- Khớp chuẩn kể cả khi đường dẫn nằm trong chuỗi JSON (`OSPath`).<br>- Không bị lỗi cú pháp DuckDB `ESCAPE` làm mất dấu `\`. |
 | **BA-04** | Người dùng muốn chọn nhanh giá trị phân loại (ví dụ EventID, Image, User) từ danh sách gợi ý mà không phải gõ tay. | Bấm vào gợi ý sẽ lập tức điền giá trị vào ô lọc (với toán tử đơn) hoặc tạo thẻ pill (với `IN`/`NOT IN`). | - Menu gợi ý xuất hiện khi click vào ô nhập giá trị.<br>- Click chọn giá trị: tự động gán vào bộ lọc ngay tức khắc.<br>- Với `IN`/`NOT IN`: click vào gợi ý lập tức thêm thẻ pill mà không cần nhấn phím Enter. |
+| **BA-05** | Người dùng mở các tệp cực lớn (40GB) cần nắm bắt chính xác tiến trình đọc tệp của ổ đĩa theo thời gian thực mà không bị hoang mang (overthinking) khi phần mềm hoàn tất nạp. | Đo tốc độ đọc đĩa thực tế của tiến trình chuyển đổi mỗi 1s; tiến trình đọc chiếm 0% đến 90%, 10% còn lại dành cho giai đoạn finalize. | - Không đòi quyền Admin/UAC của Windows.<br>- Tốc độ đọc hiển thị liên tục (ví dụ: `125.4 MB/s`), không bị tụt về `0.0 MB/s`.<br>- Tiến trình hiển thị `Reading input: X GB / Y GB` mượt mà.<br>- Chuyển sang `Finalizing Parquet index & loading dataset...` ở 90% và hoàn tất 100% khi mở bảng. |
 
 ---
 
@@ -44,6 +51,7 @@ Phiên bản **Toad v1.3.7.4** là bản cập nhật hoàn thiện trải nghi�
 | **TC-404** | Suggestion Dropdown & Pill Fill | Mở bộ lọc cho một cột văn bản bất kỳ (ví dụ `EventID` hoặc `ProviderName`). | 1. Chọn toán tử `IN`.<br>2. Click vào ô nhập giá trị để mở menu gợi ý.<br>3. Click chuột vào một mục gợi ý bất kỳ. | Mục gợi ý được tự động thêm ngay thành một thẻ pill riêng biệt trong ô lọc. Bộ lọc chuyển sang trạng thái sẵn sàng áp dụng. | **PASSED** |
 | **TC-405** | Single Value Suggestion Fill | Mở bộ lọc với toán tử so sánh đơn (`=` hoặc `contains`). | 1. Click vào ô nhập giá trị.<br>2. Menu gợi ý hiện ra với các giá trị duy nhất.<br>3. Click chọn 1 giá trị. | Giá trị vừa chọn lập tức được điền vào ô văn bản và đồng bộ vào biểu thức lọc. | **PASSED** |
 | **TC-406** | Boundary Navigation & Input Protection | Đang mở Event Details và đang gõ chữ trong ô tìm kiếm của Sidebar. | 1. Gõ phím mũi tên Lên/Xuống khi đang trong ô Search của Event Details.<br>2. Đóng ô search, di chuyển mũi tên đến dòng đầu tiên (dòng 0) và bấm phím Lên. | Khi đang gõ chữ trong ô tìm kiếm, phím mũi tên chỉ di chuyển con trỏ văn bản, không làm đổi dòng sự kiện. Khi ở dòng 0 bấm phím Lên, ứng dụng không bị lỗi vượt biên mảng. | **PASSED** |
+| **TC-407** | Process Disk Read I/O Ingest Tracking | Nạp tệp mẫu lớn `sample_40gb.csv` và quan sát Hộp thoại Tiến trình. | 1. Bắt đầu nạp tệp.<br>2. Quan sát chỉ số tốc độ và thanh % tiến trình mỗi 1s.<br>3. Quan sát khi thanh tiến trình đạt ngưỡng 90%. | Tốc độ đọc phản ánh chính xác băng thông I/O thực tế (ví dụ: `Speed: 135.2 MB/s`), không bị gián đoạn về 0.0 MB/s. Tiến trình chạy êm từ 0% đến 90%, chuyển sang giai đoạn Finalizing và mở bảng ở 100%. | **PASSED** |
 
 ---
 
