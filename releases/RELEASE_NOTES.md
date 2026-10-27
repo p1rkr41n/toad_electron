@@ -1,11 +1,11 @@
-# TOAD v1.4.0 Release (Custom Big Data 40GB+ Parquet & Log Viewer Build)
+# TOAD v1.3.7 Release (Custom Big Data 40GB+ Parquet & Log Viewer Build)
 
-## 1. Giới thiệu phiên bản v1.4.0
-Phiên bản **Toad v1.4.0** là bước tiến đột phá về hiệu năng và trải nghiệm cho việc xử lý các tệp dữ liệu lớn (Big Data 40GB+ với hàng chục triệu dòng sự kiện). Bản cập nhật này chuẩn hóa toàn bộ luồng dữ liệu sang 100% Parquet Native Engine, giải quyết triệt để vấn đề tìm kiếm đường dẫn Windows, tự động nhận diện sắp xếp theo dòng thời gian sự kiện, nạp ngầm danh sách gợi ý giá trị bộ lọc có kiểm soát bộ nhớ, và thay thế cơ chế cuộn vô hạn giật lag bằng Động cơ Phân trang chuẩn 1.000 dòng với Bộ đệm trượt 5 trang (Sliding Buffer).
+## 1. Giới thiệu phiên bản v1.3.7
+Phiên bản **Toad v1.3.7** là bước tiến đột phá về hiệu năng và trải nghiệm cho việc xử lý các tệp dữ liệu lớn (Big Data 40GB+ với hàng chục triệu dòng sự kiện). Bản cập nhật này chuẩn hóa toàn bộ luồng dữ liệu sang 100% Parquet Native Engine, giải quyết triệt để vấn đề tìm kiếm đường dẫn Windows, tự động nhận diện sắp xếp theo dòng thời gian sự kiện, nạp ngầm danh sách gợi ý giá trị bộ lọc có kiểm soát bộ nhớ, và thay thế cơ chế cuộn vô hạn giật lag bằng Động cơ Phân trang chuẩn 1.000 dòng với Bộ đệm trượt 5 trang (Sliding Buffer).
 
 ---
 
-## 2. Các tính năng nâng cấp nổi bật trong v1.4.0
+## 2. Các tính năng nâng cấp nổi bật trong v1.3.7
 
 ### 2.1. Phân hệ 1: Ingestion & Parquet Engine $O(1)$ Row Count
 - **100% Parquet Native Engine**: Chuyển đổi toàn bộ luồng CSV/JSON sang Parquet Snappy nén tối ưu.

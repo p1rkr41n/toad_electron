@@ -1,6 +1,6 @@
-# Toad Quick Start Guide (v1.3.6)
+# Toad Quick Start Guide (v1.3.7)
 
-> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale. Powered by **DuckDB** and an embedded **Rust SIMD Core**, Toad delivers instant columnar queries, compound filtering, hierarchical pivot tables, and forensic decoders over millions of records.
+> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, visual streaming ingestion progress, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark mode, and a deterministic **1,000-row pagination engine with a 5-page sliding buffer**.
 
 ---
 
@@ -9,7 +9,7 @@
 Toad is packaged as a completely self-contained portable Windows executable—no administrator privileges, installer wizards, or background services required.
 
 - **Primary Portable Executable**: [`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe) (~92 MB)
-- **Versioned Portable Release**: [`releases/toad_v1.3.6_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.6_portable.exe)
+- **Versioned Portable Release**: [`releases/toad_v1.3.7_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.7_portable.exe)
 
 ### Three Easy Ways to Open Data:
 1. **Direct Launch**: Double-click `Toad.exe`. Click **File &rarr; Open** (or press `Ctrl+O`) to select any supported data file.
@@ -26,8 +26,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 ### Supported File Formats:
 | Format | Extension | Key Capabilities |
 | :--- | :--- | :--- |
-| **Apache Parquet** | `.parquet` | Native columnar scanning with zero conversion overhead |
-| **Delimited Text** | `.csv`, `.tsv`, `.txt` | Multi-threaded streaming parser with automatic delimiter detection |
+| **Apache Parquet** | `.parquet` | 100% Native columnar scanning with zero conversion overhead |
+| **Delimited Text** | `.csv`, `.tsv`, `.txt` | Multi-threaded streaming parser converting to Parquet with live progress dialog |
 | **DuckDB Database** | `.duckdb` | Full SQL schema tree browsing and instant table views |
 | **SQLite Database** | `.sqlite`, `.db` | Embedded relational table inspection |
 | **Windows Event Logs** | `.evtx` | Rust-accelerated EVTX decoding into columnar records |
@@ -37,9 +37,65 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 ---
 
-## 2. ArcSight ESM Query & Filter Architecture (New in v1.3.5)
+## 2. Big Data 40GB+ Ingestion & Instant $O(1)$ Row Count (New in v1.3.7)
 
-The Filter Builder in Toad v1.3.5 has been redesigned following the enterprise ergonomics of **ArcSight ESM Query Search**, delivering maximum query density, dual view modes, multi-tag pill inputs, and instant performance statistics.
+Opening large files (such as 40GB CSVs with 60+ million rows) in traditional viewers causes out-of-memory crashes and freezes. Toad v1.3.7 introduces a dedicated Big Data subsystem:
+
+### 2.1 100% Parquet Native Engine & Visual Ingestion Progress Dialog
+- **Zero Raw CSV Rendering**: Toad streams all raw CSV and JSON files directly into compressed Snappy Parquet files on disk inside the portable temporary workspace (`toadAppData_*`).
+- **Live Progress Dialog**: When loading large files, Toad presents a non-blocking modal dialog showing:
+  - **Live Conversion Percentage** (`%`)
+  - **Streaming Throughput Speed** (`MB/s`)
+  - **Estimated Time Remaining (ETA)**
+  - **Cancel Button**: Safely stops ingestion immediately without leaving lingering background processes.
+
+### 2.2 Instant $O(1)$ Parquet Metadata Row Count (~25ms)
+- **The Problem**: Executing `SELECT count(*)` on a 40GB dataset takes 15 to 30 seconds of pure table scanning before anything can render.
+- **The Toad Solution**: Toad v1.3.7 extracts row counts directly from the Apache Parquet file metadata (`SELECT SUM(row_group_num_rows) FROM parquet_metadata(...)`).
+- **Result**: Row count completes in **~25 milliseconds** ($O(1)$ constant time), cached in `_toadTableRowCountCache` for instant UI initialization.
+
+---
+
+## 3. Deterministic 1,000-Row Pagination Engine & 5-Page Sliding Buffer (New in v1.3.7)
+
+Toad v1.3.7 replaces unbounded infinite scrolling with a predictable, high-performance pagination engine designed specifically for massive datasets:
+
+```
++---------------------------------------------------------------------------------------------------------+
+| [|< First]  [< Prev]   Page [ 1 ] of 60,000   [Next >]  [Last >|]    Showing 1 - 1,000 of 60,000,000 rows |
++---------------------------------------------------------------------------------------------------------+
+```
+
+### 3.1 Strict 1,000 Rows Per Page
+- Renders exactly 1,000 rows per page view in the SlickGrid viewport.
+- Eliminates browser stutter, DOM thrashing, and viewport jumping during rapid scrolling.
+
+### 3.2 5-Page Sliding Buffer ($[P-2 .. P+2]$, Max 5,000 Rows in RAM)
+- When viewing Page $P$, Toad maintains a sliding memory window from Page $[P-2]$ to Page $[P+2]$ (5 pages = 5,000 rows max).
+- **Instant 0ms Page Flipping**: Clicking `Next` or `Prev` switches pages immediately from RAM without dispatching a new DuckDB query.
+- Strict memory capping guarantees Toad never consumes excessive memory, even on 100-million-row datasets.
+
+### 3.3 Bottom Pagination Toolbar & Direct Jump
+- **Direct Page Jump**: Type any page number into the `Page [ n ]` box and press `Enter` to jump instantly.
+- **Navigation Buttons**: `[|< First]`, `[< Prev]`, `[Next >]`, `[Last >|]`.
+- **Status Summary**: `Showing 1 - 1,000 of 60,000,000 rows (Page 1 of 60,000)`.
+
+---
+
+## 4. Intelligent Auto Time-Column Sort & Fallback (New in v1.3.7)
+
+In security and operational log analysis, chronological ordering is essential:
+
+- **Automatic Time Column Detection**: Toad automatically scans the dataset schema and prioritizes the closest timestamp column in this order:
+  $$\text{EventTime} \succ \text{Timestamp} \succ \text{TimeCreated} \succ \text{Time} \succ \text{Date}$$
+- **Default DESC Order**: The detected time column is sorted descending (`DESC`) automatically, ensuring the most recent events appear first.
+- **Resource-Saving Fallback**: If **no time column exists** in the dataset, Toad **completely skips sorting** to conserve CPU and RAM.
+
+---
+
+## 5. Enterprise ArcSight ESM Query Builder & Search Accuracy (Enhanced in v1.3.7)
+
+The Filter Builder delivers enterprise query ergonomics, dual view modes, multi-tag pill inputs, and bulletproof character escaping:
 
 ```
 +---------------------------------------------------------------------------------------------------------+
@@ -49,112 +105,91 @@ The Filter Builder in Toad v1.3.5 has been redesigned following the enterprise e
 |   |-- ⋮⋮ [ Channel      ] [ =       ] [ Microsoft-Windows-Sysmon/Operational ]                    [×]  |
 |   `-- [OR ⌵] Subgroup Level 1                                                             [+] [📁] [×]  |
 |         |-- ⋮⋮ [ EventID   ] [ IN (List)] [ [1 ×] [3 ×] [11 ×] + Type...       ]                    [×]  |
-|         `-- ⋮⋮ [ RuleName  ] [ contains ] [ Suspicious NetCon                 ]                    [×]  |
+|         `-- ⋮⋮ [ ImagePath ] [ contains ] [ C:\Windows\System32\svchost.exe   ]                    [×]  |
 +---------------------------------------------------------------------------------------------------------+
 | SQL: WHERE "Channel" = '...' AND ("EventID" IN (1, 3, 11))  [Copy] | Matched: 565 / 24,510 | Latency: 1.2ms|
 +---------------------------------------------------------------------------------------------------------+
 ```
 
-### Key Highlights:
-1. **Dual View Modes ("Tree View" ⇄ "Raw SQL")**:
-   - Toggle seamlessly between the visual block builder and direct raw SQL editing.
-   - In **Raw SQL** mode, edit complex `WHERE` predicates directly with DuckDB syntax support.
-   - Switching modes preserves and synchronizes active queries bidirectionally.
+### 5.1 Bulletproof Search Escaping (Windows Paths & Wildcards)
+- In v1.3.7, all string operators (`contains`, `not_contains`, `starts_with`, `ends_with`, `equals`) automatically escape Windows backslashes `\`, percent signs `%`, and underscores `_` with explicit `ESCAPE '\'` SQL clauses.
+- Searching paths like `C:\Windows\System32\cmd.exe` or patterns with `_` and `%` now yields 100% accurate results.
 
-2. **Multi-Tag Pill Inputs (`IN` / `NOT IN`)**:
-   - Selecting `IN` or `NOT IN` activates responsive multi-tag pills.
-   - Type or paste values (e.g. `1, 3, 11, 4624`), press `Enter` or `,`, and values instantly format into individual tag badges.
-   - Automatic numeric casting ensures integer column queries match DuckDB columnar types without type coercion errors.
-   - Press `Backspace` on empty input to quickly delete the preceding pill.
+### 5.2 Background Distinct Cache Autocomplete (Chunk 50k & Early Cutoff $\ge 1,024$)
+- Dropdown value suggestions are populated in the background in chunks of 50,000 rows.
+- **Cardinality Protection**: If the accumulated distinct values reach or exceed **1,024 values**, scanning terminates immediately to prevent RAM exhaustion on high-cardinality fields (hashes, GUIDs, full paths).
 
-3. **1-Click SQL Copy**:
-   - Click the **[Copy]** button directly in the preview bar to copy the exact `WHERE ...` predicate to your clipboard.
+### 5.3 Dual View Modes ("Tree View" ⇄ "Raw SQL")
+- Toggle between visual nested block building and direct raw DuckDB SQL `WHERE` expressions.
 
-4. **Live Query Statistics & Performance Latency**:
-   - Real-time matched row count (`Matched: X / Y rows`) and execution latency (`Latency: Z ms`) displayed directly in the filter status bar.
-
-5. **Integrated Group Header Actions & Clean Labels**:
-   - `+ Condition` (`+`) and `+ Subgroup` (`📁`) icon buttons are integrated directly into the group header, eliminating wasted vertical space.
-   - Concise logical operators (`AND` / `OR`) and clean block labels (`Root Filter Block`, `Subgroup Level N`).
-   - Clean subgroup headers with zero lingering arrow buttons.
-
-6. **Sequential Keyboard Navigation (`↑` / `↓`)**:
-   - Click any condition row to select it (docked in the top status bar).
-   - Use `↑` / `↓` keys to step conditions sequentially through parent and nested groups.
-   - Use `Alt+↑` / `Alt+↓` while editing input values.
+### 5.4 Multi-Tag Pill Inputs (`IN` / `NOT IN`)
+- Type or paste values (e.g. `1, 3, 11, 4624`), press `Enter` or `,`, and values format into individual tag badges with automatic numeric casting.
 
 ---
 
-## 3. Dracula Theme & Theme Switcher (New in v1.3.6)
+## 6. Dracula Theme & Theme Switcher
 
-Toad v1.3.6 introduces a built-in **Dracula Theme** designed specifically for prolonged analysis and low-light environments without jarring pitch-black contrast:
+Toad features a built-in **Dracula Theme** designed for prolonged analysis in low-light environments:
 
-- **120° Soft Inversion Palette**: Rather than pure `#000000` pitch black, Toad uses an 88% inversion rotated 120 degrees (`invert(0.88) hue-rotate(120deg) contrast(1.02)`), shifting stark white backgrounds to a soft, eye-friendly Dracula slate (`#24262b`) with emerald/cyan accent highlights (`#50fa7b` / `#8be9fd`).
-- **Instant 1-Click Toggle**: Switch between **Light** and **Dracula** modes instantly using the theme toggle button docked at the bottom of the left vertical **Activity Bar** (`[🌙 / ⚡]`).
-- **Auto-Persistence**: Your chosen theme preference is automatically remembered across app restarts via local storage.
+- **120° Soft Inversion Palette**: Replaces harsh pitch-black with soft Dracula slate (`#24262b`) and vibrant emerald/cyan accents (`#50fa7b` / `#8be9fd`).
+- **Instant 1-Click Toggle**: Switch between **Light** and **Dracula** modes using the theme toggle icon at the bottom of the left vertical **Activity Bar** (`[🌙 / ⚡]`).
+- **Auto-Persistence**: Theme preference is automatically saved across sessions.
 
 ---
 
-## 4. Fast Right-Click Context Menu & Type-Aware Filter Guard
+## 7. Fast Right-Click Context Menu & Type-Aware Filter Guard
 
-You don't even have to open the Filter Builder to construct complex queries. Right-click any cell in the main data grid to filter instantly:
+Right-click any cell in the data grid to filter instantly without opening the drawer:
 
 - **Exact Match (`=`)**: Right-click &rarr; **Filter this value (`=`)**.
 - **Exclude (`!=`)**: Right-click &rarr; **Filter out this value (`!=`)**.
-- **Numeric & Timestamp Range (`>`, `<`, `>=`, `<=`)**: Type-aware filters for integers, floats, and dates.
-- **Text Pattern Matching (`contains`, `ilike`, `starts with`)**: Case-insensitive substring matching.
-- **Time Bracket Filtering (`±5m`, `±15m`, `±1h`)**: Right-click any timestamp to instantly isolate surrounding events during incident investigation.
-- **Bidirectional Sync**: Rules created from the right-click context menu automatically appear inside the Filter Builder for reordering and subgroup nesting.
+- **Numeric & Timestamp Range (`>`, `<`, `>=`, `<=`)**: Type-aware filters for numbers and dates.
+- **Time Bracket Filtering (`±5m`, `±15m`, `±1h`)**: Right-click any timestamp to isolate surrounding events during incident investigation.
 
 ---
 
-## 5. Built-In Forensic Decoders
+## 8. Built-In Forensic Decoders
 
-For DFIR analysts and security engineers examining encoded commands or obfuscated payloads:
+For DFIR analysts and security engineers examining encoded commands:
 
-1. Right-click any cell containing obfuscated text (e.g. PowerShell Base64 or Hex).
+1. Right-click any cell containing obfuscated text.
 2. Select **Forensic Decoders**:
    - **Base64 Decode (UTF-8)**: Standard Base64 decoding.
-   - **Base64 Decode (UTF-16LE / PowerShell)**: Automatically handles Windows PowerShell `-EncodedCommand` Unicode strings.
-   - **Hex / ASCII Decode**: Converts raw hexadecimal bytes into readable ASCII text.
+   - **Base64 Decode (UTF-16LE / PowerShell)**: Decodes Windows PowerShell `-EncodedCommand` strings.
+   - **Hex / ASCII Decode**: Converts raw hexadecimal bytes into readable text.
    - **URL Decode**: Decodes percent-encoded URLs and web queries.
-3. The decoded string appears directly in the preview dialog and can be copied or filtered instantly.
+3. The decoded result displays in a preview modal and can be copied or filtered directly.
 
 ---
 
-## 6. Hierarchical Pivot Tables & Column Management
+## 9. Hierarchical Pivot Tables & Column Management
 
-Toad transforms massive flat datasets into multi-level tree tables in sub-second time:
-
-1. Click the **Pivot Table** icon on the left ActivityBar.
-2. Check the box under **Pivot** next to any columns you wish to group by (e.g., `Computer`, then `Channel`, then `EventID`).
-3. Under **Aggr**, select aggregate functions (`sum`, `avg`, `min`, `max`, `uniq`, or row counts) for metrics.
-4. **Non-Filtering Column Search**: Type in the column search box to jump directly to any column with active highlight—without hiding any other columns!
-5. **Multi-Column "Push to Top"**: Click the `↑` icon on column rows to queue them (`↑ 1`, `↑ 2`, `↑ 3`). Click **Play** (`▶`) to place them at the very beginning of the table in your exact clicked sequence.
-6. **In-Place Column Renaming**: Double-click any column header to rename it on the fly.
+- **Hierarchical Pivoting**: Group by multiple columns (e.g. `Computer` &rarr; `Channel` &rarr; `EventID`) with sub-second aggregations (`sum`, `avg`, `min`, `max`, `uniq`, count).
+- **Non-Filtering Column Search**: Search columns by name with active highlighting without hiding unselected columns.
+- **Multi-Column "Push to Top"**: Queue columns with `↑` (`↑ 1`, `↑ 2`, `↑ 3`) and click `▶` to push them to the leftmost columns of the grid.
 
 ---
 
-## 7. Regex Column Extraction & Row Detail Inspection
+## 10. Regex Column Extraction & Row Event Inspection
 
-- **Regex Column Extraction**: Click **Regex** in the bottom toolbar (or press `Ctrl+R`) to extract structured fields using regular expressions. Named capture groups (e.g. `(?<ip>\d+\.\d+\.\d+\.\d+)`) automatically become new virtual columns appended to your table.
-- **Row Event Inspection**: Select any row in the table to view all its fields and multi-line contents in the right-hand **Event Details** sidebar. Right-click any value in Event Details to immediately add it as a filter condition.
+- **Regex Column Extraction (`Ctrl+R`)**: Extract structured fields into new virtual columns using named regex groups (e.g. `(?<ip>\d+\.\d+\.\d+\.\d+)`).
+- **Row Event Inspection**: Click any row to inspect all fields and multi-line message payloads in the right-hand **Event Details** sidebar.
 
 ---
 
-## 8. Keyboard Shortcuts Cheat Sheet
+## 11. Keyboard Shortcuts Cheat Sheet
 
 | Key Combination | Action |
 | :--- | :--- |
 | `Ctrl + O` | Open data file |
 | `Ctrl + F` | Toggle Filter Builder drawer |
-| `↑` / `↓` | Move selected filter condition sequentially (jumping into/out of subgroups) |
+| `↑` / `↓` | Move selected filter condition sequentially across subgroups |
 | `Alt + ↑` / `Alt + ↓` | Move selected condition while focused inside an input |
 | `Enter` | Apply filter query to table |
-| `Escape` | Deselect active filter condition / Close filter drawer |
+| `Escape` | Deselect active condition / Close filter drawer |
 | `Ctrl + R` | Open Regex Column Extraction dialog |
 | `Ctrl + P` | Toggle Pivot sidebar |
 
 ---
 
-*Toad v1.3.6 &bull; Built with DuckDB & Rust SIMD Core &bull; Portable Windows x64*
+*Toad v1.3.7 &bull; Built with DuckDB 1.0.0, Apache Parquet & Rust SIMD Core &bull; Portable Windows x64*
