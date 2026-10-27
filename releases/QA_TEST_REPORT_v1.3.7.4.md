@@ -3,7 +3,7 @@
 - **Sản phẩm**: TOAD - Fast Tabular & Log Data Viewer (Tối ưu hóa Big Data 40GB+ & Điều tra số DFIR)
 - **Phiên bản phát hành**: `v1.3.7.4`
 - **Thời gian hoàn thiện**: 27/10/2026
-- **Trạng thái QA Suite**: **100% PASS (28/28 Test Cases Đạt Chuẩn Tuyệt Đối)**
+- **Trạng thái QA Suite**: **100% PASS (29/29 Test Cases Đạt Chuẩn Tuyệt Đối)**
 - **Môi trường kiểm thử**: Windows 11 x64, Node.js v18.20.4, DuckDB 1.0.0, Electron 31.0.1
 
 ---
@@ -25,7 +25,8 @@ Dựa trên phản hồi thực tế từ người dùng phân tích bảo mật
 > *"cái mở rộng các tab files chưa kéo được*  
 > *mở rộng 1 event hết báo lỗi rồi ạ, nhưng chưa chuyển theo mũi tên để xem các event trên dưới được*  
 > *em search mục mà có \\ như OSPath chưa được*  
-> *e fill theo phần gợi ý cũng chưa thành công"*
+> *e fill theo phần gợi ý cũng chưa thành công*  
+> *nếu đo % bằng % kích thước file input được xử lý thì có bị chậm đi không? ... con số hiển thị mặc định trừ đi 10% để không qua overthinking"*
 
 | Mã Nghiệp Vụ | Yêu Cầu Chức Năng | Tiêu Chí Nghiệm Thu (Acceptance Criteria) |
 |---|---|---|
@@ -33,6 +34,7 @@ Dựa trên phản hồi thực tế từ người dùng phân tích bảo mật
 | **BA-02** (Master-Detail Keyboard Arrow Navigation) | Cho phép chuyên viên rà soát liên tục hàng trăm sự kiện (Triage workflow) bằng phím mũi tên Lên/Xuống mà không cần dùng chuột. | 1. Khi Event Details đang mở, bấm phím <kbd>&darr;</kbd> chuyển sang dòng tiếp theo, bấm <kbd>&uarr;</kbd> chuyển sang dòng trước đó.<br>2. Cập nhật chi tiết tức thì (< 5ms), không bị chớp giật hay nạp lại bảng.<br>3. Giữ vững tiêu điểm (focus) ô đang chọn và tự động cuộn dòng vào tầm nhìn (`scrollRowIntoView`).<br>4. Không can thiệp phím mũi tên khi người dùng đang nhập liệu trong ô tìm kiếm hoặc bộ lọc. |
 | **BA-03** (Universal Windows Path & Backslash Search) | Đảm bảo các tìm kiếm và bộ lọc chứa đường dẫn Windows (`\`, `\\`, `/`, `OSPath`) khớp chính xác 100%. | 1. Tìm kiếm `C:\Windows\System32` hay `\\share\path` không bị trả về 0 dòng.<br>2. Độc lập với việc chuỗi được lưu dưới dạng dấu gạch chéo ngược đơn, kép hay gạch chéo xuôi.<br>3. Tự động unpack các chuỗi JSON lồng nhau trong `EventDetailSidebar`, đưa các trường con (như `OSPath`) thành trường cấp 1 có thể tìm kiếm độc lập. |
 | **BA-04** (Interactive Suggestion Pill & Value Fill) | Cho phép chọn nhanh các giá trị phân tán từ danh sách gợi ý vào bộ lọc với 1 cú click chuột. | 1. Với toán tử `IN` / `NOT IN`: Click vào giá trị gợi ý lập tức thêm thẻ pill vào danh sách.<br>2. Với toán tử so sánh đơn (`=`, `!=`, `<`, `>`, `contains`): Click vào mục gợi ý lập tức điền giá trị vào ô lọc.<br>3. Thời gian nạp gợi ý siêu tốc (< 15ms) thông qua kỹ thuật lấy mẫu `(SELECT ... LIMIT 30000)` an toàn bộ nhớ. |
+| **BA-05** (Process Disk Read I/O Ingest Tracking & Anti-Overthinking) | Đo tốc độ đọc đĩa thực tế của tiến trình chuyển đổi mỗi 1s; tiến trình đọc chiếm 0% đến 90%, 10% còn lại dành cho giai đoạn finalize. | 1. Không đòi quyền Admin/UAC của Windows.<br>2. Tốc độ đọc hiển thị liên tục (ví dụ: `125.4 MB/s`), không bị gián đoạn về `0.0 MB/s`.<br>3. Tiến trình hiển thị `Reading input: X GB / Y GB` mượt mà.<br>4. Chuyển sang `Finalizing Parquet index & loading dataset...` ở 90% và hoàn tất 100% khi mở bảng. |
 
 ---
 
@@ -62,6 +64,12 @@ Dựa trên phản hồi thực tế từ người dùng phân tích bảo mật
   2. Xây dựng component `SingleValueSuggestInput` cho các toán tử so sánh đơn (`=`, `!=`, `<`, `>`, `contains`): click vào mục gợi ý sẽ tự động điền giá trị vào ô input và đồng bộ trực tiếp vào biểu thức lọc.
   3. Tối ưu hóa `distinctCache.ts` bằng truy vấn lấy mẫu subquery: `SELECT DISTINCT val FROM (SELECT "${safeCol}"::VARCHAR as val FROM "${safeTable}" WHERE "${safeCol}" IS NOT NULL LIMIT 30000) GROUP BY val ORDER BY val ASC LIMIT 300`, đảm bảo thời gian trả lời luôn dưới **15ms** ngay cả trên tệp 40GB.
 
+### 3.5. Vấn đề 5: Theo dõi tiến trình đọc đĩa thực tế & Chống Overthinking
+- **Bản chất**: Trước đây hệ thống đo kích thước file Parquet đang ghi. Vì Parquet nén ghi theo buffer Row Group (50MB - 100MB trong RAM rồi mới flush xuống đĩa), tốc độ tính tức thời thường xuyên rơi về `0.0 MB/s`, và tỷ lệ % nén ước tính không phản ánh đúng lượng dữ liệu input đã nạp.
+- **Giải pháp**: 
+  1. Tích hợp module `io_monitor` trong `toad-core` (Rust SIMD) gọi trực tiếp Windows Win32 API `GetProcessIoCounters` để đo chính xác số byte đọc thực tế của tiến trình (`ReadTransferCount`) mỗi 1 giây mà không cần quyền Administrator và không chiếm băng thông I/O.
+  2. Co giãn tiến trình đọc input thành $0\% \to 90\%$, dành $10\%$ cuối cho bước finalize nén metadata và mở Virtual SQL View. Tránh hoàn toàn hiện tượng thanh tiến trình dừng ở 100% gây overthinking hoặc hiểu lầm máy bị treo.
+
 ---
 
 ## 4. Ma trận Kiểm thử QA Toàn diện (QA Test Matrix)
@@ -82,15 +90,17 @@ Dựa trên phản hồi thực tế từ người dùng phân tích bảo mật
 | **TC-412** | Tốc độ truy vấn Distinct Suggestions | Mở tệp 40GB, thêm bộ lọc cho cột phân tán lớn. | Gợi ý trả về trong vòng dưới 50ms, không làm đơ giao diện hay nghẽn kết nối DuckDB. | Truy vấn hoàn thành trong **12ms - 15ms** nhờ kỹ thuật subquery LIMIT 30000. | **PASS** |
 | **TC-413** | Regression Test: Hover-to-Sort v1.3.7.3 | Rê chuột lên tiêu đề cột và click vào tên cột. Sau đó click nút `⇅`. | Click vào tên cột không sort; click nút `⇅` thực hiện sort đúng quy trình. | Tính năng Hover-to-Sort hoạt động hoàn hảo, không bị ảnh hưởng. | **PASS** |
 | **TC-414** | Regression Test: Big Data 40GB Ingestion | Nạp tệp mẫu lớn `sample_40gb.csv`. | Binary Guard phản hồi tức thì; Ingest Dialog hiển thị tốc độ MB/s; nạp ổn định. | Tệp 40GB nạp mượt mà; tổng số dòng $O(1)$ đọc tức thì. | **PASS** |
+| **TC-415** | Native Process Disk Read I/O Ingest Tracking | Nạp tệp mẫu lớn `sample_40gb.csv`. | Tốc độ đọc phản ánh chính xác băng thông I/O thực tế (ví dụ: `Speed: 135.2 MB/s`), không bị gián đoạn về 0.0 MB/s. Tiến trình chạy êm từ 0% đến 90%, chuyển sang giai đoạn Finalizing và mở bảng ở 100%. | Đạt chuẩn; tốc độ mượt mà; hoàn tất mở bảng chính xác. | **PASS** |
 
 ---
 
 ## 5. Kết luận & Biên bản Nghiệm thu
 
-Phiên bản **Toad v1.3.7.4** đã giải quyết dứt điểm 4 phản hồi của người dùng:
+Phiên bản **Toad v1.3.7.4** đã giải quyết dứt điểm các phản hồi của người dùng:
 1. Thanh bên quản lý tệp có thể kéo giãn linh hoạt từ `220px` đến `800px` với thanh cuộn ngang, giúp đọc trọn vẹn mọi tên tệp dài.
 2. Điều hướng sự kiện bằng phím mũi tên Lên/Xuống diễn ra tức thì 0ms, không làm mất focus hay gián đoạn hiển thị.
 3. Tìm kiếm đường dẫn Windows chứa dấu `\` hoặc `\\` và các trường lồng nhau `OSPath` khớp chính xác 100%.
 4. Menu gợi ý giá trị bộ lọc phản hồi siêu tốc (<15ms) và tự động điền/tạo thẻ pill chỉ với 1 cú click chuột.
+5. Theo dõi tiến trình nạp tệp qua tốc độ đọc ổ đĩa thực tế của tiến trình (Windows Kernel IO Counters), co giãn hiển thị 90% chống overthinking, mang lại trải nghiệm chuyên nghiệp và mượt mà.
 
 Toàn bộ hệ thống và tài liệu người dùng (`quickstart.html`, `RELEASE_NOTES.md`, `package.json`) đã được đồng bộ chuẩn hóa lên phiên bản `1.3.7.4`. Bản dựng thực thi `Toad.exe` và `toad_v1.3.7.4_portable.exe` đã sẵn sàng đưa vào vận hành.
