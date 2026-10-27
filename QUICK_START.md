@@ -1,6 +1,6 @@
-# Toad Quick Start Guide (v1.3.9)
+# Toad Quick Start Guide (v1.3.9.1)
 
-> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, visual streaming ingestion progress, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark mode, flawless **Master-Detail keyboard arrow triage**, and a flexible **pagination engine (default 1,000 rows with no arbitrary upper limit)**.
+> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, visual streaming ingestion progress, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark mode, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with no arbitrary upper limit)**.
 
 ---
 
@@ -9,7 +9,7 @@
 Toad is packaged as a completely self-contained portable Windows executable—no administrator privileges, installer wizards, or background services required.
 
 - **Primary Portable Executable**: [`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe) (~92 MB)
-- **Versioned Portable Release**: [`releases/toad_v1.3.9_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9_portable.exe)
+- **Versioned Portable Release**: [`releases/toad_v1.3.9.1_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9.1_portable.exe)
 
 ### Three Easy Ways to Open Data:
 1. **Direct Launch**: Double-click `Toad.exe`. Click **File &rarr; Open** (or press `Ctrl+O`) to select any supported data file.
@@ -169,10 +169,11 @@ For DFIR analysts and security engineers examining encoded commands:
 
 ---
 
-## 10. Flawless Master-Detail Keyboard Triage & Event Details (v1.3.9)
+## 10. Instant Smart Expand & Master-Detail Keyboard Triage (v1.3.9.1)
 
+- **Instant 1-Click & Focus Expand**: Clicking or focusing on Column 0 (the `_expand` column) immediately opens the Event Details side inspector without requiring an extra <kbd>Enter</kbd> keystroke.
+- **Strict Dismissal Rule**: Event Details only closes when you click the `✕` close button or press <kbd>Esc</kbd>. Selecting or re-clicking the same row maintains the detail panel safely open.
 - **Continuous Arrow Key Triage (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)**: When the Event Details inspector is open, pressing the Up or Down arrow keys smoothly updates the side inspector to display the details of the active row in real time without collapsing or closing the panel.
-- **Space / Enter Key Support**: Press <kbd>Enter</kbd> or <kbd>Space</kbd> on any row to open its details immediately; press <kbd>Esc</kbd> to close.
 - **1-Click Filter Injection (`+` Button)**: In Event Details, click the `+` button on any field to append `col == value` directly into the active filter expression.
 
 ---
@@ -192,4 +193,4 @@ For DFIR analysts and security engineers examining encoded commands:
 
 ---
 
-*Toad v1.3.9 &bull; Built with DuckDB 1.0.0, Apache Parquet & Rust SIMD Core &bull; Portable Windows x64*
+*Toad v1.3.9.1 &bull; Built with DuckDB 1.0.0, Apache Parquet & Rust SIMD Core &bull; Portable Windows x64*

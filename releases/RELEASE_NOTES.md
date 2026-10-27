@@ -1,3 +1,49 @@
+# TOAD v1.3.9.1 Release (Instant Smart Expand 1-Click Triage, Strict Dismissal Rule & Filter IN Normalization Fix)
+
+## 1. Giới thiệu phiên bản v1.3.9.1
+Phiên bản **Toad v1.3.9.1** khắc phục nhanh lỗi runtime khi chuyển đổi toán tử bộ lọc và tái thiết kế cơ chế kích hoạt mở rộng sự kiện (Smart Event Expand) nhằm tối đa hóa tốc độ triage cho chuyên viên điều tra:
+
+1. **Khắc phục triệt để lỗi `TypeError: t.map is not a function` khi dùng bộ lọc `IN` / `NOT IN`**:
+   - *Vấn đề*: Khi người dùng chọn toán tử `IN` hoặc `NOT IN` từ một dòng lọc đang có giá trị đơn (ví dụ đang chọn `=`, `contains`), ứng dụng bị văng lỗi màn hình đỏ:
+     `TypeError: t.map is not a function at FilterEditorRow.tsx:212:1 at handleUpdate...`
+     Nguyên nhân do `expVal` và `value` lúc này là chuỗi hoặc số nguyên đơn lẻ (`scalar`), trong khi hàm `getExpVal` và `mkRelExp` mặc định ép kiểu và gọi trực tiếp `value.map()`.
+   - *Giải pháp*:
+     - Bổ sung lớp kiểm tra kiểu dữ liệu an toàn (Defensive Array Normalization) với `Array.isArray(x) ? x : [x]` trong toàn bộ chu trình xử lý `FilterEditorRow.tsx`.
+     - Trong `handleOpSelect`: Khi người dùng chuyển sang toán tử `IN`/`NOT IN`, nếu giá trị hiện tại chưa phải là mảng, hệ thống tự động bọc thành mảng đối tượng `[{ value: nextVal, label: String(nextVal) }]`. Ngược lại, khi chuyển từ `IN` về toán tử đơn lẻ, hệ thống tự động trích xuất phần tử đầu tiên `nextVal[0]?.value`.
+     - Bổ sung xác thực `validRow`: Chỉ coi bộ lọc `IN`/`NOT IN` là hợp lệ khi danh sách giá trị là một mảng không rỗng (`length > 0`).
+
+2. **Cơ chế Nút Expand Event Thông Minh (Smart 1-Click & Focus Auto-Open, Strict Dismissal Rule)**:
+   - *Vấn đề*: Trước đây khi click vào nút mũi tên `>` (cột `_expand`), nếu bảng Event Details đang đóng thì click chuột chỉ làm nhiệm vụ chọn ô (focus) mà không mở panel. Người dùng bắt buộc phải ấn thêm phím <kbd>Enter</kbd> thì bảng chi tiết mới mở, gây khó hiểu và giảm tốc độ làm việc. Ngoài ra, khi click lại vào chính dòng đang mở, bảng lại bị đóng (toggle).
+   - *Giải pháp*:
+     - **1-Click Tức Thì**: Trong `DataGrid.tsx`, gỡ bỏ hoàn toàn điều kiện kiểm tra `if (isCurrentOpen)` trong hàm click cột `_expand`. Bất kể Event Details đang đóng hay mở, click vào ô `_expand` lập tức gọi `onExpandEvent(item, row, true)` với trạng thái cưỡng chế mở (`forceOpen = true`).
+     - **Focus Tự Động Kích Hoạt (Auto-Trigger on Focus)**: Bổ sung lắng nghe sự kiện `grid.onActiveCellChanged`. Khi ô đang kích hoạt rơi vào cột `_expand` (dù bằng click chuột hay di chuyển phím mũi tên), hệ thống tự động mở bảng Event Details ngay lập tức mà không cần bấm thêm phím <kbd>Enter</kbd>.
+     - **Quy tắc Đóng Nghiêm Ngặt (Strict Dismissal Rule)**: Trong `AppPane.tsx`, loại bỏ logic toggle đóng khi click lại cùng dòng. Bảng Event Details được bảo toàn mở liên tục khi người dùng tương tác với dòng hiện tại. Bảng **chỉ được đóng khi và chỉ khi**:
+       1. Người dùng click vào nút đóng `✕` ở góc phải thanh tiêu đề Event Details.
+       2. Người dùng nhấn phím <kbd>Esc</kbd>.
+       3. Chuyển sang dòng khác (bảng tự động cập nhật sang chi tiết của dòng mới).
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification v1.3.9.1)
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-15** | Người dùng lọc theo danh sách giá trị (`IN`, `NOT IN`) trong Filter Drawer. | Chuyển đổi qua lại giữa các toán tử đơn và toán tử mảng không gây lỗi runtime `t.map is not a function`. | - Chọn toán tử `IN` hoặc `NOT IN`: không bị văng lỗi `TypeError: t.map is not a function`.<br>- Giá trị đơn lẻ trước đó tự động chuyển đổi thành tag hợp lệ.<br>- Gõ thêm hoặc xóa bớt tag hoạt động mượt mà, áp dụng bộ lọc SQL DuckDB chuẩn xác. |
+| **BA-16** | Chuyên viên DFIR click vào cột nút mở rộng `>` ở đầu dòng bảng. | Click chuột hoặc chọn ô cột `_expand` mở ngay Event Details (không cần ấn Enter). | - Click vào nút `>` ở cột 0 lập tức mở thanh Event Details ngay lần nhấp đầu tiên.<br>- Di chuyển con trỏ vào cột `_expand` tự động mở chi tiết mà không cần ấn <kbd>Enter</kbd>.<br>- Click lại vào chính dòng đang mở không làm đóng panel.<br>- Panel chỉ đóng khi ấn `✕` hoặc phím <kbd>Esc</kbd>. |
+
+---
+
+## 3. Ma trận Thử nghiệm QA v1.3.9.1 (QA Test Matrix)
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-801** | Filter Operator Switch to IN | Mở bảng dữ liệu, thêm bộ lọc với cột `EventID = 4624`. | Chuyển toán tử từ `=` sang `IN`. | Giá trị `4624` được chuyển thành tag `[4624]`; không văng lỗi `t.map is not a function`. | **PASSED** |
+| **TC-802** | Filter Operator Switch from IN to Equals | Đang có bộ lọc `EventID IN (4624, 4625)`. | Chuyển toán tử sang `=`. | Giá trị tự chuyển thành `4624`, không lỗi runtime. | **PASSED** |
+| **TC-803** | 1-Click Expand Button Open | Mở bảng dữ liệu, Event Details đang đóng. | Click 1 lần vào nút `>` ở dòng 3. | Event Details lập tức mở ra hiển thị thông tin dòng 3; không cần ấn <kbd>Enter</kbd>. | **PASSED** |
+| **TC-804** | Active Cell Expand on Navigation | Mở bảng dữ liệu, dùng phím mũi tên di chuyển vào ô cột 0 dòng 5. | Quan sát phản hồi của giao diện. | Ngay khi ô cột 0 nhận focus, Event Details tự động mở ra nạp dữ liệu dòng 5. | **PASSED** |
+| **TC-805** | Strict Dismissal Idempotency | Đang mở Event Details ở dòng 5. | Click lại nhiều lần vào nút `v` ở dòng 5. | Event Details vẫn giữ nguyên trạng thái mở, không bị sập hay đóng nhầm. | **PASSED** |
+| **TC-806** | Dismiss via Close Button and Esc | Đang mở Event Details. | 1. Bấm nút `✕` trên header Event Details.<br>2. Mở lại và bấm phím <kbd>Esc</kbd>. | Cả 2 thao tác đều đóng thanh Event Details một cách dứt khoát. | **PASSED** |
+
+---
+
 # TOAD v1.3.9 Release (Flawless Master-Detail Keyboard Navigation, Clean Single Suggestion Filter & Dynamic Page Size Engine)
 
 ## 1. Giới thiệu phiên bản v1.3.9
