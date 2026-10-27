@@ -1,3 +1,12 @@
+# TOAD v1.3.7.1 Hotfix Release (Null Pointer Fix & UI Clean Loading)
+
+## 1. Giới thiệu phiên bản v1.3.7.1
+Phiên bản **Toad v1.3.7.1** là bản phát hành bảo trì trọng yếu (Hotfix), xử lý triệt để lỗi tính toán độ rộng cột khi mở bảng dữ liệu phân trang và tối ưu hóa trải nghiệm thị giác khi nạp tệp:
+- **Khắc phục lỗi `Cannot read properties of null (reading 'Timestamp')`**: Trong `DataGrid.tsx`, thuật toán tự động tính toán độ rộng cột (`getColWidth`) trước đây duyệt theo dải chỉ số bộ đệm trượt (`offset` đến `offset + limit`) thay vì chỉ số trang hiện hành `[0 .. pageSize - 1]`. Khi tệp có nhiều hơn 1.000 dòng hoặc khi mở các trang tiếp theo, việc truy cập hàng vượt biên trả về `null` dẫn đến crash renderer. Đã cập nhật duyệt an toàn tối đa 100 dòng mẫu đầu trang với kiểm tra `null` nghiêm ngặt và hỗ trợ cột đầu tiên `columnIndex === 0`.
+- **Loại bỏ hoàn toàn icon xoay tròn vô định (Indeterminate Spinner)**: Loại bỏ `LoadingModal` và lớp phủ xám mờ. Thay vào đó, khi nạp và chuyển đổi tệp, hệ thống chỉ hiển thị duy nhất **Hộp thoại Tiến trình Nạp (IngestProgressDialog)** chuyên nghiệp, trực quan với thanh %, tốc độ MB/s, ETA và nút Hủy. Khi thao tác dữ liệu thông thường, công cụ phản hồi tức thì mà không bị che khuất tầm nhìn.
+
+---
+
 # TOAD v1.3.7 Release (Custom Big Data 40GB+ Parquet & Log Viewer Build)
 
 ## 1. Giới thiệu phiên bản v1.3.7
