@@ -1,13 +1,12 @@
 # KẾ HOẠCH NÂNG CẤP VÀ PHÁT TRIỂN HỆ THỐNG TOAD (DFIR LOG ANALYSIS TOOL)
-> **Phiên bản hiện tại:** v1.3.8 (High-Throughput Jitterless Ingestion Engine, Adaptive Memory Budgeting & 100K Row Groups)  
-> **Phiên bản bảo trì kế tiếp:** v1.3.8.1 (Hotfix & Dynamic Page Size Architecture)  
-> **Tài liệu phương án chi tiết v1.3.8.1:** Xem [docs/BA_PHUONG_AN_SUA_CHUA_VA_NANG_CAP_v1.3.8.1.md](file:///d:/Shared_UserData/Downloads/tad/docs/BA_PHUONG_AN_SUA_CHUA_VA_NANG_CAP_v1.3.8.1.md)  
+> **Phiên bản hiện tại:** v1.3.9 (Flawless Master-Detail Keyboard Navigation, Clean Single Suggestion Filter & Dynamic Page Size Engine)  
+> **Tài liệu phương án chi tiết v1.3.9:** Xem [docs/BA_PHUONG_AN_SUA_CHUA_VA_NANG_CAP_v1.3.9.md](file:///d:/Shared_UserData/Downloads/tad/docs/BA_PHUONG_AN_SUA_CHUA_VA_NANG_CAP_v1.3.9.md)  
 > **Trạng thái thực hiện:**
 > - ✅ **v1.3.0 -> v1.3.7.3**: Hoàn thành các tính năng Right-click Pivot, Filter Builder, Decoders, Hover-to-Sort, Distinct Suggestions.
 > - ✅ **v1.3.7.4**: Hoàn thành Resizable File Sidebar, Windows Backslash Path Search, Native Process Disk Read I/O Ingest Tracking (-10% scaling).
 > - ✅ **v1.3.7.5**: Hoàn thành SQL Escape Syntax Guard, Cố định cột Expand (`_expand` frozen left), Chuẩn hóa điều hướng phím mũi tên thẳng đứng đồng bộ Event Details.
 > - ✅ **v1.3.8 (Phát hành chính thức)**: Hoàn thành Non-Blocking Parallel Ingestion (`SET preserve_insertion_order = false`), Adaptive Memory Budgeting Guard (&le; 8GB RAM), Row Group 100K tối ưu cho cả SSD và HDD, 5/5 QA Test Cases Passed.
-> - 🔄 **v1.3.8.1 (Kế hoạch bảo trì)**: Fix Event Detail ArrowDown double-toggle collapse, gỡ bỏ HTML5 datalist thừa trên thanh lọc, đồng bộ tài liệu Quick Start, bổ sung kiến trúc phân trang linh hoạt (config.ini baseline + UI Footer dropdown).
+> - ✅ **v1.3.9 (Phát hành chính thức)**: Khắc phục lỗi Event Detail ArrowDown double-toggle collapse, gỡ bỏ HTML5 datalist thừa trên thanh lọc, đồng bộ tài liệu Quick Start (HTML & MD), bổ sung kiến trúc phân trang linh hoạt (mặc định 1.000 dòng, không giới hạn trần max cho người dùng qua Footer dropdown & config.ini). 7/7 QA Test Cases Passed.
 
 ---
 

@@ -1,13 +1,13 @@
-# Toad (v1.3.7.1) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
+# Toad (v1.3.9) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-1.3.7.1-brightgreen.svg)](releases/)
+[![Version](https://img.shields.io/badge/Version-1.3.9-brightgreen.svg)](releases/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](releases/)
 
-> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, visual ingestion progress dialog, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark theme, and a deterministic **1,000-row pagination engine with a 5-page sliding buffer**.
+> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, visual ingestion progress dialog, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark theme, flawless **Master-Detail keyboard arrow navigation**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 >
-> 📖 **[Read the Quick Start Guide (v1.3.7.1)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
+> 📖 **[Read the Quick Start Guide (v1.3.9)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
 
 ---
 
@@ -17,9 +17,9 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.7.1) |
-| **[`releases/toad_v1.3.7.1_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.7.1_portable.exe)** | ~92 MB | Versioned portable release binary |
-| **[`releases/QA_TEST_REPORT_v1.3.7.md`](file:///D:/Shared_UserData/Downloads/tad/releases/QA_TEST_REPORT_v1.3.7.md)** | - | Comprehensive QA Verification Report (24/24 PASS) |
+| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.9) |
+| **[`releases/toad_v1.3.9_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9_portable.exe)** | ~92 MB | Versioned portable release binary |
+| **[`releases/RELEASE_NOTES.md`](file:///D:/Shared_UserData/Downloads/tad/releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
 | **[`QUICK_START.md`](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** | - | Complete Quick Start & Feature Guide |
 
 ### Non-Polluting Portable Architecture
@@ -267,7 +267,22 @@ binary_guard = true
 
 ## 4. Release Notes & Changelog
 
-### Version 1.2.7 (Current Release)
+### Version 1.3.9 (Current Release)
+- **Flawless Master-Detail Keyboard Navigation**: Resolved arrow navigation double-invocation bug when inspecting events. Pressing <kbd>&darr;</kbd> or <kbd>&uarr;</kbd> now keeps the Event Details panel smoothly open and updates the row details continuously without collapsing.
+- **Clean Single Filter Suggestion Dropdown**: Removed duplicate native HTML5 `<datalist>` popup at the top of the input. Autocomplete now exclusively displays the styled React suggestion menu at the bottom with theme and keyboard navigation support.
+- **Dynamic Flexible Page Size Engine**:
+  - Default page size set to **1,000 rows**.
+  - On-the-fly footer selector dropdown (`500`, `1,000`, `2,500`, `5,000`, `10,000`, or custom).
+  - Configurable persistent parameter `page_size = 1000` in `config.ini` under `[general]`.
+  - **Zero Upper Bound Constraint ("User Discretion")**: Users are free to set 20,000+, 50,000+, or any preferred page size without system clamping.
+- **Full Version Synchronization**: Synchronized documentation, badges, release notes, and build pipelines to `1.3.9`.
+
+### Version 1.3.8
+- **Non-Blocking Parallel Ingestion (`SET preserve_insertion_order = false`)**: Triumphed over throughput stuttering and jagged saw-tooth I/O fluctuations during big dataset ingestion.
+- **Adaptive Smart Memory Budgeting Guard**: Defensively limits DuckDB memory to <= 45% RAM (max 8GB) when `max_memory = auto`, avoiding OS page swapping and system freezes.
+- **100K Row Group Size for SSD & HDD**: Quadrupled default row group size to 100,000 rows, cutting disk flush frequency by 75% and sustaining 130-160 MB/s on HDDs and 1,500+ MB/s on NVMe.
+
+### Version 1.2.7
 - **Interactive Drag & Drop Filter Reordering**: Filter condition blocks can now be freely dragged up and down to adjust condition evaluation order within any logical group.
 - **Sub-Group Nesting & Unnesting**: Effortlessly drag conditions into child groups (nesting into sub-group logic) or pull them out of groups into the parent group or root level (unnesting), eliminating the need to delete and recreate rules from scratch.
 - **Visual Drag Handles & One-Click Navigation Buttons**: Each condition row is equipped with an ergonomic vertical drag handle (`⋮⋮`) and accessibility buttons (**Move Up** `↑`, **Move Down** `↓`, **Move Out** `←`) for quick and precise condition restructuring.

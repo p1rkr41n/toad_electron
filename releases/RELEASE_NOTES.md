@@ -1,3 +1,46 @@
+# TOAD v1.3.9 Release (Flawless Master-Detail Keyboard Navigation, Clean Single Suggestion Filter & Dynamic Page Size Engine)
+
+## 1. Giới thiệu phiên bản v1.3.9
+Phiên bản **Toad v1.3.9** tập trung hoàn thiện trải nghiệm duyệt log bàn phím (Triage Master-Detail), tinh gọn giao diện gợi ý bộ lọc SQL, và giải phóng hoàn toàn tính linh hoạt phân trang cho người dùng:
+1. **Khắc phục triệt để lỗi điều hướng bàn phím Master-Detail (<kbd>&darr;</kbd> / <kbd>&uarr;</kbd>)**:
+   - *Vấn đề*: Khi đang mở chi tiết sự kiện (Event Details), bấm phím mũi tên Xuống thì cả dòng cũ và dòng mới đều bị co lại (collapse) và bảng chi tiết bị đóng mất. Nguyên nhân do `setActiveCell` kích hoạt đồng thời `onActiveCellChanged` và `handleKeyDown` gọi lặp hàm toggle `onExpandEvent`, đảo ngược trạng thái mở/đóng 2 lần liên tiếp.
+   - *Giải pháp*:
+     - Bổ sung tham số `forceOpen?: boolean` vào `handleExpandEvent`. Khi chuyển dòng bằng phím mũi tên, hệ thống luôn cưỡng chế trạng thái `forceOpen = true`.
+     - Loại bỏ lời gọi hàm dư thừa trong `handleKeyDown`, tận dụng chu kỳ sự kiện đồng bộ chuẩn của SlickGrid.
+     - Kết quả: Bấm <kbd>&darr;</kbd> hoặc <kbd>&uarr;</kbd> chuyển dòng mượt mà 0ms, bảng Event Details luôn mở và cập nhật dữ liệu dòng mới tức thì.
+2. **Loại bỏ thanh gợi ý kép trên thanh Filter (Clean Single Autocomplete)**:
+   - *Vấn đề*: Khi gõ giá trị bộ lọc, người dùng bị xuất hiện cùng lúc 2 thanh gợi ý: 1 thanh `<datalist>` mặc định của trình duyệt HTML5 trồi lên ở phía trên và 1 menu React tùy biến thả xuống ở phía dưới, gây che khuất và rối mắt.
+   - *Giải pháp*: Loại bỏ hoàn toàn thuộc tính `list` và thẻ `<datalist>`, chỉ giữ lại duy nhất menu tùy biến React (`.filter-suggest-menu`) với hỗ trợ theme Sáng/Tối, điều hướng bàn phím và click-to-fill hoàn hảo.
+3. **Động cơ phân trang linh hoạt (Dynamic Page Size Engine - Mặc định 1.000 dòng & Không giới hạn max)**:
+   - *Linh hoạt giao diện*: Bổ sung dropdown chọn số dòng hiển thị ngay trên Footer (`500`, `1,000`, `2,500`, `5,000`, `10,000`, hoặc tùy biến). Chuyển trang tức thì không cần tải lại file.
+   - *Linh hoạt cấu hình `config.ini`*: Tham số `page_size = 1000` trong mục `[general]` cho phép người dùng tự do điều chỉnh số dòng mặc định khi khởi động ứng dụng.
+   - *Nguyên tắc "Tự sửa tự chịu" (Zero Max Limit)*: Hệ thống không áp đặt bất kỳ giới hạn cứng tối đa nào lên `page_size`. Người dùng sử dụng máy trạm cấu hình cao có thể thiết lập 20.000, 50.000 hoặc tùy ý.
+   - *Đồng bộ bộ đệm 5 trang (Sliding Buffer)*: Tự động tính toán lại vùng truy vấn DuckDB và bộ nhớ đệm $[P-2 .. P+2]$ ngay khi thay đổi `pageSize`.
+4. **Đồng bộ hóa tài liệu & Hướng dẫn**: Cập nhật toàn diện Quick Start Guide (HTML & Markdown) và đóng gói bản phát hành `v1.3.9`.
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification v1.3.9)
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-12** | Chuyên viên DFIR duyệt liên tục danh sách sự kiện bằng phím mũi tên. | Điều hướng phím mũi tên giữ nguyên bảng Event Details mở liên tục (Master-Detail Continuous Triage). | - Bấm <kbd>&darr;</kbd> hoặc <kbd>&uarr;</kbd> khi Event Details đang mở: chuyển dòng mượt mà, Event Details không bị co lại hay đóng mất.<br>- Dữ liệu của dòng mới được nạp và hiển thị ngay lập tức. |
+| **BA-13** | Người dùng gõ giá trị lọc trong Filter Drawer. | Hiển thị duy nhất một menu gợi ý thông minh, trực quan, không xung đột. | - Không còn hiện popup `<datalist>` mặc định của trình duyệt ở phía trên input.<br>- Menu React tùy biến hiển thị đẹp mắt bên dưới input, hỗ trợ click chọn giá trị nhanh chóng. |
+| **BA-14** | Người dùng phân tích dữ liệu log với nhu cầu xem nhiều dòng hơn trên 1 trang. | Cho phép tùy chỉnh số dòng/trang (Page Size) linh hoạt trên Footer và qua `config.ini` mà không giới hạn max. | - Footer hiển thị selector chọn kích thước trang: 500, 1000, 2500, 5000, 10000.<br>- Mặc định là 1000 dòng/trang.<br>- File `config.ini` lưu tham số `page_size`, khởi động tự nạp đúng giá trị.<br>- Không chặn giới hạn trần max; người dùng tự thiết lập theo tài nguyên máy. |
+
+---
+
+## 3. Ma trận Thử nghiệm QA v1.3.9 (QA Test Matrix)
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-701** | Master-Detail Continuous Down Arrow | Mở tệp log, bấm nút `>` ở dòng 2 mở Event Details. | Bấm phím mũi tên Xuống <kbd>&darr;</kbd>. | Con trỏ xuống dòng 3, Event Details vẫn mở và hiển thị đầy đủ thông tin dòng 3; không bị đóng bảng. | **PASSED** |
+| **TC-702** | Master-Detail Continuous Up Arrow | Đang mở Event Details ở dòng 5. | Bấm phím mũi tên Lên <kbd>&uarr;</kbd> liên tiếp. | Lần lượt chuyển lên dòng 4, 3, 2; Event Details cập nhật liên tục, không bị đóng. | **PASSED** |
+| **TC-703** | Single Filter Suggestion Dropdown | Mở Filter Drawer, chọn cột và toán tử `=`. | Gõ vài ký tự vào ô giá trị. | Chỉ hiển thị duy nhất menu gợi ý tùy biến bên dưới ô nhập; không có popup mặc định của browser trồi lên phía trên. | **PASSED** |
+| **TC-704** | Change Page Size via Footer | Bảng đang hiển thị trang 1 (1.000 dòng). | Chọn dropdown ở footer chuyển sang `2,500`. | Bảng hiển thị 2.500 dòng; nhãn footer cập nhật `Showing rows 1 - 2,500 of N`; chuyển trang mượt mà. | **PASSED** |
+| **TC-705** | Load Page Size from config.ini | Sửa `config.ini` đặt `page_size = 5000`. | Khởi động lại Toad và mở 1 tệp dữ liệu. | Mặc định bảng tải 5.000 dòng/trang; dropdown footer hiển thị 5,000. | **PASSED** |
+| **TC-706** | Uncapped Page Size ("User Discretion") | Sửa `config.ini` đặt `page_size = 50000`. | Mở tệp dữ liệu lớn. | Hệ thống nạp 50.000 dòng/trang thành công, không bị ép về giới hạn trần giả định. | **PASSED** |
+
+---
+
 # TOAD v1.3.8 Release (High-Throughput Jitterless Ingestion Engine, Adaptive Memory Budgeting & 100K Row Groups)
 
 ## 1. Giới thiệu phiên bản v1.3.8
