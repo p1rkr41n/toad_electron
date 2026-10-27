@@ -25,7 +25,11 @@ Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"
 $srcCore = "D:\Shared_UserData\Downloads\tad\tad-master\packages\toad-core-rust\target\release\toad-core.exe"
 if (Test-Path $srcCore) {
     Copy-Item $srcCore "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\dist\toad-core.exe" -Force
-    Write-Output "toad-core.exe synced."
+    if (-not (Test-Path "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\bin")) {
+        New-Item -ItemType Directory -Path "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\bin" -Force | Out-Null
+    }
+    Copy-Item $srcCore "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\bin\toad-core.exe" -Force
+    Write-Output "toad-core.exe synced to dist and bin."
 }
 
 Write-Output "=== 2. Package Portable with electron-builder ==="
