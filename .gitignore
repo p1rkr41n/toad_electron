@@ -12,6 +12,7 @@ target/
 *.exe
 *.zip
 *.7z
+*.7z.*
 *.tar.gz
 *.parquet
 *.log
