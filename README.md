@@ -1,13 +1,13 @@
-# Toad (v1.3.9) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
+# Toad (v1.3.9.1) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-1.3.9-brightgreen.svg)](releases/)
+[![Version](https://img.shields.io/badge/Version-1.3.9.1-brightgreen.svg)](releases/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](releases/)
 
-> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, visual ingestion progress dialog, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark theme, flawless **Master-Detail keyboard arrow navigation**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
+> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, visual ingestion progress dialog, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark theme, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 >
-> 📖 **[Read the Quick Start Guide (v1.3.9)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
+> 📖 **[Read the Quick Start Guide (v1.3.9.1)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
 
 ---
 
@@ -17,8 +17,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.9) |
-| **[`releases/toad_v1.3.9_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9_portable.exe)** | ~92 MB | Versioned portable release binary |
+| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.9.1) |
+| **[`releases/toad_v1.3.9.1_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9.1_portable.exe)** | ~92 MB | Versioned portable release binary |
 | **[`releases/RELEASE_NOTES.md`](file:///D:/Shared_UserData/Downloads/tad/releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
 | **[`QUICK_START.md`](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** | - | Complete Quick Start & Feature Guide |
 
@@ -267,7 +267,11 @@ binary_guard = true
 
 ## 4. Release Notes & Changelog
 
-### Version 1.3.9 (Current Release)
+### Version 1.3.9.1 (Current Release)
+- **Instant Smart Expand Trigger (1-Click & Focus Auto-Open)**: Selecting or clicking the `_expand` column instantly opens Event Details without requiring Enter. Strict dismissal ensures the panel only closes via `✕` or <kbd>Esc</kbd>.
+- **Fixed Filter `IN` / `NOT IN` Array Normalization (No more `t.map is not a function`)**: Safe array conversion when switching from single-value to list operators.
+
+### Version 1.3.9
 - **Flawless Master-Detail Keyboard Navigation**: Resolved arrow navigation double-invocation bug when inspecting events. Pressing <kbd>&darr;</kbd> or <kbd>&uarr;</kbd> now keeps the Event Details panel smoothly open and updates the row details continuously without collapsing.
 - **Clean Single Filter Suggestion Dropdown**: Removed duplicate native HTML5 `<datalist>` popup at the top of the input. Autocomplete now exclusively displays the styled React suggestion menu at the bottom with theme and keyboard navigation support.
 - **Dynamic Flexible Page Size Engine**:
