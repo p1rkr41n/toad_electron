@@ -1,7 +1,8 @@
-# TOAD v1.3.7.1 Hotfix Release (Null Pointer Fix & UI Clean Loading)
+# TOAD v1.3.7.1 Hotfix Release (Null Pointer Fix, Schema Protection & UI Clean Loading)
 
 ## 1. Giới thiệu phiên bản v1.3.7.1
-Phiên bản **Toad v1.3.7.1** là bản phát hành bảo trì trọng yếu (Hotfix), xử lý triệt để lỗi tính toán độ rộng cột khi mở bảng dữ liệu phân trang và tối ưu hóa trải nghiệm thị giác khi nạp tệp:
+Phiên bản **Toad v1.3.7.1** là bản phát hành bảo trì trọng yếu (Hotfix), xử lý triệt để lỗi tính toán độ rộng cột khi mở bảng dữ liệu phân trang, bảo vệ schema an toàn trước các trường siêu dữ liệu nội bộ (`_isOpen`, `_id`, `_depth`...) và tối ưu hóa trải nghiệm thị giác khi nạp tệp:
+- **Khắc phục lỗi `Schema.columnType: unknown column '_isOpen'`**: Loại bỏ việc duyệt nhầm các trường điều khiển nội bộ của hàng dữ liệu ảo (`_isOpen`, `_isLeaf`, `_depth`, `_id`, `_parentId`) khi tính độ rộng và định dạng cột trong `DataGrid.tsx`. Đồng thời, trang bị cơ chế tự bảo vệ tại tầng `Schema.ts` và `ViewParams.ts`, tự động trả về định dạng chuỗi an toàn (`fallback ColumnType`) thay vì quăng lỗi làm gián đoạn renderer nếu gặp bất kỳ cột giả lập nào.
 - **Khắc phục lỗi `Cannot read properties of null (reading 'Timestamp')`**: Trong `DataGrid.tsx`, thuật toán tự động tính toán độ rộng cột (`getColWidth`) trước đây duyệt theo dải chỉ số bộ đệm trượt (`offset` đến `offset + limit`) thay vì chỉ số trang hiện hành `[0 .. pageSize - 1]`. Khi tệp có nhiều hơn 1.000 dòng hoặc khi mở các trang tiếp theo, việc truy cập hàng vượt biên trả về `null` dẫn đến crash renderer. Đã cập nhật duyệt an toàn tối đa 100 dòng mẫu đầu trang với kiểm tra `null` nghiêm ngặt và hỗ trợ cột đầu tiên `columnIndex === 0`.
 - **Loại bỏ hoàn toàn icon xoay tròn vô định (Indeterminate Spinner)**: Loại bỏ `LoadingModal` và lớp phủ xám mờ. Thay vào đó, khi nạp và chuyển đổi tệp, hệ thống chỉ hiển thị duy nhất **Hộp thoại Tiến trình Nạp (IngestProgressDialog)** chuyên nghiệp, trực quan với thanh %, tốc độ MB/s, ETA và nút Hủy. Khi thao tác dữ liệu thông thường, công cụ phản hồi tức thì mà không bị che khuất tầm nhìn.
 
