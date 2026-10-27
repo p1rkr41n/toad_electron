@@ -50,20 +50,20 @@ if (-not $foundChatId) {
 
 Write-Host "Connecting with Chat ID: $foundChatId..."
 
-$introMsg = "Toad v1.3.7.4 Portable Release (Native Disk Read I/O Ingest Tracking -10%). Due to Telegram Bot API 50MB per-file limit, the 92.25MB package is split into 3 parts (.7z.001, .7z.002, .7z.003). Please download all 3 files and extract .001 with 7-Zip or WinRAR."
+$introMsg = "Toad v1.3.7.5 Portable Release (SQL Escape Fix, Frozen Expander Column, Smart Vertical Arrow Navigation). Due to Telegram Bot API 50MB per-file limit, the 92.25MB package is split into 3 parts (.7z.001, .7z.002, .7z.003). Please download all 3 files and extract .001 with 7-Zip or WinRAR."
 & curl.exe -s -X POST "$botBase/sendMessage" -d "chat_id=$foundChatId" -d "text=$introMsg"
 
 $files = @(
-    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.4_portable.7z.001",
-    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.4_portable.7z.002",
-    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.4_portable.7z.003"
+    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.5_portable.7z.001",
+    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.5_portable.7z.002",
+    "d:\Shared_UserData\Downloads\tad\releases\toad_v1.3.7.5_portable.7z.003"
 )
 
 $idx = 1
 foreach ($f in $files) {
     if (Test-Path $f) {
         Write-Host "Uploading part $idx/3 ($f)..."
-        $caption = "Toad v1.3.7.4 Portable - Volume $idx of 3"
+        $caption = "Toad v1.3.7.5 Portable - Volume $idx of 3"
         $uploadResp = & curl.exe -F "chat_id=$foundChatId" -F "caption=$caption" -F "document=@$f" "$botBase/sendDocument"
         Write-Host "Part $idx response: $uploadResp"
         $idx++

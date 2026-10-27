@@ -1,3 +1,47 @@
+# TOAD v1.3.7.5 Release (SQL Escape Syntax Guard, Frozen Expand Column & Smart Vertical Arrow Navigation)
+
+## 1. Giới thiệu phiên bản v1.3.7.5
+Phiên bản **Toad v1.3.7.5** là bản phát hành ổn định và nâng cao trải nghiệm người dùng trọng tâm:
+1. **Khắc phục triệt để lỗi cú pháp SQL `ESCAPE` trong DuckDB**:
+   - *Vấn đề*: Khi người dùng lọc đường dẫn Windows `\\.\C:\Inetpub\...` bằng toán tử `starts with` (hoặc `ends with`, `contains`), DuckDB ném lỗi màu đỏ:
+     `Query Error: Syntax Error: Invalid escape string. Escape string must be empty or one character.`
+     Nguyên nhân do trong `FilterExp.ts` bị double-escape chuỗi trong JavaScript: `" ESCAPE '\\\\'"` sinh ra `ESCAPE '\\'` (chuỗi 2 ký tự), vi phạm chuẩn ANSI SQL và DuckDB/SQLite chỉ cho phép escape đúng 1 ký tự.
+   - *Giải pháp*: Chuẩn hóa toàn bộ mệnh đề escape trong `FilterExp.ts` và `OmniSearchRelExp` sang chuỗi 1 ký tự chuẩn: `" ESCAPE '\\'"`. DuckDB và SQLite thực thi mượt mà 100%, lọc chính xác các đường dẫn Windows chứa dấu gạch chéo ngược `\` và các ký tự đặc biệt `%`, `_`.
+2. **Cố định cột Expand (`_expand`) vào mép trái bảng (Frozen Column / Pinned Freeze Pane)**:
+   - *Vấn đề*: Với các tệp dữ liệu có nhiều cột (như `Windows.NTFS.MFT.csv` có hơn 30 cột), khi người dùng cuộn ngang sang phải để xem các cột `OSPath`, `FileName`, `FileSize`, cột nút mũi tên mở rộng (`>`) bị trôi khuất mất về bên trái màn hình. Người dùng muốn xem chi tiết lại phải cuộn ngang ngược lại từ đầu.
+   - *Giải pháp*: Cố định cột 0 (`_expand`) vào mép trái bằng CSS sticky positioning (`position: sticky !important; left: 0px; z-index: 5/15;`). Trang bị đường viền ngăn cách sắc nét (`border-right: 2px solid #ced9e0`) và màu nền đồng bộ theme (Sáng: `#ffffff` / `#fafbfc`; Tối: `#30404d` / `#293742`). Khi cuộn ngang sang phải qua hàng chục cột, cột nút mũi tên `>` luôn ghim chặt cố định ở mép trái, sẵn sàng click xem chi tiết bất kỳ lúc nào.
+3. **Chuẩn hóa điều hướng phím mũi tên Lên/Xuống & Đồng bộ Event Details (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)**:
+   - *Vấn đề*: Khi người dùng bấm phím mũi tên xuống, con trỏ bị nhảy chéo sang "ô bên phải dưới" và không tự động cập nhật bảng chi tiết Event Details bên dưới. Nguyên nhân do logic trước đây gán cứng chỉ số cột là 1 (`setActiveCell(targetRow, 1)`), và chặn phím mũi tên khi `expandedRowIndex == null`.
+   - *Giải pháp*:
+     - Thiết lập cột `_expand` có `selectable: true` và lưu giữ chính xác chỉ số cột người dùng đang chọn (`currentCol = active.cell`).
+     - Di chuyển **thẳng đứng** $(N \to N \pm 1, currentCol \to currentCol)$, xóa bỏ hoàn toàn hiện tượng nhảy chéo ô sang phải dưới.
+     - Bất kể thanh Event Details đang mở hay đóng, khi người dùng bấm phím mũi tên <kbd>&darr;</kbd> hoặc <kbd>&uarr;</kbd>, hệ thống tự động cập nhật và hiển thị chi tiết của sự kiện tại hàng mới.
+     - Tự động cuộn hàng vào tầm nhìn (`scrollRowIntoView`) và bảo vệ chống can thiệp khi người dùng đang nhập văn bản trong ô tìm kiếm hoặc bộ lọc.
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification v1.3.7.5)
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-06** | Người dùng lọc đường dẫn Windows hoặc chuỗi chứa ký tự escape trong bộ lọc. | Chuẩn hóa cú pháp SQL `ESCAPE` trong DuckDB và SQLite thành 1 ký tự duy nhất. | - Mọi truy vấn `starts with`, `ends with`, `contains` trên đường dẫn `\\.\C:\...` thực thi thành công 100%.<br>- Không xuất hiện thông báo lỗi đỏ `Invalid escape string`.<br>- Dữ liệu lọc chính xác tuyệt đối. |
+| **BA-07** | Bảng dữ liệu lớn có nhiều cột, cuộn ngang sang phải làm mất nút mở rộng sự kiện. | Cố định cột nút `>` ở mép trái màn hình (Frozen / Pinned Column). | - Cột `_expand` ghim chặt ở mép trái khi cuộn ngang.<br>- Nút bấm `>` và `v` hoạt động bình thường ở mọi vị trí cuộn ngang.<br>- Viền ngăn cách hiển thị rõ ràng, không bị đè chữ hay lệch dòng. |
+| **BA-08** | Chuyên viên duyệt log nhanh bằng phím mũi tên Lên/Xuống (Triage workflow). | Di chuyển thẳng đứng giữ nguyên cột và tự động đồng bộ Event Details. | - Bấm <kbd>&darr;</kbd> di chuyển thẳng đứng từ hàng $N \to N+1$ trên cùng chỉ số cột, không nhảy chéo.<br>- Tự động mở / cập nhật nội dung chi tiết của dòng mới trong Event Details.<br>- Tự động cuộn dòng vào tầm nhìn khi vượt mép màn hình.<br>- Không can thiệp khi đang gõ chữ trong ô Search/Filter. |
+
+---
+
+## 3. Ma trận Thử nghiệm QA v1.3.7.5 (QA Test Matrix)
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-501** | Starts With Windows Path | Mở file `Windows.NTFS.MFT.csv`. | 1. Lọc cột `OSPath starts with`.<br>2. Nhập `\\.\C:\Inetpub\temp\`.<br>3. Bấm `Apply`. | Truy vấn chạy tức thì 0 lỗi syntax, lọc ra các bản ghi hợp lệ. | **PASSED** |
+| **TC-502** | Horizontal Scroll Frozen Column | Mở bảng có 30+ cột. | 1. Cuộn ngang sang phải đến cột cuối cùng.<br>2. Quan sát cột đầu tiên `_expand`. | Cột nút `>` ghim chặt mép trái, không bị trôi mất. | **PASSED** |
+| **TC-503** | Expand from Scrolled View | Đang ở vị trí cuộn xa bên phải. | Click vào nút `>` của một dòng bất kỳ ở cột cố định. | Nút chuyển thành `v`, Event Details mở ra ngay lập tức. | **PASSED** |
+| **TC-504** | Straight Vertical Arrow Down | Đang chọn ô ở cột số 4 (`OSPath`). | Bấm phím mũi tên Xuống <kbd>&darr;</kbd>. | Di chuyển thẳng đứng xuống dòng dưới tại đúng cột 4, Event Details cập nhật dòng mới. | **PASSED** |
+| **TC-505** | Straight Vertical Arrow Up | Đang ở dòng 10 cột 4. | Bấm phím mũi tên Lên <kbd>&uarr;</kbd> 3 lần. | Di chuyển thẳng đứng lên dòng 9, 8, 7; Event Details cập nhật liên tục. | **PASSED** |
+| **TC-506** | Arrow Nav with Closed Details | Event Details đang đóng, chọn 1 ô. | Bấm phím <kbd>&darr;</kbd>. | Di chuyển xuống dòng dưới và tự động mở Event Details hiển thị dòng đó. | **PASSED** |
+| **TC-507** | Typing Protection in Input | Đang gõ chữ trong ô Search. | Bấm phím mũi tên Trái/Phải/Lên/Xuống. | Con trỏ soạn thảo chữ di chuyển bình thường, không làm đổi dòng bảng. | **PASSED** |
+
+---
+
 # TOAD v1.3.7.4 Release (Draggable File Sidebar, Flawless Arrow Navigation, Universal Path Matching & Instant Filter Fill)
 
 ## 1. Giới thiệu phiên bản v1.3.7.4
