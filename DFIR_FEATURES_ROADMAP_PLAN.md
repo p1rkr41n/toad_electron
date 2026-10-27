@@ -1,11 +1,11 @@
 # KẾ HOẠCH NÂNG CẤP VÀ PHÁT TRIỂN HỆ THỐNG TOAD (DFIR LOG ANALYSIS TOOL)
-> **Phiên bản hiện tại:** v1.3.7.4 (Native I/O Ingest Tracking & Anti-Overthinking)  
-> **Phiên bản kế hoạch tiếp theo:** v1.3.7.5 (SQL Escape Syntax Guard, Freeze Expand Column, Smart Vertical Arrow Navigation)  
-> **Tài liệu chi tiết:** Xem [releases/PLAN_AND_TEST_CASES_v1.3.7.5.md](file:///d:/Shared_UserData/Downloads/tad/releases/PLAN_AND_TEST_CASES_v1.3.7.5.md)  
+> **Phiên bản hiện tại:** v1.3.8 (High-Throughput Jitterless Ingestion Engine, Adaptive Memory Budgeting & 100K Row Groups)  
+> **Tài liệu chi tiết:** Xem [releases/PLAN_AND_TEST_CASES_v1.3.8.md](file:///d:/Shared_UserData/Downloads/tad/releases/PLAN_AND_TEST_CASES_v1.3.8.md)  
 > **Trạng thái thực hiện:**
 > - ✅ **v1.3.0 -> v1.3.7.3**: Hoàn thành các tính năng Right-click Pivot, Filter Builder, Decoders, Hover-to-Sort, Distinct Suggestions.
-> - ✅ **v1.3.7.4**: Hoàn thành Resizable File Sidebar, Windows Backslash Path Search, Native Process Disk Read I/O Ingest Tracking (-10% scaling), 29/29 QA Test Cases Passed.
-> - 🚀 **v1.3.7.5 (Đang lập kế hoạch & Sẵn sàng triển khai)**: Sửa triệt để lỗi DuckDB `Invalid escape string`, Cố định cột Expand (`frozenColumn`), Chuẩn hóa điều hướng phím mũi tên thẳng đứng và đồng bộ Event Details.
+> - ✅ **v1.3.7.4**: Hoàn thành Resizable File Sidebar, Windows Backslash Path Search, Native Process Disk Read I/O Ingest Tracking (-10% scaling).
+> - ✅ **v1.3.7.5**: Hoàn thành SQL Escape Syntax Guard, Cố định cột Expand (`_expand` frozen left), Chuẩn hóa điều hướng phím mũi tên thẳng đứng đồng bộ Event Details.
+> - ✅ **v1.3.8 (Phát hành chính thức)**: Hoàn thành Non-Blocking Parallel Ingestion (`SET preserve_insertion_order = false`), Adaptive Memory Budgeting Guard (&le; 8GB RAM), Row Group 100K tối ưu cho cả SSD và HDD, 5/5 QA Test Cases Passed.
 
 ---
 
