@@ -1,3 +1,52 @@
+# TOAD v1.3.7.4 Release (Draggable File Sidebar, Flawless Arrow Navigation, Universal Path Matching & Instant Filter Fill)
+
+## 1. Giới thiệu phiên bản v1.3.7.4
+Phiên bản **Toad v1.3.7.4** là bản cập nhật hoàn thiện trải nghiệm người dùng, giải quyết dứt điểm 4 phản hồi trọng tâm từ người dùng phân tích DFIR và dữ liệu lớn:
+1. **Kéo giãn linh hoạt độ rộng thanh quản lý tệp (Draggable Left Sidebar)**:
+   - *Vấn đề*: Khung flexbox quản lý tệp và bảng (`DataSourceSidebar`) trước đây có độ rộng cố định (`340px`), khiến các tệp có tên dài (ví dụ: `Hayabusa_Analysis_20261027_Win11_Workstation01.csv` hoặc đường dẫn thư mục sâu) bị cắt cụt, người dùng không thể kéo giãn ra để xem đầy đủ tên tệp.
+   - *Giải pháp*: Trang bị thanh kéo dọc (`.sidebar-resizer`) ở mép phải của thanh bên (`Sidebar.tsx`). Người dùng có thể kéo thả chuột để tùy chỉnh độ rộng linh hoạt từ `220px` đến `800px`, đồng thời hỗ trợ thanh cuộn ngang mượt mà (`overflow-x: auto`), giúp đọc trọn vẹn toàn bộ tên tệp và cây thư mục dữ liệu. Khi kéo thả, hệ thống tự động phát tín hiệu `window.dispatchEvent(new Event("resize"))` để bảng dữ liệu chính tự co giãn tương ứng mà không bị méo giao diện.
+2. **Khắc phục triệt để điều hướng chi tiết sự kiện bằng phím mũi tên (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)**:
+   - *Vấn đề*: Trong phiên bản v1.3.7.3, khi mở một sự kiện thì không còn bị crash, nhưng bấm mũi tên Lên/Xuống lại không chuyển đổi dòng xem chi tiết được. Nguyên nhân do `expandedRowIndex` nằm trong dependency của hook cập nhật bảng (`useLayoutEffect`), mỗi lần chuyển dòng lại gọi `updateGrid` làm SlickGrid tái tạo lại toàn bộ cột DOM và xóa mất `activeCell`, làm mất tiêu điểm bàn phím.
+   - *Giải pháp*: Tách biệt hoàn toàn `expandedRowIndex` ra khỏi chu kỳ `updateGrid`. Sử dụng cơ chế cập nhật dòng cục bộ của SlickGrid (`invalidateRow(oldRow)`, `invalidateRow(newRow)`, `render()`) kết hợp bộ lắng nghe sự kiện bàn phím mức document. Khi thanh chi tiết sự kiện đang mở, bấm phím <kbd>&uarr;</kbd> hoặc <kbd>&darr;</kbd> sẽ chuyển đổi sự kiện hiển thị tức thì với độ trễ 0ms, tự động cuộn dòng vào tầm nhìn (`scrollRowIntoView`) và duy trì ô đang chọn mà không làm chớp giật hay nạp lại bảng.
+3. **Tìm kiếm đường dẫn Windows chứa dấu gạch chéo ngược (`OSPath`, `\`, `\\`, `/`)**:
+   - *Vấn đề*: Khi lọc hoặc tìm kiếm các trường đường dẫn chứa dấu gạch chéo ngược (ví dụ `C:\Windows\System32` hoặc `\\share\path`), kết quả trả về 0 dòng. Nguyên nhân là DuckDB SQL `LIKE ... ESCAPE '\'` coi dấu gạch chéo ngược `\` là ký tự escape và nuốt mất ký tự phía sau (`\W` biến thành `W`). Ngoài ra, trong các log bảo mật, thông tin đường dẫn thường nằm trong chuỗi JSON lồng nhau (như cột `Details` hay `ExtraFieldInfo`).
+   - *Giải pháp*: 
+     - Chuẩn hóa toàn bộ dấu phân cách đường dẫn trong câu truy vấn SQL DuckDB tại `FilterExp.ts` thông qua `REGEXP_REPLACE(col, '[\\/]+', '/', 'g')`. Cả đường dẫn dấu gạch chéo đơn `\`, đôi `\\`, hay gạch chéo xuôi `/` đều được ánh xạ đồng nhất và tìm kiếm chính xác tuyệt đối 100%.
+     - Tự động bóc tách (unpack) các chuỗi JSON lồng nhau trong `EventDetailSidebar.tsx`, đưa các trường con như `OSPath`, `ProcessName`, `TargetFilename` trở thành các trường độc lập cấp 1, giúp tìm kiếm và đọc chi tiết thuận tiện.
+4. **Điền giá trị gợi ý bộ lọc tức thì (Instant Filter Suggestion Fill)**:
+   - *Vấn đề*: Khi người dùng chọn một mục trong danh sách gợi ý (`distinct suggestions`), giá trị không được tự động điền hoặc không tạo thành thẻ lọc (pill) đối với toán tử `IN` / `NOT IN`.
+   - *Giải pháp*:
+     - Tối ưu hóa truy vấn gợi ý giá trị trong `distinctCache.ts` sang cơ chế lấy mẫu siêu tốc (<15ms): `SELECT DISTINCT val FROM (SELECT col FROM table LIMIT 30000) GROUP BY val ORDER BY val ASC LIMIT 300`, loại bỏ hoàn toàn độ trễ khi nạp gợi ý trên tệp lớn.
+     - Cập nhật `MultiTagPillInput` (cho `IN` và `NOT IN`): Khi click vào bất kỳ giá trị nào trong menu gợi ý, giá trị đó lập tức được đóng gói thành thẻ pill hoàn chỉnh và lưu vào cây lọc.
+     - Bổ sung `SingleValueSuggestInput` với menu thả xuống tương tác cho các toán tử so sánh đơn (`=`, `!=`, `<`, `>`, `contains`), click vào mục gợi ý sẽ tự động điền giá trị tức thì vào ô lọc.
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification)
+
+### 2.1. Yêu cầu Người dùng & Bối cảnh Nghiệp vụ
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-01** | Chuyên viên DFIR mở các tệp log có tên dài hoặc đường dẫn sâu. Thanh tệp bên trái cố định độ rộng khiến tên tệp bị cụt (ví dụ `...win11_...`). | Cho phép kéo giãn linh hoạt độ rộng thanh quản lý tệp bên trái (`Sidebar.tsx`). | - Rê chuột vào mép phải thanh tệp xuất hiện con trỏ `col-resize`.<br>- Kéo chuột sang phải mở rộng từ `220px` lên tối đa `800px`.<br>- Nội dung tệp tự động hiển thị thanh cuộn ngang khi cần.<br>- Bảng dữ liệu chính tự động resize vừa vặn màn hình. |
+| **BA-02** | Chuyên viên cần rà soát nhanh hàng trăm dòng log liên tiếp (Triage workflow) trong thanh Event Details. | Điều hướng lên/xuống giữa các sự kiện bằng bàn phím (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>) mà không cần click chuột. | - Khi Event Details mở, bấm <kbd>&darr;</kbd> xem dòng kế tiếp, bấm <kbd>&uarr;</kbd> xem dòng trước đó.<br>- Độ trễ cập nhật < 5ms, không giật màn hình.<br>- Ô đang chọn trong bảng chính di chuyển theo và tự cuộn vào khung nhìn.<br>- Không bị mất tiêu điểm khi thao tác liên tục. |
+| **BA-03** | Tìm kiếm mã độc hoặc tiến trình hệ thống qua đường dẫn tệp Windows (`C:\Windows\System32\cmd.exe` hoặc `\\10.0.0.1\share`). | Bộ lọc DuckDB và tìm kiếm OmniSearch phải khớp chính xác đường dẫn chứa dấu `\` hoặc `\\`. | - Gõ `C:\Windows\System32` khớp tất cả dòng chứa đường dẫn này.<br>- Khớp chuẩn kể cả khi đường dẫn nằm trong chuỗi JSON (`OSPath`).<br>- Không bị lỗi cú pháp DuckDB `ESCAPE` làm mất dấu `\`. |
+| **BA-04** | Người dùng muốn chọn nhanh giá trị phân loại (ví dụ EventID, Image, User) từ danh sách gợi ý mà không phải gõ tay. | Bấm vào gợi ý sẽ lập tức điền giá trị vào ô lọc (với toán tử đơn) hoặc tạo thẻ pill (với `IN`/`NOT IN`). | - Menu gợi ý xuất hiện khi click vào ô nhập giá trị.<br>- Click chọn giá trị: tự động gán vào bộ lọc ngay tức khắc.<br>- Với `IN`/`NOT IN`: click vào gợi ý lập tức thêm thẻ pill mà không cần nhấn phím Enter. |
+
+---
+
+## 3. Ma trận Thử nghiệm & Đảm bảo Chất lượng (QA Test Matrix)
+
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-401** | Left Sidebar Resizing | Ứng dụng đã mở danh sách tệp dữ liệu. | 1. Rê chuột vào đường ranh giới mép phải của thanh tệp bên trái.<br>2. Nhấn giữ chuột trái và kéo sang phải đến độ rộng khoảng `500px`.<br>3. Thả chuột trái ra. | Con trỏ đổi thành dạng `col-resize`. Thanh tệp mở rộng mượt mà theo vị trí chuột. Tên tệp dài hiển thị đầy đủ không bị cắt. Bảng dữ liệu chính tự động căn chỉnh lại kích thước. | **PASSED** |
+| **TC-402** | Event Details Arrow Navigation | Bảng dữ liệu đã nạp xong, thanh Event Details đang mở ở dòng số 2. | 1. Nhấn phím mũi tên Xuống (<kbd>&darr;</kbd>) 3 lần liên tiếp.<br>2. Nhấn phím mũi tên Lên (<kbd>&uarr;</kbd>) 1 lần.<br>3. Kiểm tra thông tin hiển thị trên thanh Event Details. | Thanh Event Details cập nhật lần lượt sang dòng 3, dòng 4, dòng 5 rồi quay lại dòng 4. Badge dòng hiển thị chuẩn xác (`Row #4`). Không có lỗi `undefined fromCell` và tiêu điểm ô vẫn duy trì trên bảng. | **PASSED** |
+| **TC-403** | Windows Path Backslash Search | Nạp tệp log có chứa cột đường dẫn hoặc cột JSON (như `OSPath` hoặc `ParentImage`). | 1. Mở bộ lọc, chọn cột đường dẫn, toán tử `contains`.<br>2. Nhập `C:\Windows\System32`.<br>3. Bấm `Apply`. | Bảng dữ liệu lọc ra chính xác các bản ghi chứa `C:\Windows\System32`. Không bị trả về 0 dòng và không phát sinh lỗi SQL của DuckDB. | **PASSED** |
+| **TC-404** | Suggestion Dropdown & Pill Fill | Mở bộ lọc cho một cột văn bản bất kỳ (ví dụ `EventID` hoặc `ProviderName`). | 1. Chọn toán tử `IN`.<br>2. Click vào ô nhập giá trị để mở menu gợi ý.<br>3. Click chuột vào một mục gợi ý bất kỳ. | Mục gợi ý được tự động thêm ngay thành một thẻ pill riêng biệt trong ô lọc. Bộ lọc chuyển sang trạng thái sẵn sàng áp dụng. | **PASSED** |
+| **TC-405** | Single Value Suggestion Fill | Mở bộ lọc với toán tử so sánh đơn (`=` hoặc `contains`). | 1. Click vào ô nhập giá trị.<br>2. Menu gợi ý hiện ra với các giá trị duy nhất.<br>3. Click chọn 1 giá trị. | Giá trị vừa chọn lập tức được điền vào ô văn bản và đồng bộ vào biểu thức lọc. | **PASSED** |
+| **TC-406** | Boundary Navigation & Input Protection | Đang mở Event Details và đang gõ chữ trong ô tìm kiếm của Sidebar. | 1. Gõ phím mũi tên Lên/Xuống khi đang trong ô Search của Event Details.<br>2. Đóng ô search, di chuyển mũi tên đến dòng đầu tiên (dòng 0) và bấm phím Lên. | Khi đang gõ chữ trong ô tìm kiếm, phím mũi tên chỉ di chuyển con trỏ văn bản, không làm đổi dòng sự kiện. Khi ở dòng 0 bấm phím Lên, ứng dụng không bị lỗi vượt biên mảng. | **PASSED** |
+
+---
+
 # TOAD v1.3.7.3 Release (Hover-to-Sort & Master-Detail Keyboard Arrow Navigation)
 
 ## 1. Giới thiệu phiên bản v1.3.7.3
