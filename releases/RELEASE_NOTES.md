@@ -1,3 +1,18 @@
+# TOAD v1.3.7.3 Release (Hover-to-Sort & Master-Detail Keyboard Arrow Navigation)
+
+## 1. Giới thiệu phiên bản v1.3.7.3
+Phiên bản **Toad v1.3.7.3** nâng cấp trải nghiệm tương tác với dữ liệu lớn thông qua 2 tính năng trọng tâm: bảo vệ thao tác tiêu đề cột chống sort ngoài ý muốn (Hover-to-Sort) và luồng điều hướng sự kiện bàn phím mượt mà (Master-Detail Keyboard Arrow Navigation):
+- **Cơ chế Sort tiêu đề cột có kiểm soát (Hover-to-Sort Button)**:
+  - *Vấn đề*: Trong SlickGrid mặc định, click vào bất kỳ vị trí nào trên tiêu đề cột (tên cột, khoảng trắng khi kéo thả hoặc chọn cột) đều lập tức kích hoạt câu lệnh `ORDER BY` lên DuckDB. Đối với tệp lớn 40GB hoặc hàng triệu dòng, một click vô tình làm treo hoặc nghẽn truy vấn không mong muốn.
+  - *Giải pháp*: Click vào tên cột hoặc khoảng trắng tiêu đề giờ đây **hoàn toàn an toàn và KHÔNG kích hoạt sort**. Khi rê chuột (hover) vào tiêu đề cột, icon sort (`⇅`) sẽ xuất hiện mượt mà ở góc phải; chỉ khi người dùng click chính xác vào nút sort này, hệ thống mới thực hiện sắp xếp (**Tăng dần ▲** $\rightarrow$ **Giảm dần ▼** $\rightarrow$ **Mặc định**).
+- **Điều hướng xem Event Details bằng phím mũi tên Lên/Xuống (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)**:
+  - *Quy trình Master-Detail*: Khi thanh chi tiết sự kiện (Event Details Sidebar) đang mở, chuyên viên DFIR chỉ cần bấm phím mũi tên Lên (<kbd>&uarr;</kbd>) hoặc Xuống (<kbd>&darr;</kbd>) trên bàn phím (hoặc click vào bất kỳ ô nào của dòng khác), thanh chi tiết bên phải sẽ lập tức cập nhật dữ liệu của dòng mới theo thời gian thực mà không cần phải dùng chuột click nút `>` từng dòng một.
+  - *Phím <kbd>Enter</kbd> / <kbd>Space</kbd> mở nhanh*: Khi thanh Details đang đóng, bấm phím <kbd>Enter</kbd> hoặc <kbd>Space</kbd> tại dòng đang chọn sẽ bật mở thanh Details ngay lập tức. Bấm lại hoặc bấm <kbd>Esc</kbd> để thu gọn thanh chi tiết.
+- **Cập nhật toàn diện Quick Start & Release Notes**:
+  - Tài liệu tích hợp trong `Help -> Quick Start Guide` được cập nhật toàn bộ các tính năng từ v1.3.7 đến v1.3.7.3.
+
+---
+
 # TOAD v1.3.7.2 Hotfix Release (Comprehensive Defensive Hardening, Search Fix & Instant Distinct Suggestions)
 
 ## 1. Giới thiệu phiên bản v1.3.7.2
