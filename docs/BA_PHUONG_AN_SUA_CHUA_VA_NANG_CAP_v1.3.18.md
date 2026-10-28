@@ -183,3 +183,4 @@ binary_guard = true
 3. Chạy bộ kiểm thử tự động QA (Test Script v1.3.18).
 4. Đóng gói binary **Toad 1.3.18.exe** và phân phối vào thư mục `releases/`.
 5. Bàn giao và đối chiếu kiểm thử thực tế.
+
