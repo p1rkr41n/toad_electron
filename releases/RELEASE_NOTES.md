@@ -1,3 +1,47 @@
+# TOAD v1.3.11 Release (Dynamic Tree Reactivity, Two-Way DataGrid Status Sync & Non-blocking Ingestion Engine)
+
+## 1. Giới thiệu phiên bản v1.3.11
+Phiên bản **Toad v1.3.11** khắc phục triệt để hiện tượng kẹt nhãn `0%` trên thanh Sidebar, đồng bộ thuật toán tính % tiến độ nạp từ DuckDB lên giao diện người dùng và bất đồng bộ hóa toàn diện tiến trình chuyển đổi EVTX:
+
+1. **Khắc phục Triệt để Khóa Đóng băng JSX Tĩnh (Dynamic Tree Item Reactivity)**:
+   - *Nguyên nhân trước đây*: Nhãn cây thư mục trong Blueprint Tree được gán cứng bằng một JSX element tĩnh lúc mở thư mục (`renderFileNodeLabel`). Khi `MultipleLoadingManager` cập nhật tiến trình hoặc chuyển trạng thái, React truyền lại mảng `treeState` cũ với JSX tĩnh, khiến các tệp vĩnh viễn hiển thị `0%` và thanh mini xanh dù DuckDB đã hoàn tất nạp.
+   - *Giải pháp*: Tái cấu trúc nhãn tệp thành React Functional Component độc lập (`FileTreeItemLabel`). Mỗi nhãn tệp tự đăng ký lắng nghe `MultipleLoadingManager` và tự động re-render ở mức độ O(1) ngay khi có cập nhật % hoặc trạng thái mới.
+
+2. **Đồng bộ Hai Chiều với DataGrid (Active View State Sync)**:
+   - Tệp đang được mở và hiển thị bảng trên DataGrid chính (`appState.viewState.dsPath`) lập tức được chuyển sang trạng thái **Ready** trên Sidebar (chữ màu đen đậm trên Light Mode / sáng rõ trên Dark Mode).
+   - Chỉ số `0%` và thanh tiến trình mini tự động ẩn đi hoàn toàn, mang lại giao diện trực quan và chuyên nghiệp.
+   - Bổ sung phương thức `markReady(dsPath)` trong `MultipleLoadingManager` để tự động giải phóng tệp khỏi hàng đợi và kích hoạt nạp tệp kế tiếp.
+
+3. **Bất đồng bộ hóa Toàn diện Tiến trình EVTX Ingestion**:
+   - Thay thế `child_process.execFileSync` bằng `child_process.execFile` dạng Promise bất đồng bộ, giải phóng 100% luồng chính Node.js Event Loop, không làm đơ giật giao diện.
+   - Bổ sung chu trình báo cáo tiến độ đa giai đoạn mượt mà:
+     - **5% – 45%**: Giải mã bản ghi nhị phân EVTX sang JSONL trung gian bằng Rust Core SIMD.
+     - **45% – 90%**: DuckDB streaming từ JSONL sang Parquet nén.
+     - **90% – 100%**: Hoàn tất tạo VIEW và lập chỉ mục truy vấn tức thì.
+   - Xử lý mượt mà cho các tệp nhỏ (<1MB) và các tệp Cache Hit sẵn có trong bộ nhớ tạm.
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification v1.3.11)
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-23** | Mở thư mục nhiều tệp dữ liệu trên Sidebar. | Nhãn tệp tự phản ứng động, hiển thị đúng tiến độ % và trạng thái của từng tệp từ hàng đợi ngầm. | - Không còn hiện tượng kẹt 0% do static JSX closure.<br>- Tệp chờ: hiện `0%` xám.<br>- Tệp đang nạp: hiện % tăng dần và thanh xanh chạy mượt.<br>- Tệp xong: chuyển màu đen đậm, ẩn % và thanh xanh. |
+| **BA-24** | Người dùng click mở xem tệp trên DataGrid chính. | Sidebar lập tức đồng bộ trạng thái tệp đang mở thành `ready 100%`. | - Không bao giờ xảy ra tình trạng bảng đã mở mà sidebar vẫn báo `0%`.<br>- Tự động giải phóng hàng đợi để nạp tiếp tệp khác. |
+| **BA-25** | Nạp tệp EVTX dung lượng lớn. | Bất đồng bộ hóa tiến trình, không làm đơ app và hiển thị % mượt mà. | - 0ms chặn luồng chính của Node.js.<br>- Tiến độ chuyển tiếp trơn tru từ giai đoạn giải mã đến DuckDB Parquet. |
+
+---
+
+## 3. Ma trận Thử nghiệm QA v1.3.11 (QA Test Matrix)
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-1001** | Dynamic Label Reactivity | Mở thư mục `data_sample`. | Quan sát nhãn của các tệp `output_1000.csv`, `Security.evtx`, `System.evtx`. | Tệp chưa nạp hiển thị chữ xám `0%`. Không bị đơ JSX tĩnh. | **PASSED** |
+| **TC-1002** | Active View Ready Transition | Click vào tệp `Security.evtx`. | Bảng dữ liệu mở trên DataGrid. | Tên tệp `Security.evtx` trên sidebar chuyển ngay sang màu đen đậm, số `0%` và vạch xanh ẩn đi hoàn toàn. | **PASSED** |
+| **TC-1003** | Multiple Loading Sequential Drain | Mở thư mục nhiều tệp. | Để hàng đợi 1s tự động chạy. | Tệp 1 nạp xong chuyển màu đen, tệp 2 lập tức bắt đầu nạp hiển thị % tăng dần, tuần tự đến hết thư mục. | **PASSED** |
+| **TC-1004** | Async EVTX Conversion Progress | Nạp tệp EVTX. | Quan sát phản hồi ứng dụng. | App không bị đơ. Thanh tiến độ hiển thị % tăng dần theo dung lượng giải mã thực tế. | **PASSED** |
+| **TC-1005** | Cache Hit Instant Ready | Nạp lại tệp đã có Parquet Cache. | Quan sát tốc độ mở. | Tệp lập tức chuyển sang `ready` màu đen 0ms không trễ. | **PASSED** |
+
+---
+
 # TOAD v1.3.10 Release (Multiple Loading Background Ingestion Engine & User-Priority Preemption)
 
 ## 1. Giới thiệu phiên bản v1.3.10

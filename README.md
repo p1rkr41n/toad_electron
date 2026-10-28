@@ -1,13 +1,13 @@
-# Toad (v1.3.10) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
+# Toad (v1.3.11) - High-Performance Tabular Data Viewer & Big Data Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-1.3.10-brightgreen.svg)](releases/)
+[![Version](https://img.shields.io/badge/Version-1.3.11-brightgreen.svg)](releases/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](releases/)
 
 > **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark theme, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 >
-> 📖 **[Read the Quick Start Guide (v1.3.10)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
+> 📖 **[Read the Quick Start Guide (v1.3.11)](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** for a fast walkthrough of all features.
 
 ---
 
@@ -17,8 +17,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.10) |
-| **[`releases/toad_v1.3.10_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.10_portable.exe)** | ~92 MB | Versioned portable release binary |
+| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.3.11) |
+| **[`releases/toad_v1.3.11_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.11_portable.exe)** | ~92 MB | Versioned portable release binary |
 | **[`releases/RELEASE_NOTES.md`](file:///D:/Shared_UserData/Downloads/tad/releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
 | **[`QUICK_START.md`](file:///D:/Shared_UserData/Downloads/tad/QUICK_START.md)** | - | Complete Quick Start & Feature Guide |
 
@@ -267,7 +267,12 @@ binary_guard = true
 
 ## 4. Release Notes & Changelog
 
-### Version 1.3.10 (Current Release)
+### Version 1.3.11 (Current Release)
+- **Dynamic Tree Node Reactivity**: Refactored Blueprint tree node labels to independent reactive React components (`FileTreeItemLabel`), completely eliminating the frozen static JSX closure bug. Files in sidebar now dynamically update % and visual states in real-time.
+- **Active DataGrid Synchronization**: Opening any file on the main DataGrid immediately transitions its status to `ready 100%` on the sidebar. The `0%` label and mini progress bar disappear, and text transitions to bold black.
+- **Non-blocking EVTX Pipeline**: Converted EVTX conversion to an asynchronous execution pipeline, eliminating Node.js main thread locks and reporting smooth multi-stage progress (5% -> 45% -> 90% -> 100%).
+
+### Version 1.3.10
 - **Multiple Loading Background Ingestion Queue**: Automatically enqueues all datasets in an opened directory into a sequential background worker, avoiding memory spikes, thread locks, and I/O thrashing.
 - **1-Second Polling & Status Cycle**: Continuously inspects file status every ~1s and coordinates streaming conversion into DuckDB Parquet cache.
 - **In-Situ Sidebar Visual Indicators**: Muted gray filename with % progress and a 2px blue mini progress line for pending/processing files; crisp bold black (Light) or bright cream (Dark) for ready files; alert red for corrupt files.
