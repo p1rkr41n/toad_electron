@@ -165,3 +165,4 @@ Trong `MultipleLoadingManager.ts`:
 | 4 | Cập nhật `csvimport.ts` | `csvimport.ts` | Giữ nguyên 100% công thức -10% scaling, stream JSONL/Parquet bất đồng bộ mượt mà. |
 | 5 | Biên dịch và Đóng gói | `tadviewer`, `reltab-duckdb`, `tad-app` | Tạo bản build sạch Toad.exe v1.3.12. |
 | 6 | QA Test Suite | Mở `data_sample` (CSV, EVTX) | Xác nhận thanh loading chạy mượt từ 0% đến 100%, số % nhảy liên tục, Speed và ETA hiển thị chuẩn xác, không còn tình trạng kẹt 0%. |
+
