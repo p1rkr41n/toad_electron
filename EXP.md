@@ -171,6 +171,12 @@ Qua rà soát toàn bộ mã nguồn, các điểm rủi ro sau đây cần đ�
 - Phiên bản ứng dụng trong `package.json` bắt buộc có định dạng `X.Y.Z` (ví dụ `1.3.14`).
 - Không đặt phiên bản 4 phần (`1.3.12.1`) vì sẽ phá vỡ thư viện `builder-util-runtime` của Electron.
 
+### Quy tắc 6: Xử lý phần mở rộng tệp an toàn đa dấu chấm (Safe Compound Extension Extraction)
+- **Nghiêm cấm dùng `indexOf('.')` từ đầu chuỗi tên file** để bóc tách đuôi file. Thao tác này sẽ cắt sai toàn bộ các file có từ 2 dấu chấm trở lên (ví dụ: `a.b.c.csv` thành `.b.c.csv`, `data.2024.10.csv` thành `.2024.10.csv`) khiến module quét thư mục loại bỏ nhầm file hợp lệ của người dùng.
+- **Tiêu chuẩn xử lý chuẩn:**
+  1. Duyệt kiểm tra các đuôi ghép đặc biệt có đăng ký (`.csv.gz`, `.tsv.gz`).
+  2. Mặc định luôn dùng `path.extname(filePath)` để lấy extension chuẩn tại dấu chấm cuối cùng (`lastIndexOf('.')`).
+
 ---
 
 ## 6. CHECKLIST TỰ KIỂM TRA TRƯỚC KHI ĐÓNG GÓI (PRE-RELEASE QA CHECKLIST)
