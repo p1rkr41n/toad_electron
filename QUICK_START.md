@@ -1,4 +1,4 @@
-# Toad Quick Start Guide (v1.3.10)
+# Toad Quick Start Guide (v1.3.11)
 
 > **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, Dracula dark mode, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with no arbitrary upper limit)**.
 
@@ -9,7 +9,7 @@
 Toad is packaged as a completely self-contained portable Windows executable—no administrator privileges, installer wizards, or background services required.
 
 - **Primary Portable Executable**: [`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe) (~92 MB)
-- **Versioned Portable Release**: [`releases/toad_v1.3.10_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.10_portable.exe)
+- **Versioned Portable Release**: [`releases/toad_v1.3.11_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.11_portable.exe)
 
 ### Three Easy Ways to Open Data:
 1. **Direct Launch**: Double-click `Toad.exe`. Click **File &rarr; Open** (or press `Ctrl+O`) to select any supported data file.
