@@ -143,3 +143,4 @@ Tại phiên bản v1.3.12, người dùng tiến hành kiểm thử thực tế
 
 ## 6. KẾT LUẬN
 Tài liệu này xác lập đầy đủ căn cứ đặc tả BA và giải pháp kỹ thuật cho phiên bản **TOAD v1.3.13**. Toàn bộ kiến trúc được tối ưu hóa cho khả năng đa nhiệm thực thụ trong phân tích điều tra số.
+
