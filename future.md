@@ -71,13 +71,38 @@ Tuy nhiên, việc tích hợp nhiều thành phần khiến thời gian khởi 
 
 ---
 
+### 📌 Đề xuất 4: Nâng cấp Hệ thống Trích xuất Regex Đa năng (Flexible Sample Navigator & Live Column Renaming)
+* **Mô tả**: Nâng cấp toàn diện hộp thoại `Toad Regex` phục vụ phân tích log chuyên sâu: cho phép người dùng duyệt qua nhiều dòng sự kiện khác nhau trong bảng hoặc tự do chỉnh sửa mẫu thử nghiệm (thay vì bị cố định ở dòng đầu tiên), đồng thời cho phép đặt lại tên cột trực tiếp ngay tại bảng Live Preview khi các nhóm trích xuất (Capture Groups) được sinh ra.
+* **Hiện trạng hiện tại**:
+  - Tại [`RegexDialog.tsx`](file:///D:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/RegexDialog.tsx), hàm `fetchSampleEvent()` chỉ quét và lấy cố định **dòng đầu tiên có dữ liệu khác rỗng** (`rawData[0]`). Người dùng không thể chuyển sang xem dòng thứ 5 hay dòng thứ 10 để kiểm tra độ khớp của biểu thức Regex trên các dạng log biến thiên.
+  - Tên cột sinh ra trong câu lệnh DuckDB `CREATE VIEW` đang bị **gán cứng tự động theo định dạng `str0`, `str1`, `str2`...** tại [`actions.ts:L903`](file:///D:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts#L903). Khi hiển thị trên DataGrid chính, người dùng rất khó nhớ cột nào chứa thông tin gì (như IP, Port, User, Action) mà không mở lại hộp thoại Regex.
+* **Phương án triển khai**:
+  - **Sample Navigator & Flexible Editor**:
+    - Trích xuất danh sách tất cả các dòng non-null từ `viewState.dataView.rawData`.
+    - Bổ sung thanh điều hướng dòng `[ ◀ Trước ] Sự kiện X / Y [ Tiếp ▶ ]` cho phép chuyển đổi tức thì giữa các dòng sự kiện trong bảng dữ liệu.
+    - Cho phép gõ, dán tự do bất kỳ chuỗi log mẫu nào vào TextArea, kèm nút `↺ Reset về dòng gốc` để khôi phục dữ liệu ban đầu.
+  - **Live Column Renaming & Named Group Detection**:
+    - Tại bảng `Live Output Preview`, hiển thị danh sách các nhóm trích xuất dạng bảng tương tác với ô nhập `<InputGroup>` cho phép gõ trực tiếp tên cột mong muốn (ví dụ: `Client_IP`, `User_Agent`, `Status_Code`).
+    - Tự động nhận diện **Named Capture Groups** trong Regex (ví dụ: `(?<ip>\d+\.\d+\.\d+\.\d+)` hoặc `(?<action>[A-Z]+)`) để tự động điền sẵn tên cột mà người dùng không cần gõ lại.
+    - Cập nhật hàm `applyRegexExtraction(targetCol, regexPattern, customColNames, stateRef)` trong `actions.ts` để sinh câu lệnh DuckDB View với tên cột người dùng đã định nghĩa:
+      ```sql
+      CREATE VIEW "table_rx1" AS SELECT *, 
+        regexp_extract("raw_msg", '...', 1) AS "Client_IP", 
+        regexp_extract("raw_msg", '...', 2) AS "Status_Code" 
+      FROM "table"
+      ```
+* **Hiệu quả dự kiến**: Tăng 300% hiệu suất trích xuất và chuẩn hóa trường log trong các tác vụ DFIR / SOC điều tra sự cố; các cột dữ liệu sinh ra lập tức có ý nghĩa rõ ràng trên DataGrid chính mà không cần bước đổi tên thủ công.
+
+---
+
 ## 3. LỘ TRÌNH TRIỂN KHAI KHUYẾN NGHỊ (RECOMMENDED IMPLEMENTATION PHASES)
 
-| Giai Đoạn | Hạng Mục Công Việc | Mức Độ Phức Tạp | Tác Động Tốc Độ |
+| Giai Đoạn | Hạng Mục Công Việc | Mức Độ Phức Tạp | Tác Động / Lợi Ích |
 |:---:|---|:---:|:---:|
-| **Phase 1** | **Bản Fast Portable (Folder / ZIP)**: Bổ sung script tạo file zip của `win-unpacked` vào quy trình release. | Thấp (1 - 2 giờ) | 🟢 **Giảm ngay 2.5 - 3.5 giây** (Hiệu quả tức thì nhất) |
+| **Phase 1** | **Bản Fast Portable (Folder / ZIP)**: Bổ sung script tạo file zip của `win-unpacked` vào quy trình release. | Thấp (1 - 2 giờ) | 🟢 **Giảm ngay 2.5 - 3.5 giây** thời gian khởi động |
 | **Phase 2** | **Bất đồng bộ hóa `init-portable`**: Tách nhẹ phase `setPath` và đẩy dọn dẹp temp/config sang async. | Trung bình (0.5 ngày) | 🟡 **Giảm thêm 200 - 400ms** |
 | **Phase 3** | **Webpack Code Splitting**: Refactor các component lớn sang `React.lazy()` và cấu hình `splitChunks`. | Cao (1 - 2 ngày) | 🟡 **Giảm thêm 300 - 500ms** thời gian render UI |
+| **Phase 4** | **Nâng cấp Hệ thống Regex Đa năng**: Tích hợp Sample Navigator, Custom Editor và Live Column Renaming. | Trung bình (1 ngày) | 🚀 **Tối ưu vượt bậc trải nghiệm phân tích DFIR & trích xuất log** |
 
 ---
 
