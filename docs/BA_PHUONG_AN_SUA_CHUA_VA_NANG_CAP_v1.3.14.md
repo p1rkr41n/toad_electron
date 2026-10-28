@@ -222,3 +222,4 @@ Trong [`packages/tadviewer/src/components/DataGrid.tsx`](file:///d:/Shared_UserD
 
 ## 6. KẾT LUẬN & CAM KẾT TRIỂN KHAI
 Tài liệu BA v1.3.14 này định nghĩa chuẩn mực kiểm soát luồng đồng quy giữa tác vụ nền và giao diện người dùng. Việc triển khai giải pháp 3 lớp bảo vệ sẽ giải quyết dứt điểm 100% tình trạng nghẽn DuckDB và ngăn chặn hoàn toàn mọi lỗi crash renderer.
+
