@@ -155,3 +155,4 @@ Tại phiên bản v1.3.11, người dùng tiến hành kiểm thử thực tế
 ## 6. KẾT LUẬN & CAM KẾT PHÁT HÀNH
 
 Tài liệu này xác lập đầy đủ căn cứ phân tích nguyên nhân gốc, đặc tả nghiệp vụ BA và giải pháp kỹ thuật chi tiết cho phiên bản **TOAD v1.3.12**. Sau khi người dùng xác nhận thông qua tài liệu này, hệ thống sẽ tiến hành cập nhật mã nguồn theo đúng thiết kế và chuyển sang giai đoạn biên dịch, kiểm thử QA và đóng gói sản phẩm.
+
