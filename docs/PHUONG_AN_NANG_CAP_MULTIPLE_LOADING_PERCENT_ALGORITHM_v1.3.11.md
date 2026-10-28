@@ -160,3 +160,4 @@ export const FileTreeItemLabel: React.FC<{
 | **5** | Bất đồng bộ hóa EVTX Ingestion & Phát tiến độ mượt mà | `packages/reltab-duckdb/src/csvimport.ts` |
 | **6** | Build TypeScript packages (`reltab-duckdb`, `tadviewer`, `tad-app`) | Toàn bộ workspace |
 | **7** | Đóng gói bản phát hành `Toad.exe` v1.3.11 và QA kiểm thử toàn diện | `Toad.exe`, `releases/toad_v1.3.11_portable.exe` |
+
