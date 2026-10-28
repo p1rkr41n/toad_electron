@@ -187,3 +187,4 @@ Trước khi phát hành bất kỳ bản build nào, phải đối chiếu đ�
 
 ---
 *Tài liệu này là cẩm nang kỹ thuật chuẩn của dự án TOAD Viewer, được lưu giữ vĩnh viễn trong kho mã nguồn để định hướng mọi hoạt động refactor và nâng cấp hệ thống.*
+
