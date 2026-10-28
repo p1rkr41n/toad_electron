@@ -147,3 +147,4 @@ sequenceDiagram
 | **TC-1.3.17-03** | Thư mục hỗn hợp (2 file 600MB + 5 file 2MB) | 2 file 600MB, 5 file 2MB | 5 file 2MB nạp trước và xong ngay; sau đó từng file 600MB được nạp mà không bị trào ngưỡng 1GB. |
 | **TC-1.3.17-04** | Tệp khổng lồ độc quyền (> 1GB) | `sample_40gb.csv` (40GB) | Khi hàng đợi rảnh, file 40GB được cấp phép nạp độc quyền bình thường, không bị kẹt 0%. |
 | **TC-1.3.17-05** | Người dùng click cướp quyền ưu tiên | Đang nạp dở, click vào file `audit.json` | File `audit.json` nhận ưu tiên số 1, chiếm slot ngay khi có 1 worker trống và mở bảng DataGrid tức thì. |
+
