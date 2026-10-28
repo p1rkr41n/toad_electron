@@ -1,6 +1,6 @@
-# Toad Quick Start Guide (v1.3.9.1)
+# Toad Quick Start Guide (v1.3.10)
 
-> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, visual streaming ingestion progress, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Dracula dark mode, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with no arbitrary upper limit)**.
+> **Toad** is a high-performance, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data and log files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ records**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, Dracula dark mode, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with no arbitrary upper limit)**.
 
 ---
 
@@ -9,7 +9,7 @@
 Toad is packaged as a completely self-contained portable Windows executable—no administrator privileges, installer wizards, or background services required.
 
 - **Primary Portable Executable**: [`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe) (~92 MB)
-- **Versioned Portable Release**: [`releases/toad_v1.3.9.1_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.9.1_portable.exe)
+- **Versioned Portable Release**: [`releases/toad_v1.3.10_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.3.10_portable.exe)
 
 ### Three Easy Ways to Open Data:
 1. **Direct Launch**: Double-click `Toad.exe`. Click **File &rarr; Open** (or press `Ctrl+O`) to select any supported data file.
@@ -169,12 +169,17 @@ For DFIR analysts and security engineers examining encoded commands:
 
 ---
 
-## 10. Instant Smart Expand & Master-Detail Keyboard Triage (v1.3.9.1)
+## 10. Multiple Loading Background Queue & Smart Expand (v1.3.10)
 
-- **Instant 1-Click & Focus Expand**: Clicking or focusing on Column 0 (the `_expand` column) immediately opens the Event Details side inspector without requiring an extra <kbd>Enter</kbd> keystroke.
-- **Strict Dismissal Rule**: Event Details only closes when you click the `✕` close button or press <kbd>Esc</kbd>. Selecting or re-clicking the same row maintains the detail panel safely open.
-- **Continuous Arrow Key Triage (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)**: When the Event Details inspector is open, pressing the Up or Down arrow keys smoothly updates the side inspector to display the details of the active row in real time without collapsing or closing the panel.
-- **1-Click Filter Injection (`+` Button)**: In Event Details, click the `+` button on any field to append `col == value` directly into the active filter expression.
+- **Automated Background Multi-File Queue**: When opening a folder containing multiple datasets (CSVs, Logs, EVTX), Toad enqueues all files into a background ingestion worker, processing datasets sequentially to safeguard system RAM, CPU, and disk I/O.
+- **1-Second Polling & Status Cycle**: A non-blocking background loop monitors the queue every ~1s, streaming pending files into the high-performance DuckDB Parquet cache.
+- **In-Situ Sidebar Visual Indicators**:
+  - **Pending (0%) / In-Progress (% Progress)**: Filenames display in muted gray accompanied by a percentage badge and a 2px blue progress line running underneath the filename.
+  - **Ready / Completed (100%)**: Filenames transition to crisp bold black (Light Mode) or bright cream (Dark Mode) with the progress indicator hidden—signaling 0ms instant query readiness.
+  - **Error State**: Corrupt or permission-restricted files display in alert red with a warning badge.
+- **User-Priority Jump Queue (Preemption)**: Clicking any pending or in-progress file instantly pushes it to the top of the queue, giving analysts immediate access to the dataset they want without waiting for other directory files.
+- **Modern Main Loading & Empty States**: Replaced disruptive modal dialogs with a clean, in-situ `Loading...` card on the center pane displaying a live spinner, dataset title, and progress bar until the interactive DataGrid is rendered.
+- **Instant Smart Expand 1-Click Triage**: Selecting or clicking Column 0 (`_expand`) opens the Event Details inspector instantly without requiring <kbd>Enter</kbd>. An open inspector remains stably open until closed via `✕` or <kbd>Esc</kbd>.
 
 ---
 
@@ -193,4 +198,4 @@ For DFIR analysts and security engineers examining encoded commands:
 
 ---
 
-*Toad v1.3.9.1 &bull; Built with DuckDB 1.0.0, Apache Parquet & Rust SIMD Core &bull; Portable Windows x64*
+*Toad v1.3.10 &bull; Built with DuckDB 1.0.0, Apache Parquet & Rust SIMD Core &bull; Portable Windows x64*

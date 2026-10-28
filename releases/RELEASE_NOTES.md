@@ -1,3 +1,50 @@
+# TOAD v1.3.10 Release (Multiple Loading Background Ingestion Engine & User-Priority Preemption)
+
+## 1. Giới thiệu phiên bản v1.3.10
+Phiên bản **Toad v1.3.10** mang đến bước tiến vượt bậc về trải nghiệm phân tích thư mục chứa nhiều tệp dữ liệu điều tra (Multiple Datasets Ingestion) thông qua cơ chế nạp ngầm tự động, trực quan hóa tiến trình tại chỗ và cướp quyền ưu tiên theo tương tác người dùng:
+
+1. **Động cơ Nạp Ngầm Đa Tệp Tự Động (Background Ingestion Queue & 1s Polling Cycle)**:
+   - *Bối cảnh*: Khi mở một thư mục chứa nhiều tệp log/CSV/EVTX (ví dụ: trích xuất chứng cứ DFIR hàng chục tệp), trước đây người dùng phải nhấp thủ công từng tệp một và chờ nạp xong mới bấm được tệp tiếp theo, làm chậm tiến độ điều tra.
+   - *Giải pháp*: Khi mở thư mục hoặc nguồn dữ liệu, toàn bộ danh sách tệp được tự động đăng ký vào hàng đợi nạp ngầm (`MultipleLoadingManager`).
+   - *Chu kỳ kiểm tra 1s*: Một vòng lặp nền kiểm tra trạng thái hàng đợi mỗi ~1 giây. Tệp chưa nạp được xử lý tuần tự (sequential worker) để bảo vệ tối đa băng thông ổ đĩa (Disk I/O) và ngăn ngừa nguy cơ tràn RAM/CPU giật cục.
+
+2. **Trực quan hóa Trạng thái Tệp Ngay Trên Danh Sách Sidebar (In-Situ Mini Progress & Dual Theme)**:
+   - **Tệp Đang Chờ (Pending)**: Tên tệp hiển thị màu xám mờ (`#94a3b8`), kèm chỉ số `0%`.
+   - **Tệp Đang Nạp (Processing)**: Tên tệp giữ màu xám, hiển thị tiến độ phần trăm (`%`) tăng dần (`0% ➔ 35% ➔ 80%`) và một thanh tiến trình siêu mảnh 2px màu xanh dương (`#0ea5e9`) chạy mượt mà ngay dưới chân tên tệp.
+   - **Tệp Đã Nạp Xong (Ready)**: Tên tệp tự động chuyển sang **màu đen đậm** (`#111827`) trên giao diện Sáng (Light Mode) hoặc **màu trắng sáng rõ** trên giao diện Tối (Dark Mode / Dracula), thanh progress và `%` ẩn đi, báo hiệu tệp đã sẵn sàng truy vấn tức thì 0ms.
+   - **Tệp Lỗi (Error)**: Nếu tệp bị hỏng cấu trúc, tệp rỗng hoặc bị khóa quyền đọc, tên tệp chuyển sang **màu đỏ cảnh báo** (`#ef4444`) kèm huy hiệu `!`.
+
+3. **Cơ chế Cướp Quyền Ưu Tiên Theo Nhấp Chuột (User-Priority Jump Queue Preemption)**:
+   - Khi người dùng nhấp chuột vào bất kỳ tệp nào đang ở trạng thái chờ hoặc đang nạp dở, tệp đó lập tức được đẩy lên vị trí **ưu tiên số 1** trong hàng đợi để tiến hành nạp ngay lập tức, người dùng không phải chờ đợi các tệp trước đó trong thư mục hoàn tất.
+
+4. **Giao diện Màn hình Chờ Tải Thanh Lịch (Non-Intrusive Loading Pane & Empty State)**:
+   - Loại bỏ hoàn toàn cửa sổ pop-up đè màn hình (`IngestProgressDialog`) gây cản trở thao tác.
+   - Khi nhấp vào tệp đang nạp, màn hình chính hiển thị thẻ `Loading...` trang nhã với spinner xoay tròn, tên tệp và thanh tiến trình. Ngay khi nạp xong 100%, màn hình chính tự động chuyển mượt mà sang Bảng dữ liệu (DataGrid).
+   - Nếu tệp bị lỗi, màn hình hiển thị thẻ `Error Loading` nêu rõ nguyên nhân.
+
+---
+
+## 2. Tài liệu Phân tích Nghiệp vụ (Business Analysis - BA Specification v1.3.10)
+| Mã YC | Bối cảnh Nghiệp vụ | Yêu cầu Chức năng | Tiêu chí Nghiệm thu (Acceptance Criteria) |
+|---|---|---|---|
+| **BA-19** | Mở thư mục chứa nhiều tệp dữ liệu điều tra. | Tự động xếp hàng và nạp tuần tự toàn bộ tệp vào DuckDB Parquet cache theo chu kỳ định kỳ 1s. | - Không cần click thủ công từng file.<br>- Chu kỳ 1s tự động phát hiện và kích hoạt nạp ngầm.<br>- Nạp tuần tự không làm nghẽn CPU, Disk I/O hay tràn bộ nhớ RAM. |
+| **BA-20** | Chuyên viên quan sát danh sách tệp trên Sidebar bên trái. | Thể hiện trực quan trạng thái từng tệp qua màu sắc (xám/đen/đỏ) và vạch tiến độ % mini. | - Tệp chờ: màu xám, hiện `0%`.<br>- Tệp đang nạp: màu xám, hiện % và thanh mini 2px màu xanh chạy dưới chân tên tệp.<br>- Tệp xong: chuyển màu đen đậm (Light) hoặc trắng sáng (Dark), thanh % biến mất.<br>- Tệp lỗi: màu đỏ cảnh báo kèm icon `!`. |
+| **BA-21** | Chuyên viên cần soi gấp một tệp nằm ở cuối danh sách. | Nhấp chuột vào tệp lập tức ưu tiên nạp tệp đó trước (cướp quyền ưu tiên), màn hình chính hiện Loading... | - Nhấp vào tệp đang chờ: tệp nhảy lên đầu hàng đợi để nạp ngay.<br>- Màn hình chính hiện card `Loading [tên file]...` với spinner và % tiến độ.<br>- Nạp xong 100%: tự động bung bảng DataGrid, không cần click lại. |
+
+---
+
+## 3. Ma trận Thử nghiệm QA v1.3.10 (QA Test Matrix)
+| Test Case ID | Phân hệ Kiểm thử | Điều kiện Tiên quyết | Các bước Thực hiện | Kết quả Kỳ vọng | Đánh giá |
+|---|---|---|---|---|---|
+| **TC-901** | Multi-File Enqueue on Directory Expand | Mở một thư mục chứa nhiều tệp CSV/EVTX. | Quan sát danh sách file trên Data Sources sidebar. | Toàn bộ các file được đăng ký; các file chưa nạp hiển thị màu xám `0%`. | **PASSED** |
+| **TC-902** | Sequential Background Ingestion | Thư mục có nhiều file chờ. | Quan sát tiến trình nạp ngầm theo chu kỳ 1s. | Tệp đầu tiên chuyển sang `processing` với vạch xanh và % tăng dần; các tệp sau vẫn giữ `pending` chờ lượt. | **PASSED** |
+| **TC-903** | Completion State Transition | Tệp đang nạp đạt 100%. | Quan sát tên tệp trên sidebar. | Tên tệp chuyển sang màu đen đậm (Light Mode), vạch xanh biến mất, sẵn sàng mở tức thì 0ms. | **PASSED** |
+| **TC-904** | User-Priority Preemption (Jump Queue) | Hệ thống đang nạp tệp 1, tệp 5 đang ở 0% (pending). | Nhấp chuột chọn tệp 5. | Tệp 5 được cướp quyền ưu tiên; màn hình chính hiển thị thẻ `Loading...` của tệp 5; nạp xong tự động hiện bảng. | **PASSED** |
+| **TC-905** | Corrupted File Error Handling | Thư mục chứa 1 file hỏng định dạng hoặc 0 bytes. | Chờ queue nạp tới file lỗi hoặc click vào file đó. | Tên file đổi sang màu đỏ cảnh báo; màn hình chính hiển thị thông báo lỗi chi tiết, không bị treo app. | **PASSED** |
+| **TC-906** | Non-Intrusive In-Situ Progress | Mở nạp dữ liệu. | Kiểm tra màn hình làm việc. | Không xuất hiện hộp thoại pop-up modal toàn màn hình; toàn bộ tiến trình hiển thị tại chỗ trên sidebar và màn hình chính. | **PASSED** |
+
+---
+
 # TOAD v1.3.9.1 Release (Instant Smart Expand 1-Click Triage, Strict Dismissal Rule & Filter IN Normalization Fix)
 
 ## 1. Giới thiệu phiên bản v1.3.9.1
