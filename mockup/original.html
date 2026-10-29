@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toad Regex Dialog - Bản Gốc (v2.0.1 Original Clone)</title>
+  <style>
+    /* Blueprint.js v4 Dark Theme Exact Styling Clone */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background-color: #182026;
+      color: #f5f8fa;
+      font-family: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Open Sans", "Helvetica Neue", sans-serif;
+      font-size: 14px;
+      line-height: 1.42857;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .bp4-portal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(16, 22, 26, 0.7);
+      z-index: 10;
+    }
+    .bp4-dialog-container {
+      position: relative;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+    .bp4-dialog {
+      background-color: #293742;
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(16, 22, 26, 0.4), 0 4px 8px rgba(16, 22, 26, 0.5), 0 18px 46px 6px rgba(16, 22, 26, 0.6);
+      color: #f5f8fa;
+      width: 700px;
+      max-width: 92vw;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .bp4-dialog-header {
+      background-color: #293742;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 40px;
+      padding: 0 15px;
+    }
+    .bp4-heading {
+      color: #f5f8fa;
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .bp4-dialog-close-button {
+      background: none;
+      border: none;
+      color: #a7b6c2;
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px;
+      border-radius: 3px;
+      line-height: 1;
+    }
+    .bp4-dialog-close-button:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #f5f8fa;
+    }
+    .bp4-dialog-body {
+      padding: 20px;
+      flex: 1 1 auto;
+      overflow-y: auto;
+    }
+    .bp4-form-group {
+      margin-bottom: 15px;
+    }
+    .bp4-label {
+      color: #f5f8fa;
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+    .bp4-form-helper-text {
+      color: #8a9ba8;
+      font-size: 11px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .bp4-input, .bp4-html-select select, .bp4-text-area {
+      background-color: rgba(16, 22, 26, 0.3);
+      border: 1px solid rgba(16, 22, 26, 0.4);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 1px rgba(16, 22, 26, 0.2);
+      color: #f5f8fa;
+      font-size: 13px;
+      padding: 6px 10px;
+      width: 100%;
+      outline: none;
+      transition: box-shadow 100ms ease;
+    }
+    .bp4-input:focus, .bp4-html-select select:focus, .bp4-text-area:focus {
+      box-shadow: inset 0 0 0 1px #137cbd, 0 0 0 1px #137cbd;
+    }
+    .bp4-text-area {
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+    .bp4-button {
+      background-color: #394b59;
+      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+      border: 1px solid rgba(16, 22, 26, 0.4);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #f5f8fa;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      transition: background 100ms ease;
+    }
+    .bp4-button:hover {
+      background-color: #485c6b;
+    }
+    .bp4-button.bp4-minimal {
+      background: none;
+      border: none;
+      box-shadow: none;
+      color: #8a9ba8;
+    }
+    .bp4-button.bp4-minimal:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: #f5f8fa;
+    }
+    .bp4-button.bp4-intent-primary {
+      background-color: #106ba3;
+      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0));
+      border-color: #0e5a8a;
+      color: #ffffff;
+    }
+    .bp4-button.bp4-intent-primary:hover {
+      background-color: #137cbd;
+    }
+    .preview-box {
+      background-color: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(128, 128, 128, 0.25);
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 100px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .preview-line {
+      padding: 2px 4px;
+      border-bottom: 1px dashed rgba(128, 128, 128, 0.15);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .preview-col {
+      color: #48aff0;
+      font-weight: 600;
+    }
+    .bp4-dialog-footer {
+      background-color: #293742;
+      border-top: 1px solid rgba(16, 22, 26, 0.3);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .bp4-dialog-footer-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .top-banner {
+      background: #0e5a8a;
+      color: #fff;
+      padding: 8px 16px;
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 4px 4px 0 0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bp4-portal-backdrop"></div>
+
+  <div class="bp4-dialog-container">
+    <div class="bp4-dialog">
+      
+      <!-- Banner identifying original version -->
+      <div class="top-banner">
+        <span>📌 <strong>TOAD v2.0.1 BẢN GỐC (ORIGINAL VERSION)</strong> - Hộp thoại Regex nguyên bản</span>
+        <span style="opacity: 0.8; font-size: 11px;">BlueprintJS 4 Dark Theme</span>
+      </div>
+
+      <!-- Header -->
+      <div class="bp4-dialog-header">
+        <h4 class="bp4-heading">Toad Regex - Extract Columns via Regular Expression</h4>
+        <button class="bp4-dialog-close-button" onclick="alert('Close dialog')">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div class="bp4-dialog-body">
+        
+        <!-- Source Column -->
+        <div style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 12px;">
+          <div class="bp4-form-group" style="flex: 1; margin-bottom: 0;">
+            <label class="bp4-label">Source Column:</label>
+            <div class="bp4-html-select">
+              <select id="col-select" onchange="updateSample()">
+                <option value="Message">Message</option>
+                <option value="RawPayload">RawPayload</option>
+                <option value="LogLine">LogLine</option>
+              </select>
+            </div>
+            <div class="bp4-form-helper-text">Defaults to the first column of the active view</div>
+          </div>
+
+          <button class="bp4-button bp4-minimal" onclick="updateSample()">
+            🔄 Reload Sample
+          </button>
+        </div>
+
+        <!-- Sample Event -->
+        <div class="bp4-form-group">
+          <label class="bp4-label">Sample Event (Reference):</label>
+          <textarea id="sample-text" class="bp4-text-area" rows="3" oninput="evalRegex()">2026-10-29 17:45:00 [CRITICAL] Core dump on node-1 src=10.0.0.5 action="BLOCK"</textarea>
+          <div class="bp4-form-helper-text">First non-null row from [Message]. You can edit this text to test regex patterns.</div>
+        </div>
+
+        <!-- Regex Pattern Input -->
+        <div class="bp4-form-group">
+          <label class="bp4-label">Regular Expression (Regex):</label>
+          <input type="text" id="regex-input" class="bp4-input" style="font-family: Consolas, monospace;" 
+                 value="(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)" 
+                 oninput="evalRegex()" 
+                 placeholder="e.g. (\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)">
+          <div class="bp4-form-helper-text">Enter regex pattern. Use capture groups (group1) (group2)... to extract str0, str1, ..., or single pattern for str0.</div>
+        </div>
+
+        <!-- Live Output Preview -->
+        <div class="bp4-form-group">
+          <label class="bp4-label">Live Output Preview:</label>
+          <div class="preview-box" id="preview-output">
+            <!-- Evaluated lines appear here -->
+          </div>
+        </div>
+
+        <!-- Summary text -->
+        <div style="font-size: 11px; color: #8a9ba8; line-height: 1.5;">
+          When clicking <strong style="color: #f5f8fa;">Apply</strong>: Columns 
+          <code style="color: #3dcc91; font-weight: 600;" id="col-summary">str0, str1, str2, str3</code> 
+          will be generated directly via DuckDB, added to the Columns management list, and appended to the table.
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="bp4-dialog-footer">
+        <div class="bp4-dialog-footer-actions">
+          <button class="bp4-button" onclick="alert('Cancelled')">Cancel</button>
+          <button class="bp4-button bp4-intent-primary" onclick="alert('Đã tạo các cột str0, str1... vào bảng!')">✓ Apply</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    function evalRegex() {
+      const pattern = document.getElementById('regex-input').value;
+      const text = document.getElementById('sample-text').value;
+      const box = document.getElementById('preview-output');
+
+      if (!pattern.trim()) {
+        box.innerHTML = '<span style="color: #8a9ba8; font-style: italic;">Enter or paste a regex pattern above to preview extracted groups...</span>';
+        document.getElementById('col-summary').innerText = 'str0...';
+        return;
+      }
+
+      try {
+        const rx = new RegExp(pattern);
+        const match = rx.exec(text);
+        const dummyMatch = new RegExp(pattern + "|").exec("");
+        const count = dummyMatch ? dummyMatch.length - 1 : 0;
+
+        let html = '';
+        if (count > 0) {
+          const names = [];
+          for (let i = 1; i <= count; i++) {
+            const val = match && match[i] !== undefined ? match[i] : "(no match on sample)";
+            html += `<div class="preview-line"><span class="preview-col">str${i - 1}:</span> ${val}</div>`;
+            names.push(`str${i - 1}`);
+          }
+          box.innerHTML = html;
+          document.getElementById('col-summary').innerText = names.join(', ');
+        } else {
+          const val = match && match[0] !== undefined ? match[0] : "(no match on sample)";
+          box.innerHTML = `<div class="preview-line"><span class="preview-col">str0:</span> ${val}</div>`;
+          document.getElementById('col-summary').innerText = 'str0';
+        }
+      } catch (err) {
+        box.innerHTML = `<span style="color: #ff7373;">Invalid regex: ${err.message}</span>`;
+      }
+    }
+
+    function updateSample() {
+      document.getElementById('sample-text').value = '2026-10-29 17:45:00 [CRITICAL] Core dump on node-1 src=10.0.0.5 action="BLOCK"';
+      evalRegex();
+    }
+
+    evalRegex();
+  </script>
+</body>
+</html>

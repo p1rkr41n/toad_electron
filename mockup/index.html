@@ -1,522 +1,601 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Toad Extractor v2.0.2 - Interactive UI Mockup</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Toad Extractor - Mockup So Sánh Bản Gốc vs Bản Mới</title>
   <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body {
-      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #10161a;
+      color: #f5f8fa;
+      font-family: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Open Sans", "Helvetica Neue", sans-serif;
+      font-size: 13px;
+      line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
-    code, pre, .mono {
-      font-family: 'JetBrains Mono', monospace;
+
+    /* Top Switcher Bar */
+    .top-nav {
+      background-color: #182026;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.4);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    /* Custom scrollbar */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
+    .brand-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #f5f8fa;
     }
-    ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.6);
+    .brand-badge {
+      background: #137cbd;
+      color: #fff;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
     }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.4);
-      border-radius: 9999px;
+    .switcher-tabs {
+      display: flex;
+      background: #202b33;
+      padding: 3px;
+      border-radius: 4px;
+      gap: 4px;
+      border: 1px solid rgba(16, 22, 26, 0.5);
     }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.6);
+    .tab-btn {
+      background: none;
+      border: none;
+      color: #8a9ba8;
+      padding: 6px 14px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 120ms ease;
+    }
+    .tab-btn:hover {
+      color: #f5f8fa;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .tab-btn.active {
+      background: #137cbd;
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .main-viewport {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: radial-gradient(circle at 50% 30%, #202b33 0%, #10161a 100%);
+    }
+
+    /* Common Blueprint Dialog Styles */
+    .bp4-dialog {
+      background-color: #293742;
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(16, 22, 26, 0.4), 0 4px 8px rgba(16, 22, 26, 0.5), 0 18px 46px 6px rgba(16, 22, 26, 0.6);
+      color: #f5f8fa;
+      width: 740px;
+      max-width: 94vw;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .bp4-dialog-header {
+      background-color: #293742;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 40px;
+      padding: 0 16px;
+    }
+    .bp4-heading {
+      color: #f5f8fa;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0;
+    }
+    .bp4-dialog-body {
+      padding: 16px 20px;
+    }
+    .bp4-form-group {
+      margin-bottom: 12px;
+    }
+    .bp4-label {
+      color: #f5f8fa;
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .bp4-form-helper-text {
+      color: #8a9ba8;
+      font-size: 11px;
+      margin-top: 3px;
+    }
+    .bp4-input, .bp4-html-select select, .bp4-text-area {
+      background-color: rgba(16, 22, 26, 0.3);
+      border: 1px solid rgba(16, 22, 26, 0.4);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 1px rgba(16, 22, 26, 0.2);
+      color: #f5f8fa;
+      font-size: 12px;
+      padding: 6px 10px;
+      width: 100%;
+      outline: none;
+    }
+    .bp4-input:focus, .bp4-html-select select:focus, .bp4-text-area:focus {
+      border-color: #137cbd;
+      box-shadow: inset 0 0 0 1px #137cbd, 0 0 0 1px #137cbd;
+    }
+    .bp4-text-area {
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      resize: vertical;
+    }
+    .bp4-button {
+      background-color: #394b59;
+      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
+      border: 1px solid rgba(16, 22, 26, 0.4);
+      border-radius: 3px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      color: #f5f8fa;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+    }
+    .bp4-button:hover {
+      background-color: #485c6b;
+    }
+    .bp4-button.bp4-intent-primary {
+      background-color: #106ba3;
+      border-color: #0e5a8a;
+      color: #ffffff;
+    }
+    .bp4-button.bp4-intent-primary:hover {
+      background-color: #137cbd;
+    }
+    .bp4-button.bp4-minimal {
+      background: none;
+      border: none;
+      box-shadow: none;
+      color: #8a9ba8;
+    }
+    .bp4-button.bp4-minimal:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #f5f8fa;
+    }
+    .bp4-dialog-footer {
+      background-color: #293742;
+      border-top: 1px solid rgba(16, 22, 26, 0.3);
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Tabs inside dialog */
+    .dialog-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
+      margin-bottom: 14px;
+    }
+    .d-tab {
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #8a9ba8;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .d-tab.active {
+      color: #48aff0;
+      border-bottom-color: #48aff0;
+    }
+
+    /* Radio buttons pill */
+    .format-pills {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .f-pill {
+      background: rgba(16, 22, 26, 0.3);
+      border: 1px solid rgba(16, 22, 26, 0.4);
+      padding: 4px 10px;
+      border-radius: 3px;
+      font-size: 11px;
+      cursor: pointer;
+      color: #8a9ba8;
+      font-weight: 500;
+    }
+    .f-pill:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #f5f8fa;
+    }
+    .f-pill.active {
+      background: rgba(19, 124, 189, 0.25);
+      border-color: #137cbd;
+      color: #48aff0;
+      font-weight: 600;
+    }
+
+    /* Compact Field Mapping Table */
+    .mapping-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: rgba(16, 22, 26, 0.2);
+      border: 1px solid rgba(16, 22, 26, 0.3);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .mapping-table th {
+      background: rgba(16, 22, 26, 0.4);
+      padding: 6px 10px;
+      text-align: left;
+      font-size: 11px;
+      color: #8a9ba8;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
+    }
+    .mapping-table td {
+      padding: 5px 10px;
+      border-bottom: 1px solid rgba(16, 22, 26, 0.2);
+      vertical-align: middle;
+    }
+    .source-tag {
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      color: #48aff0;
+      background: rgba(19, 124, 189, 0.15);
+      padding: 2px 6px;
+      border-radius: 2px;
+      font-weight: 600;
+    }
+    .sample-val {
+      font-family: Consolas, monospace;
+      font-size: 11px;
+      color: #a7b6c2;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .col-input {
+      background: rgba(16, 22, 26, 0.4);
+      border: 1px solid rgba(16, 22, 26, 0.5);
+      border-radius: 3px;
+      color: #f5f8fa;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      width: 100%;
+    }
+    .col-input:focus {
+      border-color: #137cbd;
+      outline: none;
+    }
+
+    .view-container {
+      display: none;
+      width: 100%;
+      justify-content: center;
+    }
+    .view-container.active {
+      display: flex;
     }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 flex items-center justify-center">
+<body>
 
-  <!-- Main Modal Container -->
-  <div class="w-full max-w-5xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col transition-all duration-300">
-    
-    <!-- Modal Header -->
-    <div class="px-6 py-4 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between backdrop-blur">
-      <div class="flex items-center space-x-3">
-        <div class="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-          </svg>
+  <!-- Top Switcher Navigation -->
+  <div class="top-nav">
+    <div class="brand-title">
+      <span>Toad Mockup Inspector</span>
+      <span class="brand-badge">So sánh giao diện</span>
+    </div>
+
+    <!-- 3 Switcher Buttons -->
+    <div class="switcher-tabs">
+      <button id="btn-view-orig" class="tab-btn active" onclick="switchView('orig')">
+        <span>📌 1. Bản Gốc v2.0.1 (Original Clone)</span>
+      </button>
+      <button id="btn-view-native" class="tab-btn" onclick="switchView('native')">
+        <span>⚡ 2. Bản v2.0.2 Chuẩn Phong Cách Gốc (Khuyên dùng)</span>
+      </button>
+      <button id="btn-view-modern" class="tab-btn" onclick="switchView('modern')">
+        <span>🎨 3. Bản Web Hiện Đại (Redesign)</span>
+      </button>
+    </div>
+
+    <div style="font-size: 11px; color: #8a9ba8;">
+      Nhấn để đổi qua lại và xem trực tiếp
+    </div>
+  </div>
+
+  <div class="main-viewport">
+
+    <!-- VIEW 1: BẢN GỐC v2.0.1 (ORIGINAL CLONE) -->
+    <div id="view-orig" class="view-container active">
+      <div class="bp4-dialog">
+        <div style="background: #106ba3; color: white; padding: 6px 16px; font-size: 11px; font-weight: 600;">
+          📌 ĐÂY LÀ BẢN CLONE 100% GIAO DIỆN GỐC BAN ĐẦU CỦA TOAD (v2.0.1)
         </div>
-        <div>
-          <div class="flex items-center space-x-2">
-            <h1 class="text-base font-bold text-slate-100 tracking-tight">Toad Column Extractor</h1>
-            <span class="px-2 py-0.5 text-[11px] font-semibold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full">v2.0.2 Redesign</span>
+        <div class="bp4-dialog-header">
+          <h4 class="bp4-heading">Toad Regex - Extract Columns via Regular Expression</h4>
+          <button class="bp4-button bp4-minimal" style="padding: 2px 6px;">✕</button>
+        </div>
+        <div class="bp4-dialog-body">
+          <div style="display: flex; gap: 16px; align-items: flex-end; margin-bottom: 12px;">
+            <div class="bp4-form-group" style="flex: 1; margin-bottom: 0;">
+              <label class="bp4-label">Source Column:</label>
+              <div class="bp4-html-select">
+                <select>
+                  <option>Message</option>
+                  <option>RawPayload</option>
+                  <option>LogLine</option>
+                </select>
+              </div>
+              <div class="bp4-form-helper-text">Defaults to the first column of the active view</div>
+            </div>
+            <button class="bp4-button bp4-minimal">🔄 Reload Sample</button>
           </div>
-          <p class="text-xs text-slate-400">Bóc tách & chuyển đổi dữ liệu ô thành các cột chuyên dụng</p>
-        </div>
-      </div>
 
-      <!-- Mode Segmented Switch -->
-      <div class="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800">
-        <button id="tab-simple" onclick="setMode('simple')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-indigo-600 text-white shadow-sm">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-          <span>Trực quan (Simple)</span>
-        </button>
-        <button id="tab-advanced" onclick="setMode('advanced')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition-all">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-          <span>Regex (Nâng cao)</span>
-        </button>
-      </div>
-    </div>
+          <div class="bp4-form-group">
+            <label class="bp4-label">Sample Event (Reference):</label>
+            <textarea class="bp4-text-area" rows="3">2026-10-29 17:45:00 [CRITICAL] Core dump on node-1 src=10.0.0.5 action="BLOCK"</textarea>
+            <div class="bp4-form-helper-text">First non-null row from [Message]. You can edit this text to test regex patterns.</div>
+          </div>
 
-    <!-- Quick Presets Toolbar -->
-    <div class="px-6 py-2.5 bg-slate-950/40 border-b border-slate-800/60 flex items-center justify-between text-xs">
-      <div class="flex items-center space-x-2">
-        <span class="text-slate-400 font-medium">Cột nguồn:</span>
-        <select id="col-select" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:ring-1 focus:ring-indigo-500 focus:outline-none font-medium">
-          <option value="raw_message">Message (VARCHAR)</option>
-          <option value="payload">Payload (JSON)</option>
-          <option value="access_log">AccessLog (TEXT)</option>
-        </select>
-      </div>
+          <div class="bp4-form-group">
+            <label class="bp4-label">Regular Expression (Regex):</label>
+            <input type="text" class="bp4-input" style="font-family: Consolas, monospace;" value="(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)">
+            <div class="bp4-form-helper-text">Enter regex pattern. Use capture groups (group1) (group2)... to extract str0, str1, ..., or single pattern for str0.</div>
+          </div>
 
-      <!-- Preset Buttons -->
-      <div class="flex items-center space-x-1.5 overflow-x-auto">
-        <span class="text-slate-500 text-[11px] uppercase tracking-wider font-semibold mr-1">Mẫu thử:</span>
-        <button onclick="loadPreset('kv')" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors">🔥 Firewall KV</button>
-        <button onclick="loadPreset('json')" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors">📦 JSON Event</button>
-        <button onclick="loadPreset('csv')" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors">📊 CSV Quotes</button>
-        <button onclick="loadPreset('space')" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors">⏱️ Syslog Space</button>
-        <button onclick="loadPreset('arr')" class="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 transition-colors">🏷️ JSON Array</button>
-      </div>
-    </div>
-
-    <!-- Main Content Area: Split 2-Column Grid -->
-    <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      
-      <!-- LEFT COLUMN: Source Data & Rule Configuration (5 cols) -->
-      <div class="lg:col-span-5 space-y-4">
-        
-        <!-- Sample Event Card -->
-        <div class="bg-slate-950/60 rounded-xl border border-slate-800/80 p-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-              <span>Dữ liệu mẫu (Sample Row)</span>
-            </span>
-            <div id="badge-detected" class="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span id="detected-text">Auto-detect: Key-Value Log</span>
+          <div class="bp4-form-group">
+            <label class="bp4-label">Live Output Preview:</label>
+            <div style="background: rgba(0,0,0,0.2); border: 1px solid rgba(128,128,128,0.25); border-radius: 4px; padding: 10px; font-family: Consolas, monospace; font-size: 12px; line-height: 1.6;">
+              <div style="border-bottom: 1px dashed rgba(128,128,128,0.15); padding: 2px 0;"><span style="color: #48aff0; font-weight: 600;">str0:</span> 2026-10-29</div>
+              <div style="border-bottom: 1px dashed rgba(128,128,128,0.15); padding: 2px 0;"><span style="color: #48aff0; font-weight: 600;">str1:</span> 17:45:00</div>
+              <div style="border-bottom: 1px dashed rgba(128,128,128,0.15); padding: 2px 0;"><span style="color: #48aff0; font-weight: 600;">str2:</span> CRITICAL</div>
+              <div style="padding: 2px 0;"><span style="color: #48aff0; font-weight: 600;">str3:</span> Core dump on node-1 src=10.0.0.5 action="BLOCK"</div>
             </div>
           </div>
-          <div class="relative">
-            <textarea id="sample-text" rows="3" oninput="onSampleChange()" class="w-full bg-slate-900/90 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 mono leading-relaxed focus:ring-1 focus:ring-indigo-500 focus:outline-none resize-none" placeholder="Nhập chuỗi mẫu..."></textarea>
+
+          <div style="font-size: 11px; color: #8a9ba8;">
+            When clicking <strong style="color: #fff;">Apply</strong>: Columns <code style="color: #3dcc91; font-weight: 600;">str0, str1, str2, str3</code> will be generated directly via DuckDB, added to the Columns management list, and appended to the table.
           </div>
-          <p class="text-[11px] text-slate-500 mt-1.5">Dòng mẫu được lấy tự động từ hàng đầu tiên không rỗng. Bạn có thể sửa trực tiếp để thử nghiệm.</p>
+        </div>
+        <div class="bp4-dialog-footer">
+          <div style="font-size: 11px; color: #8a9ba8;">Toad v2.0.1 Original Modal</div>
+          <div style="display: flex; gap: 8px;">
+            <button class="bp4-button">Cancel</button>
+            <button class="bp4-button bp4-intent-primary">✓ Apply</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- VIEW 2: BẢN v2.0.2 CHUẨN PHONG CÁCH GỐC TOAD (NATIVE BLUEPRINTJS - KHUYÊN DÙNG) -->
+    <div id="view-native" class="view-container">
+      <div class="bp4-dialog">
+        <div style="background: #0d8050; color: white; padding: 6px 16px; font-size: 11px; font-weight: 600;">
+          ⚡ BẢN v2.0.2 TINH GỌN (Giữ nguyên 100% phong cách gốc của Toad, thêm chức năng Simple & Đổi tên cột)
+        </div>
+        
+        <div class="bp4-dialog-header">
+          <h4 class="bp4-heading">Toad - Bóc Tách & Đặt Tên Cột (Column Extractor)</h4>
+          <button class="bp4-button bp4-minimal" style="padding: 2px 6px;">✕</button>
         </div>
 
-        <!-- Format Selector (In Simple Mode) -->
-        <div id="simple-rules-card" class="bg-slate-950/60 rounded-xl border border-slate-800/80 p-4 space-y-3">
-          <label class="block text-xs font-semibold text-slate-300">Định dạng ô dữ liệu (Format)</label>
-          
-          <!-- Modern Format Pills -->
-          <div class="grid grid-cols-3 gap-1.5 text-xs">
-            <button onclick="setFormat('kv')" id="fmt-kv" class="fmt-btn px-2.5 py-2 rounded-lg border border-indigo-500/40 bg-indigo-600/15 text-indigo-300 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">Key=Value</span>
-              <span class="text-[10px] opacity-75">log k=v</span>
-            </button>
-            <button onclick="setFormat('json')" id="fmt-json" class="fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">JSON Object</span>
-              <span class="text-[10px] opacity-75">{ "k": "v" }</span>
-            </button>
-            <button onclick="setFormat('csv')" id="fmt-csv" class="fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">CSV Formatted</span>
-              <span class="text-[10px] opacity-75">"a,b", c</span>
-            </button>
-            <button onclick="setFormat('space')" id="fmt-space" class="fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">Khoảng trắng</span>
-              <span class="text-[10px] opacity-75">space / tab</span>
-            </button>
-            <button onclick="setFormat('arr')" id="fmt-arr" class="fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">JSON Array</span>
-              <span class="text-[10px] opacity-75">[0, 1, 2...]</span>
-            </button>
-            <button onclick="setFormat('delim')" id="fmt-delim" class="fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all">
-              <span class="font-semibold">Ký tự khác</span>
-              <span class="text-[10px] opacity-75">|, ;, :, ...</span>
-            </button>
+        <div class="bp4-dialog-body">
+          <!-- Dialog Tabs: Simple vs Advanced -->
+          <div class="dialog-tabs">
+            <div id="ntab-simple" class="d-tab active" onclick="switchNativeTab('simple')">
+              ⚡ Chế độ Đơn giản (Simple Mode)
+            </div>
+            <div id="ntab-adv" class="d-tab" onclick="switchNativeTab('adv')">
+              🛠️ Biểu thức Regex (Advanced Mode)
+            </div>
           </div>
 
-          <!-- Fine-tuning Accordion / Options -->
-          <div class="pt-2 border-t border-slate-800/60">
-            <button onclick="toggleOptions()" class="w-full flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 py-1 font-medium transition-colors">
-              <span class="flex items-center space-x-1.5">
-                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
-                <span>Tùy chỉnh phân tách bổ sung</span>
-              </span>
-              <svg id="opts-chevron" class="w-3.5 h-3.5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-            </button>
-
-            <div id="options-panel" class="hidden mt-2.5 space-y-2.5 bg-slate-900/70 p-3 rounded-lg border border-slate-800 text-xs">
-              <div class="flex items-center justify-between">
-                <span class="text-slate-300">Gộp khoảng trắng liền nhau:</span>
-                <input type="checkbox" id="opt-collapse" checked onchange="recalculate()" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-slate-300">Cắt khoảng trắng 2 đầu (Trim):</span>
-                <input type="checkbox" id="opt-trim" checked onchange="recalculate()" class="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0">
-              </div>
-              <div class="flex items-center justify-between">
-                <span class="text-slate-300">Dấu gán Key-Value:</span>
-                <select id="opt-assign" onchange="recalculate()" class="bg-slate-800 border border-slate-700 text-slate-200 text-xs rounded px-2 py-0.5">
-                  <option value="=">Dấu bằng '='</option>
-                  <option value=":">Dấu hai chấm ':'</option>
+          <!-- Source Column & Sample -->
+          <div style="display: flex; gap: 14px; align-items: flex-end; margin-bottom: 10px;">
+            <div class="bp4-form-group" style="flex: 1; margin-bottom: 0;">
+              <label class="bp4-label">Cột nguồn (Source Column):</label>
+              <div class="bp4-html-select">
+                <select>
+                  <option>Message</option>
+                  <option>RawPayload</option>
+                  <option>LogLine</option>
                 </select>
               </div>
             </div>
+            <button class="bp4-button bp4-minimal">🔄 Nạp lại mẫu</button>
           </div>
-        </div>
 
-        <!-- Regex Input Card (In Advanced Mode) -->
-        <div id="advanced-rules-card" class="hidden bg-slate-950/60 rounded-xl border border-slate-800/80 p-4 space-y-3">
-          <div class="flex items-center justify-between">
-            <label class="block text-xs font-semibold text-slate-300">Biểu thức chính quy (Regex Pattern)</label>
-            <span class="text-[11px] text-indigo-400 font-mono">RE2 Engine</span>
+          <div class="bp4-form-group" style="margin-bottom: 10px;">
+            <label class="bp4-label">Dòng dữ liệu mẫu:</label>
+            <textarea class="bp4-text-area" rows="2" style="font-size: 11px;">src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420</textarea>
           </div>
-          <div class="relative">
-            <input type="text" id="regex-pattern" oninput="onRegexChange()" value="(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-indigo-300 mono focus:ring-1 focus:ring-indigo-500 focus:outline-none" placeholder="e.g. (\d+)\s+(\w+)...">
-          </div>
-          <div id="regex-status" class="text-[11px] text-emerald-400 flex items-center space-x-1">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            <span>Hợp lệ: Đã phát hiện 4 nhóm Capture Groups</span>
-          </div>
-        </div>
 
-      </div>
-
-      <!-- RIGHT COLUMN: Extracted Columns & Naming Grid (7 cols) -->
-      <div class="lg:col-span-7 bg-slate-950/60 rounded-xl border border-slate-800/80 p-4 flex flex-col h-full min-h-[460px]">
-        
-        <!-- Header of Column List -->
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div>
-            <div class="text-xs font-bold text-slate-200 flex items-center space-x-2">
-              <span>Danh sách cột trích xuất & Đặt tên</span>
-              <span id="col-count-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">4 Cột</span>
+          <!-- SIMPLE TAB CONTENT -->
+          <div id="native-simple-box">
+            <label class="bp4-label" style="margin-bottom: 6px;">Định dạng ô dữ liệu (Format):</label>
+            <div class="format-pills">
+              <div class="f-pill active">🔥 Key=Value (k=v)</div>
+              <div class="f-pill">📦 JSON Object</div>
+              <div class="f-pill">📊 CSV (Nháy kép)</div>
+              <div class="f-pill">⏱️ Khoảng trắng (Space)</div>
+              <div class="f-pill">🏷️ JSON Array</div>
             </div>
-            <p class="text-[11px] text-slate-400 mt-0.5">Tích chọn các trường cần lấy và gõ đổi tên theo nghiệp vụ</p>
+
+            <!-- Mapping Grid (Compact & Clean) -->
+            <label class="bp4-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span>Các cột trích xuất & Đặt tên tùy ý:</span>
+              <span style="font-size: 11px; color: #48aff0; cursor: pointer;">+ Thêm cột thủ công</span>
+            </label>
+
+            <table class="mapping-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px;"><input type="checkbox" checked></th>
+                  <th style="width: 100px;">Thuộc tính</th>
+                  <th>Giá trị trích xuất mẫu</th>
+                  <th style="width: 220px;">Tên cột mới (Gõ tùy thích)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">src</span></td>
+                  <td><div class="sample-val">10.0.0.5</div></td>
+                  <td><input type="text" class="col-input" value="IP Nguồn"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">dst</span></td>
+                  <td><div class="sample-val">8.8.8.8</div></td>
+                  <td><input type="text" class="col-input" value="IP Đích"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">proto</span></td>
+                  <td><div class="sample-val">TCP</div></td>
+                  <td><input type="text" class="col-input" value="Giao thức"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">action</span></td>
+                  <td><div class="sample-val">BLOCK AND ALERT</div></td>
+                  <td><input type="text" class="col-input" value="Hành động"></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
 
-          <div class="flex items-center space-x-2">
-            <button onclick="toggleSelectAll(true)" class="text-[11px] text-indigo-400 hover:text-indigo-300 font-medium px-2 py-1 rounded bg-indigo-500/10 hover:bg-indigo-500/20 transition-colors">Tất cả</button>
-            <button onclick="toggleSelectAll(false)" class="text-[11px] text-slate-400 hover:text-slate-300 font-medium px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 transition-colors">Bỏ chọn</button>
-            <button onclick="addNewCustomField()" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold px-2.5 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 flex items-center space-x-1 transition-colors">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-              <span>Thêm cột</span>
-            </button>
+          <!-- ADVANCED TAB CONTENT -->
+          <div id="native-adv-box" style="display: none;">
+            <div class="bp4-form-group">
+              <label class="bp4-label">Regular Expression (Regex):</label>
+              <input type="text" class="bp4-input" style="font-family: Consolas, monospace;" value="(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)">
+            </div>
+            <label class="bp4-label" style="margin-bottom: 6px;">Nhóm Capture & Đặt tên cột:</label>
+            <table class="mapping-table">
+              <thead>
+                <tr>
+                  <th style="width: 30px;"><input type="checkbox" checked></th>
+                  <th style="width: 100px;">Group</th>
+                  <th>Giá trị trích xuất mẫu</th>
+                  <th style="width: 220px;">Tên cột mới</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">Group (1)</span></td>
+                  <td><div class="sample-val">2026-10-29</div></td>
+                  <td><input type="text" class="col-input" value="Ngày Log"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">Group (2)</span></td>
+                  <td><div class="sample-val">17:45:00</div></td>
+                  <td><input type="text" class="col-input" value="Giờ Log"></td>
+                </tr>
+                <tr>
+                  <td><input type="checkbox" checked></td>
+                  <td><span class="source-tag">Group (3)</span></td>
+                  <td><div class="sample-val">CRITICAL</div></td>
+                  <td><input type="text" class="col-input" value="Mức Cảnh Báo"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <div class="bp4-dialog-footer">
+          <div style="font-size: 11px; color: #8a9ba8;">
+            Sẽ tạo <strong style="color: #3dcc91;">4 cột mới</strong> vào DataGrid tức thì (&lt; 15ms)
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="bp4-button">Hủy bỏ</button>
+            <button class="bp4-button bp4-intent-primary">✓ Áp dụng (Apply)</button>
           </div>
         </div>
-
-        <!-- Scrollable Column Cards Container -->
-        <div id="column-cards-container" class="py-3 space-y-2 flex-1 overflow-y-auto max-h-[320px] pr-1">
-          <!-- Dynamic Column Rows will be rendered here -->
-        </div>
-
-        <!-- Live SQL Preview Toggle -->
-        <div class="pt-3 border-t border-slate-800">
-          <button onclick="toggleSqlPreview()" class="w-full flex items-center justify-between text-xs text-slate-400 hover:text-slate-200 font-medium py-1 transition-colors">
-            <span class="flex items-center space-x-1.5">
-              <span class="text-indigo-400 font-mono text-[11px]">SQL</span>
-              <span>Xem trước câu lệnh DuckDB (Query Preview)</span>
-            </span>
-            <svg id="sql-chevron" class="w-3.5 h-3.5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-          </button>
-          <div id="sql-preview-box" class="hidden mt-2 p-3 bg-slate-950 border border-slate-800 rounded-lg text-[11px] mono text-emerald-400 overflow-x-auto whitespace-pre leading-relaxed"></div>
-        </div>
-
       </div>
-
     </div>
 
-    <!-- Modal Footer -->
-    <div class="px-6 py-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between">
-      <div class="flex items-center space-x-2 text-xs text-slate-400">
-        <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span id="footer-summary">Sẵn sàng tạo <strong>4 cột mới</strong> vào bảng dữ liệu DuckDB tức thì (&lt; 15ms)</span>
-      </div>
 
-      <div class="flex items-center space-x-3">
-        <button class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">Hủy bỏ</button>
-        <button onclick="simulateApply()" class="px-5 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30 flex items-center space-x-2 transition-all active:scale-95">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-          <span>Áp dụng vào bảng (Apply)</span>
-        </button>
-      </div>
+    <!-- VIEW 3: BẢN THIẾT KẾ HIỆN ĐẠI (SPLIT-VIEW) -->
+    <div id="view-modern" class="view-container">
+      <iframe src="toad_extractor_mockup.html" style="width: 1000px; height: 640px; border: none; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);"></iframe>
     </div>
 
   </div>
 
-  <!-- Interactive Mockup Logic -->
   <script>
-    let currentMode = 'simple';
-    let currentFormat = 'kv';
-    
-    // Sample datasets for demonstration
-    const PRESETS = {
-      kv: {
-        format: 'kv',
-        detected: 'Auto-detect: Key-Value Log (k=v)',
-        text: 'src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420',
-        columns: [
-          { source: 'src', name: 'IP Nguồn', sample: '10.0.0.5', enabled: true },
-          { source: 'dst', name: 'IP Đích', sample: '8.8.8.8', enabled: true },
-          { source: 'proto', name: 'Giao thức', sample: 'TCP', enabled: true },
-          { source: 'action', name: 'Hành động', sample: 'BLOCK AND ALERT', enabled: true },
-          { source: 'bytes', name: 'Dung lượng (Byte)', sample: '1420', enabled: true }
-        ]
-      },
-      json: {
-        format: 'json',
-        detected: 'Auto-detect: JSON Object',
-        text: '{"user": "nguyen_van_a", "ip": "10.0.0.1", "port": 443, "status": 200, "role": "admin"}',
-        columns: [
-          { source: 'user', name: 'Tài khoản', sample: 'nguyen_van_a', enabled: true },
-          { source: 'ip', name: 'Địa chỉ IP', sample: '10.0.0.1', enabled: true },
-          { source: 'port', name: 'Cổng', sample: '443', enabled: true },
-          { source: 'status', name: 'Mã HTTP', sample: '200', enabled: true },
-          { source: 'role', name: 'Phân quyền', sample: 'admin', enabled: true }
-        ]
-      },
-      csv: {
-        format: 'csv',
-        detected: 'Auto-detect: CSV Formatted (RFC 4180)',
-        text: '"Hà Nội, Việt Nam", 200, "Thành công, không có lỗi", "2026-10-29 18:00:00"',
-        columns: [
-          { source: 'col_1', name: 'Khu vực / Tỉnh thành', sample: 'Hà Nội, Việt Nam', enabled: true },
-          { source: 'col_2', name: 'Mã phản hồi', sample: '200', enabled: true },
-          { source: 'col_3', name: 'Thông điệp', sample: 'Thành công, không có lỗi', enabled: true },
-          { source: 'col_4', name: 'Thời gian', sample: '2026-10-29 18:00:00', enabled: true }
-        ]
-      },
-      space: {
-        format: 'space',
-        detected: 'Auto-detect: Delimited (Khoảng trắng)',
-        text: '2026-10-29   17:45:00   [CRITICAL]   DB Connection Failed to replica',
-        columns: [
-          { source: 'col_1', name: 'Ngày ghi', sample: '2026-10-29', enabled: true },
-          { source: 'col_2', name: 'Thời gian', sample: '17:45:00', enabled: true },
-          { source: 'col_3', name: 'Mức cảnh báo', sample: '[CRITICAL]', enabled: true },
-          { source: 'col_4', name: 'Thông điệp sự kiện', sample: 'DB Connection Failed to replica', enabled: true }
-        ]
-      },
-      arr: {
-        format: 'arr',
-        detected: 'Auto-detect: JSON Array ($[0], $[1]...)',
-        text: '["192.168.1.1", "192.168.1.2", "192.168.1.3", "10.0.0.1"]',
-        columns: [
-          { source: 'item_0', name: 'Primary IP', sample: '192.168.1.1', enabled: true },
-          { source: 'item_1', name: 'Backup IP', sample: '192.168.1.2', enabled: true },
-          { source: 'item_2', name: 'Gateway', sample: '192.168.1.3', enabled: true },
-          { source: 'item_3', name: 'DNS Server', sample: '10.0.0.1', enabled: true }
-        ]
+    function switchView(viewName) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+
+      if (viewName === 'orig') {
+        document.getElementById('btn-view-orig').classList.add('active');
+        document.getElementById('view-orig').classList.add('active');
+      } else if (viewName === 'native') {
+        document.getElementById('btn-view-native').classList.add('active');
+        document.getElementById('view-native').classList.add('active');
+      } else if (viewName === 'modern') {
+        document.getElementById('btn-view-modern').classList.add('active');
+        document.getElementById('view-modern').classList.add('active');
       }
-    };
+    }
 
-    let activeColumns = [...PRESETS.kv.columns];
-
-    function setMode(mode) {
-      currentMode = mode;
-      const tabSimple = document.getElementById('tab-simple');
-      const tabAdvanced = document.getElementById('tab-advanced');
-      const simpleCard = document.getElementById('simple-rules-card');
-      const advCard = document.getElementById('advanced-rules-card');
-
-      if (mode === 'simple') {
-        tabSimple.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-indigo-600 text-white shadow-sm";
-        tabAdvanced.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition-all";
-        simpleCard.classList.remove('hidden');
-        advCard.classList.add('hidden');
+    function switchNativeTab(tab) {
+      if (tab === 'simple') {
+        document.getElementById('ntab-simple').classList.add('active');
+        document.getElementById('ntab-adv').classList.remove('active');
+        document.getElementById('native-simple-box').style.display = 'block';
+        document.getElementById('native-adv-box').style.display = 'none';
       } else {
-        tabAdvanced.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all bg-indigo-600 text-white shadow-sm";
-        tabSimple.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 flex items-center space-x-1.5 transition-all";
-        advCard.classList.remove('hidden');
-        simpleCard.classList.add('hidden');
-      }
-      renderColumns();
-      updateSqlPreview();
-    }
-
-    function setFormat(fmt) {
-      currentFormat = fmt;
-      document.querySelectorAll('.fmt-btn').forEach(btn => {
-        btn.className = "fmt-btn px-2.5 py-2 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-400 font-medium flex flex-col items-center justify-center text-center transition-all";
-      });
-      const activeBtn = document.getElementById(`fmt-${fmt}`);
-      if (activeBtn) {
-        activeBtn.className = "fmt-btn px-2.5 py-2 rounded-lg border border-indigo-500/40 bg-indigo-600/15 text-indigo-300 font-medium flex flex-col items-center justify-center text-center transition-all ring-1 ring-indigo-500/30";
-      }
-      recalculate();
-    }
-
-    function loadPreset(key) {
-      const p = PRESETS[key];
-      if (!p) return;
-      document.getElementById('sample-text').value = p.text;
-      document.getElementById('detected-text').innerText = p.detected;
-      currentFormat = p.format;
-      setFormat(p.format);
-      activeColumns = JSON.parse(JSON.stringify(p.columns));
-      renderColumns();
-      updateSqlPreview();
-    }
-
-    function renderColumns() {
-      const container = document.getElementById('column-cards-container');
-      container.innerHTML = '';
-
-      let enabledCount = 0;
-
-      activeColumns.forEach((col, idx) => {
-        if (col.enabled) enabledCount++;
-
-        const card = document.createElement('div');
-        card.className = `flex items-center space-x-3 p-2.5 rounded-xl border transition-all ${
-          col.enabled 
-            ? 'bg-slate-900/90 border-slate-800 hover:border-slate-700/80' 
-            : 'bg-slate-950/40 border-slate-900 opacity-40'
-        }`;
-
-        card.innerHTML = `
-          <!-- Checkbox -->
-          <input type="checkbox" ${col.enabled ? 'checked' : ''} onchange="toggleCol(${idx})" class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer">
-          
-          <!-- Source Attribute Badge -->
-          <div class="w-24 shrink-0">
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-slate-800 text-indigo-300 border border-slate-700/80 truncate max-w-full" title="${col.source}">
-              ${col.source}
-            </span>
-          </div>
-
-          <!-- Arrow -->
-          <span class="text-slate-600 text-xs">→</span>
-
-          <!-- Editable New Column Name Input -->
-          <div class="flex-1 min-w-[140px]">
-            <input type="text" value="${col.name}" oninput="updateColName(${idx}, this.value)" placeholder="Tên cột mới..." class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-100 font-semibold focus:border-indigo-500 focus:bg-slate-900 focus:outline-none transition-colors">
-          </div>
-
-          <!-- Sample Extracted Value Preview -->
-          <div class="hidden sm:block max-w-[140px] truncate mono text-[11px] text-slate-400 bg-slate-950/60 px-2 py-1 rounded border border-slate-800/60" title="${col.sample}">
-            ${col.sample}
-          </div>
-
-          <!-- Delete Action -->
-          <button onclick="removeCol(${idx})" class="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-800 transition-colors" title="Xóa trường này">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        `;
-
-        container.appendChild(card);
-      });
-
-      document.getElementById('col-count-badge').innerText = `${enabledCount} Cột`;
-      document.getElementById('footer-summary').innerHTML = `Sẵn sàng tạo <strong>${enabledCount} cột mới</strong> vào bảng dữ liệu DuckDB tức thì (&lt; 15ms)`;
-      updateSqlPreview();
-    }
-
-    function toggleCol(idx) {
-      activeColumns[idx].enabled = !activeColumns[idx].enabled;
-      renderColumns();
-    }
-
-    function updateColName(idx, val) {
-      activeColumns[idx].name = val;
-      updateSqlPreview();
-    }
-
-    function removeCol(idx) {
-      activeColumns.splice(idx, 1);
-      renderColumns();
-    }
-
-    function toggleSelectAll(status) {
-      activeColumns.forEach(c => c.enabled = status);
-      renderColumns();
-    }
-
-    function addNewCustomField() {
-      const idx = activeColumns.length + 1;
-      activeColumns.push({
-        source: `field_${idx}`,
-        name: `Cột_Mới_${idx}`,
-        sample: 'Sample_Value',
-        enabled: true
-      });
-      renderColumns();
-    }
-
-    function toggleOptions() {
-      const p = document.getElementById('options-panel');
-      const c = document.getElementById('opts-chevron');
-      p.classList.toggle('hidden');
-      c.classList.toggle('rotate-180');
-    }
-
-    function toggleSqlPreview() {
-      const b = document.getElementById('sql-preview-box');
-      const c = document.getElementById('sql-chevron');
-      b.classList.toggle('hidden');
-      c.classList.toggle('rotate-180');
-    }
-
-    function updateSqlPreview() {
-      const active = activeColumns.filter(c => c.enabled && c.name.trim());
-      const colClauses = active.map(c => {
-        if (currentFormat === 'json') {
-          return `  json_extract_string("Message", '$.${c.source}') AS "${c.name}"`;
-        } else if (currentFormat === 'arr') {
-          return `  json_extract_string("Message", '$[${c.source.replace('item_', '')}]') AS "${c.name}"`;
-        } else if (currentFormat === 'kv') {
-          return `  regexp_extract("Message", '(?:^|[\\s,;])${c.source}=([^ \\t,;]+)', 1) AS "${c.name}"`;
-        } else {
-          return `  split_part("Message", ' ', ${c.source.replace('col_', '')}) AS "${c.name}"`;
-        }
-      }).join(',\n');
-
-      const sql = `CREATE VIEW "table_extracted" AS\nSELECT *,\n${colClauses || '  -- Chưa chọn cột nào'}\nFROM "table_goc";`;
-      document.getElementById('sql-preview-box').innerText = sql;
-    }
-
-    function onSampleChange() {
-      // Auto-detect based on sample text
-      const text = document.getElementById('sample-text').value.trim();
-      if (text.startsWith('{') && text.endsWith('}')) {
-        document.getElementById('detected-text').innerText = 'Auto-detect: JSON Object';
-        setFormat('json');
-      } else if (text.startsWith('[') && text.endsWith(']')) {
-        document.getElementById('detected-text').innerText = 'Auto-detect: JSON Array';
-        setFormat('arr');
-      } else if (text.includes('=') && (text.includes(' ') || text.includes(','))) {
-        document.getElementById('detected-text').innerText = 'Auto-detect: Key-Value Log';
-        setFormat('kv');
-      } else if (text.includes('"') && text.includes(',')) {
-        document.getElementById('detected-text').innerText = 'Auto-detect: CSV Formatted';
-        setFormat('csv');
-      } else {
-        document.getElementById('detected-text').innerText = 'Auto-detect: Delimited';
-        setFormat('space');
+        document.getElementById('ntab-adv').classList.add('active');
+        document.getElementById('ntab-simple').classList.remove('active');
+        document.getElementById('native-adv-box').style.display = 'block';
+        document.getElementById('native-simple-box').style.display = 'none';
       }
     }
-
-    function recalculate() {
-      updateSqlPreview();
-    }
-
-    function simulateApply() {
-      alert(`Đã áp dụng thành công ${activeColumns.filter(c => c.enabled).length} cột mới vào DataGrid!`);
-    }
-
-    // Initialize with KV preset
-    window.onload = () => {
-      loadPreset('kv');
-    };
   </script>
 </body>
 </html>

@@ -41,3 +41,4 @@
    - Có thể click vào các nút mẫu thử (`Firewall KV`, `JSON Event`...), gõ thử đổi tên cột, bật tắt checkbox, mở xem câu lệnh SQL sinh ra.
 2. **Xem trực tiếp trong Antigravity**:
    - Xem qua artifact HTML được nhúng trong khung trao đổi.
+
