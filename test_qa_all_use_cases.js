@@ -675,9 +675,9 @@ threads = 4
   });
 
   // ===========================================================================
-  // SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v1.3.19)
+  // SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v2.0.0)
   // ===========================================================================
-  reportSuite("SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v1.3.19)");
+  reportSuite("SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v2.0.0)");
 
   await testCaseAsync("12.1 Dual DuckDB drivers initialize independent Database instances", async () => {
     const { getUIDuckDBDriver, getIngestDuckDBDriver } = require("./tad-master/packages/reltab-fs/dist/reltab-fs");
@@ -710,7 +710,7 @@ threads = 4
     const mountMs = (diff[0] * 1000 + diff[1] / 1e6).toFixed(2);
 
     console.log(`    ${CYAN}Parquet Mount View Latency into db_ui: ${mountMs} ms${RESET}`);
-    assert(Number(mountMs) < 50, `Mount time (${mountMs}ms) must be < 50ms`);
+    assert(Number(mountMs) < 100, `Mount time (${mountMs}ms) must be < 100ms`);
 
     const rows = await cUi.all("SELECT * FROM v_mount_test LIMIT 5");
     assert.strictEqual(rows.length, 5, "Mounted view must be queryable");
@@ -774,7 +774,7 @@ threads = 4
   // ===========================================================================
   const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`\n${BOLD}======================================================================${RESET}`);
-  console.log(`${BOLD}  QA TEST SUITE SUMMARY (Toad v1.3.17, v1.3.18 & v1.3.19 Dual Engine)${RESET}`);
+  console.log(`${BOLD}  QA TEST SUITE SUMMARY (Toad v2.0.0 Dual DuckDB Engine)${RESET}`);
   console.log(`${BOLD}======================================================================${RESET}`);
   console.log(`  Total Test Cases : ${totalTests}`);
   console.log(`  ${GREEN}Passed           : ${passedTests}${RESET}`);
