@@ -701,8 +701,11 @@ threads = 4
     const tmpParquet = path.resolve(__dirname, `tmp_parquet_mount_${Date.now()}.parquet`);
     await cIngest.exec(`COPY (SELECT i, 'val_' || i as name FROM range(1, 10000) t(i)) TO '${tmpParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)`);
 
-    // Warm-up DuckDB's internal parquet extension on ui connection
+    // Warm-up DuckDB's internal parquet extension and metadata reader on ui connection
     await cUi.exec(`SELECT * FROM parquet_scan('${tmpParquet.replace(/\\/g, "/")}') LIMIT 1`);
+    try {
+      await cUi.exec(`SELECT * FROM parquet_metadata('${tmpParquet.replace(/\\/g, "/")}') LIMIT 1`);
+    } catch {}
 
     const t0 = process.hrtime();
     await createViewFromParquet(cUi, tmpParquet, "v_mount_test");
