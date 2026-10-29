@@ -261,3 +261,4 @@ Khi tiến hành hiện thực mã nguồn cho bản **v2.0.2**, phạm vi tác 
 Tài liệu này định hình đầy đủ và toàn diện các yêu cầu nghiệp vụ (BA) cho tính năng **Simple & Advanced Column Extractor** trên phiên bản **Toad v2.0.2**. Tính năng này sẽ mang lại bước nhảy vọt về trải nghiệm người dùng, biến Toad thành công cụ phân tích log và dữ liệu bán cấu trúc (Semi-structured Data) mạnh mẽ, thân thiện và linh hoạt hàng đầu.
 
 Tài liệu đã sẵn sàng để chuyển sang giai đoạn lập kế hoạch chi tiết và thực thi code khi người dùng phê duyệt!
+
