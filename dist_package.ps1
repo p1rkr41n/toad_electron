@@ -9,4 +9,16 @@ Write-Output "--- Packaging Toad with electron-builder ---"
 Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"
 & npm.cmd run dist
 
+$releaseDir = "D:\Shared_UserData\Downloads\tad\releases"
+$rootDir = "D:\Shared_UserData\Downloads\tad"
+$latestExe = Get-ChildItem -Path "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\release\*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+
+if ($latestExe) {
+    Write-Output "Copying $($latestExe.Name) to releases and root..."
+    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\$($latestExe.Name)" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.0.0_portable.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad.exe" -Force
+}
+
 Write-Output "--- Packaging Complete! ---"
