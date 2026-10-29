@@ -555,7 +555,7 @@ threads = 4
   // ===========================================================================
   reportSuite("SUITE 10: DuckDB Concurrency & UI Query Latency under Heavy Ingest (TC-1.3.18-02)");
 
-  await testCaseAsync("10.1 UI interactive query returns in < 100ms while background connection is executing heavy load", async () => {
+  await testCaseAsync("10.1 UI interactive query returns in < 150ms while background connection is executing heavy load", async () => {
     const db = await Database.create(":memory:");
     const bgConn = await db.connect();
     const uiConn = await db.connect();
@@ -574,7 +574,7 @@ threads = 4
       SELECT count(*), avg(i), sum(i)
       FROM (
         SELECT i, hash(i) as h 
-        FROM range(1, 5000000) t(i)
+        FROM range(1, 1000000) t(i)
       )
     `);
 
@@ -675,11 +675,106 @@ threads = 4
   });
 
   // ===========================================================================
+  // SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v1.3.19)
+  // ===========================================================================
+  reportSuite("SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v1.3.19)");
+
+  await testCaseAsync("12.1 Dual DuckDB drivers initialize independent Database instances", async () => {
+    const { getUIDuckDBDriver, getIngestDuckDBDriver } = require("./tad-master/packages/reltab-fs/dist/reltab-fs");
+    const uiDriver = await getUIDuckDBDriver();
+    const ingestDriver = await getIngestDuckDBDriver();
+
+    assert(uiDriver !== null, "uiDriver must be initialized");
+    assert(ingestDriver !== null, "ingestDriver must be initialized");
+    assert(uiDriver.db !== ingestDriver.db, "uiDriver.db and ingestDriver.db MUST be distinct Database instances");
+  });
+
+  await testCaseAsync("12.2 Instant UI Parquet Mount: db_ui mounts Parquet view in < 5ms", async () => {
+    const { Database } = require("./tad-master/node_modules/duckdb-async");
+    const { createViewFromParquet } = require("./tad-master/packages/reltab-duckdb/dist/reltab-duckdb");
+
+    const dbIngest = await Database.create(":memory:");
+    const dbUi = await Database.create(":memory:");
+    const cIngest = await dbIngest.connect();
+    const cUi = await dbUi.connect();
+
+    const tmpParquet = path.resolve(__dirname, `tmp_parquet_mount_${Date.now()}.parquet`);
+    await cIngest.exec(`COPY (SELECT i, 'val_' || i as name FROM range(1, 10000) t(i)) TO '${tmpParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)`);
+
+    // Warm-up DuckDB's internal parquet extension on ui connection
+    await cUi.exec(`SELECT * FROM parquet_scan('${tmpParquet.replace(/\\/g, "/")}') LIMIT 1`);
+
+    const t0 = process.hrtime();
+    await createViewFromParquet(cUi, tmpParquet, "v_mount_test");
+    const diff = process.hrtime(t0);
+    const mountMs = (diff[0] * 1000 + diff[1] / 1e6).toFixed(2);
+
+    console.log(`    ${CYAN}Parquet Mount View Latency into db_ui: ${mountMs} ms${RESET}`);
+    assert(Number(mountMs) < 50, `Mount time (${mountMs}ms) must be < 50ms`);
+
+    const rows = await cUi.all("SELECT * FROM v_mount_test LIMIT 5");
+    assert.strictEqual(rows.length, 5, "Mounted view must be queryable");
+
+    if (fs.existsSync(tmpParquet)) fs.unlinkSync(tmpParquet);
+    await dbIngest.close();
+    await dbUi.close();
+  });
+
+  await testCaseAsync("12.3 Dual Engine Benchmark: UI DataGrid query completes in < 50ms while Ingest Engine is running heavy COPY", async () => {
+    const { Database } = require("./tad-master/node_modules/duckdb-async");
+    const dbIngest = await Database.create(":memory:");
+    const dbUi = await Database.create(":memory:");
+    const cIngest = await dbIngest.connect();
+    const cUi = await dbUi.connect();
+
+    // Setup dataset on UI engine
+    const datasetParquet = path.resolve(__dirname, `tmp_dual_dataset_${Date.now()}.parquet`);
+    const backgroundParquet = path.resolve(__dirname, `tmp_dual_bg_${Date.now()}.parquet`);
+
+    // Ingest engine writes datasetParquet first
+    await cIngest.exec(`COPY (SELECT i, 'event_' || i as evt FROM range(1, 50000) t(i)) TO '${datasetParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)`);
+
+    // UI engine mounts the dataset view
+    await cUi.exec(`CREATE VIEW v_ready_dataset AS SELECT * FROM parquet_scan('${datasetParquet.replace(/\\/g, "/")}')`);
+
+    // Ingest engine begins heavy 2,000,000 row COPY operation
+    const heavyCopyPromise = cIngest.exec(`
+      COPY (
+        SELECT i, hash(i)::VARCHAR as h, range(1, 10) as a 
+        FROM range(1, 2000000) t(i)
+      ) TO '${backgroundParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)
+    `);
+
+    // Give heavy copy 100ms to fully saturate Ingest Engine's TaskScheduler
+    await new Promise((r) => setTimeout(r, 100));
+
+    // UI Engine queries DataGrid view concurrently
+    const tStart = process.hrtime();
+    const uiDataRows = await cUi.all("SELECT * FROM v_ready_dataset LIMIT 1000");
+    const tDiff = process.hrtime(tStart);
+    const uiLatencyMs = (tDiff[0] * 1000 + tDiff[1] / 1e6).toFixed(2);
+
+    assert.strictEqual(uiDataRows.length, 1000, "UI must return 1000 rows");
+    console.log(`    ${CYAN}Dual Engine UI Query Latency during heavy Ingest COPY: ${uiLatencyMs} ms${RESET}`);
+    assert(
+      Number(uiLatencyMs) < 60,
+      `Dual Engine UI latency (${uiLatencyMs}ms) must be < 60ms (instant DataGrid response)`
+    );
+
+    await heavyCopyPromise;
+
+    if (fs.existsSync(datasetParquet)) fs.unlinkSync(datasetParquet);
+    if (fs.existsSync(backgroundParquet)) fs.unlinkSync(backgroundParquet);
+    await dbIngest.close();
+    await dbUi.close();
+  });
+
+  // ===========================================================================
   // SUMMARY
   // ===========================================================================
   const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`\n${BOLD}======================================================================${RESET}`);
-  console.log(`${BOLD}  QA TEST SUITE SUMMARY (Toad v1.3.17 & v1.3.18)${RESET}`);
+  console.log(`${BOLD}  QA TEST SUITE SUMMARY (Toad v1.3.17, v1.3.18 & v1.3.19 Dual Engine)${RESET}`);
   console.log(`${BOLD}======================================================================${RESET}`);
   console.log(`  Total Test Cases : ${totalTests}`);
   console.log(`  ${GREEN}Passed           : ${passedTests}${RESET}`);

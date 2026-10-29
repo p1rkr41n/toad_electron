@@ -235,3 +235,4 @@ flowchart TD
 3. **Giai đoạn 3**: Tích hợp cơ chế mount Parquet tức thì sang `db_ui`.
 4. **Giai đoạn 4**: Bổ sung kịch bản kiểm thử vào bộ QA tự động và chạy thẩm định 100% Pass.
 5. **Giai đoạn 5**: Đóng gói phiên bản chính thức `Toad 1.3.19.exe`.
+
