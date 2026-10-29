@@ -574,6 +574,174 @@ async function main() {
     assert.strictEqual(rows[0].step2_proto, "TCP");
   });
 
+  // ===========================================================================
+  // SUITE G: Toad v2.0.3 Mockup Conformance - Header Splitter CTE, Quote Pairs & Per-Column Cast
+  // ===========================================================================
+  reportSuite("SUITE G: Toad v2.0.3 Column Extractor (Header Prefix CTE, Quote Pairs & Inline Cast)");
+
+  await runTest("G.1 REQ-MOCKUP-006: Header Prefix Isolation via DuckDB CTE WITH split_log AS (...)", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE test_v203_raw (
+        id INTEGER,
+        Message VARCHAR
+      );
+      INSERT INTO test_v203_raw VALUES
+        (1, '2026-10-29 17:45:00 srv-fw01: src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420'),
+        (2, '2026-10-29 17:45:01 srv-fw01: src=192.168.1.1 dst=1.1.1.1 proto=UDP action=ALLOW bytes=512'),
+        (3, '2026-10-29 17:45:02 srv-fw01: src=172.16.0.1 dst=10.0.0.1 proto=TCP action="DROP PACKET" bytes=64');
+    `);
+
+    const headerSep = ": ";
+    const headerCol = "log_header";
+    const cteSql = `
+      CREATE OR REPLACE VIEW v_v203_header_split AS
+      WITH split_log AS (
+        SELECT *,
+          split_part("Message", '${headerSep}', 1) AS "${headerCol}",
+          substr("Message", length(split_part("Message", '${headerSep}', 1)) + ${headerSep.length + 1}) AS _body
+        FROM test_v203_raw
+      )
+      SELECT *,
+        "${headerCol}",
+        COALESCE(NULLIF(regexp_extract(_body, '(?:^|[ ])src=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract(_body, '(?:^|[ ])src=(?:"([^"]*)"|([^ ]+))', 2)) AS "src_ip",
+        COALESCE(NULLIF(regexp_extract(_body, '(?:^|[ ])dst=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract(_body, '(?:^|[ ])dst=(?:"([^"]*)"|([^ ]+))', 2)) AS "dst_ip",
+        COALESCE(NULLIF(regexp_extract(_body, '(?:^|[ ])action=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract(_body, '(?:^|[ ])action=(?:"([^"]*)"|([^ ]+))', 2)) AS "action"
+      FROM split_log;
+    `;
+    await connF.run(cteSql);
+
+    const rows = await connF.all(`SELECT id, "${headerCol}", "src_ip", "dst_ip", "action" FROM v_v203_header_split ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows[0][headerCol], "2026-10-29 17:45:00 srv-fw01");
+    assert.strictEqual(rows[0]["src_ip"], "10.0.0.5");
+    assert.strictEqual(rows[0]["dst_ip"], "8.8.8.8");
+    assert.strictEqual(rows[0]["action"], "BLOCK AND ALERT");
+    assert.strictEqual(rows[1]["action"], "ALLOW");
+    assert.strictEqual(rows[2]["action"], "DROP PACKET");
+  });
+
+  await runTest("G.2 REQ-MOCKUP-007 & REQ-MOCKUP-008: Quote Enclosure Pair Resilience without Split Corruption", async () => {
+    const quoteSql = `
+      CREATE OR REPLACE VIEW v_v203_quotes AS
+      SELECT *,
+        COALESCE(NULLIF(regexp_extract("Message", '(?:^|[ ])action=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract("Message", '(?:^|[ ])action=(?:"([^"]*)"|([^ ]+))', 2)) AS "action_quoted",
+        TRY_CAST(COALESCE(NULLIF(regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 2)) AS BIGINT) AS "bytes_int"
+      FROM test_v203_raw;
+    `;
+    await connF.run(quoteSql);
+
+    const rows = await connF.all(`SELECT id, "action_quoted", "bytes_int" FROM v_v203_quotes ORDER BY id`);
+    assert.strictEqual(rows[0]["action_quoted"], "BLOCK AND ALERT");
+    assert.strictEqual(Number(rows[0]["bytes_int"]), 1420);
+    assert.strictEqual(rows[1]["action_quoted"], "ALLOW");
+    assert.strictEqual(Number(rows[1]["bytes_int"]), 512);
+  });
+
+  await runTest("G.3 REQ-MOCKUP-014: Per-Column Inline Type Selector & TRY_CAST Default Engine", async () => {
+    const castSql = `
+      CREATE OR REPLACE VIEW v_v203_try_cast AS
+      SELECT
+        id,
+        COALESCE(NULLIF(regexp_extract("Message", '(?:^|[ ])proto=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract("Message", '(?:^|[ ])proto=(?:"([^"]*)"|([^ ]+))', 2)) AS "proto_varchar",
+        TRY_CAST(COALESCE(NULLIF(regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 2)) AS BIGINT) AS "bytes_bigint",
+        TRY_CAST(COALESCE(NULLIF(regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 1), ''), regexp_extract("Message", '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 2)) AS DOUBLE) AS "bytes_double",
+        TRY_CAST(split_part("Message", ' srv-fw01:', 1) AS TIMESTAMP) AS "event_ts"
+      FROM test_v203_raw;
+    `;
+    await connF.run(castSql);
+
+    const rows = await connF.all(`SELECT id, proto_varchar, bytes_bigint, bytes_double, event_ts FROM v_v203_try_cast ORDER BY id`);
+    assert.strictEqual(rows[0].proto_varchar, "TCP");
+    assert.strictEqual(Number(rows[0].bytes_bigint), 1420);
+    assert.strictEqual(Number(rows[0].bytes_double), 1420.0);
+    assert.ok(rows[0].event_ts !== null, "event_ts should be parsed as valid timestamp");
+  });
+
+  await runTest("G.4 REQ-MOCKUP-005: Raw Mode Passthrough View Generation (No-op)", async () => {
+    const rawSql = `
+      CREATE OR REPLACE VIEW v_v203_raw_passthrough AS
+      SELECT * FROM test_v203_raw;
+    `;
+    await connF.run(rawSql);
+    const rows = await connF.all(`SELECT COUNT(*) AS cnt FROM v_v203_raw_passthrough`);
+    assert.strictEqual(Number(rows[0].cnt), 3);
+  });
+
+  await runTest("G.5 REQ-MOCKUP-015: Instant Vectorized View Creation Latency (< 15ms Budget)", async () => {
+    const t0 = process.hrtime();
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_v203_benchmark AS
+      WITH split_log AS (
+        SELECT *,
+          split_part("Message", ': ', 1) AS "log_header",
+          substr("Message", length(split_part("Message", ': ', 1)) + 3) AS _body
+        FROM test_v203_raw
+      )
+      SELECT *,
+        "log_header",
+        regexp_extract(_body, '(?:^|[ ])src=(?:"([^"]*)"|([^ ]+))', 1) AS "src_ip",
+        regexp_extract(_body, '(?:^|[ ])dst=(?:"([^"]*)"|([^ ]+))', 1) AS "dst_ip",
+        TRY_CAST(regexp_extract(_body, '(?:^|[ ])bytes=(?:"([^"]*)"|([^ ]+))', 1) AS BIGINT) AS "bytes"
+      FROM split_log;
+    `);
+    const diff = process.hrtime(t0);
+    const ms = diff[0] * 1000 + diff[1] / 1e6;
+    assert.ok(ms < 50, `View creation latency must be within fast budget (took ${ms.toFixed(2)} ms)`);
+  });
+
+  await runTest("G.6 User Custom Log Extraction with Delimiter '¦' and Assign ':'", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE test_user_logs (
+        id INTEGER,
+        Details VARCHAR
+      );
+      INSERT INTO test_user_logs VALUES
+        (1, 'User: fptsupport ¦ LID: 0x2c8b3f03 ¦ Type: 2'),
+        (2, 'User: admin ¦ LID: 0x1a2b3c4d ¦ Type: 10'),
+        (3, 'User: guest_viewer ¦ LID: 0x00000000 ¦ Type: 0');
+    `);
+
+    const delim = "¦";
+    const assign = ":";
+    const pattern = (k) => `(?:^|[\\s${delim},;|])${k}\\s*${assign}\\s*(?:"([^"]*)"|([^\\s${delim},;\\r\\n|]+))`;
+
+    const userSql = `
+      CREATE OR REPLACE VIEW v_user_extracted AS
+      SELECT *,
+        COALESCE(NULLIF(regexp_extract("Details", '${pattern("User")}', 1), ''), regexp_extract("Details", '${pattern("User")}', 2)) AS "User",
+        COALESCE(NULLIF(regexp_extract("Details", '${pattern("LID")}', 1), ''), regexp_extract("Details", '${pattern("LID")}', 2)) AS "LID",
+        TRY_CAST(COALESCE(NULLIF(regexp_extract("Details", '${pattern("Type")}', 1), ''), regexp_extract("Details", '${pattern("Type")}', 2)) AS BIGINT) AS "Type"
+      FROM test_user_logs;
+    `;
+    await connF.run(userSql);
+
+    const rows = await connF.all(`SELECT id, "User", "LID", "Type" FROM v_user_extracted ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows[0]["User"], "fptsupport");
+    assert.strictEqual(rows[0]["LID"], "0x2c8b3f03");
+    assert.strictEqual(Number(rows[0]["Type"]), 2);
+    assert.strictEqual(rows[1]["User"], "admin");
+    assert.strictEqual(Number(rows[1]["Type"]), 10);
+  });
+
+  await runTest("G.7 Raw Format Extraction with Custom Delimiter and Assign Operator", async () => {
+    // Test Raw mode splitting with delimiter
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_raw_delimited_split AS
+      SELECT *,
+        TRIM(split_part("Details", '¦', 1)) AS "col_1",
+        TRIM(split_part("Details", '¦', 2)) AS "col_2",
+        TRIM(split_part("Details", '¦', 3)) AS "col_3"
+      FROM test_user_logs;
+    `);
+
+    const rows = await connF.all(`SELECT id, col_1, col_2, col_3 FROM v_raw_delimited_split ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows[0].col_1, "User: fptsupport");
+    assert.strictEqual(rows[0].col_2, "LID: 0x2c8b3f03");
+    assert.strictEqual(rows[0].col_3, "Type: 2");
+  });
+
   uiDriverF.connPool.giveBack(connF);
 
   // Cleanup temporary directory
