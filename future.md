@@ -95,6 +95,33 @@ Tuy nhiên, việc tích hợp nhiều thành phần khiến thời gian khởi 
 
 ---
 
+### 📌 Đề xuất 5: Điều tiết Luồng Nền Động khi Mở Bảng (Dynamic Thread Pacing - Phương Pháp 3)
+* **Mô tả**: Tạm thời hạ mức tiêu thụ tài nguyên của tiến trình nạp nền `db_ingest` trong khoảnh khắc người dùng tương tác mở một bảng dữ liệu mới, sau đó tự động khôi phục toàn bộ công suất.
+* **Hiện trạng & Lý do chưa triển khai ngay**:
+  - Khi triển khai đồng thời Phương pháp 1 (Fix IPC + Windows I/O Priority) và Phương pháp 2 (RAM First-Page Micro-Cache), bảng dữ liệu đã mở ra tức thì trong $0\text{ ms} - 2\text{ ms}$ từ bộ nhớ mà không chạm đĩa, nên việc can thiệp hạ luồng CPU của DuckDB chưa cần thiết ở giai đoạn hiện tại.
+* **Phương án triển khai tương lai**:
+  - Bổ sung cơ chế hook sự kiện `onUserOpenTableStart`: Gửi tín hiệu hạ tạm thời `SET threads = 2` trên `ingestDb` trong vòng 500ms để nhường tối đa bus CPU/RAM cho việc khởi tạo các component React của DataGrid.
+  - Khi sự kiện `onUserOpenTableComplete` phát ra (hoặc sau timeout 500ms), tự động khôi phục lại `SET threads = background_threads` ban đầu.
+* **Hiệu quả dự kiến**: Giảm thiểu tối đa hiện tượng cạnh tranh tài nguyên V8 render UI trên các máy trạm có số lượng core CPU ít ($\le 4$ cores).
+
+---
+
+### 📌 Đề xuất 6: Tối ưu hóa Ghi Đĩa Tuần tự Khối Lớn (Batch Sequential I/O row_group_size = 122880 - Phương Pháp 4)
+* **Mô tả**: Nâng cao kích thước khối Parquet (`row_group_size`) trong pipeline chuyển đổi của DuckDB để chuyển đổi toàn bộ I/O ghi từ dạng ngắt quãng nhỏ sang ghi tuần tự khối lớn (Large Sequential Write).
+* **Hiện trạng & Lý do chưa triển khai ngay**:
+  - Giá trị hiện tại `row_group_size = 25000` đang hoạt động ổn định và cân bằng tốt trên hầu hết các máy trạm có RAM từ 8GB đến 16GB. Việc tăng lên `122880` cần được đánh giá thêm mức tiêu thụ RAM trên các tập dữ liệu có số lượng cột cực lớn (> 200 cột).
+* **Phương án triển khai tương lai**:
+  - Thêm tùy chọn `row_group_size` linh hoạt trong `config.ini` dưới mục `[parquet]`:
+    ```ini
+    [parquet]
+    compression = snappy
+    row_group_size = 122880  # Kích thước khối lớn tối ưu cho ổ cứng HDD / SATA SSD
+    ```
+  - Xây dựng thuật toán tự động tính toán `dynamic_row_group_size` dựa trên số lượng cột và kích thước RAM khả dụng: nếu bảng ít cột (< 30 cột) và RAM lớn (> 16GB), tự động áp dụng `row_group_size = 122880`.
+* **Hiệu quả dự kiến**: Giảm 70% số lượng lần gọi hàm ghi đĩa ngẫu nhiên, tăng tuổi thọ và giảm nhiệt độ SSD, tạo các khoảng lặng I/O tự nhiên (I/O breathing gaps) cho hệ điều hành.
+
+---
+
 ## 3. LỘ TRÌNH TRIỂN KHAI KHUYẾN NGHỊ (RECOMMENDED IMPLEMENTATION PHASES)
 
 | Giai Đoạn | Hạng Mục Công Việc | Mức Độ Phức Tạp | Tác Động / Lợi Ích |
@@ -103,6 +130,8 @@ Tuy nhiên, việc tích hợp nhiều thành phần khiến thời gian khởi 
 | **Phase 2** | **Bất đồng bộ hóa `init-portable`**: Tách nhẹ phase `setPath` và đẩy dọn dẹp temp/config sang async. | Trung bình (0.5 ngày) | 🟡 **Giảm thêm 200 - 400ms** |
 | **Phase 3** | **Webpack Code Splitting**: Refactor các component lớn sang `React.lazy()` và cấu hình `splitChunks`. | Cao (1 - 2 ngày) | 🟡 **Giảm thêm 300 - 500ms** thời gian render UI |
 | **Phase 4** | **Nâng cấp Hệ thống Regex Đa năng**: Tích hợp Sample Navigator, Custom Editor và Live Column Renaming. | Trung bình (1 ngày) | 🚀 **Tối ưu vượt bậc trải nghiệm phân tích DFIR & trích xuất log** |
+| **Phase 5** | **Dynamic Thread Pacing (Phương Pháp 3)**: Điều tiết luồng CPU động khi mở bảng trên máy cấu hình yếu. | Thấp (0.5 ngày) | 🟢 **Bảo đảm độ mượt trên máy $\le 4$ cores** |
+| **Phase 6** | **Batch Sequential I/O (Phương Pháp 4)**: Cấu hình `row_group_size = 122880` thích ứng theo RAM/cột. | Thấp (0.5 ngày) | 🟢 **Tối ưu hóa I/O tuần tự khối lớn trên SSD/HDD** |
 
 ---
 
