@@ -380,6 +380,202 @@ async function main() {
     assert.strictEqual(calculated, Math.min(128, Math.max(8, hostCpus * 2)));
   });
 
+  // ===========================================================================
+  // SUITE F: Toad v2.0.2 Simple & Advanced Column Extractor & Custom Naming
+  // ===========================================================================
+  reportSuite("SUITE F: Toad v2.0.2 Multi-Format Column Extractor & Custom Naming Acceptance Tests");
+
+  const uiDriverF = await reltabFS.getUIDuckDBDriver();
+  const connF = await uiDriverF.connPool.take();
+
+  await runTest("F.1 Set up test fixture table with multi-format semi-structured logs", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE test_extractor_logs (
+        id INT,
+        raw_json VARCHAR,
+        raw_json_arr VARCHAR,
+        raw_kv VARCHAR,
+        raw_space VARCHAR,
+        raw_csv VARCHAR,
+        raw_regex VARCHAR
+      );
+      INSERT INTO test_extractor_logs VALUES
+      (
+        1,
+        '{"src_ip": "10.0.0.1", "user": "nguyễn_văn_a", "port": 443, "status": 200}',
+        '["192.168.1.1", "192.168.1.2", "192.168.1.3"]',
+        'src=10.0.0.5 dst=8.8.8.8 action="BLOCK AND ALERT" proto=TCP bytes=1420',
+        '2026-10-29   17:45:00   [CRITICAL]   DB Connection Failed to replica',
+        '"Hà Nội, Việt Nam",200,"Thành công, không có lỗi"',
+        '2026-10-29 18:30:00 [CRITICAL] Core dump on node-1'
+      ),
+      (
+        2,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+      ),
+      (
+        3,
+        '{"src_ip": "10.0.0.2", "user": "trần_thị_b", "port": 80, "status": 404}',
+        '["10.10.0.1"]',
+        'src=172.16.0.4 action="ALLOW" bytes=512',
+        '2026-10-29 18:00:00 [WARN] High memory',
+        '"Đà Nẵng, VN",404,"Không tìm thấy"',
+        '2026-10-29 19:00:00 [WARN] High load'
+      );
+    `);
+  });
+
+  await runTest("F.2 TC-202-01: Simple Mode - JSON Object with Vietnamese Custom Column Names", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_json AS
+      SELECT *,
+        json_extract_string("raw_json", '$."src_ip"') AS "IP Nguồn",
+        json_extract_string("raw_json", '$."user"') AS "Tài khoản",
+        json_extract_string("raw_json", '$."port"') AS "Cổng mạng"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "IP Nguồn", "Tài khoản", "Cổng mạng" FROM v_ext_json ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows[0]["IP Nguồn"], "10.0.0.1");
+    assert.strictEqual(rows[0]["Tài khoản"], "nguyễn_văn_a");
+    assert.strictEqual(rows[0]["Cổng mạng"], "443");
+    assert.strictEqual(rows[1]["IP Nguồn"], null);
+    assert.strictEqual(rows[2]["Tài khoản"], "trần_thị_b");
+  });
+
+  await runTest("F.3 TC-202-02 & TC-202-03: Simple Mode - JSON Array Element Extraction by Index", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_arr AS
+      SELECT *,
+        json_extract_string("raw_json_arr", '$[0]') AS "Primary IP",
+        json_extract_string("raw_json_arr", '$[1]') AS "Secondary IP"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "Primary IP", "Secondary IP" FROM v_ext_arr ORDER BY id`);
+    assert.strictEqual(rows[0]["Primary IP"], "192.168.1.1");
+    assert.strictEqual(rows[0]["Secondary IP"], "192.168.1.2");
+    assert.strictEqual(rows[1]["Primary IP"], null);
+    assert.strictEqual(rows[2]["Primary IP"], "10.10.0.1");
+    assert.strictEqual(rows[2]["Secondary IP"], null);
+  });
+
+  await runTest("F.4 TC-202-04: Simple Mode - Key-Value Pairs with Quoted Values & Custom Names", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_kv AS
+      SELECT *,
+        COALESCE(NULLIF(regexp_extract("raw_kv", '(?:^|[\\s,;|])src=(?:"([^"]*)"|([^ \\t,;|]+))', 1), ''), regexp_extract("raw_kv", '(?:^|[\\s,;|])src=(?:"([^"]*)"|([^ \\t,;|]+))', 2)) AS "Địa chỉ nguồn",
+        COALESCE(NULLIF(regexp_extract("raw_kv", '(?:^|[\\s,;|])action=(?:"([^"]*)"|([^ \\t,;|]+))', 1), ''), regexp_extract("raw_kv", '(?:^|[\\s,;|])action=(?:"([^"]*)"|([^ \\t,;|]+))', 2)) AS "Hành động chính sách",
+        COALESCE(NULLIF(regexp_extract("raw_kv", '(?:^|[\\s,;|])bytes=(?:"([^"]*)"|([^ \\t,;|]+))', 1), ''), regexp_extract("raw_kv", '(?:^|[\\s,;|])bytes=(?:"([^"]*)"|([^ \\t,;|]+))', 2)) AS "Dung lượng (Byte)"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "Địa chỉ nguồn", "Hành động chính sách", "Dung lượng (Byte)" FROM v_ext_kv ORDER BY id`);
+    assert.strictEqual(rows[0]["Địa chỉ nguồn"], "10.0.0.5");
+    assert.strictEqual(rows[0]["Hành động chính sách"], "BLOCK AND ALERT");
+    assert.strictEqual(rows[0]["Dung lượng (Byte)"], "1420");
+    assert.strictEqual(rows[1]["Địa chỉ nguồn"], null);
+    assert.strictEqual(rows[2]["Hành động chính sách"], "ALLOW");
+  });
+
+  await runTest("F.5 TC-202-05: Simple Mode - Raw Delimiter with Whitespace Collapse & Trim", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_space AS
+      SELECT *,
+        TRIM(split_part(regexp_replace("raw_space", '\\s+', ' ', 'g'), ' ', 1)) AS "Ngày ghi log",
+        TRIM(split_part(regexp_replace("raw_space", '\\s+', ' ', 'g'), ' ', 2)) AS "Thời gian",
+        TRIM(split_part(regexp_replace("raw_space", '\\s+', ' ', 'g'), ' ', 3)) AS "Mức cảnh báo",
+        TRIM(split_part(regexp_replace("raw_space", '\\s+', ' ', 'g'), ' ', 4)) AS "Tiêu đề lỗi"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "Ngày ghi log", "Thời gian", "Mức cảnh báo", "Tiêu đề lỗi" FROM v_ext_space ORDER BY id`);
+    assert.strictEqual(rows[0]["Ngày ghi log"], "2026-10-29");
+    assert.strictEqual(rows[0]["Thời gian"], "17:45:00");
+    assert.strictEqual(rows[0]["Mức cảnh báo"], "[CRITICAL]");
+    assert.strictEqual(rows[0]["Tiêu đề lỗi"], "DB");
+    assert.strictEqual(rows[1]["Ngày ghi log"], "");
+  });
+
+  await runTest("F.6 TC-202-06 & TC-202-07: Simple Mode - CSV Formatted respecting Double Quotes", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_csv AS
+      SELECT *,
+        COALESCE(NULLIF(regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){0}(?:"([^"]*)"|([^,]*))', 1), ''), regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){0}(?:"([^"]*)"|([^,]*))', 2)) AS "Khu vực",
+        COALESCE(NULLIF(regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){1}(?:"([^"]*)"|([^,]*))', 1), ''), regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){1}(?:"([^"]*)"|([^,]*))', 2)) AS "Mã HTTP",
+        COALESCE(NULLIF(regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){2}(?:"([^"]*)"|([^,]*))', 1), ''), regexp_extract("raw_csv", '^(?:(?:"[^"]*"|[^,]*),){2}(?:"([^"]*)"|([^,]*))', 2)) AS "Thông báo trạng thái"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "Khu vực", "Mã HTTP", "Thông báo trạng thái" FROM v_ext_csv ORDER BY id`);
+    assert.strictEqual(rows[0]["Khu vực"], "Hà Nội, Việt Nam");
+    assert.strictEqual(rows[0]["Mã HTTP"], "200");
+    assert.strictEqual(rows[0]["Thông báo trạng thái"], "Thành công, không có lỗi");
+    assert.strictEqual(rows[1]["Khu vực"], null);
+    assert.strictEqual(rows[2]["Khu vực"], "Đà Nẵng, VN");
+  });
+
+  await runTest("F.7 TC-202-08: Advanced Mode - Regex Extraction with Custom Column Naming", async () => {
+    const pattern = '(\\d{4}-\\d{2}-\\d{2})\\s+(\\d{2}:\\d{2}:\\d{2})\\s+\\[(\\w+)\\]\\s+(.*)';
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_adv_regex AS
+      SELECT *,
+        regexp_extract("raw_regex", '${pattern}', 1) AS "Log Date",
+        regexp_extract("raw_regex", '${pattern}', 2) AS "Log Time",
+        regexp_extract("raw_regex", '${pattern}', 3) AS "Severity Level",
+        regexp_extract("raw_regex", '${pattern}', 4) AS "Message Body"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id", "Log Date", "Log Time", "Severity Level", "Message Body" FROM v_ext_adv_regex ORDER BY id`);
+    assert.strictEqual(rows[0]["Log Date"], "2026-10-29");
+    assert.strictEqual(rows[0]["Log Time"], "18:30:00");
+    assert.strictEqual(rows[0]["Severity Level"], "CRITICAL");
+    assert.strictEqual(rows[0]["Message Body"], "Core dump on node-1");
+  });
+
+  await runTest("F.8 TC-202-09: Column Name Collision Prevention via * EXCLUDE ('collided_col')", async () => {
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_ext_collision AS
+      SELECT * EXCLUDE ("id"),
+        json_extract_string("raw_json", '$."port"') AS "id"
+      FROM test_extractor_logs;
+    `;
+    await connF.run(viewSql);
+    const rows = await connF.all(`SELECT "id" FROM v_ext_collision ORDER BY "id"`);
+    assert.strictEqual(rows.length, 3);
+    assert.strictEqual(rows[0]["id"], "443");
+    assert.strictEqual(rows[1]["id"], "80");
+  });
+
+  await runTest("F.9 Multi-Step View Extraction Chaining", async () => {
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_chain_step1 AS
+      SELECT *,
+        json_extract_string("raw_json", '$."user"') AS "step1_user"
+      FROM test_extractor_logs;
+    `);
+
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_chain_step2 AS
+      SELECT *,
+        COALESCE(NULLIF(regexp_extract("raw_kv", '(?:^|[\\s,;|])proto=(?:"([^"]*)"|([^ \\t,;|]+))', 1), ''), regexp_extract("raw_kv", '(?:^|[\\s,;|])proto=(?:"([^"]*)"|([^ \\t,;|]+))', 2)) AS "step2_proto"
+      FROM v_chain_step1;
+    `);
+
+    const rows = await connF.all(`SELECT id, step1_user, step2_proto FROM v_chain_step2 ORDER BY id`);
+    assert.strictEqual(rows[0].step1_user, "nguyễn_văn_a");
+    assert.strictEqual(rows[0].step2_proto, "TCP");
+  });
+
+  uiDriverF.connPool.giveBack(connF);
+
   // Cleanup temporary directory
   try {
     fs.rmSync(testTmpDir, { recursive: true, force: true });
@@ -390,7 +586,7 @@ async function main() {
   // ===========================================================================
   const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
   console.log(`\n${BOLD}======================================================================${RESET}`);
-  console.log(`${BOLD}  DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.1 Dual Engine & RAM Cache)${RESET}`);
+  console.log(`${BOLD}  DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.2 Dual Engine, RAM Cache & Multi-Format Extractor)${RESET}`);
   console.log(`${BOLD}======================================================================${RESET}`);
   console.log(`  Total Test Cases : ${totalTests}`);
   console.log(`  ${GREEN}Passed           : ${passedTests}${RESET}`);
