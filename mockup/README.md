@@ -3,7 +3,7 @@
 > **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Parse Columns & Regex) cho **Toad v2.0.9**, đồng bộ hóa 100% nguyên bản từ [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html) sang tệp mockup chính [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html), ngôn ngữ tiếng Anh chuẩn quốc tế, tối ưu hóa công thái học nhận thức (Zen Minimalist Edition).  
 > **Tệp Mockup tương tác chính:** [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html)  
 > **Tệp Mockup đối chiếu:** [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html)  
-> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(24 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-024)*  
+> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(24 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-024, đặc tả chi tiết tới từng nút, cử chỉ click/hover/keydown, DOM ID và trạng thái tương tác)*  
 > **Phiên bản áp dụng:** Toad v2.0.9
 
 ---
@@ -69,8 +69,8 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 | `REQ-MOCKUP-007` | Sample Event | Sample Event Editor with Line Gutter, 1 of 50 Cycler & 1-Click Copy | `Implemented` |
 | `REQ-MOCKUP-008` | Classic Panels | Classic Source Column & Visual Config Panels (Google & Original) | `Implemented` |
 | `REQ-MOCKUP-009` | Toolbar | Single-Line Discovered Fields Toolbar with Instant Column Search | `Implemented` |
-| `REQ-MOCKUP-010` | Smart Filter | Smart Bulk Selection Filter (⚡ ≥50% Rate Pill) | `Implemented` |
-| `REQ-MOCKUP-011` | Positional | Positional Field Extractor (+ + strX Button) | `Implemented` |
+| `REQ-MOCKUP-010` | Smart Filter | Smart Bulk Selection Filter (≥50% Rate Pill) | `Implemented` |
+| `REQ-MOCKUP-011` | Positional | Positional Field Extractor (+ strX Button) | `Implemented` |
 | `REQ-MOCKUP-012` | Sorting | Interactive Click-to-Sort Table Headers (Dual Minimal & Classic Headers) | `Implemented` |
 | `REQ-MOCKUP-013` | Inline Renaming | Merged Column Typography with Inline Click-to-Rename Interaction | `Implemented` |
 | `REQ-MOCKUP-014` | Type System | Ghost Type Selector & Native DuckDB Auto-Casting | `Implemented` |
