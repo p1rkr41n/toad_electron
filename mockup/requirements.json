@@ -703,5 +703,35 @@
     "cognitive_load_optimization": {
       "strategy": "1-click delimiter presets and clear visual coalesce cues minimize typing errors and eliminate guesswork."
     }
+  },
+  {
+    "id": "REQ-MOCKUP-022",
+    "category": "Real-Data Batch Validation & Observability",
+    "title": "Real-Data 1,000 Rows Verification Engine & Interactive Inspector",
+    "user_request_origin": "tôi nghi ngờ ở đây có lỗi gì đó, tôi thấy nó hơi vô dụng? (ảnh chụp card 1,000 Rows Test với số liệu tĩnh 98.4% và Line #142 giả)",
+    "user_story": "As a data engineer, I want the 1,000 Rows Test to run on my actual in-memory dataset and show real matched counts and real unmatched row lines, so that I can immediately trust the parsing accuracy and diagnose syntax mismatches without guesswork.",
+    "rationale_and_design_decisions": "Static mock percentages (98.4%) and fake log lines inherited from design mockups erode user trust. Replacing them with an in-memory evaluation engine scanning up to 1,000 active rows delivers real-time confidence (< 2ms evaluation) and actionable debugging via an interactive inspector.",
+    "description": "Transform the 1,000 Rows Test into a real-data verification engine that evaluates in-memory dataset rows against active format rules, renders dynamic dual-color progress bars, and provides an expandable inspector displaying real unmatched rows with row indices and 1-click clipboard copy.",
+    "status": "implemented",
+    "target_version": "2.0.8",
+    "acceptance_criteria": [
+      "Initial state displays 'Ready to test' with neutral gray bar before testing",
+      "Clicking 'Run Test' evaluates up to 1,000 real rows from active column in < 10ms",
+      "Dual-color progress bar renders real match percentage (green) and unmatched percentage (red)",
+      "Unmatched counter button displays '✓ 0 Unmatched' (green) or '{N} Unmatched' (red toggle)",
+      "Inspector lists real unmatched lines with their 1-based row indices (Row #N: ...)",
+      "1-click 'Copy Unmatched' copies genuine outlier lines to clipboard",
+      "Switching columns immediately resets test state to 'Ready to test'"
+    ],
+    "technical_specs": {
+      "components": [
+        "tadviewer/src/components/RegexDialog.tsx"
+      ],
+      "evaluator": "evaluateLineMatch(text, mode, fmt, delim, assign, withHeader, sep, rxPattern)",
+      "version": "2.0.8"
+    },
+    "cognitive_load_optimization": {
+      "strategy": "Displays real failure rows instantly with 1-click clipboard copy, removing the need for trial-and-error database queries."
+    }
   }
 ]

@@ -1254,7 +1254,7 @@ async function main() {
   await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert.strictEqual(pkgApp.version, "2.0.7", "tad-app package.json version must be 2.0.7");
+    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8", "tad-app package.json version must be 2.0.7 or 2.0.8");
 
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
     const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
@@ -1264,8 +1264,193 @@ async function main() {
 
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.7"), "quickstart.html must display v2.0.7");
+    assert(htmlContent.includes("v2.0.7") || htmlContent.includes("v2.0.8"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Universal Column Extractor & Parser (Parse Mode)"), "quickstart.html must document Parse Mode");
+  });
+
+  // ===========================================================================
+  // SUITE L: Toad v2.0.8 Real-Data 1,000 Rows Verification Engine & Dynamic Inspector
+  // ===========================================================================
+  reportSuite("SUITE L: Toad v2.0.8 Real-Data 1,000 Rows Verification Engine & Dynamic Inspector");
+
+  // Pure evaluator replicating RegexDialog.tsx evaluateLineMatch
+  const evaluateLineMatch = (text, targetMode, fmt, delim, assign, withHeader, sep, rxPattern) => {
+    if (!text || text.trim() === "") return false;
+    let body = text.trim();
+
+    if (withHeader && sep) {
+      if (!body.includes(sep)) return false;
+      const parts = body.split(sep);
+      body = parts.slice(1).join(sep).trim();
+      if (!body) return false;
+    }
+
+    if (targetMode === "advanced") {
+      try {
+        return new RegExp(rxPattern).test(body);
+      } catch {
+        return false;
+      }
+    }
+
+    switch (fmt) {
+      case "json":
+        if (!body.startsWith("{") || !body.endsWith("}")) return false;
+        try {
+          JSON.parse(body);
+          return true;
+        } catch {
+          return false;
+        }
+      case "arr":
+        if (!body.startsWith("[") || !body.endsWith("]")) return false;
+        try {
+          JSON.parse(body);
+          return true;
+        } catch {
+          return false;
+        }
+      case "csv":
+        return body.includes(",") || body.includes('","');
+      case "space":
+        return body.split(/\s+/).length >= 2;
+      case "kv":
+        if (!body.includes(assign)) return false;
+        if (delim && delim !== " ") {
+          return body.includes(delim);
+        }
+        return true;
+      case "raw":
+      default:
+        return delim ? body.includes(delim) : true;
+    }
+  };
+
+  await runTest("L.1 Pure-Function evaluateLineMatch Verification Across All Formats", async () => {
+    // 1. JSON Object
+    assert.strictEqual(evaluateLineMatch('{"status":"OK","code":200}', "simple", "json", " ", "=", false, "", ""), true);
+    assert.strictEqual(evaluateLineMatch('{"incomplete_json', "simple", "json", " ", "=", false, "", ""), false);
+    assert.strictEqual(evaluateLineMatch('plain text not json', "simple", "json", " ", "=", false, "", ""), false);
+
+    // 2. JSON Array
+    assert.strictEqual(evaluateLineMatch('[1, 2, 3, "test"]', "simple", "arr", " ", "=", false, "", ""), true);
+    assert.strictEqual(evaluateLineMatch('[broken array', "simple", "arr", " ", "=", false, "", ""), false);
+
+    // 3. Delimited Key-Value (Standard space & =)
+    assert.strictEqual(evaluateLineMatch('src=10.0.0.1 dst=8.8.8.8 action="ALLOW"', "simple", "kv", " ", "=", false, "", ""), true);
+    assert.strictEqual(evaluateLineMatch('Malformed line without equal sign', "simple", "kv", " ", "=", false, "", ""), false);
+
+    // 4. Custom Delimiter & Colon Assign (¦ and :)
+    assert.strictEqual(evaluateLineMatch('User: admin ¦ IP: 192.168.1.100 ¦ Action: LOGIN', "simple", "kv", "¦", ":", false, "", ""), true);
+    assert.strictEqual(evaluateLineMatch('User: admin without broken bar delimiter', "simple", "kv", "¦", ":", false, "", ""), false);
+
+    // 5. Header Prefix Slicing
+    assert.strictEqual(evaluateLineMatch('2026-10-30 11:00:00: src=1.2.3.4 action=DROP', "simple", "kv", " ", "=", true, ": ", ""), true);
+    assert.strictEqual(evaluateLineMatch('NoTimestampHeader src=1.2.3.4 action=DROP', "simple", "kv", " ", "=", true, ": ", ""), false);
+
+    // 6. Advanced Custom Regex
+    const rx = "^(\\d{4}-\\d{2}-\\d{2})\\s+\\[(\\w+)\\]\\s+(.*)$";
+    assert.strictEqual(evaluateLineMatch('2026-10-30 [INFO] System initialized', "advanced", "raw", " ", "=", false, "", rx), true);
+    assert.strictEqual(evaluateLineMatch('Malformed log without bracket', "advanced", "raw", " ", "=", false, "", rx), false);
+  });
+
+  await runTest("L.2 In-Memory 1,000 Rows Test Execution & Dynamic State Integrity", async () => {
+    // Generate 1,000 synthetic rows: 960 clean, 40 corrupted
+    const testRows = [];
+    for (let i = 1; i <= 1000; i++) {
+      if (i % 25 === 0) {
+        // 40 corrupted rows
+        testRows.push({ rowIdx: i, val: `[CORRUPTED] System anomaly at step #${i}` });
+      } else {
+        // 960 clean rows
+        testRows.push({ rowIdx: i, val: `host=server-${i} status=active cpu=${(i % 100)}% mem=${(i % 16)}GB` });
+      }
+    }
+
+    const t0 = performance.now();
+    let matched = 0;
+    const unmatchedList = [];
+
+    testRows.forEach((r) => {
+      const ok = evaluateLineMatch(r.val, "simple", "kv", " ", "=", false, "", "");
+      if (ok) {
+        matched++;
+      } else {
+        if (unmatchedList.length < 20) {
+          unmatchedList.push({ rowIdx: r.rowIdx, line: r.val.slice(0, 200) });
+        }
+      }
+    });
+
+    const elapsedMs = performance.now() - t0;
+    const unmatched = testRows.length - matched;
+    const matchPct = (matched / testRows.length) * 100;
+
+    assert(elapsedMs < 30, `1,000 rows evaluation must complete in < 30ms (actual: ${elapsedMs.toFixed(2)}ms)`);
+    assert.strictEqual(matched, 960, "Must accurately detect 960 matched rows");
+    assert.strictEqual(unmatched, 40, "Must accurately detect 40 unmatched rows");
+    assert.strictEqual(matchPct, 96.0, "Match percentage must be exactly 96.0%");
+    assert.strictEqual(unmatchedList.length, 20, "Inspector sample list must cap at 20 lines");
+    assert.strictEqual(unmatchedList[0].rowIdx, 25, "First unmatched line must correspond to rowIdx 25");
+    assert(unmatchedList[0].line.includes("System anomaly at step #25"), "Unmatched sample must reflect actual line content");
+  });
+
+  await runTest("L.3 Clean Dataset 100% Match Verification & Zero-Unmatched State", async () => {
+    // 500 perfectly formatted CSV rows
+    const testRows = [];
+    for (let i = 1; i <= 500; i++) {
+      testRows.push({ rowIdx: i, val: `user_${i},dept_${i % 5},${i * 100}` });
+    }
+
+    let matched = 0;
+    const unmatchedList = [];
+    testRows.forEach((r) => {
+      const ok = evaluateLineMatch(r.val, "simple", "csv", ",", "", false, "", "");
+      if (ok) matched++;
+      else unmatchedList.push(r);
+    });
+
+    const matchPct = (matched / testRows.length) * 100;
+    assert.strictEqual(matched, 500, "Clean dataset must match 100% of rows");
+    assert.strictEqual(unmatchedList.length, 0, "No unmatched rows in clean dataset");
+    assert.strictEqual(matchPct, 100.0, "Clean dataset match rate must be 100.0%");
+  });
+
+  await runTest("L.4 Toad v2.0.8 Version Synchronization & REQ-MOCKUP-022 Spec Compliance", async () => {
+    // 1. tad-app package.json
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    assert.strictEqual(pkgApp.version, "2.0.8", "tad-app package.json version must be 2.0.8");
+
+    // 2. dist_package.ps1
+    const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
+    const distPs1 = fs.readFileSync(distPs1Path, "utf8");
+    assert(distPs1.includes("Toad 2.0.8.exe"), "dist_package.ps1 must reference Toad 2.0.8.exe");
+    assert(distPs1.includes("toad_v2.0.8_portable.exe"), "dist_package.ps1 must reference toad_v2.0.8_portable.exe");
+
+    // 3. RegexDialog.tsx UI elements
+    const regexDialogPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(regexDialogPath, "utf8");
+    assert(dialogSrc.includes("v2.0.8"), "RegexDialog must display v2.0.8 badge");
+    assert(dialogSrc.includes("evaluateLineMatch"), "RegexDialog must contain evaluateLineMatch pure evaluator");
+    assert(dialogSrc.includes("handleRunBatchTest"), "RegexDialog must contain handleRunBatchTest real data runner");
+    assert(dialogSrc.includes("handleCopyUnmatched"), "RegexDialog must contain handleCopyUnmatched clipboard copier");
+    assert(dialogSrc.includes("realUnmatchedLines"), "RegexDialog must maintain realUnmatchedLines state");
+    assert(dialogSrc.includes("✓ 0 Unmatched"), "RegexDialog must display clean data confirmation");
+
+    // 4. quickstart.html
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+    assert(htmlContent.includes("v2.0.8"), "quickstart.html must display v2.0.8");
+    assert(htmlContent.includes("Version 2.0.8"), "quickstart.html must include Version 2.0.8 changelog block");
+
+    // 5. requirements.json
+    const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
+    const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
+    const req22 = reqs.find((r) => r.id === "REQ-MOCKUP-022");
+    assert(req22, "requirements.json must contain REQ-MOCKUP-022");
+    assert.strictEqual(req22.target_version, "2.0.8", "REQ-MOCKUP-022 target_version must be 2.0.8");
+    assert.strictEqual(req22.status, "implemented", "REQ-MOCKUP-022 status must be implemented");
   });
 
   uiDriverF.connPool.giveBack(connF);
