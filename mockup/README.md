@@ -62,7 +62,7 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 | `REQ-MOCKUP-001` | Localization | Complete English UI Localization (Parse Columns v2.0.9) | `Implemented` |
 | `REQ-MOCKUP-002` | Switcher | Design System View Bar & Multi-Edition Switcher | `Implemented` |
 | `REQ-MOCKUP-003` | Layout | Minimalist Zen Container Layout & Proportions | `Implemented` |
-| `REQ-MOCKUP-004` | Header | Top Header Bar with Split Icon & Visual vs Regex Segmented Switcher | `Implemented` |
+| `REQ-MOCKUP-004` | Header | Top Header Bar with Monochromatic Split Icon & Visual vs Regex Segmented Switcher | `Implemented` |
 | `REQ-MOCKUP-005` | Natural Language | Natural Language Extraction Config Bar (#minimalTopBar) | `Implemented` |
 | `REQ-MOCKUP-006` | Popover | Advanced Extraction Rules Popover (#minimalRulesPopover) | `Implemented` |
 | `REQ-MOCKUP-007` | Sample Event | Sample Event Editor with Line Gutter, 1 of 50 Cycler & 1-Click Copy | `Implemented` |
@@ -73,7 +73,7 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 | `REQ-MOCKUP-012` | Sorting | Interactive Click-to-Sort Table Headers (Dual Minimal & Classic Headers) | `Implemented` |
 | `REQ-MOCKUP-013` | Inline Renaming | Merged Column Typography with Inline Click-to-Rename Interaction | `Implemented` |
 | `REQ-MOCKUP-014` | Type System | Ghost Type Selector & Native DuckDB Auto-Casting | `Implemented` |
-| `REQ-MOCKUP-015` | Column Removal | Subtle Rate Indicator Dot & Hover-Reveal Column Deletion | `Implemented` |
+| `REQ-MOCKUP-015` | Column Removal | Monochromatic Rate Indicator Dots & Hover-Reveal Column Deletion | `Implemented` |
 | `REQ-MOCKUP-016` | Schema Safety | Real-Time SQL Schema Guardrails & Duplicate Name Detection | `Implemented` |
 | `REQ-MOCKUP-017` | Validation | 1,000-Row Batch Verification (Inline Footer vs Classic Box) | `Implemented` |
 | `REQ-MOCKUP-018` | SQL Preview | Collapsible Live DuckDB SQL Preview with Caret & 1-Click Copy | `Implemented` |

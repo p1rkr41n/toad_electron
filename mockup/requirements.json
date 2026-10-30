@@ -79,27 +79,32 @@
   {
     "id": "REQ-MOCKUP-004",
     "category": "Header & Modes",
-    "title": "Top Header Bar with Split Icon & Visual vs Regex Segmented Switcher",
-    "user_request_origin": "Header thanh công cụ có icon ParseSplitIcon, tiêu đề Parse Columns v2.0.9, và bộ chuyển Visual/Regex",
+    "title": "Top Header Bar with Monochromatic Split Icon & Visual vs Regex Segmented Switcher",
+    "user_request_origin": "bỏ số này đi được không... (ảnh chụp badge v2.0.9 cạnh Parse Columns) và các icon đều dạng đơn sắc được không?",
     "user_story": "As an engineer, I want the header to display the Split Column icon, 'Parse Columns v2.0.9', and a segmented Visual / Regex control so I can switch between visual configuration and RE2 regex capture groups.",
-    "rationale_and_design_decisions": "The header serves as the anchor of the dialog. A segmented control (`Visual` ⚡ vs `Regex` 🔧) allows instant toggling between visual no-code extraction and advanced regular expressions without leaving the dialog.",
-    "description": "Header with Split Column SVG icon in #0284c7, title 'Parse Columns', 'v2.0.9' pill badge (#e0f2fe bg, #0369a1 text), segmented button (#modeVisualBtn / #modeRegexBtn), and close button (✕).",
+    "rationale_and_design_decisions": "1. Removing the static 'v2.0.9' version pill badge next to the dialog title eliminates redundant version noise from the primary workflow.\n2. Enforcing a strict monochromatic palette (text-slate-700, text-slate-600, text-slate-500, currentColor) across all vector SVG icons creates an ultra-premium, cohesive, distraction-free aesthetic matching developer tools like Linear and GitHub.",
+    "description": "Header featuring monochromatic Split Column SVG icon (text-slate-700), clean 'Parse Columns' title without version pill clutter, segmented monochromatic mode switch ('Visual' with slate lightning bolt vs 'Regex' with slate wrench), and minimal close button.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Header displays Split Column SVG, 'Parse Columns' title, and 'v2.0.9' badge.",
-      "Segmented button allows switching between 'Visual' and 'Regex' modes.",
-      "Clicking 'Regex' exposes #regexConfigPanel with RE2 pattern input.",
-      "Clicking 'Visual' returns to #minimalTopBar (in Zen) or #visualConfigPanel (in Classic).",
-      "Close button (✕) triggers toast notification 'Closed modal preview'."
+      "Header displays monochromatic Split Column SVG (text-slate-700) and 'Parse Columns' title.",
+      "Redundant 'v2.0.9' version badge pill is removed from the dialog header.",
+      "All icons across header, mode switch, toolbars, tables, and footers employ a unified monochromatic palette.",
+      "No multicolored emojis (⚡, ✨, 🎨) remain; all icons are rendered as crisp vector SVGs.",
+      "Segmented button allows switching between 'Visual' and 'Regex' modes with instant DOM reactivity."
     ],
     "technical_specs": {
       "header_class": "px-5 py-3 bg-[#f8fafc] border-b border-slate-200 flex items-center justify-between",
-      "icon_color": "#0284c7",
-      "segmented_container": "bg-[#f1f5f9] p-0.5 rounded-md border border-slate-300 flex items-center text-xs font-semibold",
-      "handler": "switchMode(mode)"
+      "icon_color": "text-slate-700",
+      "version_pill_removed": true,
+      "monochrome_palette": [
+        "text-slate-700",
+        "text-slate-600",
+        "text-slate-500",
+        "text-slate-400"
+      ]
     },
-    "cognitive_load_optimization": "Clean visual segmentation between no-code parsing and expert regex syntax prevents cognitive interference."
+    "cognitive_load_optimization": "Eliminates distracting version labels and color noise, letting data and column names remain the primary visual focus."
   },
   {
     "id": "REQ-MOCKUP-005",
@@ -360,7 +365,7 @@
   {
     "id": "REQ-MOCKUP-015",
     "category": "Column Removal",
-    "title": "Subtle Rate Indicator Dot & Hover-Reveal Column Deletion",
+    "title": "Monochromatic Rate Indicator Dots & Hover-Reveal Column Deletion",
     "user_request_origin": "giảm thiểu quá tải nhận thức, tận dụng icon nhiều nhất có thể, nút xóa cột nhanh",
     "user_story": "As an analyst reviewing fields, I want field fill rate displayed as a clean colored dot with percentage, which smoothly reveals a 1-click delete button (✕) on hover so I can prune unwanted fields effortlessly.",
     "rationale_and_design_decisions": "Replacing bulky progress bars with a simple indicator dot (emerald for high-frequency, amber for sparse) and percentage number declutters the table. Revealing the delete `✕` button only on row hover keeps rows clean until action is needed.",
