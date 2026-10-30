@@ -1,71 +1,74 @@
 # BẢN THIẾT KẾ GIAO DIỆN CHÍNH THỨC (MOCKUP) - TOAD COLUMN EXTRACTOR & FAST PARSER
 
-> **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Fast Parsing & Regex) cho **Toad v2.0.2**, tuân thủ nguyên bản phong cách thiết kế **BlueprintJS 4 Dark Theme** của Toad, toàn bộ ngôn ngữ giao diện tiếng Anh 100%, tối ưu hóa hiệu năng với DuckDB.  
-> **Tệp Mockup tương tác:** [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html)  
-> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json)  
-> **Phiên bản áp dụng:** Toad v2.0.2
+> **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Fast Parsing & Regex) cho **Toad v2.0.9**, bổ sung phiên bản **Minimalist (Zen) Edition** làm **Mockup Chính (Primary Mockup)** tại `index.html`, đồng thời tích hợp bộ chuyển đổi đa phiên bản (Minimalist, Google Cloud UX, Blueprint Dark v2.0.2, Original v2.0.9), toàn bộ ngôn ngữ tiếng Anh 100%, tối ưu hóa hiệu năng cao với DuckDB.  
+> **Tệp Mockup tương tác chính:** [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html)  
+> **Tệp Mockup tham khảo độc lập:** [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html)  
+> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(24 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-024)*  
+> **Phiên bản áp dụng:** Toad v2.0.9 (tương thích ngược v2.0.2)
 
 ---
 
-## 1. CÁC TÍNH NĂNG VÀ CẢI TIẾN NỔI BẬT (TOAD v2.0.2)
+## 1. MOCKUP CHÍNH: MINIMALIST (ZEN) EDITION (TOAD v2.0.9)
 
-1. **Giao diện Tiếng Anh toàn diện (100% English Localization)**:
-   - Toàn bộ nhãn, nút bấm, thông báo trạng thái, tooltip và câu lệnh SQL đều sử dụng tiếng Anh chuẩn công cụ lập trình quốc tế.
+Phiên bản **Minimalist (Zen) Edition** được thiết kế nhằm đạt đỉnh cao về công thái học nhận thức (cognitive ergonomics), giải quyết triệt để tình trạng phân mảnh ô nhập liệu (box-in-box clutter):
 
-2. **Nút tải lại mẫu dạng Icon-Only & Bộ chuyển chế độ Đơn sắc ở góc Header**:
-   - Nút `Reload Sample` dạng icon xoay gọn gàng bên cạnh Source Column.
-   - **Monochromatic Corner Mode Switcher**: Icon tia sét (Simple) và cờ lê (Regex) dạng vector đơn sắc (monolithic monochrome) được đưa gọn vào góc trên cùng bên phải thanh tiêu đề dialog. Mặc định là Simple Mode; click chuyển đổi mượt mà giữa chế độ Trực quan (Simple) và Regex chuyên nghiệp.
+1. **Thanh Cấu hình Ngôn ngữ Tự nhiên (Natural Language Config Bar)**:
+   - Thay thế toàn bộ 3 khối cấu hình cồng kềnh bằng 1 câu văn tự nhiên mạch lạc, dễ hiểu:  
+     `Extract from [ Details ▾ ] using [ Key=Value ▾ ] split by [ ¦ ] and [ : ]`
+   - Các cấu hình nâng cao (Header Prefix `:`, Header Column Name `log_header`, Quote Wrapper `" .. "`) được thu gọn tinh tế vào nút popover `[⚙ Rules]`.
 
-3. **Khối Hợp Nhất Quy Tắc Bóc Tách (Unified Parsing Rules Panel - Gom thành 1 Card duy nhất)**:
-   - Gom toàn bộ 3 phần rời rạc trước đây (*Data Format*, *Log Header Prefix*, *Delimiter & Quotes*) thành **1 Card thống nhất duy nhất**, tiết kiệm hơn 55% chiều cao.
-   - **Tầng 1 (Hàng trên)**: Menu chọn `Format: [ Key=Value ▾ ]` đặt bên trái, ngăn cách bằng vạch dọc hairline tinh tế với nhóm `Header Prefix: [ : ] → [ log_header ]` và pill `[H] : [Body]` bên phải.
-   - **Tầng 2 (Hàng dưới)**: Dải ký tự bóc tách `Delimiter: [ Space ]`, `Assign: [ = ]`, `Quote Pair: [ " ]..[ " ]` nằm ngay bên dưới trên nền tối nhẹ. Tự động ẩn đi khi chọn JSON, CSV hoặc Raw để giao diện tối giản nhất có thể.
+2. **Hợp nhất Cột & Đổi tên Trực tiếp (Click-to-Rename Inline)**:
+   - Trong hơn 90% trường hợp, người dùng giữ nguyên tên khóa gốc. Mockup hợp nhất cột `Key` và `New name` thành 1 nhãn duy nhất.
+   - Khi cần đổi tên, chỉ cần click trực tiếp vào tên cột: nhãn chuyển thành ô nhập liệu ngay tức thì, gõ tên mới rồi nhấn `Enter` hoặc click ra ngoài để lưu lại (hiển thị trực quan dạng `str1 → user_id`).
+   - Loại bỏ hoàn toàn hàng chục ô text input tĩnh dư thừa, giúp bảng dữ liệu cực kỳ gọn nhẹ và thoáng đãng.
 
-4. **Tùy chỉnh Ký tự Phân tách, Toán tử Bằng & Cặp Dấu Ngoặc Kép (Tự động thích ứng)**:
-   - **Item Delimiter**: Ký tự phân tách các trường (mặc định: phím cách `" "`, dấu phẩy, tab...).
-   - **Equal Operator**: Ký tự gán cặp Key-Value (mặc định: `"="`).
-   - **Quote Enclosure Pair**: Cặp ô mở/đóng (mặc định: `"` và `"`) tự động bảo vệ chuỗi có khoảng trắng (ví dụ: `action="BLOCK AND ALERT"`). Không cần thêm checkbox riêng.
+3. **Menu Chọn Kiểu Dữ liệu Tinh tế (Ghost Type Select) & Xóa Nhanh Khi Hover**:
+   - Kiểu dữ liệu (`string`, `int64`, `float`, `bool`) sử dụng phong cách dropdown mờ phẳng (ghost selector), không viền thô kệch.
+   - Tỉ lệ xuất hiện (Fill Rate) hiển thị dạng chấm màu trực quan (xanh lá ≥50%, cam <50%) kèm tỉ lệ %.
+   - Khi rê chuột (hover) vào hàng, nút xóa nhanh `✕` xuất hiện mượt mà cho phép loại bỏ cột khỏi schema chỉ với 1 click.
 
-5. **Kiểm tra Tỉ lệ Khớp trên 1.000 Dòng (Test Parse 1,000 Rows Match Rate - Đặt áp cuối)**:
-   - Được bố trí ở vị trí áp cuối (ngay phía trên hộp xem trước câu lệnh DuckDB raw query và dưới bảng cấu hình cột/resilience toggles).
-   - Cho phép quét thử nghiệm 1.000 dòng từ bảng dữ liệu hiện tại trước khi hoàn tất áp dụng.
-   - Hiển thị thanh tiến độ trực quan với tỉ lệ khớp % (ví dụ: `98.4% Matched · 16 Unmatched in 4.2ms`).
-   - Bảng xem chi tiết các dòng không khớp (Unmatched Inspector) giúp người dùng tinh chỉnh quy tắc bóc tách kịp thời.
+4. **Kiểm tra Trùng tên Cột Thời Gian Thực (Schema Guardrails)**:
+   - Tự động phát hiện khi 2 cột có cùng tên định danh, hiển thị cảnh báo `⚠️ Duplicate column name detected` và tạm khóa nút `Apply` để ngăn ngừa lỗi cú pháp SQL.
 
-6. **Menu Thả xuống Tự động Nhận diện & Chế độ Raw (Data Format Auto-Select & Raw Mode)**:
-   - Tinh giản giao diện: Bỏ badge nhận diện riêng bên cạnh để tránh rối mắt.
-   - **Tự động lăn đến dòng phát hiện**: Menu thả xuống `<select>` tự động chuyển đến định dạng khớp với mẫu (Key=Value, JSON, CSV, Delimited, JSON Array).
-   - **Chế độ Raw (không làm gì cả)**: Nếu không phát hiện định dạng cấu trúc nào, hệ thống tự động để là `Raw (No parsing)` – giữ nguyên cột nguồn nguyên bản không bóc tách.
+5. **Nút Kiểm tra 1.000 Dòng Tích hợp Footer (Inline 1k-Row Verify)**:
+   - Thu gọn khối Test 1.000 dòng cồng kềnh thành nút kiểm tra nhanh `▶ Verify 1k rows` ngay trên thanh Footer, hiển thị thời gian phản hồi siêu tốc (`< 15ms`).
 
-7. **Tìm kiếm Cột Tối giản & Sắp xếp tại Đầu mỗi Cột (Column Search & Header Sorting)**:
-   - Tinh giản giao diện: Lược bỏ các nút lọc pill dư thừa, chỉ giữ ô tìm kiếm cột gọn gàng (`Search columns...`).
-   - **Click-to-Sort tại đầu mỗi cột**: Cho phép click vào từng tiêu đề cột (`Property`, `Inferred Type`, `Fill Rate`, `Sample Value`, `New Column Name`) để sắp xếp tăng dần / giảm dần tức thì với biểu tượng trực quan (`&#8645;`, `&#9650;`, `&#9660;`).
-
-8. **Bảng Ánh xạ Cột & Bộ Chọn Kiểu Dữ liệu Từng Cột (Inline Type Selector & Auto-Casting)**:
-   - **Tự động ép kiểu luôn bật theo từng cột**: Mỗi cột có một menu chọn kiểu dữ liệu riêng (`VARCHAR`, `BIGINT`, `DOUBLE`, `TIMESTAMP`, `BOOLEAN`), mặc định chọn kiểu suy luận (ví dụ: `BIGINT` cho số) và tự động sinh `TRY_CAST(... AS BIGINT)`.
-   - **Tắt ép kiểu linh hoạt**: Nếu muốn giữ nguyên chuỗi thô không ép kiểu cho cột nào, người dùng chỉ cần chuyển menu của cột đó về `VARCHAR`.
-   - **Lược bỏ toàn bộ checkbox rời rạc**: Bỏ hoàn toàn các checkbox thừa dưới bảng, giao diện nối liền mạch từ bảng ánh xạ sang khối Test 1.000 dòng.
-   - Thanh tỉ lệ xuất hiện (`Fill Rate %`) và ô đổi tên cột tùy ý.
-
-9. **Live DuckDB SQL Query Preview (Mặc định đóng / Collapsed by Default)**:
-   - Hộp xem trước câu lệnh DuckDB `CREATE VIEW` thời gian thực với xử lý an toàn Regex, `split_part`, `TRY_CAST` và `WITH split_log AS (...)`. Mặc định được đóng gọn lại để tiết kiệm diện tích màn hình, người dùng click để mở rộng xem khi cần, tích hợp nút sao chép 1-click.
-
-10. **Giảm thiểu Quá tải Nhận thức & Tận dụng Tối đa Biểu tượng (Cognitive Ergonomics & Icon-Driven UI - Mới)**:
-   - **Chính sách Không-đoạn-văn (Zero-paragraph policy)**: Lược bỏ hoàn toàn các câu từ/đoạn văn dài dòng giải thích kỹ thuật (như *"Separates metadata prefix..."*, *"Generated as dedicated column..."*, *"Separator character..."*). Mọi chú thích chi tiết được chuyển thành tooltip bản địa (`title="..."`) hiển thị khi hover.
-   - **Thanh điều khiển thu gọn một hàng (High-density inline strip)**: Khối Header Prefix và khay cấu hình Delimiter/Quotes được thu gọn thành hàng ngang siêu gọn (34-36px), tiết kiệm diện tích và giảm mỏi mắt.
-   - **Hệ thống Icon Vector Đơn sắc Toàn diện**:
-     - Ô tìm kiếm nhúng icon kính lúp vector trực tiếp.
-     - Nhóm nút thao tác: `[+ Add]` (cộng), `[All]` (hộp kiểm chọn tất cả), `[None]` (hộp rỗng bỏ chọn).
-     - Tiêu đề cột bảng: Tag icon (Property), Type 'T' (Type), Bar meter (Fill Rate), Eye (Sample Value), Pencil (New Column Name).
-     - Nút xóa cột nhanh 1-click (`✕`) tại mỗi hàng.
-     - Khối Test 1.000 dòng: Icon Play (`▶ Run Test`), Icon con mắt (`👁 16 Unmatched`).
-     - Hộp SQL: Icon Cơ sở dữ liệu/Terminal, nút sao chép `Copy` với icon Clipboard và phản hồi trạng thái tức thì.
-     - Dialog Footer: Icon tia sét xác nhận độ trễ `< 15ms` và icon dấu tích `✓ Apply`.
+6. **Nút Áp dụng Rõ ràng với Bộ đếm Cột (Apply Count Badge)**:
+   - Nút `Apply (13)` tích hợp sẵn số lượng cột được chọn, mang lại sự tự tin tuyệt đối cho người dùng trước khi trích xuất.
 
 ---
 
-## 2. CẤU TRÚC THƯ MỤC MOCKUP
+## 2. BỘ CHUYỂN ĐỔI ĐA PHIÊN BẢN (MULTI-EDITION SWITCHER BAR)
 
-- [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html): Giao diện Mockup tương tác đầy đủ duy nhất của Toad v2.0.2.
-- [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json): Mảng JSON 20 yêu cầu kỹ thuật chi tiết (`REQ-MOCKUP-001` đến `REQ-MOCKUP-020`).
-- [`mockup/README.md`](file:///d:/Shared_UserData/Downloads/tad/mockup/README.md): Tài liệu hướng dẫn và mô tả tính năng.
+Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so sánh trực tiếp 4 biến thể thiết kế:
+
+| Phiên bản | Biểu tượng | Mô tả đặc trưng |
+| :--- | :---: | :--- |
+| **Minimalist** *(Mặc định / Mockup chính)* | 🍃 | Phong cách Zen tối giản, cấu hình ngôn ngữ tự nhiên, click-to-rename, độ rộng 680px. |
+| **Google UX** | ✨ | Giao diện hiện đại lấy cảm hứng từ Google Cloud: bộ lọc thông minh `⚡ ≥50% Rate`, thanh tiến độ test 1.000 dòng. |
+| **Blueprint Dark** | 🌙 | Bản thiết kế chuẩn Toad v2.0.2 với BlueprintJS 4 Dark Theme palette `#293742` và Unified 2-tier Card. |
+| **Original v2.0.9** | 🖥️ | Bản tái hiện nguyên bản 1:1 của hộp thoại Parse Columns v2.0.9 truyền thống. |
+
+- **Nút Chuyển đổi Chủ đề Sáng / Tối (☀️ / 🌙 Theme Toggle)**: Hỗ trợ chuyển đổi giao diện Dark Mode / Light Mode cho phiên bản Minimalist Zen.
+- **Hộp thoại Nghiên cứu Tình huống (UX Case Study Modal)**: Trình bày chi tiết 5 cải tiến lớn về trải nghiệm người dùng.
+
+---
+
+## 3. CÁC TÍNH NĂNG KỸ THUẬT NỀN TẢNG (DUCKDB ENGINE)
+
+1. **Sinh Câu Lệnh DuckDB Tự Động (Live SQL Preview)**:
+   - Tự động chuyển đổi quy tắc bóc tách sang câu lệnh DuckDB chuẩn (`REGEXP_EXTRACT`, `SPLIT_PART`, `json_extract_string`, `TRY_CAST`).
+   - Hỗ trợ chế độ **Raw (No parsing)** giúp giữ nguyên dữ liệu gốc khi không cần bóc tách.
+   - Tích hợp nút **Copy SQL** 1-click có phản hồi trực quan.
+
+2. **Duyệt Mẫu Sự Kiện (Sample Event Cycler)**:
+   - Bộ sưu tập 50 dòng log mô phỏng với điều hướng `Row 1 of 50` (`Prev` / `Next`), hiển thị số dòng `01` và nút sao chép mẫu nhanh.
+
+---
+
+## 4. CẤU TRÚC THƯ MỤC MOCKUP
+
+- [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html): **Mockup chính thức tương tác toàn diện** (mặc định mở Minimalist Zen Edition).
+- [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html): File mockup gốc tham khảo độc lập.
+- [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json): Danh sách 24 yêu cầu kỹ thuật chi tiết (`REQ-MOCKUP-001` đến `REQ-MOCKUP-024`).
+- [`mockup/README.md`](file:///d:/Shared_UserData/Downloads/tad/mockup/README.md): Tài liệu hướng dẫn và mô tả kiến trúc thiết kế.

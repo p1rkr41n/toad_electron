@@ -767,5 +767,39 @@
     "cognitive_load_optimization": {
       "strategy": "Zero visual clutter and compact padding maximize visible rows by 30% while retaining instant tooltip discoverability."
     }
+  },
+  {
+    "id": "REQ-MOCKUP-024",
+    "category": "Ergonomics & Architecture",
+    "title": "Minimalist Zen Edition as Primary Mockup Architecture",
+    "user_request_origin": "tôi muốn bổ sung mock up minimalism từ D:\\Shared_UserData\\Downloads\\tad\\mockup\\parse_columns_mockup.html sang D:\\Shared_UserData\\Downloads\\tad\\mockup\\index.html và sẽ là mockup chính",
+    "user_story": "As a developer or data engineer analyzing logs in Toad, I want the Column Extractor to feature a Minimalist Zen edition as the primary canonical mockup in index.html, eliminating box-in-box clutter with a single natural language configuration bar, inline click-to-rename columns, ghost selects, hover removal, and real-time DuckDB SQL preview, while seamlessly allowing switching between Minimalist, Google UX, Blueprint Dark, and Original v2.0.9 views.",
+    "rationale_and_design_decisions": "1. Natural Language Config Bar replaces fragmented option boxes with a concise sentence: 'Extract from [Details ▾] using [Key=Value ▾] split by [ ¦ ] and [ : ]', with secondary settings (header prefix, quote wrappers) stowed in a Rules popover.\n2. Merged Key + Inline Rename column: Merging Key and New Name into a click-to-rename label eliminates redundant input boxes and visual noise.\n3. Ghost selects and subtle rate dot indicators: Clean industrial look without bulky dropdown styling for types (string, int64, float, bool) and subtle dot + percentage with hover-to-reveal ✕ delete button.\n4. Verification & validation guardrails: Real-time duplicate name detection prevents SQL generation errors, and '▶ Verify 1k rows' is integrated into the footer.\n5. Multi-edition switcher: Provides instant comparison between 🍃 Minimalist (Primary Mockup), ✨ Google Cloud UX, 🌙 Blueprint Dark (v2.0.2), and 🖥️ Original v2.0.9, plus a Light/Dark theme toggle.",
+    "description": "Integrate the complete Minimalist (Zen) Edition mockup from parse_columns_mockup.html into the canonical mockup/index.html as the primary/default view. Include the 4-edition switcher (Minimalist, Google UX, Blueprint Dark, Original v2.0.9), theme toggle (Light/Dark), UX case study drawer, inline click-to-rename column interaction, and real-time DuckDB query generator.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "mockup/index.html loads the Minimalist (Zen) Edition by default on startup (window.onload).",
+      "The header bar displays the badge 'Minimalist (Zen) Edition' and '★ Main Mockup'.",
+      "Natural language bar dynamically updates and syncs with underlying extraction config.",
+      "Clicking on a column name opens an inline input field; pressing Enter or blur saves the new name.",
+      "The multi-edition switcher supports switching between Minimalist, Google UX, Blueprint Dark, and Original v2.0.9 without page reload.",
+      "Theme toggle button (🌙/☀️) toggles dark mode overrides on the Minimalist Zen container.",
+      "Collapsible DuckDB SQL preview updates live and provides 1-click clipboard copying."
+    ],
+    "technical_specs": {
+      "default_edition": "minimal",
+      "supported_editions": [
+        "minimal",
+        "google",
+        "blueprint",
+        "original"
+      ],
+      "container_max_width_zen": "680px",
+      "container_max_width_standard": "850px",
+      "theme_toggle": "light/dark",
+      "query_engine": "DuckDB SQL (REGEXP_EXTRACT, SPLIT_PART, json_extract_string, TRY_CAST)"
+    },
+    "cognitive_load_optimization": "Achieves absolute cognitive minimalism by collapsing all complex syntax controls into natural language prose, hiding advanced knobs in a popover, and replacing static input forms with inline interactive click-to-rename typography."
   }
 ]
