@@ -70,21 +70,21 @@
             <div>
                 <div class="text-xs font-semibold flex items-center gap-2">
                     <span>Design System View</span>
-                    <span id="uxBadgeLabel" class="px-1.5 py-0.5 text-[10px] rounded bg-slate-800 text-slate-300 border border-slate-700">Minimalist (Zen) Edition</span>
+                    <span id="uxBadgeLabel" class="px-1.5 py-0.5 text-[10px] rounded bg-blue-900 text-blue-200 border border-blue-700 font-semibold">Authoritative Visual Mode (v2.0.9)</span>
                 </div>
-                <p id="uxSubDesc" class="text-[11px] text-slate-400">Zero box-in-box clutter • Natural language config bar • Click key name to rename inline</p>
+                <p id="uxSubDesc" class="text-[11px] text-slate-400">Production v2.0.9 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns</p>
             </div>
         </div>
 
         <div class="flex items-center gap-2">
             <div class="bg-slate-800 p-0.5 rounded-md border border-slate-700 flex items-center text-xs font-medium">
-                <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
-                    Original v2.0.9
+                <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded bg-white text-slate-900 font-semibold shadow-xs transition-all">
+                    Visual v2.0.9 (Default)
                 </button>
                 <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
                     <span>Google UX</span>
                 </button>
-                <button id="uxSwitchMinimal" onclick="setDesignEdition('minimal')" class="px-2.5 py-1 rounded bg-white text-slate-900 font-semibold shadow-xs transition-all flex items-center gap-1">
+                <button id="uxSwitchMinimal" onclick="setDesignEdition('minimal')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
                     <span>Minimalist</span>
                 </button>
             </div>
@@ -100,13 +100,15 @@
         <!-- 1. TOP HEADER BAR -->
         <div class="px-5 py-3 bg-[#f8fafc] border-b border-slate-200 flex items-center justify-between">
             <div class="flex items-center gap-2.5">
-                <!-- Split column icon -->
-                <svg class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 3v18"/>
-                    <path d="M8 8l-4 4 4 4"/>
-                    <path d="M16 8l4 4-4 4"/>
+                <!-- Custom Vector ParseSplitIcon (←| |→) -->
+                <svg class="w-4 h-4 text-slate-700 flex-shrink-0" viewBox="0 0 512 512" fill="currentColor">
+                    <rect x="163" y="87" width="49" height="338" rx="24" />
+                    <rect x="300" y="87" width="49" height="338" rx="24" />
+                    <path d="M79 173L0 256l79 83 35-39-35-37h84v-48h-84l35-37z" />
+                    <path d="M433 173l-35 37 35 37h-84v48h84l-35 37 35 39 79-83z" />
                 </svg>
                 <h1 class="text-[15px] font-bold text-slate-800 tracking-tight">Parse Columns</h1>
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.9</span>
                 
             </div>
 
@@ -420,30 +422,26 @@
 
             <!-- 6. DISCOVERED FIELDS TABLE -->
             <div id="tableWrapperBox" class="border border-slate-300 rounded overflow-hidden bg-white">
-                <!-- Table Header -->
+                <!-- Table Header (Streamlined Pure Text with Native Hover Tooltips) -->
                 <div id="classicTableHeader" class="grid grid-cols-12 items-center bg-[#f1f5f9] border-b border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 pr-[19px]">
                     <div class="col-span-1 flex items-center">
-                        <input id="masterCheckbox" type="checkbox" checked onchange="setAllChecked(this.checked)" class="w-3.5 h-3.5 rounded">
+                        <input id="masterCheckbox" type="checkbox" checked onchange="setAllChecked(this.checked)" class="w-3.5 h-3.5 rounded" title="Select / Deselect All">
                     </div>
-                    <div onclick="sortTableBy('key')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900">
+                    <div onclick="sortTableBy('key')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900" title="Original field key or extracted token name">
                         <span>Key</span>
-                        <span class="text-[10px] text-slate-400">⇅</span>
                     </div>
-                    <div onclick="sortTableBy('type')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900">
+                    <div onclick="sortTableBy('type')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900" title="Target DuckDB SQL data type (VARCHAR, BIGINT, DOUBLE, BOOLEAN, TIMESTAMP)">
                         <span>Type</span>
-                        <span class="text-[10px] text-slate-400">⇅</span>
                     </div>
-                    <div onclick="sortTableBy('rate')" class="col-span-2 flex items-center gap-1 cursor-pointer text-[#0369a1]">
+                    <div onclick="sortTableBy('rate')" class="col-span-2 flex items-center gap-1 cursor-pointer text-[#0369a1]" title="Fill rate percentage across sampled rows">
                         <span class="underline decoration-[#0369a1] underline-offset-2">Rate</span>
                         <span id="rateSortIndicator" class="text-[10px]">▼</span>
                     </div>
-                    <div onclick="sortTableBy('sample')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900">
+                    <div onclick="sortTableBy('sample')" class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-900" title="Sample value extracted from active event">
                         <span>Sample</span>
-                        <span class="text-[10px] text-slate-400">⇅</span>
                     </div>
-                    <div onclick="sortTableBy('newName')" class="col-span-3 flex items-center justify-center gap-1 cursor-pointer hover:text-slate-900 pr-4">
+                    <div onclick="sortTableBy('newName')" class="col-span-3 flex items-center justify-center gap-1 cursor-pointer hover:text-slate-900 pr-4" title="Output column name in result dataset (editable)">
                         <span>New name</span>
-                        <span class="text-[10px] text-slate-400">⇅</span>
                     </div>
                 </div>
 
@@ -547,9 +545,8 @@
                 <button onclick="showToast('Changes discarded')" class="px-4 py-1.5 rounded border border-slate-300 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors">
                     Cancel
                 </button>
-                <button id="applyColumnsBtn" onclick="applyParsedColumns()" class="px-4 py-1.5 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5">
-                    <span>Apply</span>
-                    <span id="applyCountBadge" class="px-1.5 py-0.2 rounded-full bg-white/20 text-[10px]">13</span>
+                <button id="applyColumnsBtn" onclick="applyParsedColumns()" class="px-5 py-1.5 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs transition-colors" title="Apply parsed columns to dataset">
+                    Apply
                 </button>
             </div>
         </div>
@@ -761,9 +758,9 @@
                 smartBtn.classList.add('hidden');
                 applyCount.classList.add('hidden');
 
-                badgeLabel.textContent = "Original v2.0.9 Spec";
-                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-slate-700 text-slate-300 border border-slate-600";
-                subDesc.textContent = "Exact 1:1 visual reproduction of Parse Columns v2.0.9";
+                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.9)";
+                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-900 text-blue-200 border border-blue-700 font-semibold";
+                subDesc.textContent = "Production v2.0.9 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns";
             }
 
             renderFieldsTable();
@@ -1018,10 +1015,18 @@
             if (minMaster) minMaster.checked = allChecked;
         }
 
-        // Add positional field (+ strX)
+        // Add sequential positional column (+ strX) without overwriting existing columns
         function addPositionalField() {
-            const newKey = `str${nextStrCounter++}`;
-            discoveredFields.unshift({
+            let maxIdx = 0;
+            discoveredFields.forEach(f => {
+                const m1 = /^str_?(\d+)$/i.exec((f.key || '').trim());
+                if (m1) maxIdx = Math.max(maxIdx, parseInt(m1[1], 10));
+                const m2 = /^str_?(\d+)$/i.exec((f.newName || '').trim());
+                if (m2) maxIdx = Math.max(maxIdx, parseInt(m2[1], 10));
+            });
+            const nextIdx = maxIdx + 1;
+            const newKey = `str${nextIdx}`;
+            discoveredFields.push({
                 id: Date.now(),
                 key: newKey,
                 type: 'VARCHAR',
@@ -1032,7 +1037,7 @@
                 isPositional: true
             });
             renderFieldsTable();
-            showToast(`Added positional column ${newKey}`);
+            showToast(`Added sequential positional column ${newKey} (non-overwriting)`);
         }
 
         // Sort table columns
@@ -1219,9 +1224,9 @@
             }, 2200);
         }
 
-        // Initialize table on load
+        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.9)
         window.onload = function () {
-            setDesignEdition('minimal');
+            setDesignEdition('original');
         };
     </script>
 </body>

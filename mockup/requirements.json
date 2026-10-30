@@ -137,19 +137,18 @@
   {
     "id": "REQ-MOCKUP-004",
     "category": "Header & Modes",
-    "title": "Top Header Bar with Monochromatic Split Icon & Visual vs Regex Segmented Switcher",
-    "user_request_origin": "bỏ số này đi được không (ảnh chụp badge v2.0.9 cạnh Parse Columns) và các icon đều dạng đơn sắc được không?",
-    "user_story": "As an engineer, I want a clean dialog header with a monochromatic Split Column SVG icon, the dialog title 'Parse Columns' (without redundant version badges), and a sleek Visual/Regex segmented switch so that I can toggle parsing engines effortlessly.",
+    "title": "Top Header Bar with Vector SVG ParseSplitIcon & Mode Switcher",
+    "user_request_origin": "Hãy kiểm tra, tôi muốn dùng icon này cho tính năng parse, mô tả duckdb cũng ko cần thiết...",
+    "user_story": "As a data engineer, I want a clean dialog header with the custom vector ParseSplitIcon (←| |→), clean title \"Parse Columns\" with v2.0.9 version pill, and a streamlined Visual/Regex mode switcher.",
     "rationale_and_design_decisions": "1. Removing the static 'v2.0.9' pill badge eliminates redundant version clutter from the user's primary workflow.\n2. Enforcing a strict monochromatic vector SVG palette (`text-slate-700`, `text-slate-600`, `text-slate-500`) gives the header a refined developer-tool aesthetic (Linear/GitHub).\n3. Mode segmented button provides instant toggling between Visual extraction and RE2 Regex mode.",
-    "description": "Top header containing monochromatic Split Column SVG, clean 'Parse Columns' title, Visual / Regex segmented switch, and vector SVG window close button.",
+    "description": "Top header containing custom 512x512 vector SVG ParseSplitIcon (←| |→), version pill v2.0.9, Visual / Regex segmented switch, and vector SVG window close button.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Monochromatic Split Column SVG icon rendered with stroke='currentColor' and text-slate-700.",
-      "Dialog title displays clean 'Parse Columns' text without any version pill badge.",
-      "Segmented control features #modeVisualBtn (lightning bolt SVG) and #modeRegexBtn (wrench SVG).",
-      "Clicking Visual or Regex updates active pill styling ('bg-white shadow-xs text-blue-700 font-bold') and switches configuration views.",
-      "Window close button renders crisp vector SVG cross (<path d='M18 6L6 18M6 6l12 12'/>) and triggers modal dismiss toast."
+      "Custom vector SVG ParseSplitIcon rendered with dual vertical bars and outward arrows (viewBox 0 0 512 512).",
+      "Dialog title displays clean \"Parse Columns\" text with compact v2.0.9 pill badge.",
+      "Segmented switch features #modeVisualBtn (lightning bolt SVG) and #modeRegexBtn (wrench SVG).",
+      "Clicking Visual or Regex updates active pill styling and toggles between visual form and RE2 regex pattern editor."
     ],
     "buttons": [
       {
@@ -180,7 +179,7 @@
       "click_close": "Clicks close cross SVG -> dismisses dialog and shows feedback toast."
     },
     "technical_specs": {
-      "split_icon_svg": "<svg class='w-4 h-4 text-slate-700' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2'><path d='M12 3v18'/><path d='M8 8l-4 4 4 4'/><path d='M16 8l4 4-4 4'/></svg>",
+      "split_icon_svg": "<svg viewBox=\"0 0 512 512\" fill=\"currentColor\"><rect x=\"163\" y=\"87\" width=\"49\" height=\"338\" rx=\"24\"/><rect x=\"300\" y=\"87\" width=\"49\" height=\"338\" rx=\"24\"/><path d=\"M79 173L0 256l79 83 35-39-35-37h84v-48h-84l35-37z\"/><path d=\"M433 173l-35 37 35 37h-84v48h84l-35 37 35 39 79-83z\"/></svg>",
       "version_badge_removed": true,
       "mode_handler": "switchMode(mode)",
       "modes": [
@@ -377,17 +376,19 @@
   {
     "id": "REQ-MOCKUP-008",
     "category": "Classic & Google Panels",
-    "title": "Classic Source Column & Visual Config Panels (for Google & Original Editions)",
-    "user_request_origin": "cập nhật lại index,html và json giống tới 99% so với D:\\Shared_UserData\\Downloads\\tad\\mockup\\parse_columns_mockup.html",
-    "user_story": "As an auditor, I want the full legacy panels (#classicSourcePanel, #visualConfigPanel, #regexConfigPanel) retained in the codebase so that switching to 'Original v2.0.9' renders the exact historical 1:1 view for backwards compatibility.",
-    "rationale_and_design_decisions": "1. Ensuring seamless multi-edition comparison requires that legacy form layouts remain fully operational without breaking styles.\n2. JavaScript state synchronizer ensures changes in minimal chips reflect in classic form controls and vice versa.",
+    "title": "Prominent Delimiter & Assign Controls & Streamlined Syntax Strip",
+    "user_request_origin": "tại sao trong mockup lại biến mất delimiter với assign rồi? không cần phần presents này, phần note cho pair cũng không cần (tiết kiệm không gian tối đa)",
+    "user_story": "As a user configuring extraction, I want Delimiter (¦) and Assign (:) inputs front-and-center so they never disappear or get obscured, with delimiter presets and quote pair note badges removed to maximize compact vertical working space.",
+    "rationale_and_design_decisions": "1. Delimiter and Assign are foundational parsing controls; hiding them in minimal modes created confusion. They are now permanently prominent and front-and-center in Visual Mode.\n2. Delimiter presets chips (Space, comma, pipe, tab) and static quote pair badges (\"...\" Pair) are removed to reclaim vertical space.\n3. Native HTML hover tooltips (title attribute) provide full guidance without persistent UI clutter.",
     "description": "Legacy form cards containing standalone dropdowns, delimiter inputs, assignment inputs, quote inputs, and regex pattern tester, dynamically displayed when user toggles away from Minimalist mode.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "#classicSourcePanel and #visualConfigPanel remain intact in DOM with 'hidden' class during Minimalist mode.",
-      "Switching to Original or Google mode smoothly reveals legacy panels and hides #minimalTopBar.",
-      "All legacy inputs (#delimiterInput, #assignInput, #quoteStartInput, #quoteEndInput) remain two-way data bound."
+      "Delimiter (#delimiterInput) and Assign (#assignInput) are prominent and front-and-center in Visual Mode.",
+      "Controls adapt seamlessly across formats (Key=Value, JSON, Delimited) and never disappear from the visual configuration panel.",
+      "Preset chips (Space, comma, pipe, tab) are removed from the interface.",
+      "Static \"...\" Pair note badge is removed from the interface.",
+      "Rich hover tooltips on inputs provide full contextual documentation on mouseover."
     ],
     "buttons": [],
     "gestures_and_interactions": {
@@ -498,18 +499,18 @@
   {
     "id": "REQ-MOCKUP-011",
     "category": "Positional Fields",
-    "title": "Positional Field Extractor (+ strX Button)",
-    "user_request_origin": "các icon đều dạng đơn sắc được không?",
-    "user_story": "As an analyst working with unstructured logs, I want a '+ strX' button with a monochromatic plus SVG to extract position-based string tokens so that I can capture unkeyed log prefixes effortlessly.",
-    "rationale_and_design_decisions": "1. Logs frequently feature leading positional tokens without explicit keys (e.g. IP address, timestamp, log level).\n2. '+ strX' appends the next positional column (str1, str2, ...) to the output schema with bold typography.\n3. The icon is rendered as a clean monochromatic vector SVG plus sign (<svg class='w-2.5 h-2.5 text-slate-600' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5'><line x1='12' y1='5' x2='12' y2='19'/><line x1='5' y1='12' x2='19' y2='12'/></svg>).",
+    "title": "Sequential Non-Overwriting Positional Column Extractor (+ strX)",
+    "user_request_origin": "tôi đang thấy nếu str1 str2,.. có rồi thì bản ghi mới phải ghi kế tiếp, ở đây bản ghi mới lại ghi đè lại bản ghi cũ, như thế là không hợp lý, bạn confirm lại logic trước khi sửa",
+    "user_story": "As a data engineer extracting positional tokens from logs, I want clicking + strX to automatically detect existing strX columns and generate the next sequential candidate (str1, str2 -> str3) without overwriting existing columns.",
+    "rationale_and_design_decisions": "1. Previously, clicking + strX could collide with existing columns if str1 was already present, leading to overwritten fields.\n2. Dynamic inspection of all existing schema columns and discovered field names finds maxIndex = max(k) from /^str_?(\\d+)$/i and generates str${maxIndex + 1}.\n3. Accurate tokenIndex preservation ensures sequential extraction maps correctly to DuckDB SPLIT_PART.",
     "description": "Action button in Discovered Fields toolbar to add positional string extraction columns, updating field count and DuckDB SQL query.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Button displays monochromatic plus SVG (text-slate-600) and label 'strX'.",
-      "Clicking executes addPositionalField(), generating next positional token (e.g. str2).",
-      "Field count badge increments automatically from (13) to (14).",
-      "DuckDB SQL generator incorporates SPLIT_PART(Details, delimiter, index) logic."
+      "Clicking + strX inspects all current columns and generates str${maxIndex + 1}.",
+      "No existing strX column or positional field is overwritten or discarded.",
+      "Sequential tokenIndex is tracked accurately for DuckDB SPLIT_PART extraction.",
+      "Toast notification indicates the exact sequential column added."
     ],
     "buttons": [
       {
@@ -532,20 +533,17 @@
   {
     "id": "REQ-MOCKUP-012",
     "category": "Sorting",
-    "title": "Interactive Click-to-Sort Table Headers (Dual Minimal & Classic Headers)",
-    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn",
-    "user_story": "As a user scanning dozens of extracted fields, I want clickable column headers with sort direction indicators (▲ / ▼) so that I can sort fields by Key name, Sample value, Type, or Fill rate instantly.",
-    "rationale_and_design_decisions": "1. Locating low-frequency fields or identifying specific datatypes in an unsorted list is slow.\n2. Making all headers clickable toggle-sorts fields (ascending -> descending -> original) with clear typographic indicators.",
+    "title": "Pure-Text Streamlined Table Headers with Contextual Tooltips",
+    "user_request_origin": "phần này bỏ hết icon đi, để các tên lần lượt là Key, Type, Rate, Sample, New name ( hover vẫn ra mô tả) bổ sung thêm cả đặc trưng này nữa",
+    "user_story": "As a data analyst, I want the field mapping table headers to be clean pure text (Key, Type, Rate, Sample, New name) without decorative icons, with comprehensive tooltips visible on hover.",
+    "rationale_and_design_decisions": "1. Decorative SVG icons on table headers (Property, Type, Fill Rate, Sample Value, New Column Name) created cognitive visual noise.\n2. Replacing them with pure text labels (Key, Type, Rate, Sample, New name) gives an industrial, data-dense look.\n3. Native title tooltips explain the function of each column on hover without cluttering the screen.",
     "description": "Interactive table headers (#minimalTableHeader and #classicTableHeader) supporting multi-column sorting on key, sample, type, and rate.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Clicking 'Column' header sorts fields alphabetically by key name.",
-      "Clicking 'Sample Value' header sorts alphabetically by sample string.",
-      "Clicking 'Type' header sorts by data type.",
-      "Clicking 'Fill' header sorts numerically by fill percentage.",
-      "Active sorted column displays minimal sort indicator (▲ or ▼).",
-      "Sorting preserves checked states and inline rename aliases."
+      "Table headers display pure text: Key, Type, Rate, Sample, New name.",
+      "Zero decorative icons appear next to the header titles (only functional sort arrows like ▼ on Rate).",
+      "Hovering on any header column displays an informative native browser tooltip explaining the column purpose."
     ],
     "buttons": [],
     "clickable_headers": [
@@ -797,19 +795,18 @@
   {
     "id": "REQ-MOCKUP-018",
     "category": "SQL Preview",
-    "title": "Collapsible Live DuckDB SQL Preview with Caret & 1-Click Copy",
-    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn",
+    "title": "Streamlined SQL Preview & Instant Feedback",
+    "user_request_origin": "mô tả duckdb cũng ko cần thiết, phần nào hover ra được chú thích thì bỏ hết chú thích phụ đi, mô tả này cũng quá dài",
     "user_story": "As an SQL developer, I want a collapsible live DuckDB SQL preview drawer with a rotating caret and 1-click Copy button so that I can inspect and copy the exact generated SQL query without cluttering my screen.",
     "rationale_and_design_decisions": "1. Data engineers require full transparency into how the UI compiles into DuckDB SQL expressions (REGEXP_EXTRACT, SPLIT_PART, TRY_CAST).\n2. Collapsible drawer with caret animation keeps the resting interface clean while providing immediate SQL inspection.\n3. 1-click Copy button writes formatted SQL to clipboard.",
     "description": "Collapsible drawer (#sqlPreviewDrawer) containing live formatted DuckDB SQL query, database icon, animated caret arrow (#sqlCaret), and 1-click Copy button.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Drawer header displays database SVG icon, 'SQL Preview' title, animated caret arrow (#sqlCaret), and Copy button.",
-      "Clicking header toggles drawer open/collapse (#sqlPreviewDrawer) with smooth height transition.",
-      "Caret arrow smoothly rotates 90 degrees (rotate-90) when expanded.",
-      "Copy button writes generated SQL to clipboard and displays 'Copied!' for 2 seconds.",
-      "Every configuration change (delimiter, check/uncheck, rename, type change) updates SQL query in real time."
+      "Header displays database SVG, streamlined title \"SQL Preview\", rotating caret, and Copy button.",
+      "Verbose subtitle \"Fast Vectorized DuckDB Query Preview\" is removed.",
+      "Footer displays streamlined micro-latency \"Ready (< 15ms)\" without verbose \"(Instant DuckDB View)\".",
+      "Clicking Copy copies the generated DuckDB SQL query to clipboard with 2-second visual confirmation."
     ],
     "buttons": [
       {
@@ -845,31 +842,30 @@
   {
     "id": "REQ-MOCKUP-019",
     "category": "Action CTA",
-    "title": "Action-Oriented Primary CTA with Column Count (Apply Badge)",
-    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn",
-    "user_story": "As a user about to extract columns, I want the primary Apply button to display the exact number of selected columns ('Apply 13') so that I have complete confidence in what will be added to my dataset.",
-    "rationale_and_design_decisions": "1. Generic 'Apply' buttons leave users uncertain about whether filters or deselects took effect.\n2. Embedding a live count badge (<span id='applyCountBadge'>13</span>) inside the primary button gives positive confirmation of the exact operation scale.",
+    "title": "Universal Parsing Authoritative Apply Button (#applyColumnsBtn)",
+    "user_request_origin": "phần nút apply này cũng ko cần thêm số cột vì số cột là không xác định. ( tính chất của universal parsing) ( thêm vào mô tả )",
+    "user_story": "As a data engineer running universal parsing, I want the primary action button to simply display \"Apply\" without arbitrary column count badges, reflecting the dynamic nature of semi-structured log expansion.",
+    "rationale_and_design_decisions": "1. In universal parsing, semi-structured logs dynamically expand into variable column sets; hardcoding or pinning a static column count to the Apply button (e.g. \"Apply (14 Columns)\") is misleading.\n2. An authoritative, clean \"Apply\" button communicates universal execution without misleading column quantity commitments.",
     "description": "Primary action button (#applyColumnsBtn) featuring high-contrast blue styling, embedded column count badge, and secondary Cancel button.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Button displays 'Apply <span id=\"applyCountBadge\">13</span>'.",
-      "Count badge dynamically updates whenever fields are checked, unchecked, filtered, or added.",
-      "Clicking Apply validates schema, creates DuckDB columns, and displays success toast notice.",
-      "Cancel button discards changes and displays confirmation toast."
+      "Primary action button displays clean imperative text \"Apply\".",
+      "No static or dynamic column count badge (e.g. \"14 Columns\" or \"13\") is displayed inside the button.",
+      "Clicking Apply compiles DuckDB projection view and displays success toast."
     ],
     "buttons": [
       {
         "button_id": "applyColumnsBtn",
-        "label": "<span>Apply</span> <span id='applyCountBadge' class='px-1.5 py-0.2 rounded-full bg-white/20 text-[11px] font-bold'>13</span>",
+        "label": "Apply",
         "action_handler": "applyParsedColumns()",
-        "title_tooltip": "Apply 13 extracted columns to dataset",
-        "visual_states": "px-4 py-1.5 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5"
+        "title_tooltip": "Apply parsed columns to dataset",
+        "visual_states": "px-5 py-1.5 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs transition-colors"
       },
       {
         "button_id": "cancelActionBtn",
         "label": "Cancel",
-        "action_handler": "showToast('Changes discarded')",
+        "action_handler": "showToast(\"Changes discarded\")",
         "title_tooltip": "Discard changes and exit",
         "visual_states": "px-4 py-1.5 rounded border border-slate-300 bg-[#f1f5f9] hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
       }
@@ -935,8 +931,8 @@
     "user_story": "As an analyst, I want non-blocking toast notifications in the bottom-right corner whenever I perform actions (copy payload, copy SQL, add positional column, remove field) so that I receive immediate feedback without dialog popups blocking my view.",
     "rationale_and_design_decisions": "1. Blocking alert() popups disrupt flow and require unnecessary OK clicks.\n2. Non-blocking floating toast (#toastNotice) appears with smooth slide-up animation, persists for 3000ms, and auto-dismisses.",
     "description": "Toast notification component (#toastNotice) positioned at bottom-right with smooth transitions and status messages.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
+    "status": "implemented",
+    "target_version": "2.0.7",
     "acceptance_criteria": [
       "Toast rendered at fixed bottom-5 right-5 z-50.",
       "showToast(message) updates text, removes .translate-y-10 .opacity-0, and auto-dismisses after 3 seconds.",
@@ -970,8 +966,8 @@
     "user_story": "As an engineer testing extraction regex, I want a pool of 50 realistic enterprise log events (web servers, databases, security audits) available in the mock data so that I can verify field parsing against diverse payload structures.",
     "rationale_and_design_decisions": "1. Testing against only 1 hardcoded row leads to brittle regex patterns that break on edge cases in production.\n2. Mockup includes a 50-row array with varied field counts, missing keys, and different value formats.",
     "description": "50-row sample event dataset embedded in JavaScript simulation data, accessible via row cycler (#sampleRowIndex).",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
+    "status": "implemented",
+    "target_version": "2.0.8",
     "acceptance_criteria": [
       "sampleEventsPool contains 50 distinct realistic log payloads.",
       "Includes IIS logs, Nginx access logs, PostgreSQL query logs, and Windows Security audit events.",
@@ -1001,7 +997,7 @@
     "user_story": "As a QA engineer, I want the mockup to initialize with the exact 13 discovered fields (User, LID, Type, Proc, PID, Status, DurationMs, Host, Retries, Error, Latency, SessionId, App) matching the pixel-perfect specification so that test runs are deterministic.",
     "rationale_and_design_decisions": "1. Initializing with the exact 13 fields, data types, fill rates, and sample values guarantees 100% visual parity with specification screenshots.",
     "description": "JavaScript data structure activeFields containing 13 fields with key, newName, type, rate, sample, checked, and isPositional properties.",
-    "status": "implemented_in_mockup",
+    "status": "implemented",
     "target_version": "2.0.9",
     "acceptance_criteria": [
       "Initial state contains 13 fields matching specification table exactly.",
@@ -1063,5 +1059,69 @@
       "thumb_hover_color": "#94a3b8"
     },
     "cognitive_load_optimization": "Slim custom scrollbar preserves table width and eliminates clunky OS scrollbar visual distraction."
+  },
+  {
+    "id": "REQ-MOCKUP-025",
+    "category": "Visual Parsing Architecture",
+    "title": "Authoritative Visual Mode Architecture for Parse Columns v2.0.9",
+    "user_request_origin": "hãy cập nhật phần visual mode của parse trong D:\\Shared_UserData\\Downloads\\tad\\mockup\\index.html và mô tả chi tiết trong D:\\Shared_UserData\\Downloads\\tad\\mockup\\requirements.json . Hãy lên plan chi tiết update trên bản mới của giao diện này.",
+    "user_story": "As a data engineer and UX designer, I want the Visual Mode in mockup/index.html to be the authoritative, complete, production-aligned specification of the v2.0.9 Parse Columns dialog, unifying high-density ergonomics, prominent delimiter/assign controls, sequential strX auto-incrementing, 1,000-row batch testing, and streamlined typography.",
+    "rationale_and_design_decisions": "1. Visual Mode is the primary operational mode for tabular parsing in Toad v2.0.9.\n2. Delimiter (¦) and Assign (:) are always prominent and reactive across formats, never disappearing.\n3. Presets chips and quote pair badges are removed to maximize compact vertical working space.\n4. Table headers are pure text (Key, Type, Rate, Sample, New name) with hover tooltips.\n5. Sequential + strX auto-increments without overwriting existing columns.\n6. Real-data 1,000 rows inspector validates pattern accuracy before applying to the active DuckDB table.\n7. Streamlined SQL preview and authoritative Apply CTA provide instant feedback.",
+    "description": "Comprehensive 9-zone interactive visual parsing studio: dialog header with ParseSplitIcon, source column selector, sample event viewer, format & delimiter configuration, discovered fields toolbar with search and sequential strX, pure-text data grid, 1,000-row verification runner, live SQL preview, and action footer.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Visual Mode loads by default as the authoritative specification in mockup/index.html.",
+      "Header features custom vector SVG ParseSplitIcon (←| |→) and clean title Parse Columns.",
+      "Delimiter (¦) and Assign (:) inputs are prominent, accessible, and never hidden in Key=Value or Delimited formats.",
+      "Delimiter presets and quote pair badges are omitted to maximize vertical space.",
+      "Discovered fields table renders pure-text headers: Key, Type, Rate, Sample, New name with hover tooltips.",
+      "+ strX button scans current fields and generates sequential, non-overwriting columns (e.g. str1, str2 -> str3).",
+      "1,000 Rows Test simulates rapid multi-row validation (< 15ms) with progress bar and match rate percentage.",
+      "SQL preview displays live DuckDB SELECT projection with 1-click clipboard copy.",
+      "Footer displays compact micro-latency Ready (< 15ms) and clean authoritative Apply button without column count."
+    ],
+    "buttons": [
+      {
+        "button_id": "addStrXBtn",
+        "label": "+ + strX",
+        "action_handler": "addPositionalField()",
+        "title_tooltip": "Add next sequential positional column (auto-increments without overwriting)",
+        "visual_states": "px-2 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-800 rounded font-semibold text-xs"
+      },
+      {
+        "button_id": "runTestBtn",
+        "label": "▶ Run Test",
+        "action_handler": "runThousandRowsTest()",
+        "title_tooltip": "Evaluate parser across up to 1,000 rows from active table",
+        "visual_states": "px-3 py-1 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs"
+      },
+      {
+        "button_id": "applyColumnsBtn",
+        "label": "Apply",
+        "action_handler": "applyParsedColumns()",
+        "title_tooltip": "Apply parsed columns to dataset",
+        "visual_states": "px-5 py-1.5 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs"
+      }
+    ],
+    "gestures_and_interactions": {
+      "format_switch": "Changing format dropdown dynamically adjusts Delimiter and Assign prominence while keeping them permanently accessible.",
+      "sequential_add": "Clicking + strX inspects all current keys, finds max index k, and appends str{k+1}.",
+      "batch_test": "Clicking Run Test triggers simulated 1,000 rows evaluation, displays match percentage and updates latency label."
+    },
+    "technical_specs": {
+      "default_edition": "original",
+      "header_icon": "ParseSplitIcon",
+      "table_headers": [
+        "Key",
+        "Type",
+        "Rate",
+        "Sample",
+        "New name"
+      ],
+      "positional_naming": "str{k+1}",
+      "apply_label": "Apply"
+    },
+    "cognitive_load_optimization": "Removes visual clutter, redundant badges, and preset chips while keeping essential configuration controls front-and-center."
   }
 ]
