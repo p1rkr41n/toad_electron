@@ -156,10 +156,14 @@
                         <option value="json">JSON</option>
                         <option value="csv">CSV</option>
                     </select>
-                    <span>split by</span>
-                    <input id="minDelimInput" type="text" value="¦" oninput="syncMinimalConfig('delim', this.value)" title="Delimiter" class="w-6 h-6 text-center bg-slate-100 hover:bg-slate-200/70 rounded font-mono-code font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400">
-                    <span>and</span>
-                    <input id="minAssignInput" type="text" value=":" oninput="syncMinimalConfig('assign', this.value)" title="Key-Value Assign" class="w-6 h-6 text-center bg-slate-100 hover:bg-slate-200/70 rounded font-mono-code font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400">
+                    <span id="minDelimWrap" class="inline-flex items-center gap-1.5">
+                        <span>split by</span>
+                        <input id="minDelimInput" type="text" value="¦" oninput="syncMinimalConfig('delim', this.value)" title="Delimiter" class="w-6 h-6 text-center bg-slate-100 hover:bg-slate-200/70 rounded font-mono-code font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400">
+                    </span>
+                    <span id="minAssignWrap" class="inline-flex items-center gap-1.5">
+                        <span>and</span>
+                        <input id="minAssignInput" type="text" value=":" oninput="syncMinimalConfig('assign', this.value)" title="Key-Value Assign" class="w-6 h-6 text-center bg-slate-100 hover:bg-slate-200/70 rounded font-mono-code font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400">
+                    </span>
                 </div>
 
                 <!-- Popover trigger for advanced quote/header rules -->
@@ -469,7 +473,7 @@
                         </svg>
                         <span class="font-bold text-[#0369a1]">1,000 Rows Test:</span>
                         <span id="testStatusText" class="italic text-slate-600">
-                            Ready to test (Click 'Run Test' to evaluate up to 1,000 rows from active data)
+                            Ready to test
                         </span>
                     </div>
 
@@ -477,7 +481,7 @@
                         <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M8 5v14l11-7z"/>
                         </svg>
-                        <span>Run Test</span>
+                        <span>▶ Test</span>
                     </button>
                 </div>
 
@@ -1140,7 +1144,7 @@
             setTimeout(() => {
                 if (progressBar) progressBar.style.width = '100%';
                 if (statusText) {
-                    statusText.textContent = 'Evaluated 1,000 rows in 11.4ms — 99.4% parse match across selected fields';
+                    statusText.innerHTML = 'Match Rate: <strong class="text-emerald-700 font-bold">100%</strong>';
                     statusText.className = 'font-medium text-emerald-700';
                 }
                 latency.textContent = '11.4ms';
