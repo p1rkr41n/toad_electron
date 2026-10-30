@@ -211,28 +211,28 @@
   {
     "id": "REQ-MOCKUP-009",
     "category": "Discovered Fields Toolbar",
-    "title": "Discovered Fields Toolbar with Instant Search & Quick Actions",
-    "user_request_origin": "phần này chỉ để đơn giản là search cột thôi... Discovered Fields (13)",
+    "title": "Single-Line Discovered Fields Toolbar with Instant Column Search",
+    "user_request_origin": "tôi muốn gom thành 1 dòng được không... (ảnh chụp thanh công cụ Discovered Fields bị rớt dòng)",
     "user_story": "As a user, I want a clean search bar with an embedded magnifying glass, field count badge ('Discovered Fields (13)'), and quick action buttons (All, None, + strX) so I can filter and manage fields without clutter.",
-    "rationale_and_design_decisions": "A responsive search bar filtering across key names, samples, and aliases provides universal, flexible filtering with zero cognitive overhead, replacing bulky pill filters.",
-    "description": "Toolbar featuring 'Discovered Fields (13)' count badge (#fieldCountBadge), embedded SVG magnifying glass search input (#searchFieldsInput), smart rate filter, '+ strX' adder, and 'All' / 'None' buttons.",
+    "rationale_and_design_decisions": "Preventing multi-line wrapping in the 680px Zen dialog maximizes vertical workspace. By tightening search width to 144px-176px (w-36 sm:w-44), streamlining button paddings (px-2 py-1 text-[11px]), and fixing the duplicate '+ + strX' label into a clean '+ strX', all 5 controls (Field count, Search input, ≥50% Rate smart filter, + strX adder, and All/None toggle) fit harmoniously across a single 26px-height line without wrapping.",
+    "description": "Unified single-line toolbar without flex-wrap. Arranges 'Discovered Fields (13)' and search input on the left, and quick action buttons ('⚡ ≥50% Rate', '+ strX', and 'All' / 'None') on the right on one contiguous horizontal row.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Displays dynamic count badge of discovered fields (e.g., '13').",
-      "Search input filters table rows in real time as the user types.",
-      "Search matches against key name, sample value, and custom renamed identifier.",
-      "All / None buttons check or uncheck all discovered fields in 1 click."
+      "All toolbar controls (Field count, Search input, Smart filter, + strX, All/None) remain on a single contiguous horizontal line.",
+      "Container employs 'flex items-center justify-between gap-2' without flex-wrap.",
+      "Search input uses compact width (w-36 to sm:w-44) with embedded search icon.",
+      "'+ strX' button cleanly renders with a single '+' symbol and amber badge styling.",
+      "Fits comfortably inside the 680px Zen container with zero awkward line breaks."
     ],
     "technical_specs": {
+      "container_class": "flex items-center justify-between gap-2 pt-1 text-xs",
+      "search_class": "relative w-36 sm:w-44",
       "search_input_id": "searchFieldsInput",
       "field_count_badge_id": "fieldCountBadge",
-      "handlers": [
-        "renderFieldsTable()",
-        "setAllChecked(state)"
-      ]
+      "no_wrap": true
     },
-    "cognitive_load_optimization": "Replaces fragmented filter buttons with a single unified search input, eliminating cognitive clutter."
+    "cognitive_load_optimization": "Eliminates vertical fragmentation by maintaining a single, uninterrupted horizontal toolbar, preserving vertical space for the column mapping table."
   },
   {
     "id": "REQ-MOCKUP-010",

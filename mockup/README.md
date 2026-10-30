@@ -27,13 +27,16 @@ Phiên bản **Minimalist (Zen) Edition** giải quyết triệt để tình tr�
    - Tỉ lệ xuất hiện (Fill Rate) hiển thị dạng chấm màu trực quan (xanh lá ≥50%, cam <50%) kèm tỉ lệ %.
    - Khi rê chuột (hover) vào hàng, nút xóa nhanh `✕` xuất hiện mượt mà cho phép loại bỏ cột khỏi schema chỉ với 1 click.
 
-4. **Kiểm tra Trùng tên Cột Thời Gian Thực (Schema Guardrails)**:
+4. **Thanh Công Cụ Trường Khám Phá Gom Trên 1 Dòng (Single-Line Toolbar)**:
+   - Gom toàn bộ 5 thành phần điều khiển trên cùng 1 dòng ngang duy nhất (không rớt dòng): Tiêu đề `Discovered Fields (13)`, ô tìm kiếm `Search fields...`, nút lọc thông minh `⚡ ≥50% Rate`, nút thêm token vị trí `+ strX`, và cặp nút chọn nhanh `All` / `None`.
+
+5. **Kiểm tra Trùng tên Cột Thời Gian Thực (Schema Guardrails)**:
    - Tự động phát hiện khi 2 cột có cùng tên định danh, hiển thị cảnh báo `⚠️ Duplicate column name detected` và tạm khóa nút `Apply` để ngăn ngừa lỗi cú pháp SQL.
 
-5. **Nút Kiểm tra 1.000 Dòng Tích hợp Footer (Inline 1k-Row Verify)**:
+6. **Nút Kiểm tra 1.000 Dòng Tích hợp Footer (Inline 1k-Row Verify)**:
    - Thu gọn khối Test 1.000 dòng cồng kềnh thành nút kiểm tra nhanh `▶ Verify 1k rows` ngay trên thanh Footer, hiển thị thời gian phản hồi siêu tốc (`< 15ms`).
 
-6. **Nút Áp dụng Rõ ràng với Bộ đếm Cột (Apply Count Badge)**:
+7. **Nút Áp dụng Rõ ràng với Bộ đếm Cột (Apply Count Badge)**:
    - Nút `Apply (13)` tích hợp sẵn số lượng cột được chọn, mang lại sự tự tin tuyệt đối cho người dùng trước khi trích xuất.
 
 ---
@@ -64,7 +67,7 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 | `REQ-MOCKUP-006` | Popover | Advanced Extraction Rules Popover (#minimalRulesPopover) | `Implemented` |
 | `REQ-MOCKUP-007` | Sample Event | Sample Event Editor with Line Gutter, 1 of 50 Cycler & 1-Click Copy | `Implemented` |
 | `REQ-MOCKUP-008` | Classic Panels | Classic Source Column & Visual Config Panels (Google & Original) | `Implemented` |
-| `REQ-MOCKUP-009` | Toolbar | Discovered Fields Toolbar with Instant Search & Quick Actions | `Implemented` |
+| `REQ-MOCKUP-009` | Toolbar | Single-Line Discovered Fields Toolbar with Instant Column Search | `Implemented` |
 | `REQ-MOCKUP-010` | Smart Filter | Smart Bulk Selection Filter (⚡ ≥50% Rate Pill) | `Implemented` |
 | `REQ-MOCKUP-011` | Positional | Positional Field Extractor (+ + strX Button) | `Implemented` |
 | `REQ-MOCKUP-012` | Sorting | Interactive Click-to-Sort Table Headers (Dual Minimal & Classic Headers) | `Implemented` |
