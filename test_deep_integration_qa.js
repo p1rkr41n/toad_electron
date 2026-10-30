@@ -1510,7 +1510,9 @@ async function main() {
 
     // Static Quote Pair note badge removed
     assert(!dialogSrc.includes('"..." Pair'), "Static '\"...\" Pair' note badge must be removed");
-    assert(dialogSrc.includes('title="Quote Enclosure Pair: Captures values enclosed in quotes without splitting on internal delimiters"'), "Hover tooltip on Quote Pair must provide full context");
+    // Quote Pair is configurable without verbose tooltip
+    assert(dialogSrc.includes("Quote Pair"), "Quote Pair label must be clean without verbose tooltip");
+    assert(dialogSrc.includes("minQuoteOpen") && dialogSrc.includes("minQuoteClose"), "Quote Pair must provide editable input fields");
   });
 
   await runTest("M.4 Streamlined SQL Preview & Footer Status Labels", async () => {
