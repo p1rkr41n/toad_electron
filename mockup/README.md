@@ -3,7 +3,7 @@
 > **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Parse Columns & Regex) cho **Toad v2.0.9**, đồng bộ hóa 100% nguyên bản từ [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html) sang tệp mockup chính [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html), ngôn ngữ tiếng Anh chuẩn quốc tế, tối ưu hóa công thái học nhận thức (Zen Minimalist Edition).  
 > **Tệp Mockup tương tác chính:** [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html)  
 > **Tệp Mockup đối chiếu:** [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html)  
-> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(24 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-024, đặc tả chi tiết tới từng nút, cử chỉ click/hover/keydown, DOM ID và trạng thái tương tác)*  
+> **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(25 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-025, đặc tả chi tiết tới từng nút, cử chỉ click/hover/keydown, DOM ID và trạng thái tương tác)*  
 > **Phiên bản áp dụng:** Toad v2.0.9
 
 ---
@@ -56,7 +56,7 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 
 ---
 
-## 3. DANH MỤC 24 ĐẶC TẢ KỸ THUẬT TRONG `requirements.json`
+## 3. DANH MỤC 25 ĐẶC TẢ KỸ THUẬT TRONG `requirements.json`
 
 | ID | Danh mục | Tiêu đề đặc tả | Tình trạng |
 | :--- | :--- | :--- | :---: |
@@ -83,7 +83,7 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 | `REQ-MOCKUP-021` | Feedback | Non-Blocking Toast Notification System (#toastNotice) | `Implemented` |
 | `REQ-MOCKUP-022` | Sampling Pool | 50-Row Sample Event Simulation Pool | `Implemented` |
 | `REQ-MOCKUP-023` | Data Model | 13 Discovered Fields Initial Data Model Matching Pixel-Perfect Spec | `Implemented` |
-| `REQ-MOCKUP-024` | Scrollbar | Classic Desktop & Minimalist Zen Custom Scrollbars | `Implemented` |
+| `REQ-MOCKUP-025` | Scrollbar | Classic Desktop & Minimalist Zen Custom Scrollbars | `Implemented` |
 
 ---
 
@@ -91,5 +91,5 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 
 - [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html): **Mockup chính thức tương tác toàn diện** (khớp 100% với `parse_columns_mockup.html`).
 - [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html): Tệp mockup đối chiếu.
-- [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json): Danh sách 24 yêu cầu kỹ thuật chi tiết (`REQ-MOCKUP-001` đến `REQ-MOCKUP-024`).
+- [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json): Danh sách 25 yêu cầu kỹ thuật chi tiết (`REQ-MOCKUP-001` đến `REQ-MOCKUP-024`).
 - [`mockup/README.md`](file:///d:/Shared_UserData/Downloads/tad/mockup/README.md): Tài liệu hướng dẫn và mô tả kiến trúc thiết kế.
