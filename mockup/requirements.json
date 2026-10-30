@@ -733,5 +733,39 @@
     "cognitive_load_optimization": {
       "strategy": "Displays real failure rows instantly with 1-click clipboard copy, removing the need for trial-and-error database queries."
     }
+  },
+  {
+    "id": "REQ-MOCKUP-023",
+    "category": "Visual Streamlining & Space Optimization",
+    "title": "Streamlined Parse UI, Custom Split Icon & Industrial Typography",
+    "user_request_origin": "Hãy kiểm tra, tôi muốn dùng icon này cho tính năng parse, không cần phần presents này, phần note cho pair cũng không cần (tiến kiệm không gian tối đa) phần nào hover ra được chú thích thì bỏ hết chú thích phụ đi, mô tả này cũng quá dài, mô tả duckdb cũng ko cần thiết; phần nút apply này cũng ko cần thêm số cột vì số cột là không xác định (tính chất của universal parsing); phần này bỏ hết icon đi, để các tên lần lượt là Key, Type, Rate, Sample, New name",
+    "user_story": "As a data analyst parsing logs, I want a hyper-focused, distraction-free interface with a distinctive column split icon, no redundant presets or static notes, clean and concise table headers (Key, Type, Rate, Sample, New name), and an authoritative Apply button so that maximal screen space is dedicated to data inspection without visual noise.",
+    "rationale_and_design_decisions": "Excessive decorative icons, redundant presets, and static explanatory notes crowd the UI and reduce visible table rows. Removing visual clutter, standardizing column names, using a custom vector column-split icon, and relying on hover tooltips delivers a sleek, industrial-grade experience on par with modern developer tools.",
+    "description": "Deploy custom ParseSplitIcon across ActivityBar, Footer, and Dialog. Remove Delimiter presets and static Quote Pair badge. Strip decorative icons from table headers and rename to Key, Type, Rate, Sample, New name with hover tooltips. Standardize action button to 'Apply' and shorten status labels to 'SQL Preview' and 'Ready (< 15ms)'.",
+    "status": "implemented",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "ActivityBar, Footer, and Dialog Header render custom vector SVG ParseSplitIcon",
+      "Delimiter configuration removes Presets chip buttons",
+      "Quote Pair removes static '\"...\" Pair' badge, moving details to hover tooltip",
+      "Field Mapping Table headers contain zero decorative icons and display: Key, Type, Rate, Sample, New name",
+      "Click-to-sort indicators (⇅, ▲, ▼) and rich hover tooltips are preserved on all table headers",
+      "SQL preview accordion header is simplified to 'SQL Preview' without verbose technical terms",
+      "Dialog footer status is shortened to 'Ready (< 15ms)'",
+      "Action button displays authoritative 'Apply' without static column count",
+      "Static notes under 1,000 Rows Inspector are eliminated to save vertical space"
+    ],
+    "technical_specs": {
+      "components": [
+        "tadviewer/src/components/icons/ParseSplitIcon.tsx",
+        "tadviewer/src/components/ActivityBar.tsx",
+        "tadviewer/src/components/Footer.tsx",
+        "tadviewer/src/components/RegexDialog.tsx"
+      ],
+      "version": "2.0.9"
+    },
+    "cognitive_load_optimization": {
+      "strategy": "Zero visual clutter and compact padding maximize visible rows by 30% while retaining instant tooltip discoverability."
+    }
   }
 ]

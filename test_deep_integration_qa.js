@@ -1211,12 +1211,12 @@ async function main() {
     const footerTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/Footer.tsx");
     const footerContent = fs.readFileSync(footerTsPath, "utf8");
     assert(footerContent.includes('text="Parse"'), "Footer button must display text='Parse'");
-    assert(footerContent.includes('icon="properties"'), "Footer button must display property icon");
+    assert(footerContent.includes('icon="properties"') || footerContent.includes("ParseSplitIcon"), "Footer button must display parse icon");
     assert(footerContent.includes("setParseDialogOpen"), "Footer button must call setParseDialogOpen");
 
     const activityBarTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/ActivityBar.tsx");
     const actContent = fs.readFileSync(activityBarTsPath, "utf8");
-    assert(actContent.includes('icon="properties"'), "ActivityBar button must use property icon");
+    assert(actContent.includes('icon="properties"') || actContent.includes("ParseSplitIcon"), "ActivityBar button must use parse icon");
     assert(actContent.includes("Toad Parse"), "ActivityBar button tooltip must mention Toad Parse");
 
     const actionsTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/actions.ts");
@@ -1230,22 +1230,14 @@ async function main() {
 
     // Header Title and Version
     assert(dialogContent.includes("Parse Columns"), "Dialog title must be 'Parse Columns'");
-    assert(dialogContent.includes("v2.0.7"), "Dialog title must display 'v2.0.7' badge");
+    assert(dialogContent.includes("v2.0.7") || dialogContent.includes("v2.0.8") || dialogContent.includes("v2.0.9"), "Dialog title must display version badge");
 
     // Capsule Segmented Switch
     assert(dialogContent.includes("Visual"), "Capsule switcher must contain Visual mode");
     assert(dialogContent.includes("Regex"), "Capsule switcher must contain Regex mode");
 
-    // Quick Delimiter Presets
-    assert(dialogContent.includes("Presets:"), "Delimiter section must contain quick preset chips");
-    assert(dialogContent.includes("Space"), "Presets must include Space chip");
-    assert(dialogContent.includes("¦"), "Presets must include broken bar chip");
-
     // Visual Smart Coalescing Indicator
     assert(dialogContent.includes("COALESCE"), "Mapping table must include visual COALESCE indicator badge");
-
-    // Action-Oriented Dynamic Apply Button
-    assert(dialogContent.includes("Apply (${enabledCount} Columns)"), "Footer button must dynamically display column count");
 
     // Canonical Export
     assert(dialogContent.includes("export const ParseDialog = RegexDialog;"), "Must export ParseDialog alias");
@@ -1254,7 +1246,7 @@ async function main() {
   await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8", "tad-app package.json version must be 2.0.7 or 2.0.8");
+    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9", "tad-app package.json version must be valid");
 
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
     const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
@@ -1420,18 +1412,16 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert.strictEqual(pkgApp.version, "2.0.8", "tad-app package.json version must be 2.0.8");
+    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9", "tad-app package.json version must be 2.0.8 or 2.0.9");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.0.8.exe"), "dist_package.ps1 must reference Toad 2.0.8.exe");
-    assert(distPs1.includes("toad_v2.0.8_portable.exe"), "dist_package.ps1 must reference toad_v2.0.8_portable.exe");
+    assert(distPs1.includes("Toad 2.0.8.exe") || distPs1.includes("Toad 2.0.9.exe"), "dist_package.ps1 must reference latest Toad exe");
 
     // 3. RegexDialog.tsx UI elements
     const regexDialogPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(regexDialogPath, "utf8");
-    assert(dialogSrc.includes("v2.0.8"), "RegexDialog must display v2.0.8 badge");
     assert(dialogSrc.includes("evaluateLineMatch"), "RegexDialog must contain evaluateLineMatch pure evaluator");
     assert(dialogSrc.includes("handleRunBatchTest"), "RegexDialog must contain handleRunBatchTest real data runner");
     assert(dialogSrc.includes("handleCopyUnmatched"), "RegexDialog must contain handleCopyUnmatched clipboard copier");
@@ -1441,7 +1431,7 @@ async function main() {
     // 4. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.8"), "quickstart.html must display v2.0.8");
+    assert(htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Version 2.0.8"), "quickstart.html must include Version 2.0.8 changelog block");
 
     // 5. requirements.json
@@ -1451,6 +1441,128 @@ async function main() {
     assert(req22, "requirements.json must contain REQ-MOCKUP-022");
     assert.strictEqual(req22.target_version, "2.0.8", "REQ-MOCKUP-022 target_version must be 2.0.8");
     assert.strictEqual(req22.status, "implemented", "REQ-MOCKUP-022 status must be implemented");
+  });
+
+  // ===========================================================================
+  // SUITE M: Toad v2.0.9 Streamlined Parse UI, Custom Split Icon & Industrial Typography
+  // ===========================================================================
+  reportSuite("SUITE M: Toad v2.0.9 Streamlined Parse UI, Custom Split Icon & Industrial Typography");
+
+  await runTest("M.1 Custom Vector SVG ParseSplitIcon Integration", async () => {
+    // 1. Icon component existence
+    const iconTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/icons/ParseSplitIcon.tsx");
+    assert(fs.existsSync(iconTsPath), "ParseSplitIcon.tsx component must exist");
+    const iconSrc = fs.readFileSync(iconTsPath, "utf8");
+    assert(iconSrc.includes("viewBox=\"0 0 512 512\""), "ParseSplitIcon must have 512x512 viewBox");
+    assert(iconSrc.includes("rect x=\"163\""), "ParseSplitIcon must contain left pillar");
+    assert(iconSrc.includes("rect x=\"300\""), "ParseSplitIcon must contain right pillar");
+
+    // 2. Integration in ActivityBar
+    const actTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/ActivityBar.tsx");
+    const actSrc = fs.readFileSync(actTsPath, "utf8");
+    assert(actSrc.includes("ParseSplitIcon"), "ActivityBar must import and use ParseSplitIcon");
+    assert(!actSrc.includes('icon="properties"'), "ActivityBar must no longer use generic properties icon");
+
+    // 3. Integration in Footer
+    const footerTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/Footer.tsx");
+    const footerSrc = fs.readFileSync(footerTsPath, "utf8");
+    assert(footerSrc.includes("ParseSplitIcon"), "Footer must import and use ParseSplitIcon");
+    assert(!footerSrc.includes('icon="properties"'), "Footer must no longer use generic properties icon for Parse");
+
+    // 4. Integration in Dialog Header
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    assert(dialogSrc.includes("<ParseSplitIcon"), "Dialog header must render ParseSplitIcon");
+    assert(dialogSrc.includes("v2.0.9"), "Dialog header must display v2.0.9 badge");
+  });
+
+  await runTest("M.2 Field Mapping Table Header Streamlining (Key, Type, Rate, Sample, New name)", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // Simple Mode Table Headers
+    assert(dialogSrc.includes("<span>Key</span>"), "Table header must display 'Key'");
+    assert(dialogSrc.includes("<span>Type</span>"), "Table header must display 'Type'");
+    assert(dialogSrc.includes("<span>Rate</span>"), "Table header must display 'Rate'");
+    assert(dialogSrc.includes("<span>Sample</span>"), "Table header must display 'Sample'");
+    assert(dialogSrc.includes("<span>New name</span>"), "Table header must display 'New name'");
+
+    // Check that decorative table header SVGs were removed
+    assert(!dialogSrc.includes('title="Sort by Property"'), "Old 'Property' header must be removed");
+    assert(!dialogSrc.includes('<span>Property</span>'), "Old 'Property' label must be removed");
+    assert(!dialogSrc.includes('<span>Fill Rate</span>'), "Old 'Fill Rate' label must be removed");
+    assert(!dialogSrc.includes('<span>Sample Value</span>'), "Old 'Sample Value' label must be removed");
+    assert(!dialogSrc.includes('<span>New Column Name</span>'), "Old 'New Column Name' label must be removed");
+
+    // Advanced Mode Table Headers
+    assert(dialogSrc.includes('>Group</th>'), "Advanced table header must contain Group");
+    assert(dialogSrc.includes('>Sample</th>'), "Advanced table header must contain Sample");
+    assert(dialogSrc.includes('>New name</th>'), "Advanced table header must contain New name");
+  });
+
+  await runTest("M.3 Delimiter Syntax Strip & Quote Pair Streamlining", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // Presets chip buttons removed
+    assert(!dialogSrc.includes("Presets:"), "Syntax strip must no longer contain Presets chips");
+    assert(!dialogSrc.includes("Set delimiter to 'Space'"), "Presets click handlers must be removed");
+
+    // Static Quote Pair note badge removed
+    assert(!dialogSrc.includes('"..." Pair'), "Static '\"...\" Pair' note badge must be removed");
+    assert(dialogSrc.includes('title="Quote Enclosure Pair: Captures values enclosed in quotes without splitting on internal delimiters"'), "Hover tooltip on Quote Pair must provide full context");
+  });
+
+  await runTest("M.4 Streamlined SQL Preview & Footer Status Labels", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // SQL Preview Title
+    assert(!dialogSrc.includes("Fast Vectorized DuckDB Query Preview"), "Verbose DuckDB preview title must be removed");
+    assert(dialogSrc.includes("Preview</span>"), "SQL accordion must display streamlined 'Preview'");
+
+    // Footer Ready Status
+    assert(!dialogSrc.includes("(Instant DuckDB View)"), "Verbose (Instant DuckDB View) must be removed from footer");
+    assert(dialogSrc.includes("Ready (<strong"), "Footer must display compact 'Ready (< 15ms)'");
+
+    // 1,000 Rows Test static footer note removed
+    assert(!dialogSrc.includes("ℹ️ Unmatched lines are automatically captured"), "Static 2-line explanation under 1,000 Rows Test must be removed to save vertical space");
+  });
+
+  await runTest("M.5 Universal Parsing Authoritative Apply Button", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // Apply button must be clean 'Apply', omitting dynamic count due to open-ended universal parsing
+    assert(dialogSrc.includes('text="Apply"'), "Action button must use authoritative text='Apply'");
+    assert(!dialogSrc.includes("Apply (${enabledCount} Columns)"), "Action button must not append static column counts");
+  });
+
+  await runTest("M.6 Toad v2.0.9 Version Synchronization & REQ-MOCKUP-023 Spec Compliance", async () => {
+    // 1. tad-app package.json
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    assert.strictEqual(pkgApp.version, "2.0.9", "tad-app package.json version must be 2.0.9");
+
+    // 2. dist_package.ps1
+    const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
+    const distPs1 = fs.readFileSync(distPs1Path, "utf8");
+    assert(distPs1.includes("Toad 2.0.9.exe"), "dist_package.ps1 must reference Toad 2.0.9.exe");
+    assert(distPs1.includes("toad_v2.0.9_portable.exe"), "dist_package.ps1 must reference toad_v2.0.9_portable.exe");
+
+    // 3. quickstart.html
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+    assert(htmlContent.includes("v2.0.9"), "quickstart.html must display v2.0.9 badge");
+    assert(htmlContent.includes("Version 2.0.9"), "quickstart.html must include Version 2.0.9 changelog block");
+
+    // 4. requirements.json
+    const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
+    const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
+    const req23 = reqs.find((r) => r.id === "REQ-MOCKUP-023");
+    assert(req23, "requirements.json must contain REQ-MOCKUP-023");
+    assert.strictEqual(req23.target_version, "2.0.9", "REQ-MOCKUP-023 target_version must be 2.0.9");
+    assert.strictEqual(req23.status, "implemented", "REQ-MOCKUP-023 status must be implemented");
   });
 
   uiDriverF.connPool.giveBack(connF);
