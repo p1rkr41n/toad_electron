@@ -1175,10 +1175,13 @@ async function main() {
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
 
     // Version verification
-    assert(htmlContent.includes("v2.0.5"), "QuickStart Guide must display v2.0.5 version badge");
+    assert(htmlContent.includes("v2.0.5") || htmlContent.includes("v2.0.7"), "QuickStart Guide must display v2.0.5 or v2.0.7 version badge");
 
     // Feature set verification
-    assert(htmlContent.includes("Universal Column Extractor & Renamer"), "Must document Universal Column Extractor");
+    assert(
+      htmlContent.includes("Universal Column Extractor & Renamer") || htmlContent.includes("Universal Column Extractor & Parser"),
+      "Must document Universal Column Extractor"
+    );
     assert(htmlContent.includes("Heterogeneous Multi-Row Key Discovery"), "Must document Heterogeneous Key Discovery");
     assert(htmlContent.includes("strX"), "Must document strX positional fallback tokens");
     assert(htmlContent.includes("Smart Coalescing"), "Must document Smart Coalescing");
@@ -1197,6 +1200,72 @@ async function main() {
     const appMenuTsPath = path.resolve(__dirname, "tad-master/packages/tad-app/app/appMenu.ts");
     const menuContent = fs.readFileSync(appMenuTsPath, "utf8");
     assert(menuContent.includes("quickStart.showQuickStart()"), "Help -> Quick Start Guide menu item must call showQuickStart on demand");
+  });
+
+  // ===========================================================================
+  // SUITE K: Toad v2.0.7 Parse Feature & Professional UI/UX Refinement
+  // ===========================================================================
+  reportSuite("SUITE K: Toad v2.0.7 Parse Feature & Professional UI/UX Refinement");
+
+  await runTest("K.1 Footer & ActivityBar Rebranded to Parse", async () => {
+    const footerTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/Footer.tsx");
+    const footerContent = fs.readFileSync(footerTsPath, "utf8");
+    assert(footerContent.includes('text="Parse"'), "Footer button must display text='Parse'");
+    assert(footerContent.includes('icon="properties"'), "Footer button must display property icon");
+    assert(footerContent.includes("setParseDialogOpen"), "Footer button must call setParseDialogOpen");
+
+    const activityBarTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/ActivityBar.tsx");
+    const actContent = fs.readFileSync(activityBarTsPath, "utf8");
+    assert(actContent.includes('icon="properties"'), "ActivityBar button must use property icon");
+    assert(actContent.includes("Toad Parse"), "ActivityBar button tooltip must mention Toad Parse");
+
+    const actionsTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/actions.ts");
+    const actionsContent = fs.readFileSync(actionsTsPath, "utf8");
+    assert(actionsContent.includes("setParseDialogOpen"), "actions.ts must export setParseDialogOpen");
+  });
+
+  await runTest("K.2 Professional UI/UX Refinements in Parse Dialog", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogContent = fs.readFileSync(dialogTsPath, "utf8");
+
+    // Header Title and Version
+    assert(dialogContent.includes("Parse Columns"), "Dialog title must be 'Parse Columns'");
+    assert(dialogContent.includes("v2.0.7"), "Dialog title must display 'v2.0.7' badge");
+
+    // Capsule Segmented Switch
+    assert(dialogContent.includes("Visual"), "Capsule switcher must contain Visual mode");
+    assert(dialogContent.includes("Regex"), "Capsule switcher must contain Regex mode");
+
+    // Quick Delimiter Presets
+    assert(dialogContent.includes("Presets:"), "Delimiter section must contain quick preset chips");
+    assert(dialogContent.includes("Space"), "Presets must include Space chip");
+    assert(dialogContent.includes("¦"), "Presets must include broken bar chip");
+
+    // Visual Smart Coalescing Indicator
+    assert(dialogContent.includes("COALESCE"), "Mapping table must include visual COALESCE indicator badge");
+
+    // Action-Oriented Dynamic Apply Button
+    assert(dialogContent.includes("Apply (${enabledCount} Columns)"), "Footer button must dynamically display column count");
+
+    // Canonical Export
+    assert(dialogContent.includes("export const ParseDialog = RegexDialog;"), "Must export ParseDialog alias");
+  });
+
+  await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    assert.strictEqual(pkgApp.version, "2.0.7", "tad-app package.json version must be 2.0.7");
+
+    const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
+    const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
+    const req21 = reqs.find((r) => r.id === "REQ-MOCKUP-021");
+    assert(req21, "requirements.json must include REQ-MOCKUP-021");
+    assert.strictEqual(req21.target_version, "2.0.7", "REQ-MOCKUP-021 target_version must be 2.0.7");
+
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+    assert(htmlContent.includes("v2.0.7"), "quickstart.html must display v2.0.7");
+    assert(htmlContent.includes("Universal Column Extractor & Parser (Parse Mode)"), "quickstart.html must document Parse Mode");
   });
 
   uiDriverF.connPool.giveBack(connF);

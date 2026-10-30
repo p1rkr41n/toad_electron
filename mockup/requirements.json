@@ -672,5 +672,36 @@
     "cognitive_load_optimization": {
       "strategy": "Eliminating multi-view comparisons removes ambiguity and cognitive clutter for stakeholders and engineering paired programming."
     }
+  },
+  {
+    "id": "REQ-MOCKUP-021",
+    "category": "Rebranding & World-Class UI/UX",
+    "title": "Universal Parse Feature Naming & Professional UI/UX Refinement",
+    "user_request_origin": "Tôi muốn đổi tên tính năng từ Regex thành Parse, và tinh chỉnh lại một chút giao diện của tính năng này nhìn như một chuyên gia UI/UX thiết kế",
+    "user_story": "As a data engineer, I want the feature rebranded to 'Parse' with a world-class UI/UX design (capsule mode switcher, quick delimiter presets, coalesce indicator, and dynamic apply count) so that the interface is welcoming, intuitive, and visually harmonious.",
+    "rationale_and_design_decisions": "Renaming 'Regex' to 'Parse' removes the intimidating cognitive friction that previously made non-regex users hesitate. Reorganizing the feature into 'Visual' (auto-detection) and 'Regex' modes with 1-click delimiter presets and coalesce badges delivers a premier experience on par with Figma and Linear.",
+    "description": "Rebrand feature from 'Regex' to 'Parse' across all buttons, headers, and tooltips. Refine the dialog UI with a Linear-style capsule segmented switch, 1-click delimiter preset chips, visual coalesce indicators, and dynamic Apply (N Columns) button text.",
+    "status": "implemented",
+    "target_version": "2.0.7",
+    "acceptance_criteria": [
+      "Footer and ActivityBar buttons use label 'Parse' and property icon",
+      "Dialog header displays 'Parse Columns' with 'v2.0.7' badge",
+      "Capsule segmented switch toggles smoothly between 'Visual' and 'Regex'",
+      "Delimiter configuration provides 1-click preset chips (Space, ',', '|', '¦', ';', 'Tab')",
+      "Mapping table displays '🔗 COALESCE' badge when multiple fields target the same column name",
+      "Dialog footer displays dynamic 'Apply (N Columns)' button text"
+    ],
+    "technical_specs": {
+      "components": [
+        "tadviewer/src/components/RegexDialog.tsx",
+        "tadviewer/src/components/Footer.tsx",
+        "tadviewer/src/components/ActivityBar.tsx",
+        "tadviewer/src/actions.ts"
+      ],
+      "version": "2.0.7"
+    },
+    "cognitive_load_optimization": {
+      "strategy": "1-click delimiter presets and clear visual coalesce cues minimize typing errors and eliminate guesswork."
+    }
   }
 ]
