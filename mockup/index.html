@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Toad Column Extractor &amp; Fast Parser - Minimalist Zen (Primary Mockup)</title>
+    <title>Parse Columns v2.0.9 — Interactive Mockup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-body {
+        body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: #e2e8f0;
         }
@@ -59,423 +59,6 @@ body {
             border: none;
             border-radius: 9999px;
         }
-
-        /* Dark mode overrides for Zen / Minimalist */
-        .dark-mode {
-            background-color: #0b0f19 !important;
-        }
-        .dark-mode #mainModalContainer {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-            color: #f1f5f9 !important;
-            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5) !important;
-        }
-        .dark-mode #mainModalContainer .bg-\[\#f8fafc\] {
-            background-color: #0f172a !important;
-            border-color: #334155 !important;
-        }
-        .dark-mode #mainModalContainer .bg-white {
-            background-color: #1e293b !important;
-        }
-        .dark-mode #mainModalContainer .text-slate-800,
-        .dark-mode #mainModalContainer .text-slate-700,
-        .dark-mode #mainModalContainer .text-slate-900 {
-            color: #f1f5f9 !important;
-        }
-        .dark-mode #mainModalContainer .text-slate-600,
-        .dark-mode #mainModalContainer .text-slate-500 {
-            color: #94a3b8 !important;
-        }
-        .dark-mode #mainModalContainer .border-slate-200,
-        .dark-mode #mainModalContainer .border-slate-300 {
-            border-color: #334155 !important;
-        }
-        .dark-mode #mainModalContainer input,
-        .dark-mode #mainModalContainer select,
-        .dark-mode #mainModalContainer textarea {
-            background-color: #0f172a !important;
-            border-color: #334155 !important;
-            color: #f1f5f9 !important;
-        }
-        .dark-mode #mainModalContainer .hover\:bg-slate-50:hover {
-            background-color: rgba(51, 65, 85, 0.3) !important;
-        }
-        .dark-mode #minimalRulesPopover {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-            color: #f1f5f9 !important;
-        }
-        .dark-mode #minimalRulesPopover span {
-            color: #cbd5e1 !important;
-        }
-        .dark-mode #uxNotesModal > div {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
-            color: #f1f5f9 !important;
-        }
-        .dark-mode #uxNotesModal .bg-slate-50 {
-            background-color: #0f172a !important;
-            border-color: #334155 !important;
-        }
-        .dark-mode #uxNotesModal .text-slate-900,
-        .dark-mode #uxNotesModal .text-slate-800 {
-            color: #f8fafc !important;
-        }
-        .dark-mode #uxNotesModal .text-slate-600 {
-            color: #94a3b8 !important;
-        }
-
-* {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      background-color: #10161a;
-      color: #f5f8fa;
-      font-family: -apple-system, "BlinkMacSystemFont", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Open Sans", "Helvetica Neue", sans-serif;
-      font-size: 13px;
-      line-height: 1.4;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .main-viewport {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      background: radial-gradient(circle at 50% 30%, #202b33 0%, #10161a 100%);
-    }
-
-    /* Common Blueprint Dialog Styles */
-    .bp4-dialog {
-      background-color: #293742;
-      border-radius: 6px;
-      box-shadow: 0 0 0 1px rgba(16, 22, 26, 0.4), 0 4px 8px rgba(16, 22, 26, 0.5), 0 18px 46px 6px rgba(16, 22, 26, 0.6);
-      color: #f5f8fa;
-      width: 820px;
-      max-width: 95vw;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-    .bp4-dialog-header {
-      background-color: #293742;
-      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 40px;
-      padding: 0 16px;
-    }
-    .bp4-heading {
-      color: #f5f8fa;
-      font-size: 15px;
-      font-weight: 600;
-      margin: 0;
-    }
-    .bp4-dialog-body {
-      padding: 16px 20px;
-    }
-    .bp4-form-group {
-      margin-bottom: 12px;
-    }
-    .bp4-label {
-      color: #f5f8fa;
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .bp4-form-helper-text {
-      color: #8a9ba8;
-      font-size: 11px;
-      margin-top: 3px;
-    }
-    .bp4-input, .bp4-html-select select, .bp4-text-area {
-      background-color: rgba(16, 22, 26, 0.3);
-      border: 1px solid rgba(16, 22, 26, 0.4);
-      border-radius: 3px;
-      box-shadow: inset 0 1px 1px rgba(16, 22, 26, 0.2);
-      color: #f5f8fa;
-      font-size: 12px;
-      padding: 6px 10px;
-      width: 100%;
-      outline: none;
-    }
-    .bp4-input:focus, .bp4-html-select select:focus, .bp4-text-area:focus {
-      border-color: #137cbd;
-      box-shadow: inset 0 0 0 1px #137cbd, 0 0 0 1px #137cbd;
-    }
-    .bp4-text-area {
-      font-family: Consolas, monospace;
-      font-size: 12px;
-      resize: vertical;
-    }
-    .bp4-button {
-      background-color: #394b59;
-      background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0));
-      border: 1px solid rgba(16, 22, 26, 0.4);
-      border-radius: 3px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      color: #f5f8fa;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 500;
-      padding: 6px 14px;
-    }
-    .bp4-button:hover {
-      background-color: #485c6b;
-    }
-    .bp4-button.bp4-intent-primary {
-      background-color: #106ba3;
-      border-color: #0e5a8a;
-      color: #ffffff;
-    }
-    .bp4-button.bp4-intent-primary:hover {
-      background-color: #137cbd;
-    }
-    .bp4-button.bp4-minimal {
-      background: none;
-      border: none;
-      box-shadow: none;
-      color: #8a9ba8;
-    }
-    .bp4-button.bp4-minimal:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: #f5f8fa;
-    }
-    .bp4-dialog-footer {
-      background-color: #293742;
-      border-top: 1px solid rgba(16, 22, 26, 0.3);
-      padding: 12px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    /* Corner Monochromatic Mode Switcher */
-    .mode-corner-group {
-      display: inline-flex;
-      align-items: center;
-      background: rgba(16, 22, 26, 0.45);
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
-      padding: 2px;
-      gap: 2px;
-    }
-    .mode-corner-btn {
-      background: transparent;
-      border: none;
-      color: #8a9ba8;
-      padding: 3px 9px;
-      border-radius: 3px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: all 120ms ease;
-    }
-    .mode-corner-btn svg {
-      opacity: 0.75;
-    }
-    .mode-corner-btn:hover {
-      color: #f5f8fa;
-      background: rgba(255, 255, 255, 0.06);
-    }
-    .mode-corner-btn:hover svg {
-      opacity: 1;
-    }
-    .mode-corner-btn.active {
-      background: #137cbd;
-      color: #ffffff;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-    }
-    .mode-corner-btn.active svg {
-      opacity: 1;
-      color: #ffffff;
-    }
-
-    /* Radio buttons pill */
-    .format-pills {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 12px;
-    }
-    .f-pill {
-      background: rgba(16, 22, 26, 0.3);
-      border: 1px solid rgba(16, 22, 26, 0.4);
-      padding: 4px 10px;
-      border-radius: 3px;
-      font-size: 11px;
-      cursor: pointer;
-      color: #8a9ba8;
-      font-weight: 500;
-    }
-    .f-pill:hover {
-      background: rgba(255, 255, 255, 0.06);
-      color: #f5f8fa;
-    }
-    .f-pill.active {
-      background: rgba(19, 124, 189, 0.25);
-      border-color: #137cbd;
-      color: #48aff0;
-      font-weight: 600;
-    }
-
-    /* Compact Field Mapping Table */
-    .mapping-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-      background: rgba(16, 22, 26, 0.2);
-      border: 1px solid rgba(16, 22, 26, 0.3);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .mapping-table th {
-      background: rgba(16, 22, 26, 0.4);
-      padding: 6px 10px;
-      text-align: left;
-      font-size: 11px;
-      color: #8a9ba8;
-      font-weight: 600;
-      border-bottom: 1px solid rgba(16, 22, 26, 0.3);
-    }
-    .sortable-th {
-      cursor: pointer;
-      user-select: none;
-      transition: all 120ms ease;
-    }
-    .sortable-th:hover {
-      color: #f5f8fa;
-      background: rgba(255, 255, 255, 0.06);
-    }
-    .sort-icon {
-      font-size: 10px;
-      margin-left: 4px;
-      color: #8a9ba8;
-      display: inline-block;
-    }
-    .sortable-th.active-sort {
-      color: #48aff0;
-    }
-    .sortable-th.active-sort .sort-icon {
-      color: #48aff0;
-    }
-    .mapping-table td {
-      padding: 5px 10px;
-      border-bottom: 1px solid rgba(16, 22, 26, 0.2);
-      vertical-align: middle;
-    }
-    .source-tag {
-      font-family: Consolas, monospace;
-      font-size: 11px;
-      color: #48aff0;
-      background: rgba(19, 124, 189, 0.15);
-      padding: 2px 6px;
-      border-radius: 2px;
-      font-weight: 600;
-    }
-    .sample-val {
-      font-family: Consolas, monospace;
-      font-size: 11px;
-      color: #a7b6c2;
-      max-width: 180px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .col-input {
-      background: rgba(16, 22, 26, 0.4);
-      border: 1px solid rgba(16, 22, 26, 0.5);
-      border-radius: 3px;
-      color: #f5f8fa;
-      font-size: 11px;
-      font-weight: 600;
-      padding: 4px 8px;
-      width: 100%;
-    }
-    .col-input:focus {
-      border-color: #137cbd;
-      outline: none;
-    }
-
-    /* Type badge & fill rate indicators */
-    .type-badge {
-      font-size: 10px;
-      font-weight: 600;
-      padding: 1px 6px;
-      border-radius: 2px;
-      background: rgba(100, 116, 139, 0.2);
-      border: 1px solid rgba(100, 116, 139, 0.35);
-      color: #94a3b8;
-      font-family: Consolas, monospace;
-      display: inline-block;
-    }
-    .type-badge.int {
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.12);
-      border-color: rgba(56, 189, 248, 0.3);
-    }
-    .type-badge.text {
-      color: #a78bfa;
-      background: rgba(167, 139, 250, 0.12);
-      border-color: rgba(167, 139, 250, 0.3);
-    }
-    .type-badge.time {
-      color: #34d399;
-      background: rgba(52, 211, 153, 0.12);
-      border-color: rgba(52, 211, 153, 0.3);
-    }
-    .type-select {
-      background: rgba(16, 22, 26, 0.45);
-      border: 1px solid rgba(16, 22, 26, 0.55);
-      border-radius: 3px;
-      color: #38bdf8;
-      font-size: 10px;
-      font-weight: 600;
-      font-family: Consolas, monospace;
-      padding: 2px 4px;
-      outline: none;
-      cursor: pointer;
-    }
-    .type-select:focus {
-      border-color: #137cbd;
-    }
-    .type-select option {
-      background: #293742;
-      color: #f5f8fa;
-    }
-    .fill-bar-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 10px;
-      color: #8a9ba8;
-      font-family: Consolas, monospace;
-    }
-    .fill-bar-bg {
-      width: 32px;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .fill-bar-fg {
-      height: 100%;
-      background: #3dcc91;
-      border-radius: 2px;
-    }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-2 sm:p-6 gap-3">
@@ -483,12 +66,11 @@ body {
     <!-- DESIGN MODE SWITCHER BAR -->
     <div class="w-full max-w-[850px] bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-lg border border-slate-700 flex flex-wrap items-center justify-between gap-3">
         <div class="flex items-center gap-2.5">
-            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-400/30">✦</span>
+            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs border border-blue-400/30">✦</span>
             <div>
                 <div class="text-xs font-semibold flex items-center gap-2">
                     <span>Design System View</span>
-                    <span id="uxBadgeLabel" class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-medium">Minimalist (Zen) Edition</span>
-                    <span id="mainMockupBadge" class="px-1.5 py-0.5 text-[10px] rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 font-bold">★ Main Mockup</span>
+                    <span id="uxBadgeLabel" class="px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Minimalist (Zen) Edition</span>
                 </div>
                 <p id="uxSubDesc" class="text-[11px] text-slate-400">Zero box-in-box clutter • Natural language config bar • Click key name to rename inline</p>
             </div>
@@ -496,22 +78,16 @@ body {
 
         <div class="flex items-center gap-2">
             <div class="bg-slate-800 p-0.5 rounded-md border border-slate-700 flex items-center text-xs font-medium">
-                <button id="uxSwitchMinimal" onclick="setDesignEdition('minimal')" class="px-2.5 py-1 rounded bg-white text-slate-900 font-semibold shadow-xs transition-all flex items-center gap-1" title="Primary Minimalist Zen Mockup">
-                    <span>🍃 Minimalist</span>
-                </button>
-                <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1" title="Google Cloud UX with Smart Filters">
-                    <span>✨ Google UX</span>
-                </button>
-                <button id="uxSwitchBlueprint" onclick="setDesignEdition('blueprint')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1" title="Toad v2.0.2 Native BlueprintJS 4 Dark Dialog">
-                    <span>🌙 Blueprint Dark</span>
-                </button>
-                <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all" title="Original Parse Columns Dialog Spec">
+                <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
                     Original v2.0.9
                 </button>
+                <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
+                    <span>✨ Google UX</span>
+                </button>
+                <button id="uxSwitchMinimal" onclick="setDesignEdition('minimal')" class="px-2.5 py-1 rounded bg-white text-slate-900 font-semibold shadow-xs transition-all flex items-center gap-1">
+                    <span>◯ Minimalist</span>
+                </button>
             </div>
-            <button onclick="toggleTheme()" id="themeToggleBtn" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-medium transition-colors" title="Toggle Light / Dark theme for Minimalist Zen">
-                🌙
-            </button>
             <button onclick="toggleUxNotesModal()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 text-xs font-medium transition-colors">
                 UX Case Study
             </button>
@@ -579,7 +155,6 @@ body {
                         <option value="kv">Key=Value</option>
                         <option value="json">JSON</option>
                         <option value="csv">CSV</option>
-                        <option value="raw">Raw</option>
                     </select>
                     <span>split by</span>
                     <input id="minDelimInput" type="text" value="¦" oninput="syncMinimalConfig('delim', this.value)" title="Delimiter" class="w-6 h-6 text-center bg-slate-100 hover:bg-slate-200/70 rounded font-mono-code font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-400">
@@ -975,445 +550,6 @@ body {
         </div>
     </div>
 
-    <!-- BLUEPRINT DARK MODAL CONTAINER (Shown when Blueprint Dark is selected) -->
-    <div id="blueprintModalContainer" class="hidden w-full max-w-[850px] flex-col items-center">
-        <!-- TOAD v2.0.2 NATIVE BLUEPRINT DIALOG -->
-    <div class="bp4-dialog">
-      <div style="background: #0d8050; color: white; padding: 6px 16px; font-size: 11px; font-weight: 600;">
-        ⚡ v2.0.2 (Native Blueprint Style, Simple Mode Fast Parsing &amp; Custom Column Renaming)
-      </div>
-        
-        <div class="bp4-dialog-header" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; min-height: 42px;">
-          <h4 class="bp4-heading">Toad - Column Extractor &amp; Renamer</h4>
-
-          <!-- Monochromatic Corner Mode Switcher -->
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div class="mode-corner-group">
-              <button id="ntab-simple" class="mode-corner-btn active" onclick="switchNativeTab('simple')" title="Simple Mode (Default: Fast visual parsing without regex)">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px;">
-                  <path d="M8.5 1.5L2 9h5l-1.5 5.5L14 7H9l.5-5.5z"/>
-                </svg>
-                <span>Simple</span>
-              </button>
-              <button id="ntab-adv" class="mode-corner-btn" onclick="switchNativeTab('adv')" title="Professional Mode (Regular Expression / Regex capture groups)">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: -1px;">
-                  <path fill-rule="evenodd" clip-rule="evenodd" d="M12.9 1.1a3.5 3.5 0 0 0-4.6 4.3L2.4 11.3a1.5 1.5 0 0 0 0 2.1l.2.2a1.5 1.5 0 0 0 2.1 0l5.9-5.9a3.5 3.5 0 0 0 4.3-4.6l-2.4 2.4-1.4-1.4 2.4-2.4a3.48 3.48 0 0 0-1.6-.6z"/>
-                </svg>
-                <span>Regex</span>
-              </button>
-            </div>
-
-            <button class="bp4-button bp4-minimal" style="padding: 2px 6px;" title="Close dialog">✕</button>
-          </div>
-        </div>
-
-        <div class="bp4-dialog-body">
-          <!-- Source Column & Sample -->
-          <div style="display: flex; gap: 8px; align-items: flex-end; margin-bottom: 8px;">
-            <div class="bp4-form-group" style="flex: 1; margin-bottom: 0;">
-              <label class="bp4-label" style="display: flex; align-items: center; gap: 6px;">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M8 0C3.6 0 0 .9 0 2v12c0 1.1 3.6 2 8 2s8-.9 8-2V2c0-1.1-3.6-2-8-2zm6 12c0 .4-2.2 1-6 1s-6-.6-6-1V9.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V12zm0-4c0 .4-2.2 1-6 1s-6-.6-6-1V5.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V8zm0-4.3c-1.6.8-3.7 1.3-6 1.3s-4.4-.5-6-1.3V2c0-.4 2.2-1 6-1s6 .6 6 1v1.7z"/></svg>
-                <span>Source Column:</span>
-              </label>
-              <div class="bp4-html-select">
-                <select id="native-source-col" onchange="reloadNativeSample()">
-                  <option>Message</option>
-                  <option>RawPayload</option>
-                  <option>LogLine</option>
-                </select>
-              </div>
-            </div>
-            <button class="bp4-button bp4-minimal" title="Reload Sample" onclick="reloadNativeSample()" style="padding: 6px 9px; height: 30px; display: inline-flex; align-items: center; justify-content: center;" aria-label="Reload Sample">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                <path fill-rule="evenodd" clip-rule="evenodd" d="M12.83 8a4.83 4.83 0 1 1-1.42-3.42l-1.41 1.42H14V2l-1.58 1.58A6.83 6.83 0 1 0 14.83 8h-2z"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="bp4-form-group" style="margin-bottom: 8px;">
-            <label class="bp4-label" style="display: flex; align-items: center; gap: 6px;">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M0 2h16v2H0V2zm0 4h16v2H0V6zm0 4h10v2H0v-2zm0 4h8v2H0v-2z"/></svg>
-              <span>Sample Event:</span>
-            </label>
-            <textarea id="native-sample-text" class="bp4-text-area" rows="2" style="font-size: 11px;" oninput="autoDetectAndSelectFormat(this.value)">src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420</textarea>
-          </div>
-
-          <!-- SIMPLE TAB CONTENT -->
-          <div id="native-simple-box">
-            
-            <!-- UNIFIED PARSING RULES PANEL (MERGED SINGLE CARD) -->
-            <div id="unified-parsing-card" style="background: rgba(16, 22, 26, 0.4); border: 1px solid rgba(16, 22, 26, 0.5); border-radius: 4px; overflow: hidden; margin-bottom: 8px;">
-              
-              <!-- TIER 1: PRIMARY FORMAT SELECTOR & LOG HEADER PREFIX (INLINE) -->
-              <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; gap: 14px; background: rgba(16, 22, 26, 0.25);">
-                
-                <!-- 1. Data Format Dropdown -->
-                <div style="display: flex; align-items: center; gap: 8px; flex: 1; max-width: 280px;">
-                  <label for="native-format-select" style="font-size: 11px; font-weight: 600; color: #8a9ba8; white-space: nowrap; margin-bottom: 0; display: inline-flex; align-items: center; gap: 5px;">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="#48aff0"><path d="M2 1h12c.55 0 1 .45 1 1v12c0 .55-.45 1-1 1H2c-.55 0-1-.45-1-1V2c0-.55.45-1 1-1zm1 3v9h10V4H3zm2 2h6v1H5V6zm0 2h6v1H5V8zm0 2h4v1H5v-1z"/></svg>
-                    <span>Format:</span>
-                  </label>
-                  <div class="bp4-html-select" style="flex: 1;">
-                    <select id="native-format-select" onchange="onNativeFormatSelect(this.value, true)" style="font-size: 11px; padding: 4px 8px; font-weight: 600;">
-                      <option value="raw">Raw (No parsing)</option>
-                      <option value="kv" selected>Key=Value (k=v)</option>
-                      <option value="json">JSON Object ({ "key": "value" })</option>
-                      <option value="csv">CSV (Quoted RFC 4180)</option>
-                      <option value="space">Delimited (Whitespace)</option>
-                      <option value="arr">JSON Array ($[0], $[1]...)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <!-- Subtle Vertical Hairline Divider -->
-                <div style="width: 1px; height: 22px; background: rgba(255, 255, 255, 0.1);"></div>
-
-                <!-- 2. Log Header Prefix Inline Controls -->
-                <div id="native-header-card" style="display: flex; align-items: center; gap: 10px; flex: 1.2;">
-                  <label style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 11px; color: #f5f8fa; cursor: pointer; margin-bottom: 0; white-space: nowrap;">
-                    <input type="checkbox" id="chk-has-header" onchange="toggleNativeHeader(this.checked)" checked style="cursor: pointer; margin: 0;">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="#e1b854" style="vertical-align: -1px;">
-                      <path d="M12.5 10c-.8 0-1.5.3-2 .8L6.8 8l3.7-2.8c.5.5 1.2.8 2 .8 1.7 0 3-1.3 3-3s-1.3-3-3-3-3 1.3-3 3c0 .3.1.6.2.8L6 6.6 2.3 3.8C2.8 3.3 3 2.7 3 2 3 .9 2.1 0 1 0S-.9.9-.9 2 .0 4 1.1 4c.4 0 .7-.1 1-.3l3.7 2.8L2.1 9.3c-.3-.2-.6-.3-1-.3-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2c0-.7-.2-1.3-.7-1.8L6 6.4l3.7 2.8c-.1.2-.2.5-.2.8 0 1.7 1.3 3 3 3s3-1.3 3-3-1.3-3-3-3z"/>
-                    </svg>
-                    <span>Header Prefix:</span>
-                  </label>
-                  
-                  <div id="native-header-row" style="display: flex; align-items: center; gap: 6px; transition: opacity 0.2s ease;">
-                    <span style="font-size: 10px; color: #8a9ba8;">Sep:</span>
-                    <input type="text" id="cfg-header-sep" class="col-input" value=": " placeholder=": " style="font-family: Consolas, monospace; font-size: 11px; padding: 3px 4px; font-weight: bold; color: #e1b854; width: 40px; text-align: center;" oninput="onHeaderSepChange()" title="Separator string between header and body (e.g. ': ', ' - ', ' | ')">
-                    <span style="font-size: 11px; color: #8a9ba8;">→</span>
-                    <input type="text" id="cfg-header-col-name" class="col-input" value="log_header" style="font-size: 11px; padding: 3px 6px; width: 95px;" oninput="updateNativeSql()" title="DuckDB column name generated for header prefix">
-                  </div>
-
-                  <div id="native-header-pill" style="display: flex; align-items: center; gap: 3px; font-family: Consolas, monospace; font-size: 9px; background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); border-radius: 3px; padding: 2px 6px; white-space: nowrap; margin-left: auto; transition: opacity 0.2s ease;" title="Header is isolated into a separate column; body is parsed independently">
-                    <span style="color: #e1b854;">[H]</span>
-                    <span style="color: #ff7373; font-weight: bold;" id="pill-hdr-sep">: </span>
-                    <span style="color: #3dcc91;">[Body]</span>
-                  </div>
-                </div>
-
-              </div>
-
-              <!-- TIER 2: DELIMITER & TOKEN SYNTAX STRIP (Conditional for KV / Delimited) -->
-              <div id="native-delimiter-cfg-box" style="display: flex; align-items: center; justify-content: flex-start; gap: 18px; padding: 6px 12px; background: rgba(0, 0, 0, 0.2); border-top: 1px solid rgba(16, 22, 26, 0.4);">
-                
-                <!-- Delimiter -->
-                <div style="display: flex; align-items: center; gap: 6px;" title="Token Delimiter / Separator character (Space, Tab, etc.)">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M7 2h2v12H7V2zm-5 6l4-4v3h2v2H6v3L2 8zm12 0l-4 4V9H8V7h2V4l4 4z"/></svg>
-                  <span style="font-size: 11px; color: #8a9ba8; font-weight: 500;">Delimiter:</span>
-                  <input type="text" id="cfg-delimiter" class="col-input" value=" " placeholder="[Space]" style="font-family: Consolas, monospace; text-align: center; width: 44px; font-size: 11px; padding: 3px 4px; font-weight: bold; color: #48aff0;" oninput="updateNativeSql()" title="Token Delimiter (Space)">
-                </div>
-
-                <!-- Divider dot -->
-                <span style="color: rgba(255, 255, 255, 0.15);">·</span>
-
-                <!-- Equal Operator -->
-                <div style="display: flex; align-items: center; gap: 6px;" title="Key-Value assignment operator linking key to value (=, :)">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M3 5h10v2H3V5zm0 4h10v2H3V9z"/></svg>
-                  <span style="font-size: 11px; color: #8a9ba8; font-weight: 500;">Assign:</span>
-                  <input type="text" id="cfg-equal" class="col-input" value="=" placeholder="=" style="font-family: Consolas, monospace; text-align: center; width: 34px; font-size: 11px; padding: 3px 4px; font-weight: bold; color: #48aff0;" oninput="updateNativeSql()" title="Assignment operator (=)">
-                </div>
-
-                <!-- Divider dot -->
-                <span style="color: rgba(255, 255, 255, 0.15);">·</span>
-
-                <!-- Quote Enclosure Pair -->
-                <div style="display: flex; align-items: center; gap: 6px;" title="Quote Enclosure Pair: Captures tokens enclosed by these characters (preserving spaces), or unquoted tokens">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="#3dcc91"><path d="M3.5 11c1.4 0 2.5-1.1 2.5-2.5V4H2v4.5C2 9.9 2.7 11 3.5 11zm7 0c1.4 0 2.5-1.1 2.5-2.5V4H9v4.5c0 1.4.7 2.5 1.5 2.5z"/></svg>
-                  <span style="font-size: 11px; color: #8a9ba8; font-weight: 500;">Quote Pair:</span>
-                  <div style="display: inline-flex; align-items: center; gap: 3px;">
-                    <input type="text" id="cfg-quote-open" class="col-input" value='"' placeholder='"' style="font-family: Consolas, monospace; text-align: center; width: 30px; font-size: 11px; padding: 3px 2px; font-weight: bold; color: #3dcc91;" oninput="updateNativeSql()" title="Opening quote character">
-                    <span style="color: #8a9ba8; font-size: 10px;">..</span>
-                    <input type="text" id="cfg-quote-close" class="col-input" value='"' placeholder='"' style="font-family: Consolas, monospace; text-align: center; width: 30px; font-size: 11px; padding: 3px 2px; font-weight: bold; color: #3dcc91;" oninput="updateNativeSql()" title="Closing quote character">
-                  </div>
-                  <span class="type-badge text" style="font-size: 9px; padding: 1px 5px;" title="Values enclosed in quotes preserve multi-word spaces (e.g. key=&quot;a b c&quot;)">"..." Pair</span>
-                </div>
-
-              </div>
-
-            </div>
-
-            <!-- Column Search Toolbar with embedded icon and compact buttons -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px;">
-              <div style="position: relative; flex: 1; max-width: 240px;">
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="#8a9ba8" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); pointer-events: none;">
-                  <path d="M15.7 14.3l-4.2-4.2c.8-1.1 1.3-2.5 1.3-4.1C12.8 2.7 10.1 0 6.8 0S.8 2.7.8 6s2.7 6 6 6c1.6 0 3-.5 4.1-1.3l4.2 4.2c.2.2.5.3.7.3s.5-.1.7-.3c.4-.4.4-1 0-1.4zM2.8 6c0-2.2 1.8-4 4-4s4 1.8 4 4-1.8 4-4 4-4-1.8-4-4z"/>
-                </svg>
-                <input type="text" id="native-field-search" oninput="filterNativeFields(this.value)" placeholder="Search columns..." class="col-input" style="padding: 4px 8px 4px 26px; font-size: 11px;">
-              </div>
-
-              <div style="display: flex; gap: 6px; align-items: center;">
-                <button class="bp4-button bp4-small bp4-minimal" onclick="addNativeColumn()" title="Add Custom Column" style="font-size: 11px; padding: 3px 8px; height: 24px; color: #48aff0; display: inline-flex; align-items: center; gap: 4px;">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M14 7H9V2c0-.55-.45-1-1-1s-1 .45-1 1v5H2c-.55 0-1 .45-1 1s.45 1 1 1h5v5c0 .55.45 1 1 1s1-.45 1-1V9h5c.55 0 1-.45 1-1s-.45-1-1-1z"/></svg>
-                  <span>Add</span>
-                </button>
-                <button class="bp4-button bp4-small bp4-minimal" onclick="toggleAllNative(true)" title="Select All Fields" style="font-size: 11px; padding: 3px 8px; height: 24px; display: inline-flex; align-items: center; gap: 4px;">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 0H2C.9 0 0 .9 0 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V2c0-1.1-.9-2-2-2zM6.5 11.5l-3.5-3.5 1.4-1.4 2.1 2.1 5.6-5.6 1.4 1.4-7 7z"/></svg>
-                  <span>All</span>
-                </button>
-                <button class="bp4-button bp4-small bp4-minimal" onclick="toggleAllNative(false)" title="Deselect All Fields" style="font-size: 11px; padding: 3px 8px; height: 24px; display: inline-flex; align-items: center; gap: 4px;">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 2v12H2V2h12zm0-2H2C.9 0 0 .9 0 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V2c0-1.1-.9-2-2-2z"/></svg>
-                  <span>None</span>
-                </button>
-              </div>
-            </div>
-
-            <!-- Enhanced Mapping Grid with Click-to-Sort Columns and SVG Icons -->
-            <table class="mapping-table" id="native-mapping-table">
-              <thead>
-                <tr>
-                  <th style="width: 28px;"><input type="checkbox" id="chk-master" checked onclick="toggleAllNative(this.checked)"></th>
-                  <th class="sortable-th" style="width: 85px;" onclick="sortNativeTable('name')" title="Sort by Property">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M15.7 7.3l-7-7C8.4.1 8.2 0 8 0H2C.9 0 0 .9 0 2v6c0 .3.1.5.3.7l7 7c.4.4 1 .4 1.4 0l7-7c.4-.4.4-1 0-1.4zM4 5.5c-.8 0-1.5-.7-1.5-1.5S3.2 2.5 4 2.5 5.5 3.2 5.5 4 4.8 5.5 4 5.5z"/></svg>
-                      <span>Property</span>
-                    </span>
-                    <span class="sort-icon" id="sort-icon-name">&#8645;</span>
-                  </th>
-                  <th class="sortable-th" style="width: 100px;" onclick="sortNativeTable('type')" title="Sort by Inferred Type">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M2 2h12v3h-2V4H9v10h1.5v2h-5v-2H7V4H4v1H2V2z"/></svg>
-                      <span>Type</span>
-                    </span>
-                    <span class="sort-icon" id="sort-icon-type">&#8645;</span>
-                  </th>
-                  <th class="sortable-th" style="width: 85px;" onclick="sortNativeTable('fill')" title="Sort by Fill Rate">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M2 13h2V6H2v7zm5 0h2V2H7v11zm5 0h2V9h-2v4zM0 15h16v1H0v-1z"/></svg>
-                      <span>Fill Rate</span>
-                    </span>
-                    <span class="sort-icon" id="sort-icon-fill">&#8645;</span>
-                  </th>
-                  <th class="sortable-th" onclick="sortNativeTable('val')" title="Sort by Sample Value">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M8 3C4 3 1 6.5 0 8c1 1.5 4 5 8 5s7-3.5 8-5c-1-1.5-4-5-8-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5S6.1 4.5 8 4.5 11.5 6.1 11.5 8 9.9 11.5 8 11.5zm0-5.5c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                      <span>Sample Value</span>
-                    </span>
-                    <span class="sort-icon" id="sort-icon-val">&#8645;</span>
-                  </th>
-                  <th class="sortable-th" style="width: 190px;" onclick="sortNativeTable('col')" title="Sort by New Column Name">
-                    <span style="display: inline-flex; align-items: center; gap: 4px;">
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="#8a9ba8"><path d="M12.9 1.1a1.5 1.5 0 0 0-2.1 0l-9.4 9.4c-.1.1-.2.3-.2.5l-.8 3.5c-.1.4.3.8.7.7l3.5-.8c.2 0 .4-.1.5-.2l9.4-9.4a1.5 1.5 0 0 0 0-2.1l-1.6-1.6zm-2.4 2.4l1.6 1.6-8.2 8.2-1.6-1.6 8.2-8.2z"/></svg>
-                      <span>New Column Name</span>
-                    </span>
-                    <span class="sort-icon" id="sort-icon-col">&#8645;</span>
-                  </th>
-                  <th style="width: 26px; text-align: center;" title="Action"></th>
-                </tr>
-              </thead>
-              <tbody id="native-tbody">
-                <tr class="native-row" data-name="src" data-type="ip" data-fill="100">
-                  <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-                  <td><span class="source-tag">src</span></td>
-                  <td>
-                    <select class="type-select" onchange="updateNativeSql()">
-                      <option value="VARCHAR" selected>VARCHAR</option>
-                      <option value="BIGINT">BIGINT</option>
-                      <option value="DOUBLE">DOUBLE</option>
-                      <option value="TIMESTAMP">TIMESTAMP</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                  </td>
-                  <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 100%;"></div></div>100%</div></td>
-                  <td><div class="sample-val">10.0.0.5</div></td>
-                  <td><input type="text" class="col-input" value="src_ip" oninput="updateNativeSql()"></td>
-                  <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-                </tr>
-                <tr class="native-row" data-name="dst" data-type="ip" data-fill="100">
-                  <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-                  <td><span class="source-tag">dst</span></td>
-                  <td>
-                    <select class="type-select" onchange="updateNativeSql()">
-                      <option value="VARCHAR" selected>VARCHAR</option>
-                      <option value="BIGINT">BIGINT</option>
-                      <option value="DOUBLE">DOUBLE</option>
-                      <option value="TIMESTAMP">TIMESTAMP</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                  </td>
-                  <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 100%;"></div></div>100%</div></td>
-                  <td><div class="sample-val">8.8.8.8</div></td>
-                  <td><input type="text" class="col-input" value="dst_ip" oninput="updateNativeSql()"></td>
-                  <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-                </tr>
-                <tr class="native-row" data-name="bytes" data-type="num" data-fill="95">
-                  <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-                  <td><span class="source-tag">bytes</span></td>
-                  <td>
-                    <select class="type-select" onchange="updateNativeSql()">
-                      <option value="VARCHAR">VARCHAR</option>
-                      <option value="BIGINT" selected>BIGINT</option>
-                      <option value="DOUBLE">DOUBLE</option>
-                      <option value="TIMESTAMP">TIMESTAMP</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                  </td>
-                  <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 95%;"></div></div>95%</div></td>
-                  <td><div class="sample-val">1420</div></td>
-                  <td><input type="text" class="col-input" value="bytes_transferred" oninput="updateNativeSql()"></td>
-                  <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-                </tr>
-                <tr class="native-row" data-name="proto" data-type="str" data-fill="100">
-                  <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-                  <td><span class="source-tag">proto</span></td>
-                  <td>
-                    <select class="type-select" onchange="updateNativeSql()">
-                      <option value="VARCHAR" selected>VARCHAR</option>
-                      <option value="BIGINT">BIGINT</option>
-                      <option value="DOUBLE">DOUBLE</option>
-                      <option value="TIMESTAMP">TIMESTAMP</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                  </td>
-                  <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 100%;"></div></div>100%</div></td>
-                  <td><div class="sample-val">TCP</div></td>
-                  <td><input type="text" class="col-input" value="protocol" oninput="updateNativeSql()"></td>
-                  <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-                </tr>
-                <tr class="native-row" data-name="action" data-type="str" data-fill="68">
-                  <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-                  <td><span class="source-tag">action</span></td>
-                  <td>
-                    <select class="type-select" onchange="updateNativeSql()">
-                      <option value="VARCHAR" selected>VARCHAR</option>
-                      <option value="BIGINT">BIGINT</option>
-                      <option value="DOUBLE">DOUBLE</option>
-                      <option value="TIMESTAMP">TIMESTAMP</option>
-                      <option value="BOOLEAN">BOOLEAN</option>
-                    </select>
-                  </td>
-                  <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 68%; background: #e1b854;"></div></div>68%</div></td>
-                  <td><div class="sample-val">BLOCK AND ALERT</div></td>
-                  <td><input type="text" class="col-input" value="action" oninput="updateNativeSql()"></td>
-                  <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-                </tr>
-              </tbody>
-            </table>
-
-            <!-- Batch Validation & Match Rate Bar (1,000 Rows Test - Penultimate Section) -->
-            <div style="background: rgba(19, 124, 189, 0.1); border: 1px solid rgba(19, 124, 189, 0.3); border-radius: 4px; padding: 8px 12px; font-size: 11px; margin-top: 10px; margin-bottom: 6px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span style="color: #48aff0; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="#48aff0"><path d="M8.5 1.5L2 9h5l-1.5 5.5L14 7H9l.5-5.5z"/></svg>
-                    <span>1,000 Rows Test:</span>
-                  </span>
-                  <span id="batch-match-label" style="color: #f5f8fa;">
-                    Match Rate: <strong style="color: #3dcc91; font-size: 12px;" id="val-match-pct">98.4%</strong> 
-                    <span style="color: #8a9ba8;" id="val-match-count">(984 matched · 16 unmatched)</span>
-                  </span>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                  <button class="bp4-button bp4-small bp4-intent-primary" onclick="testParseBatch(1000)" style="font-size: 10px; padding: 2px 8px; height: 22px; display: inline-flex; align-items: center; gap: 4px;">
-                    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor"><path d="M3 2l11 6-11 6V2z"/></svg>
-                    <span>Run Test</span>
-                  </button>
-                  <button class="bp4-button bp4-small bp4-minimal" id="btn-unmatched-toggle" onclick="toggleUnmatchedRows()" style="font-size: 10px; padding: 2px 8px; height: 22px; color: #ff7373; display: inline-flex; align-items: center; gap: 4px;">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4 3 1 6.5 0 8c1 1.5 4 5 8 5s7-3.5 8-5c-1-1.5-4-5-8-5zm0 8.5c-1.9 0-3.5-1.6-3.5-3.5S6.1 4.5 8 4.5 11.5 6.1 11.5 8 9.9 11.5 8 11.5zm0-5.5c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
-                    <span>16 Unmatched</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Progress / Match Rate Bar -->
-              <div style="width: 100%; height: 6px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; display: flex;">
-                <div id="batch-progress-bar" style="width: 98.4%; background: #3dcc91; height: 100%; transition: width 0.3s ease;" title="984 Matched Rows (98.4%)"></div>
-                <div id="batch-unmatched-bar" style="width: 1.6%; background: #ff7373; height: 100%; transition: width 0.3s ease;" title="16 Unmatched Rows (1.6%)"></div>
-              </div>
-
-              <!-- Collapsible Unmatched Rows Inspector -->
-              <div id="unmatched-inspector-box" style="display: none; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.15);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                  <span style="font-weight: 600; color: #ff7373; font-size: 10px;">Sample Unmatched Log Lines (Missing Delimiter or Corrupted Format):</span>
-                  <span style="font-size: 10px; color: #8a9ba8;">Showing 3 of 16 unmatched lines</span>
-                </div>
-                <pre style="background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 115, 115, 0.25); border-radius: 3px; padding: 6px 8px; font-family: Consolas, monospace; font-size: 10px; color: #f5f8fa; line-height: 1.4; margin: 0; white-space: pre-wrap;">
-Line #142: --- SYSTEM REBOOT INITIATED BY KERNEL ---
-Line #389: [ERROR] Malformed packet header from unknown source
-Line #705: System heartbeat alive (no key-value pairs)</pre>
-              </div>
-            </div>
-
-            <!-- Live DuckDB SQL Preview Accordion (Collapsed by Default) -->
-            <div style="margin-top: 10px; border-top: 1px solid rgba(16, 22, 26, 0.3); padding-top: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; color: #8a9ba8; font-size: 11px;">
-                <div onclick="toggleNativeSqlPreview()" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="#48aff0"><path d="M8 0C3.6 0 0 .9 0 2v12c0 1.1 3.6 2 8 2s8-.9 8-2V2c0-1.1-3.6-2-8-2zm6 12c0 .4-2.2 1-6 1s-6-.6-6-1V9.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V12zm0-4c0 .4-2.2 1-6 1s-6-.6-6-1V5.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V8zm0-4.3c-1.6.8-3.7 1.3-6 1.3s-4.4-.5-6-1.3V2c0-.4 2.2-1 6-1s6 .6 6 1v1.7z"/></svg>
-                  <strong style="color: #48aff0;">SQL</strong>
-                  <span>Fast Vectorized DuckDB Query Preview</span>
-                  <span id="native-sql-chevron" style="font-size: 10px; margin-left: 4px;">&#9654;</span>
-                </div>
-                <button id="btn-copy-sql" class="bp4-button bp4-small bp4-minimal" onclick="copyNativeSql(event)" style="font-size: 10px; padding: 2px 6px; height: 20px; display: inline-flex; align-items: center; gap: 4px;" title="Copy SQL statement to clipboard">
-                  <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor"><path d="M11 1H3c-1.1 0-2 .9-2 2v10h2V3h8V1zm3 4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 12H6V7h8v10z"/></svg>
-                  <span>Copy</span>
-                </button>
-              </div>
-              <pre id="native-sql-box" style="display: none; margin-top: 6px; padding: 8px 10px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(16, 22, 26, 0.4); border-radius: 4px; font-family: Consolas, monospace; font-size: 11px; color: #3dcc91; white-space: pre-wrap; line-height: 1.5;"></pre>
-            </div>
-
-          </div>
-
-          <!-- ADVANCED TAB CONTENT -->
-          <div id="native-adv-box" style="display: none;">
-            <div class="bp4-form-group">
-              <label class="bp4-label">Regular Expression (Regex):</label>
-              <input type="text" class="bp4-input" style="font-family: Consolas, monospace;" value="(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+(.*)">
-            </div>
-            <label class="bp4-label" style="margin-bottom: 6px;">Capture Groups & Column Renaming:</label>
-            <table class="mapping-table">
-              <thead>
-                <tr>
-                  <th style="width: 30px;"><input type="checkbox" checked></th>
-                  <th style="width: 100px;">Group</th>
-                  <th>Sample Extracted Value</th>
-                  <th style="width: 220px;">New Column Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><input type="checkbox" checked></td>
-                  <td><span class="source-tag">Group (1)</span></td>
-                  <td><div class="sample-val">2026-10-29</div></td>
-                  <td><input type="text" class="col-input" value="log_date"></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" checked></td>
-                  <td><span class="source-tag">Group (2)</span></td>
-                  <td><div class="sample-val">17:45:00</div></td>
-                  <td><input type="text" class="col-input" value="log_time"></td>
-                </tr>
-                <tr>
-                  <td><input type="checkbox" checked></td>
-                  <td><span class="source-tag">Group (3)</span></td>
-                  <td><div class="sample-val">CRITICAL</div></td>
-                  <td><input type="text" class="col-input" value="log_level"></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-        </div>
-
-        <div class="bp4-dialog-footer">
-          <div style="font-size: 11px; color: #8a9ba8; display: inline-flex; align-items: center; gap: 5px;">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="#3dcc91"><path d="M8.5 1.5L2 9h5l-1.5 5.5L14 7H9l.5-5.5z"/></svg>
-            <span>Ready in <strong style="color: #3dcc91;">&lt; 15ms</strong> (Instant DuckDB View)</span>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="bp4-button" style="display: inline-flex; align-items: center; gap: 5px;">
-              <span>Cancel</span>
-            </button>
-            <button class="bp4-button bp4-intent-primary" style="display: inline-flex; align-items: center; gap: 5px;">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M13.7 3.3L6 11 2.3 7.3c-.4-.4-1-.4-1.4 0s-.4 1 0 1.4l4.4 4.4c.4.4 1 .4 1.4 0l8.4-8.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
-              <span>Apply</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-  </div>
-    </div>
-
     <!-- GOOGLE UX CASE STUDY DRAWER / MODAL -->
     <div id="uxNotesModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
         <div class="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[85vh] overflow-y-auto">
@@ -1461,7 +597,7 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
     </div>
 
     <script>
-// Sample events pool (50 simulated rows)
+        // Sample events pool (50 simulated rows)
         const sampleEventsPool = [
             'User: fptsupport ¦ LID: 0x2c8b3f03 ¦ Type: 2',
             'User: admin_sec ¦ LID: 0x99a1c440 ¦ Type: 1 ¦ Proc: C:\\Windows\\System32\\inetsrv\\w3wp.exe ¦ PID: 4132',
@@ -1537,34 +673,13 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
         }
 
         // Switch between Original v2.0.9, Google UX, and Minimalist Zen
-        
-        let isDarkMode = false;
-        function toggleTheme() {
-            isDarkMode = !isDarkMode;
-            const body = document.body;
-            const btn = document.getElementById('themeToggleBtn');
-            if (isDarkMode) {
-                body.classList.add('dark-mode');
-                btn.textContent = '☀️';
-                btn.title = 'Switch to Light theme';
-                showToast('Switched to Dark theme');
-            } else {
-                body.classList.remove('dark-mode');
-                btn.textContent = '🌙';
-                btn.title = 'Switch to Dark theme';
-                showToast('Switched to Light theme');
-            }
-        }
-
         function setDesignEdition(edition) {
             currentDesignEdition = edition;
             const btnOrig = document.getElementById('uxSwitchOriginal');
             const btnGoog = document.getElementById('uxSwitchGoogle');
             const btnMin = document.getElementById('uxSwitchMinimal');
-            const btnBp = document.getElementById('uxSwitchBlueprint');
             const smartBtn = document.getElementById('smartRateFilterBtn');
             const badgeLabel = document.getElementById('uxBadgeLabel');
-            const mainMockupBadge = document.getElementById('mainMockupBadge');
             const subDesc = document.getElementById('uxSubDesc');
             const applyCount = document.getElementById('applyCountBadge');
 
@@ -1577,37 +692,14 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
             const tableWrapper = document.getElementById('tableWrapperBox');
             const minInlineTestBtn = document.getElementById('minimalInlineTestBtn');
 
-            const mainModal = document.getElementById('mainModalContainer');
-            const bpModal = document.getElementById('blueprintModalContainer');
-
             // Reset tab button styles
             btnOrig.className = "px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all";
             btnGoog.className = "px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1";
             btnMin.className = "px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1";
-            if (btnBp) btnBp.className = "px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1";
-
-            if (edition === 'blueprint') {
-                document.body.classList.remove('zen-mode');
-                if (btnBp) btnBp.className = "px-2.5 py-1 rounded bg-blue-600 text-white shadow-xs transition-all flex items-center gap-1 font-semibold";
-                mainModal.classList.add('hidden');
-                bpModal.classList.remove('hidden');
-                bpModal.classList.add('flex');
-                badgeLabel.textContent = "Toad v2.0.2 Blueprint Dark";
-                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 font-medium";
-                if (mainMockupBadge) mainMockupBadge.classList.add('hidden');
-                subDesc.textContent = "Native BlueprintJS 4 dark dialog with unified 2-tier parsing card & DuckDB queries";
-                if (typeof updateNativeSql === 'function') updateNativeSql();
-                return;
-            } else {
-                mainModal.classList.remove('hidden');
-                bpModal.classList.add('hidden');
-                bpModal.classList.remove('flex');
-            }
 
             if (edition === 'minimal') {
                 document.body.classList.add('zen-mode');
                 btnMin.className = "px-2.5 py-1 rounded bg-white text-slate-900 font-semibold shadow-xs transition-all flex items-center gap-1";
-                if (mainMockupBadge) mainMockupBadge.classList.remove('hidden');
                 minimalTopBar.classList.remove('hidden');
                 minimalTopBar.classList.add('flex');
                 classicSource.classList.add('hidden');
@@ -1623,12 +715,11 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
                 applyCount.classList.remove('hidden');
 
                 badgeLabel.textContent = "Minimalist (Zen) Edition";
-                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-medium";
+                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30";
                 subDesc.textContent = "Zero box-in-box clutter • Natural language config bar • Click key name to rename inline";
             } else if (edition === 'google') {
                 document.body.classList.remove('zen-mode');
                 btnGoog.className = "px-2.5 py-1 rounded bg-blue-600 text-white shadow-xs transition-all flex items-center gap-1";
-                if (mainMockupBadge) mainMockupBadge.classList.add('hidden');
                 minimalTopBar.classList.add('hidden');
                 minimalTopBar.classList.remove('flex');
                 classicSource.classList.remove('hidden');
@@ -1644,12 +735,11 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
                 applyCount.classList.remove('hidden');
 
                 badgeLabel.textContent = "Google Cloud UX Applied";
-                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-500/20 text-blue-300 border border-blue-400/30 font-medium";
+                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-500/20 text-blue-300 border border-blue-400/30";
                 subDesc.textContent = "Smart ≥50% filter • Live duplicate name validation • Action count badge";
             } else {
                 document.body.classList.remove('zen-mode');
                 btnOrig.className = "px-2.5 py-1 rounded bg-slate-600 text-white shadow-xs transition-all";
-                if (mainMockupBadge) mainMockupBadge.classList.add('hidden');
                 minimalTopBar.classList.add('hidden');
                 minimalTopBar.classList.remove('flex');
                 classicSource.classList.remove('hidden');
@@ -1665,7 +755,7 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
                 applyCount.classList.add('hidden');
 
                 badgeLabel.textContent = "Original v2.0.9 Spec";
-                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-slate-700 text-slate-300 border border-slate-600 font-medium";
+                badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-slate-700 text-slate-300 border border-slate-600";
                 subDesc.textContent = "Exact 1:1 visual reproduction of Parse Columns v2.0.9";
             }
 
@@ -2050,49 +1140,26 @@ Line #705: System heartbeat alive (no key-value pairs)</pre>
             }
         }
 
-        
         function updateLiveSQL() {
             const sourceCol = document.getElementById('sourceColumnSelect').value;
-            const fmt = (document.getElementById('minFormatSelect')?.value || document.getElementById('formatSelect')?.value || 'kv');
             const delim = document.getElementById('delimiterInput').value || '¦';
             const assign = document.getElementById('assignInput').value || ':';
             const includeHeader = document.getElementById('headerPrefixCheck').checked;
             const headerCol = document.getElementById('headerColName').value || 'log_header';
-            const headerSep = document.getElementById('headerSepInput')?.value || ':';
-
-            if (fmt === 'raw') {
-                document.getElementById('sqlCodeContent').textContent = `-- DuckDB Passthrough (Raw format - No column extraction)
-SELECT * FROM active_events_stream LIMIT 1000;`;
-                return;
-            }
 
             const activeFields = discoveredFields.filter(f => f.checked);
             const lines = activeFields.map(f => {
-                let expr;
                 if (f.isPositional) {
-                    expr = `SPLIT_PART(${sourceCol}, '${delim}', 1)`;
-                } else if (fmt === 'json') {
-                    expr = `json_extract_string(${sourceCol}, '$.${f.key}')`;
-                } else if (fmt === 'csv') {
-                    expr = `SPLIT_PART(${sourceCol}, '${delim}', ${f.id})`;
-                } else {
-                    expr = `REGEXP_EXTRACT(${sourceCol}, '${f.key}\s*\${assign}\s*([^\${delim}]+)', 1)`;
+                    return `  CAST(SPLIT_PART(${sourceCol}, '${delim}', 1) AS ${f.type}) AS "${f.newName}"`;
                 }
-                if (f.type !== 'VARCHAR') {
-                    return `  TRY_CAST(${expr} AS ${f.type}) AS "${f.newName}"`;
-                }
-                return `  ${expr} AS "${f.newName}"`;
+                return `  CAST(REGEXP_EXTRACT(${sourceCol}, '${f.key}\\s*\\${assign}\\s*([^\\${delim}]+)', 1) AS ${f.type}) AS "${f.newName}"`;
             });
 
             if (includeHeader) {
-                lines.unshift(`  SPLIT_PART(${sourceCol}, '${headerSep}', 1) AS "${headerCol}"`);
+                lines.unshift(`  SPLIT_PART(${sourceCol}, ':', 1) AS "${headerCol}"`);
             }
 
-            const sql = `SELECT
-${lines.length ? lines.join(',
-') : '  -- No columns selected'}
-FROM active_events_stream
-LIMIT 1000;`;
+            const sql = `SELECT\n${lines.length ? lines.join(',\n') : '  -- No columns selected'}\nFROM active_events_stream\nLIMIT 1000;`;
             document.getElementById('sqlCodeContent').textContent = sql;
         }
 
@@ -2142,504 +1209,9 @@ LIMIT 1000;`;
         }
 
         // Initialize table on load
-        
-        // Initialize table on load
         window.onload = function () {
             setDesignEdition('minimal');
-            updateLiveSQL();
-            if (typeof updateNativeSql === 'function') updateNativeSql();
         };
-
-
-        // ==========================================
-        // BLUEPRINT DIALOG SCRIPTS (For Blueprint Dark view)
-        // ==========================================
-function switchNativeTab(tab) {
-      if (tab === 'simple') {
-        document.getElementById('ntab-simple').classList.add('active');
-        document.getElementById('ntab-adv').classList.remove('active');
-        document.getElementById('native-simple-box').style.display = 'block';
-        document.getElementById('native-adv-box').style.display = 'none';
-      } else {
-        document.getElementById('ntab-adv').classList.add('active');
-        document.getElementById('ntab-simple').classList.remove('active');
-        document.getElementById('native-adv-box').style.display = 'block';
-        document.getElementById('native-simple-box').style.display = 'none';
-      }
-    }
-
-    function reloadNativeSample() {
-      const el = document.getElementById('native-sample-text');
-      if (!el) return;
-      el.value = 'src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420';
-      el.style.transition = 'all 0.25s ease';
-      el.style.borderColor = '#137cbd';
-      el.style.backgroundColor = 'rgba(19, 124, 189, 0.2)';
-      setTimeout(() => {
-        el.style.borderColor = '';
-        el.style.backgroundColor = '';
-      }, 300);
-      autoDetectAndSelectFormat(el.value);
-    }
-
-    function detectLogFormat(text) {
-      if (!text) return 'raw';
-      let body = text.trim();
-      const hasHdr = document.getElementById('chk-has-header')?.checked;
-      const sep = document.getElementById('cfg-header-sep')?.value || ': ';
-      if (hasHdr && body.includes(sep)) {
-        const parts = body.split(sep);
-        body = parts.slice(1).join(sep).trim();
-      }
-
-      // 1. JSON Object
-      if (body.startsWith('{') && body.endsWith('}')) {
-        try { JSON.parse(body); return 'json'; } catch(e) {}
-      }
-      // 2. JSON Array
-      if (body.startsWith('[') && body.endsWith(']')) {
-        try { JSON.parse(body); return 'arr'; } catch(e) {}
-      }
-      // 3. Key=Value: contains multiple key=val or key="val"
-      const kvMatches = body.match(/\b[a-zA-Z_0-9]+=(?:"[^"]*"|[^\s]+)/g);
-      if (kvMatches && kvMatches.length >= 2) {
-        return 'kv';
-      }
-      // 4. CSV (quoted commas)
-      if (body.includes('","') || (body.includes(',') && (body.match(/,/g) || []).length >= 2)) {
-        return 'csv';
-      }
-      // 5. Delimited Space (multiple double-spaces/tabs)
-      if (body.split(/\s{2,}|\t/).length >= 3) {
-        return 'space';
-      }
-      // Default: Raw (không làm gì cả)
-      return 'raw';
-    }
-
-    function autoDetectAndSelectFormat(text) {
-      const detected = detectLogFormat(text);
-      const select = document.getElementById('native-format-select');
-      if (select && select.value !== detected) {
-        select.value = detected;
-        onNativeFormatSelect(detected, false);
-      }
-    }
-
-    let nativeSqlExpanded = false;
-    function toggleNativeSqlPreview() {
-      const box = document.getElementById('native-sql-box');
-      const chev = document.getElementById('native-sql-chevron');
-      nativeSqlExpanded = !nativeSqlExpanded;
-      box.style.display = nativeSqlExpanded ? 'block' : 'none';
-      chev.innerHTML = nativeSqlExpanded ? '&#9660;' : '&#9654;';
-    }
-
-    function toggleAllNative(status) {
-      document.querySelectorAll('.native-chk').forEach(c => c.checked = status);
-      const master = document.getElementById('chk-master');
-      if (master) master.checked = status;
-      updateNativeSql();
-    }
-
-    function filterNativeFields(query) {
-      const term = query.toLowerCase().trim();
-      document.querySelectorAll('.native-row').forEach(row => {
-        const name = (row.dataset.name || '').toLowerCase();
-        const type = (row.dataset.type || '').toLowerCase();
-        const sampleVal = (row.querySelector('.sample-val')?.innerText || '').toLowerCase();
-        const colVal = (row.querySelector('input[type="text"]')?.value || '').toLowerCase();
-        const matches = !term || name.includes(term) || colVal.includes(term) || sampleVal.includes(term) || type.includes(term);
-        row.style.display = matches ? '' : 'none';
-      });
-    }
-
-    let currentSortKey = null;
-    let currentSortAsc = true;
-
-    function sortNativeTable(key) {
-      if (currentSortKey === key) {
-        currentSortAsc = !currentSortAsc;
-      } else {
-        currentSortKey = key;
-        currentSortAsc = true;
-      }
-
-      ['name', 'type', 'fill', 'val', 'col'].forEach(k => {
-        const icon = document.getElementById(`sort-icon-${k}`);
-        const th = icon?.closest('th');
-        if (icon && th) {
-          if (k === currentSortKey) {
-            th.classList.add('active-sort');
-            icon.innerHTML = currentSortAsc ? '&#9650;' : '&#9660;';
-          } else {
-            th.classList.remove('active-sort');
-            icon.innerHTML = '&#8645;';
-          }
-        }
-      });
-
-      const tbody = document.getElementById('native-tbody');
-      const rows = Array.from(tbody.querySelectorAll('.native-row'));
-
-      rows.sort((a, b) => {
-        let valA, valB;
-        if (key === 'fill') {
-          valA = parseInt(a.dataset.fill || '0', 10);
-          valB = parseInt(b.dataset.fill || '0', 10);
-          return currentSortAsc ? (valA - valB) : (valB - valA);
-        } else if (key === 'name') {
-          valA = (a.dataset.name || '').toLowerCase();
-          valB = (b.dataset.name || '').toLowerCase();
-        } else if (key === 'type') {
-          valA = (a.querySelector('.type-select')?.value || a.dataset.type || '').toLowerCase();
-          valB = (b.querySelector('.type-select')?.value || b.dataset.type || '').toLowerCase();
-        } else if (key === 'val') {
-          valA = (a.querySelector('.sample-val')?.innerText || '').toLowerCase();
-          valB = (b.querySelector('.sample-val')?.innerText || '').toLowerCase();
-        } else if (key === 'col') {
-          valA = (a.querySelector('input[type="text"]')?.value || '').toLowerCase();
-          valB = (b.querySelector('input[type="text"]')?.value || '').toLowerCase();
-        }
-        if (valA < valB) return currentSortAsc ? -1 : 1;
-        if (valA > valB) return currentSortAsc ? 1 : -1;
-        return 0;
-      });
-
-      rows.forEach(r => tbody.appendChild(r));
-    }
-
-    function addNativeColumn() {
-      const tbody = document.getElementById('native-tbody');
-      const count = tbody.querySelectorAll('tr').length + 1;
-      const tr = document.createElement('tr');
-      tr.className = 'native-row';
-      tr.dataset.name = `field_${count}`;
-      tr.dataset.type = 'str';
-      tr.dataset.fill = '100';
-      tr.innerHTML = `
-        <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-        <td><span class="source-tag">field_${count}</span></td>
-        <td>
-          <select class="type-select" onchange="updateNativeSql()">
-            <option value="VARCHAR" selected>VARCHAR</option>
-            <option value="BIGINT">BIGINT</option>
-            <option value="DOUBLE">DOUBLE</option>
-            <option value="TIMESTAMP">TIMESTAMP</option>
-            <option value="BOOLEAN">BOOLEAN</option>
-          </select>
-        </td>
-        <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: 100%;"></div></div>100%</div></td>
-        <td><div class="sample-val">custom_val</div></td>
-        <td><input type="text" class="col-input" value="custom_col_${count}" oninput="updateNativeSql()"></td>
-        <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-      `;
-      tbody.appendChild(tr);
-      updateNativeSql();
-    }
-
-    function deleteNativeRow(btn) {
-      const tr = btn.closest('tr');
-      if (tr) {
-        tr.remove();
-        updateNativeSql();
-      }
-    }
-
-    function copyNativeSql(e) {
-      if (e) e.stopPropagation();
-      const sql = document.getElementById('native-sql-box')?.innerText;
-      if (sql) {
-        navigator.clipboard.writeText(sql).then(() => {
-          const btn = document.getElementById('btn-copy-sql');
-          if (btn) {
-            const orig = btn.innerHTML;
-            btn.innerHTML = `
-              <svg width="11" height="11" viewBox="0 0 16 16" fill="#3dcc91"><path d="M13.7 3.3L6 11 2.3 7.3c-.4-.4-1-.4-1.4 0s-.4 1 0 1.4l4.4 4.4c.4.4 1 .4 1.4 0l8.4-8.4c.4-.4.4-1 0-1.4s-1-.4-1.4 0z"/></svg>
-              <span style="color: #3dcc91;">Copied!</span>
-            `;
-            setTimeout(() => { btn.innerHTML = orig; }, 1200);
-          }
-        }).catch(() => {
-          alert('Copied DuckDB SQL preview to clipboard!');
-        });
-      }
-    }
-
-    const NATIVE_DATA_PRESETS = {
-      raw: {
-        text: '2026-10-29 17:45:00 srv-fw01: System heartbeat alive (unstructured raw log line)',
-        rows: []
-      },
-      kv: {
-        text: 'src=10.0.0.5 dst=8.8.8.8 proto=TCP action="BLOCK AND ALERT" bytes=1420',
-        rows: [
-          { name: 'src', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '10.0.0.5', col: 'src_ip' },
-          { name: 'dst', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '8.8.8.8', col: 'dst_ip' },
-          { name: 'bytes', type: 'num', badgeType: 'int', typeLabel: 'BIGINT', fill: 95, val: '1420', col: 'bytes_transferred' },
-          { name: 'proto', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: 'TCP', col: 'protocol' },
-          { name: 'action', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 68, val: 'BLOCK AND ALERT', col: 'action' }
-        ]
-      },
-      json: {
-        text: '{"user": "alice_w", "ip": "10.0.0.1", "port": 443, "status": 200, "role": "admin"}',
-        rows: [
-          { name: 'user', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: 'alice_w', col: 'username' },
-          { name: 'ip', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '10.0.0.1', col: 'client_ip' },
-          { name: 'port', type: 'num', badgeType: 'int', typeLabel: 'BIGINT', fill: 100, val: '443', col: 'dest_port' },
-          { name: 'status', type: 'num', badgeType: 'int', typeLabel: 'BIGINT', fill: 100, val: '200', col: 'status_code' },
-          { name: 'role', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 82, val: 'admin', col: 'user_role' }
-        ]
-      },
-      csv: {
-        text: '"Seattle, WA", 200, "Operation completed successfully", "2026-10-29 18:00:00"',
-        rows: [
-          { name: 'col_1', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: 'Seattle, WA', col: 'location' },
-          { name: 'col_2', type: 'num', badgeType: 'int', typeLabel: 'BIGINT', fill: 100, val: '200', col: 'status_code' },
-          { name: 'col_3', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: 'Operation completed successfully', col: 'message' },
-          { name: 'col_4', type: 'str', badgeType: 'time', typeLabel: 'TIMESTAMP', fill: 100, val: '2026-10-29 18:00:00', col: 'timestamp' }
-        ]
-      },
-      space: {
-        text: '2026-10-29   17:45:00   [CRITICAL]   DB Connection Failed to replica',
-        rows: [
-          { name: 'col_1', type: 'str', badgeType: 'time', typeLabel: 'TIMESTAMP', fill: 100, val: '2026-10-29', col: 'log_date' },
-          { name: 'col_2', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '17:45:00', col: 'log_time' },
-          { name: 'col_3', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '[CRITICAL]', col: 'log_level' },
-          { name: 'col_4', type: 'str', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: 'DB Connection Failed to replica', col: 'event_message' }
-        ]
-      },
-      arr: {
-        text: '["192.168.1.1", "192.168.1.2", "192.168.1.3", "10.0.0.1"]',
-        rows: [
-          { name: 'item_0', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '192.168.1.1', col: 'primary_ip' },
-          { name: 'item_1', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '192.168.1.2', col: 'backup_ip' },
-          { name: 'item_2', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '192.168.1.3', col: 'gateway_ip' },
-          { name: 'item_3', type: 'ip', badgeType: 'text', typeLabel: 'VARCHAR', fill: 100, val: '10.0.0.1', col: 'dns_server' }
-        ]
-      }
-    };
-
-    function toggleNativeHeader(hasHeader) {
-      const row = document.getElementById('native-header-row');
-      const pill = document.getElementById('native-header-pill');
-      if (row) {
-        row.style.opacity = hasHeader ? '1' : '0.35';
-        row.style.pointerEvents = hasHeader ? 'auto' : 'none';
-      }
-      if (pill) {
-        pill.style.opacity = hasHeader ? '1' : '0.35';
-      }
-      const sampleText = document.getElementById('native-sample-text');
-      if (sampleText) {
-        if (hasHeader) {
-          if (!sampleText.value.includes('srv-fw01:')) {
-            sampleText.value = '2026-10-29 17:45:00 srv-fw01: ' + sampleText.value;
-          }
-        } else {
-          sampleText.value = sampleText.value.replace(/^2026-10-29 17:45:00 srv-fw01:\s*/, '');
-        }
-      }
-      updateNativeSql();
-    }
-
-    function onHeaderSepChange() {
-      const sep = document.getElementById('cfg-header-sep')?.value || ': ';
-      const pillSep = document.getElementById('pill-hdr-sep');
-      if (pillSep) pillSep.innerText = sep;
-      updateNativeSql();
-    }
-
-    function onNativeFormatSelect(fmt, updateSample = true) {
-      const cfgBox = document.getElementById('native-delimiter-cfg-box');
-      if (cfgBox) {
-        cfgBox.style.display = (fmt === 'kv' || fmt === 'space') ? 'flex' : 'none';
-      }
-
-      const preset = NATIVE_DATA_PRESETS[fmt];
-      if (!preset) return;
-
-      if (updateSample) {
-        const sampleEl = document.getElementById('native-sample-text');
-        if (sampleEl) sampleEl.value = preset.text;
-      }
-      
-      const tbody = document.getElementById('native-tbody');
-      tbody.innerHTML = '';
-
-      if (fmt === 'raw' || !preset.rows || preset.rows.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="7" style="text-align: center; color: #8a9ba8; padding: 22px 10px; font-size: 11px;">
-              <span>📄 Raw log mode (No extraction). The source column will be preserved as-is without parsing.</span>
-            </td>
-          </tr>
-        `;
-      } else {
-        preset.rows.forEach(r => {
-          const tr = document.createElement('tr');
-          tr.className = 'native-row';
-          tr.dataset.name = r.name;
-          tr.dataset.type = r.type;
-          tr.dataset.fill = r.fill;
-          tr.innerHTML = `
-            <td><input type="checkbox" checked class="native-chk" onchange="updateNativeSql()"></td>
-            <td><span class="source-tag">${r.name}</span></td>
-            <td>
-              <select class="type-select" onchange="updateNativeSql()">
-                <option value="VARCHAR" ${r.typeLabel === 'VARCHAR' ? 'selected' : ''}>VARCHAR</option>
-                <option value="BIGINT" ${r.typeLabel === 'BIGINT' ? 'selected' : ''}>BIGINT</option>
-                <option value="DOUBLE" ${r.typeLabel === 'DOUBLE' ? 'selected' : ''}>DOUBLE</option>
-                <option value="TIMESTAMP" ${r.typeLabel === 'TIMESTAMP' ? 'selected' : ''}>TIMESTAMP</option>
-                <option value="BOOLEAN" ${r.typeLabel === 'BOOLEAN' ? 'selected' : ''}>BOOLEAN</option>
-              </select>
-            </td>
-            <td><div class="fill-bar-wrap"><div class="fill-bar-bg"><div class="fill-bar-fg" style="width: ${r.fill}%;"></div></div>${r.fill}%</div></td>
-            <td><div class="sample-val">${r.val}</div></td>
-            <td><input type="text" class="col-input" value="${r.col}" oninput="updateNativeSql()"></td>
-            <td style="text-align: center;"><button class="bp4-button bp4-minimal bp4-small" onclick="deleteNativeRow(this)" title="Remove field" style="color: #8a9ba8; padding: 2px 4px; font-size: 11px;">✕</button></td>
-          `;
-          tbody.appendChild(tr);
-        });
-      }
-
-      const searchInput = document.getElementById('native-field-search');
-      if (searchInput) searchInput.value = '';
-      filterNativeFields('');
-      updateNativeSql();
-    }
-
-    function updateNativeSql() {
-      const fmt = document.getElementById('native-format-select')?.value || 'kv';
-      const hasHeader = document.getElementById('chk-has-header')?.checked ?? true;
-      const headerSep = document.getElementById('cfg-header-sep')?.value || ': ';
-      const headerCol = document.getElementById('cfg-header-col-name')?.value || 'log_header';
-      const rows = Array.from(document.querySelectorAll('.native-row'));
-      const activeItems = [];
-
-      rows.forEach(r => {
-        const chk = r.querySelector('.native-chk');
-        if (chk && chk.checked) {
-          const src = r.dataset.name;
-          const input = r.querySelector('input[type="text"]');
-          const colName = (input?.value || src).trim();
-          const typeSelect = r.querySelector('.type-select');
-          const colType = typeSelect ? typeSelect.value : (r.dataset.type === 'num' ? 'BIGINT' : 'VARCHAR');
-          activeItems.push({ src, colName, colType });
-        }
-      });
-
-      const sqlBox = document.getElementById('native-sql-box');
-      if (!sqlBox) return;
-
-      const targetCol = hasHeader ? '_body' : '"Message"';
-      const headerWithClause = hasHeader
-        ? `WITH split_log AS (\n  SELECT *,\n    split_part("Message", '${headerSep}', 1) AS "${headerCol}",\n    substr("Message", length(split_part("Message", '${headerSep}', 1)) + ${headerSep.length + 1}) AS _body\n  FROM "source_table"\n)\n`
-        : '';
-      const fromSource = hasHeader ? 'FROM split_log;' : 'FROM "source_table";';
-      const headerSelect = hasHeader ? `  "${headerCol}",\n` : '';
-
-      if (fmt === 'raw') {
-        const selectCols = hasHeader ? `  "${headerCol}",\n  _body AS "payload"` : `  *`;
-        sqlBox.innerText = `-- DuckDB Passthrough (Raw format - No column extraction)\nCREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT\n${selectCols}\n${fromSource}`;
-        return;
-      }
-
-      if (fmt === 'kv') {
-        const delim = document.getElementById('cfg-delimiter')?.value || ' ';
-        const eq = document.getElementById('cfg-equal')?.value || '=';
-        const qOpen = document.getElementById('cfg-quote-open')?.value || '"';
-        const qClose = document.getElementById('cfg-quote-close')?.value || '"';
-        const delimDesc = delim === ' ' ? 'Space' : `'${delim}'`;
-
-        const colClauses = activeItems.map(item => {
-          let expr;
-          if (qOpen && qClose) {
-            expr = `regexp_extract(${targetCol}, '(?:^|[ ])${item.src}${eq}(?:${qOpen}([^${qClose}]*)${qClose}|([^ ]+))', 1)`;
-          } else {
-            expr = `regexp_extract(${targetCol}, '(?:^|[ ])${item.src}${eq}([^ ]+)', 1)`;
-          }
-          if (item.colType !== 'VARCHAR') {
-            return `  TRY_CAST(${expr} AS ${item.colType}) AS "${item.colName}"`;
-          }
-          return `  ${expr} AS "${item.colName}"`;
-        });
-
-        const allColumns = (headerSelect + colClauses.join(',\n')).trim();
-        sqlBox.innerText = `-- DuckDB Key-Value Parser (${hasHeader ? `Header Sep: '${headerSep}', ` : ''}Delimiter: ${delimDesc}, Equal: '${eq}', Quotes: ${qOpen}...${qClose})\nCREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || '-- No fields selected'}\n${fromSource}`;
-      } else if (fmt === 'json') {
-        const colClauses = activeItems.map(item => {
-          const expr = `json_extract_string(${targetCol}, '$.${item.src}')`;
-          if (item.colType !== 'VARCHAR') {
-            return `  TRY_CAST(${expr} AS ${item.colType}) AS "${item.colName}"`;
-          }
-          return `  ${expr} AS "${item.colName}"`;
-        });
-        const allColumns = (headerSelect + colClauses.join(',\n')).trim();
-        sqlBox.innerText = `-- Fast Native DuckDB JSON Parser\nCREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || '-- No fields selected'}\n${fromSource}`;
-      } else if (fmt === 'arr') {
-        const colClauses = activeItems.map(item => {
-          const expr = `json_extract_string(${targetCol}, '$[${item.src.replace('item_', '')}]')`;
-          if (item.colType !== 'VARCHAR') {
-            return `  TRY_CAST(${expr} AS ${item.colType}) AS "${item.colName}"`;
-          }
-          return `  ${expr} AS "${item.colName}"`;
-        });
-        const allColumns = (headerSelect + colClauses.join(',\n')).trim();
-        sqlBox.innerText = `CREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || '-- No fields selected'}\n${fromSource}`;
-      } else {
-        const colClauses = activeItems.map(item => {
-          const expr = `split_part(${targetCol}, ' ', ${item.src.replace('col_', '')})`;
-          if (item.colType !== 'VARCHAR') {
-            return `  TRY_CAST(${expr} AS ${item.colType}) AS "${item.colName}"`;
-          }
-          return `  ${expr} AS "${item.colName}"`;
-        });
-        const allColumns = (headerSelect + colClauses.join(',\n')).trim();
-        sqlBox.innerText = `CREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || '-- No fields selected'}\n${fromSource}`;
-      }
-    }
-
-    function toggleUnmatchedRows() {
-      const box = document.getElementById('unmatched-inspector-box');
-      const btn = document.getElementById('btn-unmatched-toggle');
-      if (!box) return;
-      const isOpen = box.style.display !== 'none';
-      box.style.display = isOpen ? 'none' : 'block';
-      btn.innerText = isOpen ? '👁️ Inspect Unmatched (16)' : '▲ Close Inspector';
-    }
-
-    function testParseBatch(rowsCount) {
-      const btn = event?.currentTarget;
-      if (btn) {
-        btn.innerText = 'Testing...';
-        btn.disabled = true;
-      }
-
-      setTimeout(() => {
-        if (btn) {
-          btn.innerText = '▶ Test 1,000 Rows';
-          btn.disabled = false;
-        }
-        const pctEl = document.getElementById('val-match-pct');
-        const countEl = document.getElementById('val-match-count');
-        const pBar = document.getElementById('batch-progress-bar');
-        const uBar = document.getElementById('batch-unmatched-bar');
-
-        pctEl.innerText = '98.4%';
-        countEl.innerText = '(984 matched · 16 unmatched in 4.2ms)';
-        pBar.style.width = '98.4%';
-        uBar.style.width = '1.6%';
-
-        pctEl.style.transition = 'color 0.2s';
-        pctEl.style.color = '#48aff0';
-        setTimeout(() => { pctEl.style.color = '#3dcc91'; }, 300);
-      }, 250);
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      updateNativeSql();
-    });
     </script>
 </body>
 </html>

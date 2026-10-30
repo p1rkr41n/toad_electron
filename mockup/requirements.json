@@ -2,31 +2,164 @@
   {
     "id": "REQ-MOCKUP-001",
     "category": "Localization & Language",
-    "title": "Complete English UI Localization across Minimalist Interface",
-    "user_request_origin": "chuyển sang tiếng anh hết đi",
+    "title": "Complete English UI Localization (Parse Columns v2.0.9)",
+    "user_request_origin": "chuyển sang tiếng anh hết đi... giống tới 99% so với parse_columns_mockup.html",
     "user_story": "As a global developer or data analyst using Toad, I want all labels, natural language sentences, placeholders, tooltips, dialog headers, buttons, error badges, and SQL previews in 100% standard English so the tool aligns seamlessly with modern development environments.",
-    "rationale_and_design_decisions": "Eliminates mixed-language cognitive friction. Standard English terminology (e.g., 'Extract from', 'using', 'split by', 'Discovered Fields', 'Click to rename', 'Verify 1k rows', 'Apply') conforms to international standards and matches cloud log analysis tools (Google Cloud Logging, Datadog, Splunk).",
-    "description": "Every UI element in the Minimalist mockup—including the natural language bar, Rules popover, column table, status bar, and toast notifications—is authored strictly in English.",
+    "rationale_and_design_decisions": "Eliminates mixed-language cognitive friction. Standard English terminology (e.g., 'Extract from', 'using', 'split by', 'Discovered Fields', 'Click to rename', 'Verify 1k rows', 'Apply') conforms to international standards and matches cloud log analysis tools.",
+    "description": "Every UI element in the mockup—including the natural language bar, Rules popover, column table, status bar, and toast notifications—is authored strictly in English matching parse_columns_mockup.html.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
       "All text strings across headers, natural language sentence controls, toolbars, tables, and footers are in English.",
       "Live SQL generated code contains English comments and standard DuckDB keywords.",
       "Toast notifications, validation badges, and modal dialogs are 100% English.",
-      "No Vietnamese or legacy placeholder strings remain anywhere in the mockup interface."
+      "Exact match with text content of parse_columns_mockup.html."
     ],
     "technical_specs": {
       "locale": "en-US",
-      "typography": "Inter (-apple-system, BlinkMacSystemFont), JetBrains Mono for code elements"
+      "typography": "Inter (-apple-system, BlinkMacSystemFont), JetBrains Mono for code elements",
+      "source_file": "mockup/parse_columns_mockup.html"
     },
-    "cognitive_load_optimization": "Provides clean, unambiguous, universal terminology without translation hesitation or awkward mixed-language UI artifacts."
+    "cognitive_load_optimization": "Provides clean, unambiguous, universal terminology without translation hesitation or mixed-language UI artifacts."
   },
   {
     "id": "REQ-MOCKUP-002",
-    "category": "Sample Event & Inspection",
-    "title": "Streamlined Sample Event Navigator with Line Gutter & 1-Click Copy",
-    "user_request_origin": "Nút reload sample làm gọn lại dạng icon, cho phép duyệt các mẫu sự kiện",
-    "user_story": "As a log engineer, I want to inspect sample events in a code editor box with line numbering (01), cycle through 50 realistic sample events using Prev/Next buttons, and copy the active event with 1 click so I can test parsing rules on varied payloads.",
+    "category": "Design System & Editions",
+    "title": "Design System View Bar & Multi-Edition Switcher",
+    "user_request_origin": "thanh switcher chọn các edition: Original v2.0.9, Google UX, Minimalist (Zen)",
+    "user_story": "As a design stakeholder or developer, I want a top switcher bar allowing instant switching between Original v2.0.9, Google UX, and Minimalist (Zen) Edition with live status badge and subtitle so I can evaluate and compare UX paradigms.",
+    "rationale_and_design_decisions": "Housing all 3 design evolutions in a single interactive artifact allows stakeholders to directly experience the benefits of the Minimalist Zen Edition compared to Google UX and legacy v2.0.9.",
+    "description": "A top control bar with dark styling (bg-slate-900, text-white, border-slate-700), containing the Design System View badge (#uxBadgeLabel), benefits subtitle (#uxSubDesc), edition buttons (#uxSwitchOriginal, #uxSwitchGoogle, #uxSwitchMinimal), and the UX Case Study drawer button.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Top switcher bar renders with max-width 850px, dark slate styling, and design icon.",
+      "Clicking 'Original v2.0.9' activates legacy layout with full boxed configuration.",
+      "Clicking 'Google UX' activates modern Google Cloud layout with smart filters and progress bars.",
+      "Clicking 'Minimalist' activates the Zen Edition (active by default on page load).",
+      "Clicking 'UX Case Study' toggles the 5 Key Improvements modal."
+    ],
+    "technical_specs": {
+      "container_class": "w-full max-w-[850px] bg-slate-900 text-white px-4 py-2.5 rounded-lg shadow-lg border border-slate-700",
+      "badge_id": "uxBadgeLabel",
+      "subdesc_id": "uxSubDesc",
+      "buttons": [
+        "#uxSwitchOriginal",
+        "#uxSwitchGoogle",
+        "#uxSwitchMinimal"
+      ],
+      "handler": "setDesignEdition(edition)"
+    },
+    "cognitive_load_optimization": "Consolidates multiple design evolutions into a single interactive prototype for clear stakeholder alignment."
+  },
+  {
+    "id": "REQ-MOCKUP-003",
+    "category": "Minimalist Zen Architecture",
+    "title": "Minimalist Zen Container Layout & Proportions",
+    "user_request_origin": "giao diện zen tối giản, loại bỏ viền lồng viền (zero box-in-box clutter)",
+    "user_story": "As a user, I want the dialog container in Minimalist Zen mode to be compact (max-width 680px), with smooth rounded corners (12px), subtle shadow, and clean custom scrollbars so the dialog feels modern, lightweight, and focused.",
+    "rationale_and_design_decisions": "Standard desktop dialogs (850px) are often too wide for simple log parsing tasks. Narrowing to 680px with 12px border radius and deep diffuse shadow (`0 20px 40px -15px rgba(15, 23, 42, 0.07)`) creates a focused, high-density tool.",
+    "description": "When Minimalist mode is active, the body receives the `.zen-mode` class, which constrains `#mainModalContainer` to 680px, applies 12px border radius, and streamlines scrollbars to 5px transparent tracks with rounded thumbs.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Body receives '.zen-mode' class when Minimalist edition is active.",
+      "Container max-width adjusts from 850px to 680px with 12px border-radius.",
+      "Shadow adjusts to 0 20px 40px -15px rgba(15, 23, 42, 0.07).",
+      "Scrollbars in table streamline to 5px transparent track with rounded thumb."
+    ],
+    "technical_specs": {
+      "zen_selector": ".zen-mode #mainModalContainer",
+      "max_width": "680px",
+      "border_radius": "12px",
+      "scrollbar_width": "5px"
+    },
+    "cognitive_load_optimization": "Constrains visual scanning distance, focusing user attention directly on the essential extraction workflow."
+  },
+  {
+    "id": "REQ-MOCKUP-004",
+    "category": "Header & Modes",
+    "title": "Top Header Bar with Split Icon & Visual vs Regex Segmented Switcher",
+    "user_request_origin": "Header thanh công cụ có icon ParseSplitIcon, tiêu đề Parse Columns v2.0.9, và bộ chuyển Visual/Regex",
+    "user_story": "As an engineer, I want the header to display the Split Column icon, 'Parse Columns v2.0.9', and a segmented Visual / Regex control so I can switch between visual configuration and RE2 regex capture groups.",
+    "rationale_and_design_decisions": "The header serves as the anchor of the dialog. A segmented control (`Visual` ⚡ vs `Regex` 🔧) allows instant toggling between visual no-code extraction and advanced regular expressions without leaving the dialog.",
+    "description": "Header with Split Column SVG icon in #0284c7, title 'Parse Columns', 'v2.0.9' pill badge (#e0f2fe bg, #0369a1 text), segmented button (#modeVisualBtn / #modeRegexBtn), and close button (✕).",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Header displays Split Column SVG, 'Parse Columns' title, and 'v2.0.9' badge.",
+      "Segmented button allows switching between 'Visual' and 'Regex' modes.",
+      "Clicking 'Regex' exposes #regexConfigPanel with RE2 pattern input.",
+      "Clicking 'Visual' returns to #minimalTopBar (in Zen) or #visualConfigPanel (in Classic).",
+      "Close button (✕) triggers toast notification 'Closed modal preview'."
+    ],
+    "technical_specs": {
+      "header_class": "px-5 py-3 bg-[#f8fafc] border-b border-slate-200 flex items-center justify-between",
+      "icon_color": "#0284c7",
+      "segmented_container": "bg-[#f1f5f9] p-0.5 rounded-md border border-slate-300 flex items-center text-xs font-semibold",
+      "handler": "switchMode(mode)"
+    },
+    "cognitive_load_optimization": "Clean visual segmentation between no-code parsing and expert regex syntax prevents cognitive interference."
+  },
+  {
+    "id": "REQ-MOCKUP-005",
+    "category": "Minimalist Natural Language",
+    "title": "Natural Language Extraction Config Bar (#minimalTopBar)",
+    "user_request_origin": "theo bạn phần này có thể gom thành 1 được không ? gom thành 1 thanh đọc như văn bản tự nhiên",
+    "user_story": "As a user, I want the extraction parameters presented as a single readable sentence: 'Extract from [Details ▾] using [Key=Value ▾] split by [ ¦ ] and [ : ]' with inline inputs so I can configure parsing rules without boxy panels.",
+    "rationale_and_design_decisions": "Replaces 3 fragmented configuration cards with a single natural language prose bar. Translating configuration into a fluid sentence mirrors natural human language and cuts vertical height by over 60%.",
+    "description": "The Minimalist Natural Language Bar renders inline sentence controls with select dropdowns for source column and format, and compact monospace inputs for delimiter and assign characters.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Renders sentence: 'Extract from [Details ▾] using [Key=Value ▾] split by [ ¦ ] and [ : ]'.",
+      "Source select (#minSourceSelect) contains Details, RawPayload, EventMessage.",
+      "Format select (#minFormatSelect) contains Key=Value, JSON, CSV.",
+      "Delimiter input (#minDelimInput) and Assign input (#minAssignInput) allow custom token editing.",
+      "Syncs bidirectionally with classic controls via syncMinimalConfig()."
+    ],
+    "technical_specs": {
+      "container_id": "minimalTopBar",
+      "elements": [
+        "#minSourceSelect",
+        "#minFormatSelect",
+        "#minDelimInput",
+        "#minAssignInput"
+      ],
+      "handler": "syncMinimalConfig(field, value)"
+    },
+    "cognitive_load_optimization": "Zero box-in-box clutter. Configuration reads like natural English, eliminating mental overhead."
+  },
+  {
+    "id": "REQ-MOCKUP-006",
+    "category": "Minimalist Natural Language",
+    "title": "Advanced Extraction Rules Popover (#minimalRulesPopover)",
+    "user_request_origin": "giấu các tùy chọn phụ như header prefix và quote enclosure vào popover",
+    "user_story": "As an analyst parsing logs with syslog headers, I want advanced extraction rules stowed inside a clean Rules popover with an indicator dot so they don't clutter the natural language bar unless needed.",
+    "rationale_and_design_decisions": "Header Prefix separation (`:`) and Quote Wrapper (`\" .. \"`) are secondary knobs. Stowing them in an absolute popover card accessed via a clean `Rules` button with a blue dot keeps the natural language bar focused while keeping advanced rules 1 click away.",
+    "description": "A 'Rules' button with a blue dot indicator toggles `#minimalRulesPopover`, containing Header Prefix checkbox, Header Column Name input (`log_header`), and Quote Wrapper indicator (`\" .. \"`).",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "Rules button displays SVG sliders icon and blue dot indicator.",
+      "Clicking Rules toggles #minimalRulesPopover open/closed smoothly.",
+      "Contains checkbox for Header Prefix (`:`), header column name input (`log_header`), and quote pair indicator.",
+      "Toggling header prefix or editing column name updates live SQL immediately."
+    ],
+    "technical_specs": {
+      "popover_id": "minimalRulesPopover",
+      "trigger": "toggleMinimalRulesPopover()",
+      "header_checkbox": "headerPrefixCheck",
+      "header_col_name": "headerColName"
+    },
+    "cognitive_load_optimization": "Progressive disclosure: secondary controls remain hidden until requested, freeing up visual focus."
+  },
+  {
+    "id": "REQ-MOCKUP-007",
+    "category": "Sample Event & Navigator",
+    "title": "Sample Event Editor with Line Gutter, 1 of 50 Cycler & 1-Click Copy",
+    "user_request_origin": "Sample Event có line number 01, duyệt Row 1 of 50, nút Copy",
+    "user_story": "As a user, I want to inspect sample events in a code editor box with line numbering (01), cycle through 50 realistic sample events using Prev/Next buttons, and copy the active event with 1 click so I can test parsing rules on varied payloads.",
     "rationale_and_design_decisions": "A compact code editor with a fixed 01 line gutter provides professional developer ergonomics. Integrating sample navigation (Row 1 of 50) and 1-click copy directly into the Sample Event header removes clutter while enabling instant testing across diverse event streams.",
     "description": "The Sample Event card displays the current sample text in a monospace textarea with a line gutter, accompanied by row index indicator ('Row 1 of 50'), Prev/Next cycle buttons, and a 1-click Copy button with visual feedback.",
     "status": "implemented_in_mockup",
@@ -35,156 +168,54 @@
       "Displays active row number ('Row 1 of 50') with working Prev (<) and Next (>) navigation buttons.",
       "Sample text area features a dedicated left gutter with '01' line numbering.",
       "Copy button copies active sample text to clipboard and flashes 'Copied!' feedback.",
-      "Source column dropdown allows switching between Details, RawPayload, and EventMessage."
+      "Typing in textarea updates live SQL preview immediately."
     ],
     "technical_specs": {
-      "sample_pool_size": 50,
-      "container_id": "sampleEventInput",
-      "gutter_class": "font-mono-code text-[11px] text-slate-400"
-    },
-    "cognitive_load_optimization": "Replaces verbose controls with intuitive icon-driven navigation and eliminates manual copy-paste overhead."
-  },
-  {
-    "id": "REQ-MOCKUP-003",
-    "category": "Mode Architecture & Header",
-    "title": "Segmented Visual vs Regex Mode Switcher & Rebranded Parse Header",
-    "user_request_origin": "Tối ưu hóa corner mode switcher, đổi tên tính năng thành Parse Columns",
-    "user_story": "As an engineer, I want the dialog header to feature the custom ParseSplitIcon and a clean segmented Visual / Regex toggle so I can switch seamlessly between no-code visual parsing and expert RE2 regex capture groups.",
-    "rationale_and_design_decisions": "Rebranding from 'RegexDialog' to 'Parse Columns' accurately communicates the universal capability of the engine. Placing a high-contrast segmented control in the top-right header keeps mode switching discoverable without occupying vertical body space.",
-    "description": "The header includes the Split Column vector SVG icon, 'Parse Columns' title, 'v2.0.9' badge, and a segmented toggle between 'Visual' (⚡ lightning icon) and 'Regex' (🔧 wrench icon), plus a minimal close button (✕).",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Header prominently displays ParseSplitIcon and 'Parse Columns' with 'v2.0.9' pill.",
-      "Segmented button allows switching between 'Visual' mode and 'Regex' mode.",
-      "Switching to Regex mode exposes the RE2 pattern input box with named capture groups.",
-      "Switching to Visual mode returns to the natural language parsing interface."
-    ],
-    "technical_specs": {
-      "mode_buttons": [
-        "#modeVisualBtn",
-        "#modeRegexBtn"
-      ],
-      "panels": [
-        "#visualConfigPanel",
-        "#regexConfigPanel"
-      ],
-      "active_class": "bg-white text-slate-800 shadow-xs border border-slate-200/80"
-    },
-    "cognitive_load_optimization": "Segregates simple visual configuration from advanced regex syntax into dedicated modes, reducing cognitive overload for 90% of standard parsing tasks."
-  },
-  {
-    "id": "REQ-MOCKUP-004",
-    "category": "Minimalist Natural Language",
-    "title": "Natural Language Extraction Sentence (Natural Language Config Bar)",
-    "user_request_origin": "theo bạn phần này có thể gom thành 1 được không ? tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn",
-    "user_story": "As a user, I want the extraction parameters (source column, format, delimiter, assign operator) presented as a single, readable natural language sentence rather than fragmented input cards so I can understand and configure parsing rules at a glance.",
-    "rationale_and_design_decisions": "Fragmented boxes with separate labels ('Format:', 'Item Delimiter:', 'Equal Operator:', 'Source Column:') waste over 55% of dialog height and create visual clutter. A natural language sentence ('Extract from [Details ▾] using [Key=Value ▾] split by [ ¦ ] and [ : ]') mirrors human mental models and cuts vertical space by 60%.",
-    "description": "The Minimalist Natural Language Config Bar renders extraction configuration as an inline, fluid English sentence with embedded interactive inputs and select dropdowns, saving significant vertical real estate.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Renders sentence: 'Extract from [Source ▾] using [Format ▾] split by [delim] and [assign]'.",
-      "Inputs are compact, centered, monospace boxes that sync bidirectionally with the parsing engine.",
-      "Secondary settings are neatly tucked into a popover button instead of cluttering the main bar.",
-      "Changing any token immediately triggers live SQL and table preview updates."
-    ],
-    "technical_specs": {
-      "container_id": "minimalTopBar",
-      "inputs": [
-        "#minSourceSelect",
-        "#minFormatSelect",
-        "#minDelimInput",
-        "#minAssignInput"
-      ],
-      "height": "32px inline strip"
-    },
-    "cognitive_load_optimization": "Zero box-in-box clutter. Translates abstract parsing tokens into an intuitive natural language reading flow."
-  },
-  {
-    "id": "REQ-MOCKUP-005",
-    "category": "Minimalist Natural Language",
-    "title": "Advanced Extraction Rules Popover (Header Prefix & Quote Wrapper)",
-    "user_request_origin": "Handle quoted values không thể vỡ được... Auto-strip Syslog/timestamp prefix cũng không cần... giấu các tùy chọn phụ đi",
-    "user_story": "As an analyst parsing logs with timestamps or syslog headers, I want advanced rules (Header Prefix separation and Quote Wrapper) stowed in a clean Rules popover so they don't clutter the primary interface unless needed.",
-    "rationale_and_design_decisions": "Secondary knobs like Header Prefix (`:`) and Quote Wrapper (`\" .. \"`) are only needed for specific log variants. Stowing them inside a clean popover (`[⚙ Rules]` with an active blue dot) keeps the main interface clean while remaining 1 click away.",
-    "description": "A 'Rules' button with an indicator dot opens an absolute-positioned popover card containing the Header Prefix toggle, Separator character (`:`), Header Column Name (`log_header`), and Quote Wrapper display.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Rules button displays an active status dot when advanced rules are configured.",
-      "Clicking 'Rules' toggles the `#minimalRulesPopover` smoothly.",
-      "Contains checkbox for Header Prefix (`:`), header column name input (`log_header`), and quote pair indicator.",
-      "Toggling header prefix in popover instantly reflects in live DuckDB SQL preview."
-    ],
-    "technical_specs": {
-      "trigger_btn": "toggleMinimalRulesPopover()",
-      "popover_id": "minimalRulesPopover",
-      "header_col_default": "log_header"
-    },
-    "cognitive_load_optimization": "Progressive disclosure: secondary controls are hidden until requested, freeing up visual focus for core data mapping."
-  },
-  {
-    "id": "REQ-MOCKUP-006",
-    "category": "Data Parsing & Formats",
-    "title": "Multi-Format Parsing Engine with Raw Passthrough Fallback",
-    "user_request_origin": "nút này bỏ đi, chỉ đơn giản là tự lăn đến dòng phát hiện, còn nếu không phát hiện thì để là raw(không làm gì cả)",
-    "user_story": "As a user loading diverse data, I want the parser to automatically detect Key=Value, JSON, CSV, or Delimited logs and scroll the format selector to it, falling back to 'Raw (No parsing)' if unformatted so unparsed payloads remain intact without error.",
-    "rationale_and_design_decisions": "Eliminates redundant static 'Auto-detected' badges. The format selector automatically scrolls to and selects the detected format. If the sample event does not match structured formats, it defaults gracefully to 'Raw (No parsing)' which emits a clean passthrough SQL query.",
-    "description": "The format selector supports 'Key=Value', 'JSON', 'CSV', and 'Raw'. When Raw is selected, column extraction is bypassed and original source columns are passed through cleanly.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Dropdown contains Key=Value, JSON, CSV, and Raw options.",
-      "Selecting 'Raw' updates SQL preview to passthrough query without column extraction.",
-      "Auto-detection evaluates sample string on input and updates dropdown value automatically.",
-      "No static badge clutter remains beside the format selector."
-    ],
-    "technical_specs": {
-      "formats": [
-        "kv",
-        "json",
-        "csv",
-        "raw"
-      ],
-      "selector_ids": [
-        "#minFormatSelect",
-        "#formatSelect"
+      "sample_input_id": "sampleEventInput",
+      "row_counter_id": "currentRowNum",
+      "pool_size": 50,
+      "handlers": [
+        "changeSampleRow(delta)",
+        "copySampleEvent()"
       ]
     },
-    "cognitive_load_optimization": "Autonomous detection minimizes decision-making overhead, while Raw mode ensures fail-safe operation."
-  },
-  {
-    "id": "REQ-MOCKUP-007",
-    "category": "Data Parsing & Formats",
-    "title": "Configurable Delimiter, Equal Operator & Automatic Quote Resilience",
-    "user_request_origin": "Handle quoted values không thể vỡ được bởi vì nếu tôi để Quote Enclosure Pair có giá trị thì nó đã là Handle quoted values, và nếu Quote Enclosure Pair tồn tại thì value có thể chặn 2 đầu bởi cặp ký tự đó hoặc không",
-    "user_story": "As an engineer parsing non-standard logs, I want configurable token delimiter (`¦`, ` `, `,`) and equal assign operator (`=`, `:`) while quotes (`\"`) automatically protect space-containing values without requiring a separate toggle.",
-    "rationale_and_design_decisions": "A separate 'Handle quoted values' checkbox is logically redundant. If Quote Enclosure Pair is defined (`\"` to `\"`), the extraction regex natively supports both quoted multi-word strings and unquoted tokens. If empty, it extracts until the delimiter.",
-    "description": "Customizable token delimiter and assignment character inputs with automatic quote resilience that natively extracts both enclosed and bare token values.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Item delimiter input allows custom characters (default: `¦` or space).",
-      "Assign operator input allows custom characters (default: `:` or `=`).",
-      "Values enclosed in quotes (e.g. `action=\"BLOCK AND ALERT\"`) extract cleanly without string truncations.",
-      "Redundant 'Handle quoted values' checkbox is eliminated from the UI."
-    ],
-    "technical_specs": {
-      "delimiter_default": "¦",
-      "assign_default": ":",
-      "regex_template": "{key}\\s*{assign}\\s*(\"{quote_body}\"|{unquoted_body})"
-    },
-    "cognitive_load_optimization": "Eliminates redundant toggles by making quoting resilience an inherent, automatic capability."
+    "cognitive_load_optimization": "Provides instant developer-grade inspection with line numbers and rapid dataset cycling in a single compact card."
   },
   {
     "id": "REQ-MOCKUP-008",
-    "category": "Minimalist Data Grid",
-    "title": "Discovered Fields Toolbar with Instant Column Search",
-    "user_request_origin": "phần này chỉ để đơn giản là search cột thôi và đầu mỗi cột cho phép sort là được... bỏ hết pill thừa đi",
-    "user_story": "As an analyst with dozens of discovered fields, I want a clean search bar with an embedded search icon and quick action buttons (All, None, + strX) without noisy pill filters so I can find and toggle fields rapidly.",
-    "rationale_and_design_decisions": "Static filter pills (like 'IPs', 'Numbers', 'Fill > 80%') consume horizontal space and create visual noise. A responsive search bar filtering across key names, samples, and aliases provides universal, flexible filtering with zero cognitive overhead.",
-    "description": "Toolbar featuring 'Discovered Fields (13)' count badge, embedded SVG magnifying glass search input, smart rate filter, '+ strX' adder, and 'All' / 'None' buttons.",
+    "category": "Classic & Google Panels",
+    "title": "Classic Source Column & Visual Config Panels (for Google & Original Editions)",
+    "user_request_origin": "giữ nguyên các panel gốc cho chế độ Google UX và Original v2.0.9",
+    "user_story": "As a reviewer comparing design editions, I want the classic Source Column section, Format & Delimiter panel, and Regex panel fully available when switching to Google UX or Original v2.0.9 modes.",
+    "rationale_and_design_decisions": "Preserving the classic panel structure inside `#classicSourceSection`, `#visualConfigPanel`, and `#regexConfigPanel` ensures 100% fidelity when comparing the Minimalist Zen mode against Google UX and Original v2.0.9.",
+    "description": "Contains `#classicSourceSection` with double blue focus ring (.source-focus-ring) and refresh button, `#visualConfigPanel` with 2-row layout (Format + Header Prefix row; Delimiter, Assign, Quote Pair row), and `#regexConfigPanel` with RE2 pattern input.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "In Google UX and Original modes, #classicSourceSection and #visualConfigPanel are visible.",
+      "In Minimalist mode, classic panels are cleanly hidden in favor of #minimalTopBar.",
+      "Source select features .source-focus-ring and spinning refresh icon #refreshIcon.",
+      "Quote pair inputs support multi-word enclosure customization."
+    ],
+    "technical_specs": {
+      "panels": [
+        "#classicSourceSection",
+        "#visualConfigPanel",
+        "#regexConfigPanel"
+      ],
+      "focus_ring_class": "source-focus-ring",
+      "refresh_handler": "refreshSampleData()"
+    },
+    "cognitive_load_optimization": "Seamlessly shows or hides legacy complexity based on the chosen design edition."
+  },
+  {
+    "id": "REQ-MOCKUP-009",
+    "category": "Discovered Fields Toolbar",
+    "title": "Discovered Fields Toolbar with Instant Search & Quick Actions",
+    "user_request_origin": "phần này chỉ để đơn giản là search cột thôi... Discovered Fields (13)",
+    "user_story": "As a user, I want a clean search bar with an embedded magnifying glass, field count badge ('Discovered Fields (13)'), and quick action buttons (All, None, + strX) so I can filter and manage fields without clutter.",
+    "rationale_and_design_decisions": "A responsive search bar filtering across key names, samples, and aliases provides universal, flexible filtering with zero cognitive overhead, replacing bulky pill filters.",
+    "description": "Toolbar featuring 'Discovered Fields (13)' count badge (#fieldCountBadge), embedded SVG magnifying glass search input (#searchFieldsInput), smart rate filter, '+ strX' adder, and 'All' / 'None' buttons.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
@@ -196,15 +227,18 @@
     "technical_specs": {
       "search_input_id": "searchFieldsInput",
       "field_count_badge_id": "fieldCountBadge",
-      "debounce_ms": 0
+      "handlers": [
+        "renderFieldsTable()",
+        "setAllChecked(state)"
+      ]
     },
     "cognitive_load_optimization": "Replaces fragmented filter buttons with a single unified search input, eliminating cognitive clutter."
   },
   {
-    "id": "REQ-MOCKUP-009",
-    "category": "Minimalist Data Grid",
+    "id": "REQ-MOCKUP-010",
+    "category": "Smart Filter",
     "title": "Smart Bulk Selection Filter (⚡ ≥50% Rate Pill)",
-    "user_request_origin": "thêm bộ lọc thông minh để chọn nhanh các trường có tỉ lệ xuất hiện cao",
+    "user_request_origin": "Smart Filter Pill ⚡ ≥50% Rate chọn nhanh các trường có độ phủ cao",
     "user_story": "As a data engineer parsing sparse or semi-structured event streams, I want a 1-click '⚡ ≥50% Rate' smart filter that selects only high-frequency fields and deselects noisy tail keys so I don't have to manually uncheck dozens of sparse fields.",
     "rationale_and_design_decisions": "Real-world logs often produce dozens of sparse keys (<10% occurrence). Providing a 1-click '⚡ ≥50% Rate' smart filter saves data engineers from tedious manual unchecking, speeding up schema definition by 80%.",
     "description": "A smart pill button that evaluates the fill rate of all discovered fields and checks only fields with occurrence rate ≥50%, immediately updating schema state and live SQL.",
@@ -219,15 +253,16 @@
     "technical_specs": {
       "button_id": "smartRateFilterBtn",
       "threshold": 50,
-      "handler": "selectHighRateFields()"
+      "handler": "selectHighRateFields()",
+      "classes": "px-2.5 py-1 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 font-semibold"
     },
     "cognitive_load_optimization": "Automates repetitive manual filtering of sparse fields into a single high-confidence click."
   },
   {
-    "id": "REQ-MOCKUP-010",
-    "category": "Minimalist Data Grid",
-    "title": "Positional Field Extractor (+ strX Adder)",
-    "user_request_origin": "+ strX button để trích xuất token vị trí",
+    "id": "REQ-MOCKUP-011",
+    "category": "Positional Fields",
+    "title": "Positional Field Extractor (+ + strX Button)",
+    "user_request_origin": "+ strX button để trích xuất token vị trí unkeyed",
     "user_story": "As a log engineer parsing hybrid logs with leading unkeyed tokens, I want to add sequential positional fields (+ strX) with 1 click so unkeyed tokens (e.g. usernames, IDs) can be extracted alongside key-value pairs.",
     "rationale_and_design_decisions": "Logs frequently combine unkeyed positional tokens with key-value payloads. Dedicated `+ strX` button allows adding positional tokens (`str1`, `str2`, etc.) that map to SPLIT_PART indexes, preventing data loss for unkeyed tokens.",
     "description": "A prominent `+ strX` button adds a new positional field to the top of the table with amber styling, 100% rate, and SPLIT_PART SQL generation.",
@@ -241,19 +276,20 @@
     ],
     "technical_specs": {
       "button_handler": "addPositionalField()",
-      "naming_convention": "str{counter++}",
-      "default_type": "VARCHAR"
+      "naming_convention": "str{nextStrCounter++}",
+      "default_type": "VARCHAR",
+      "classes": "px-3 py-1 rounded bg-[#fef3c7] hover:bg-[#fde68a] text-[#b45309] border border-[#fcd34d] font-bold"
     },
     "cognitive_load_optimization": "Provides clear visual distinction for positional tokens without requiring complex regex syntax."
   },
   {
-    "id": "REQ-MOCKUP-011",
-    "category": "Minimalist Data Grid",
-    "title": "Interactive Click-to-Sort Table Headers",
-    "user_request_origin": "đầu mỗi cột cho phép sort là được",
+    "id": "REQ-MOCKUP-012",
+    "category": "Sorting",
+    "title": "Interactive Click-to-Sort Table Headers (Dual Minimal & Classic Headers)",
+    "user_request_origin": "đầu mỗi cột cho phép sort là được... click vào header để sort",
     "user_story": "As a user reviewing extracted fields, I want to click any table column header (Column, Sample Value, Type, Fill) to sort ascending or descending with visual indicators (⇅, ▲, ▼) so I can organize fields by name, rate, or type.",
     "rationale_and_design_decisions": "Table headers serve as natural sorting controls. Clicking on headers directly aligns with user expectations across desktop and web applications, replacing separate sort dropdowns.",
-    "description": "All headers in the Minimalist table (`Column`, `Sample Value`, `Type`, `Fill`) are clickable sort toggles that sort the field list and display directional sort indicators.",
+    "description": "All headers in the Minimalist table (#minimalTableHeader) and Classic table (#classicTableHeader) are clickable sort toggles that sort the field list and display directional sort indicators.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
@@ -264,21 +300,20 @@
       "Repeated clicks toggle between ascending and descending order."
     ],
     "technical_specs": {
+      "headers": [
+        "#minimalTableHeader",
+        "#classicTableHeader"
+      ],
       "sort_state": "{ column: 'rate', asc: false }",
-      "sort_handler": "sortTableBy(col)",
-      "indicators": [
-        "▲",
-        "▼",
-        "⇅"
-      ]
+      "handler": "sortTableBy(col)"
     },
     "cognitive_load_optimization": "Embeds sorting directly into column headers, eliminating redundant sorting menus."
   },
   {
-    "id": "REQ-MOCKUP-012",
-    "category": "Minimalist Data Grid",
+    "id": "REQ-MOCKUP-013",
+    "category": "Inline Renaming",
     "title": "Merged Column Typography with Inline Click-to-Rename Interaction",
-    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn... bớt các ô input trùng lặp",
+    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn... Click key name to rename inline",
     "user_story": "As a user, I want the discovered Key and New Name merged into a single column where I can simply click any column name to rename it inline so the table is clean, legible, and free of redundant input boxes.",
     "rationale_and_design_decisions": "In 90% of log extraction tasks, users keep the original key name. Displaying 13+ static input boxes across every row creates overwhelming visual noise. Merging Key and New Name into a click-to-rename label eliminates dozens of redundant input boxes. Clicking transforms the text into an input box; pressing Enter or blurring renames it and displays `key → newName`.",
     "description": "The Minimalist table header displays 'Column (Click to rename)'. Rows render key names as clean typography with a subtle hover pencil icon (✎). Clicking switches to an inline text input; pressing Enter or blurring updates the alias smoothly.",
@@ -287,23 +322,23 @@
     "acceptance_criteria": [
       "Merges Key and New name into a single 'Column (Click to rename)' column.",
       "Default state shows key name as clean typography with hover pencil indicator (✎).",
-      "Clicking on the column name transforms it into an inline focused text input.",
+      "Clicking on the column name transforms it into an inline focused text input (#inlineRenameInput_{id}).",
       "Pressing Enter or blurring saves the new name and displays 'key → newName' tag.",
       "Zero permanent static input boxes clutter the table."
     ],
     "technical_specs": {
-      "trigger": "startInlineRename(id)",
-      "saver": "finishInlineRename(id, val)",
-      "input_id": "inlineRenameInput_{id}",
-      "renamed_display": "<span class='text-slate-400'>→</span><span class='px-1.5 py-0.2 rounded bg-blue-50 text-blue-700'>{newName}</span>"
+      "start_handler": "startInlineRename(id)",
+      "finish_handler": "finishInlineRename(id, val)",
+      "input_id": "inlineRenameInput_{field.id}",
+      "renamed_tag": "<span class='text-slate-400'>→</span><span class='px-1.5 py-0.2 rounded bg-blue-50 text-blue-700'>{field.newName}</span>"
     },
     "cognitive_load_optimization": "Reduces visual clutter by 70% by eliminating redundant input fields, presenting data as readable typography until editing is explicitly requested."
   },
   {
-    "id": "REQ-MOCKUP-013",
-    "category": "Minimalist Data Grid",
-    "title": "Ghost Type Selector & Default Auto-Casting Engine",
-    "user_request_origin": "Auto-cast DuckDB types luôn được bật, nếu người dùng chọn lại VARCHAR hoặc tương tự trong bảng trường thì mới tắt đi",
+    "id": "REQ-MOCKUP-014",
+    "category": "Type System",
+    "title": "Ghost Type Selector & Native DuckDB Auto-Casting",
+    "user_request_origin": "Auto-cast DuckDB types luôn được bật, chọn lại kiểu mờ phẳng nhẹ nhàng",
     "user_story": "As a data engineer, I want extracted columns automatically cast to their inferred types (BIGINT, DOUBLE, BOOLEAN) via clean ghost selectors, while selecting 'VARCHAR' gracefully disables casting for that specific column.",
     "rationale_and_design_decisions": "Heavy select boxes with thick borders create a noisy grid appearance. Ghost selectors (borderless, transparent until hovered) look elegant and unobtrusive. Inferred numeric types default to auto-casting via TRY_CAST, while selecting 'VARCHAR' disables casting without requiring a separate global toggle.",
     "description": "Ghost type dropdowns (`string`, `int64`, `float`, `bool`) that render borderless on normal state. Non-string types generate TRY_CAST in DuckDB SQL; string types output bare expressions.",
@@ -313,17 +348,17 @@
       "Ghost dropdown provides string (VARCHAR), int64 (BIGINT), float (DOUBLE), and bool (BOOLEAN) options.",
       "Transparent background with subtle hover highlight; no heavy borders.",
       "Changing type immediately updates live DuckDB SQL preview.",
-      "Non-string types generate TRY_CAST(expr AS TYPE) AS \"colName\"."
+      "Non-string types generate CAST(REGEXP_EXTRACT(...) AS TYPE) AS \"colName\"."
     ],
     "technical_specs": {
       "classes": "bg-transparent hover:bg-slate-200/60 rounded px-1.5 py-0.5 text-[11px] font-mono-code font-medium text-slate-600 focus:outline-none cursor-pointer",
-      "handler": "changeFieldType(id, type)"
+      "handler": "changeFieldType(id, newType)"
     },
     "cognitive_load_optimization": "Replaces bulky dropdowns with light typography, keeping the interface uncluttered while retaining full type control."
   },
   {
-    "id": "REQ-MOCKUP-014",
-    "category": "Minimalist Data Grid",
+    "id": "REQ-MOCKUP-015",
+    "category": "Column Removal",
     "title": "Subtle Rate Indicator Dot & Hover-Reveal Column Deletion",
     "user_request_origin": "giảm thiểu quá tải nhận thức, tận dụng icon nhiều nhất có thể, nút xóa cột nhanh",
     "user_story": "As an analyst reviewing fields, I want field fill rate displayed as a clean colored dot with percentage, which smoothly reveals a 1-click delete button (✕) on hover so I can prune unwanted fields effortlessly.",
@@ -345,10 +380,10 @@
     "cognitive_load_optimization": "Employs contextual hover disclosure to keep the resting interface serene and clean."
   },
   {
-    "id": "REQ-MOCKUP-015",
-    "category": "Schema Safety & Guardrails",
+    "id": "REQ-MOCKUP-016",
+    "category": "Schema Safety",
     "title": "Real-Time SQL Schema Guardrails & Duplicate Name Detection",
-    "user_request_origin": "tránh lỗi trùng tên cột khi người dùng đổi tên",
+    "user_request_origin": "Live duplicate name validation cảnh báo khi trùng tên cột",
     "user_story": "As a database user, I want the system to warn me immediately if two columns share the same name and disable the Apply button so I never execute invalid SQL statements with duplicate column identifiers.",
     "rationale_and_design_decisions": "Executing a SQL query with duplicate column names causes immediate query execution failure. Detecting duplicate names in real time, highlighting them, displaying an informative warning badge, and disabling the Apply button provides proactive error prevention.",
     "description": "Real-time validator monitors active checked column names. If duplicate names are detected, displays `⚠️ Duplicate column name detected` badge in footer and disables the Apply button.",
@@ -363,38 +398,67 @@
     "technical_specs": {
       "badge_id": "schemaValidationBadge",
       "apply_btn_id": "applyColumnsBtn",
-      "validation_logic": "duplicateNames = activeNames.filter((item, idx) => item && activeNames.indexOf(item) !== idx)"
+      "validation_logic": "const duplicateNames = activeNames.filter((item, idx) => item && activeNames.indexOf(item) !== idx);"
     },
     "cognitive_load_optimization": "Provides instant guardrails that prevent errors before execution, eliminating debugging frustration."
   },
   {
-    "id": "REQ-MOCKUP-016",
+    "id": "REQ-MOCKUP-017",
     "category": "Validation & Observability",
-    "title": "Footer-Integrated 1,000-Row Inline Verification (▶ Verify 1k rows)",
-    "user_request_origin": "nút test 1000 dòng làm gọn lại, không chiếm nhiều diện tích",
-    "user_story": "As an engineer, I want the 1,000-row test integrated into the footer as a compact '▶ Verify 1k rows' button rather than a large boxed panel in the body so the dialog remains compact while retaining deep verification.",
+    "title": "1,000-Row Batch Verification (Inline Footer vs Classic Box)",
+    "user_request_origin": "1,000 Rows Test: Verify 1k rows ở footer trong zen mode và box trong classic mode",
+    "user_story": "As an engineer, I want the 1,000-row test integrated into the footer as a compact '▶ Verify 1k rows' button in Zen mode, while available as an expansive progress box in Classic mode.",
     "rationale_and_design_decisions": "A separate 1,000-row test box in the dialog body consumes valuable vertical space. Moving verification to an inline button in the footer bar (`▶ Verify 1k rows`) preserves the testing capability while maintaining a compact, Zen dialog layout.",
-    "description": "In Minimalist mode, an inline '▶ Verify 1k rows' button resides in the footer next to the latency indicator. Clicking it evaluates 1,000 dataset rows and displays real-time match rates.",
+    "description": "In Minimalist mode, an inline '▶ Verify 1k rows' button resides in the footer next to the latency indicator. In Classic mode, `#thousandTestBox` displays progress bar and detailed status.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
       "Footer displays 'Ready (< 15ms)' status and '▶ Verify 1k rows' button.",
       "Clicking '▶ Verify 1k rows' executes simulated scan across 1,000 active rows.",
       "Displays updated latency (e.g. '11.4ms') and toast notice: '1,000 rows test completed (99.4% match)'.",
-      "Bulky 1,000-row card box is completely hidden from the dialog body in Zen mode."
+      "Bulky 1,000-row card box is cleanly hidden in Zen mode and shown in Classic mode."
     ],
     "technical_specs": {
-      "button_id": "minimalInlineTestBtn",
-      "latency_label_id": "latencyLabel",
+      "footer_btn_id": "minimalInlineTestBtn",
+      "box_id": "thousandTestBox",
+      "progress_bar_id": "testProgressBar",
       "handler": "runThousandRowsTest()"
     },
     "cognitive_load_optimization": "Keeps the primary canvas focused on column mapping while keeping verification immediately accessible."
   },
   {
-    "id": "REQ-MOCKUP-017",
-    "category": "Action Ergonomics",
+    "id": "REQ-MOCKUP-018",
+    "category": "SQL Preview",
+    "title": "Collapsible Live DuckDB SQL Preview with Caret & 1-Click Copy",
+    "user_request_origin": "SQL Preview có caret xoay và nút Copy, mặc định đóng",
+    "user_story": "As a data engineer, I want the live DuckDB SQL preview collapsed by default with an expandable caret and 1-click Copy button so the dialog stays compact while giving me instant access to the exact SQL query.",
+    "rationale_and_design_decisions": "Showing raw SQL permanently consumes excessive screen space. Collapsing the preview by default with a rotating caret and dedicated Copy button keeps the interface clean while allowing advanced users to inspect and copy SQL statements with 1 click.",
+    "description": "Collapsible SQL preview container that generates vectorized DuckDB SQL queries (with REGEXP_EXTRACT, SPLIT_PART, and CAST) and provides 1-click clipboard copy.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "SQL Preview is collapsed by default to save dialog height.",
+      "Clicking 'SQL Preview' toggles the container open/closed with rotating caret animation (#sqlCaret).",
+      "Copy button copies exact SQL code to clipboard and flashes 'Copied!' label (#copySqlLabel).",
+      "SQL updates in real time whenever delimiters, formats, column names, or types change."
+    ],
+    "technical_specs": {
+      "caret_id": "sqlCaret",
+      "box_id": "sqlPreviewBox",
+      "code_id": "sqlCodeContent",
+      "handlers": [
+        "toggleSqlPreview()",
+        "copySqlCode()",
+        "updateLiveSQL()"
+      ]
+    },
+    "cognitive_load_optimization": "Keeps complex SQL code tucked away until needed, maintaining an uncluttered workspace."
+  },
+  {
+    "id": "REQ-MOCKUP-019",
+    "category": "Action CTA",
     "title": "Action-Oriented Primary CTA with Column Count (Apply Badge)",
-    "user_request_origin": "nút Apply có thêm số lượng cột",
+    "user_request_origin": "nút Apply có thêm số lượng cột: Apply (13)",
     "user_story": "As a user completing column extraction, I want the Apply button to display the exact count of columns that will be added (e.g. 'Apply (13)') so I have clear, unambiguous confirmation before materializing the schema.",
     "rationale_and_design_decisions": "Displaying the count of selected columns directly inside the Apply button (`Apply (13)`) provides instant visual confirmation of how many new columns will be generated in the dataset, preventing accidental extraction of unintended fields.",
     "description": "The primary CTA button features an embedded pill badge (`applyCountBadge`) that dynamically updates with the count of currently checked fields.",
@@ -408,102 +472,26 @@
     ],
     "technical_specs": {
       "button_id": "applyColumnsBtn",
-      "count_badge_id": "applyCountBadge",
-      "count_binding": "discoveredFields.filter(f => f.checked).length"
+      "badge_id": "applyCountBadge",
+      "binding": "discoveredFields.filter(f => f.checked).length",
+      "handler": "applyParsedColumns()"
     },
     "cognitive_load_optimization": "Provides clear feedback on the exact consequence of the user's action before execution."
   },
   {
-    "id": "REQ-MOCKUP-018",
-    "category": "Query Generation & DuckDB",
-    "title": "Collapsible Live DuckDB SQL Query Preview with 1-Click Copy",
-    "user_request_origin": "SQL preview mặc định đóng gọn lại, có nút copy",
-    "user_story": "As a data engineer, I want the live DuckDB SQL preview collapsed by default with an expandable caret and 1-click Copy button so the dialog stays compact while giving me instant access to the exact SQL query.",
-    "rationale_and_design_decisions": "Showing raw SQL permanently consumes excessive screen space. Collapsing the preview by default with a rotating caret and dedicated Copy button keeps the interface clean while allowing advanced users to inspect and copy SQL statements with 1 click.",
-    "description": "Collapsible SQL preview container that generates vectorized DuckDB SQL queries (with REGEXP_EXTRACT, SPLIT_PART, json_extract_string, TRY_CAST, and header isolation) and provides 1-click clipboard copy.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "SQL Preview is collapsed by default to save dialog height.",
-      "Clicking 'SQL Preview' toggles the container open/closed with rotating caret animation.",
-      "Copy button copies exact SQL code to clipboard and flashes 'Copied!' label.",
-      "SQL updates in real time whenever delimiters, formats, column names, or types change."
-    ],
-    "technical_specs": {
-      "toggle_handler": "toggleSqlPreview()",
-      "copy_handler": "copySqlCode()",
-      "preview_box_id": "sqlPreviewBox",
-      "code_element_id": "sqlCodeContent"
-    },
-    "cognitive_load_optimization": "Keeps complex SQL code tucked away until needed, maintaining an uncluttered workspace."
-  },
-  {
-    "id": "REQ-MOCKUP-019",
-    "category": "Design System & Multi-Edition",
-    "title": "Multi-Edition Switcher Bar (Minimalist, Google UX, Blueprint, Original)",
-    "user_request_origin": "tôi muốn bổ sung mock up minimalism từ D:\\Shared_UserData\\Downloads\\tad\\mockup\\parse_columns_mockup.html sang D:\\Shared_UserData\\Downloads\\tad\\mockup\\index.html và sẽ là mockup chính",
-    "user_story": "As a product manager or UI designer, I want a top switcher bar in index.html allowing instant switching between Minimalist (Zen), Google UX, Blueprint Dark (v2.0.2), and Original v2.0.9 so stakeholders can directly compare design paradigms.",
-    "rationale_and_design_decisions": "Housing the Minimalist Zen mockup as the primary canonical view while allowing 1-click switching to Google UX, Blueprint Dark, and Original v2.0.9 allows instant side-by-side design reviews without switching files.",
-    "description": "The switcher bar at the top of index.html allows switching between Minimalist (Zen - Default), Google Cloud UX, Blueprint Dark (v2.0.2), and Original v2.0.9 with instant DOM reactivity.",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Index.html loads Minimalist (Zen) Edition as the primary view on startup.",
-      "Switcher provides buttons for Minimalist, Google UX, Blueprint Dark, and Original v2.0.9.",
-      "Clicking any edition switches the dialog layout instantly without page reload.",
-      "Active edition is clearly indicated with high-contrast pill styling and descriptive subtitle."
-    ],
-    "technical_specs": {
-      "default_edition": "minimal",
-      "switcher_ids": [
-        "#uxSwitchMinimal",
-        "#uxSwitchGoogle",
-        "#uxSwitchBlueprint",
-        "#uxSwitchOriginal"
-      ],
-      "handler": "setDesignEdition(edition)"
-    },
-    "cognitive_load_optimization": "Consolidates multiple evolutionary mockups into a single interactive showcase."
-  },
-  {
     "id": "REQ-MOCKUP-020",
-    "category": "Theme & Visual Ergonomics",
-    "title": "Dual Theme Adaptability (Dark / Light Zen Mode)",
-    "user_request_origin": "hỗ trợ cả dark mode và light mode cho bản minimalist",
-    "user_story": "As a developer working in different lighting environments, I want to toggle between crisp Light theme and sleek Dark theme for the Minimalist Zen dialog so I have optimal visual comfort.",
-    "rationale_and_design_decisions": "Toad is used in diverse lighting conditions and environments. Providing a seamless 1-click theme toggle (🌙/☀️) ensures the Minimalist Zen mockup looks exceptional in both clean Apple/Google light theme and modern dark slate theme.",
-    "description": "A theme toggle button in the top bar switches between Light and Dark mode for the Minimalist Zen dialog, applying tailored dark palette classes (`#1e293b` container, `#0f172a` inputs, `#f1f5f9` text).",
-    "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
-    "acceptance_criteria": [
-      "Clicking the theme toggle button switches between Dark and Light themes.",
-      "Button icon toggles between 🌙 and ☀️ with appropriate tooltip.",
-      "Dark theme applies sleek slate palette with high contrast and subtle borders.",
-      "Light theme applies clean white/slate-50 palette.",
-      "Displays toast feedback confirming theme switch."
-    ],
-    "technical_specs": {
-      "button_id": "themeToggleBtn",
-      "body_class": "dark-mode",
-      "handler": "toggleTheme()"
-    },
-    "cognitive_load_optimization": "Adapts to user visual preferences, reducing eye fatigue during prolonged log analysis sessions."
-  },
-  {
-    "id": "REQ-MOCKUP-021",
-    "category": "Documentation & Case Study",
-    "title": "UX Case Study Modal Highlighting 5 Key Innovations",
-    "user_request_origin": "UX Case Study drawer giải thích các cải tiến",
+    "category": "Case Study Modal",
+    "title": "Google Cloud & Minimalist UX Case Study Modal",
+    "user_request_origin": "UX Case Study modal giải thích 5 điểm cải tiến lớn",
     "user_story": "As a design stakeholder or engineer, I want an integrated UX Case Study modal detailing the 5 key UX innovations over legacy dialogs so the design rationale is transparent and well-documented.",
     "rationale_and_design_decisions": "Embedding the design rationale directly into the prototype bridges the gap between design concepts and technical implementation. Stakeholders can review the exact justification for each architectural decision with 1 click.",
     "description": "A modal dialog accessible via 'UX Case Study' button documenting the 5 key improvements: Natural Language Config Bar, Click-to-Rename, Smart Bulk Selection, Schema Guardrails, and Action-Oriented CTA.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Clicking 'UX Case Study' opens `#uxNotesModal` with backdrop blur.",
+      "Clicking 'UX Case Study' opens #uxNotesModal with backdrop blur.",
       "Presents 5 detailed case study cards with rationale and code examples.",
-      "Clicking '✕' or 'Got it' closes the modal smoothly.",
-      "Supports both Dark and Light theme styling."
+      "Clicking '✕' or 'Got it' closes the modal smoothly."
     ],
     "technical_specs": {
       "modal_id": "uxNotesModal",
@@ -512,10 +500,10 @@
     "cognitive_load_optimization": "Provides instant on-demand design documentation directly inside the interactive artifact."
   },
   {
-    "id": "REQ-MOCKUP-022",
-    "category": "User Feedback & Toasts",
-    "title": "Non-Blocking Toast Notification System",
-    "user_request_origin": "thông báo hoàn tất không dùng alert() gây gián đoạn",
+    "id": "REQ-MOCKUP-021",
+    "category": "User Feedback",
+    "title": "Non-Blocking Toast Notification System (#toastNotice)",
+    "user_request_origin": "Floating Toast Notification (No alert() used)",
     "user_story": "As a user performing actions (copying, filtering, adding columns, applying schema), I want non-blocking toast notifications in the bottom-right corner instead of disruptive browser alert() popups.",
     "rationale_and_design_decisions": "Native `alert()` boxes block the UI thread, require manual dismissal, and disrupt user focus. A non-blocking toast notification sliding into the corner provides instant confirmation and automatically fades out without interrupting workflow.",
     "description": "A floating toast notification component positioned at fixed bottom-right with emerald status indicator, smooth slide-up animation, and auto-dismiss timer.",
@@ -536,10 +524,10 @@
     "cognitive_load_optimization": "Eliminates modal interruption, allowing users to maintain uninterrupted flow during log exploration."
   },
   {
-    "id": "REQ-MOCKUP-023",
-    "category": "Data Modeling & Sampling",
-    "title": "Comprehensive 50-Row Sample Event Pool for Realistic Testing",
-    "user_request_origin": "bộ dữ liệu mẫu đa dạng để test",
+    "id": "REQ-MOCKUP-022",
+    "category": "Dataset & Sampling",
+    "title": "50-Row Sample Event Simulation Pool",
+    "user_request_origin": "Sample events pool (50 simulated rows)",
     "user_story": "As a tester or engineer, I want a pool of 50 diverse sample events representing realistic system payloads (IIS, Nginx, Windows Security, Microservices) so I can verify parsing robustness across real-world edge cases.",
     "rationale_and_design_decisions": "Testing with only 1 or 2 static sample lines fails to uncover latent field variations and delimiter edge cases. Providing a 50-row realistic sample pool allows thorough verification of auto-detection and token splitting.",
     "description": "A built-in array of 50 diverse sample log events accessible via the Prev/Next row cycler, covering various delimiter patterns, quoting styles, and numeric formats.",
@@ -552,44 +540,70 @@
       "Includes edge cases: multi-word quoted values, escaped backslashes, and unquoted integers."
     ],
     "technical_specs": {
-      "array_name": "sampleEventsPool",
-      "pool_size": 50,
+      "variable_name": "sampleEventsPool",
+      "size": 50,
       "handler": "changeSampleRow(delta)"
     },
     "cognitive_load_optimization": "Provides immediate access to rich test data without requiring manual payload crafting."
   },
   {
-    "id": "REQ-MOCKUP-024",
-    "category": "Minimalist Zen Architecture",
-    "title": "Minimalist Zen Edition as Primary Mockup Architecture",
-    "user_request_origin": "tôi muốn bổ sung mock up minimalism từ D:\\Shared_UserData\\Downloads\\tad\\mockup\\parse_columns_mockup.html sang D:\\Shared_UserData\\Downloads\\tad\\mockup\\index.html và sẽ là mockup chính",
-    "user_story": "As a Toad product stakeholder, I want the Minimalist Zen edition deployed as the primary, default mockup at mockup/index.html so all developers and testers immediately experience the gold standard of high-density, clutter-free column extraction.",
-    "rationale_and_design_decisions": "Consolidating the Minimalist Zen design as the primary canonical mockup in index.html establishes a clear, unified product direction. It embodies zero box-in-box clutter, natural language configuration, inline click-to-rename typography, and real-time schema safety.",
-    "description": "Index.html serves the Minimalist Zen Edition as the main mockup on initial page load, integrating natural language configuration, inline click-to-rename table interaction, ghost selectors, and non-blocking footer verification.",
+    "id": "REQ-MOCKUP-023",
+    "category": "Data Model",
+    "title": "13 Discovered Fields Initial Data Model Matching Pixel-Perfect Spec",
+    "user_request_origin": "13 Discovered Fields matching the exact screenshot top 5 + 8 scrollable fields",
+    "user_story": "As an engineer, I want the mockup initialized with 13 realistic discovered fields (str1, LID, Type, Proc, PID, Status, DurationMs, Host, Retries, SessionID, ClientIP, AuthMethod, ExitCode) matching the screenshot exactly.",
+    "rationale_and_design_decisions": "Pre-populating the data grid with 13 realistic fields representing varied types (VARCHAR, BIGINT), rates (from 8% to 100%), and values provides an authentic, high-fidelity experience that reflects real log parsing workloads.",
+    "description": "Array `discoveredFields` containing 13 objects with id, key, type, rate, sample, newName, checked, and isPositional properties matching parse_columns_mockup.html.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "mockup/index.html loads Minimalist (Zen) Edition by default on startup (window.onload).",
-      "Header bar displays 'Minimalist (Zen) Edition' with '★ Main Mockup' badge.",
-      "Natural language bar dynamically updates and syncs with extraction configuration.",
-      "Clicking on column name opens an inline input; pressing Enter or blur saves the new name.",
-      "Multi-edition switcher supports Minimalist, Google UX, Blueprint Dark, and Original v2.0.9.",
-      "Theme toggle button (🌙/☀️) toggles dark mode overrides on the Minimalist Zen container.",
-      "Collapsible DuckDB SQL preview updates live and provides 1-click clipboard copying."
+      "Initializes with exactly 13 fields.",
+      "Top fields match screenshot: str1 (100%), LID (82%), Type (82%), Proc (12%), PID (10%), Status (64%).",
+      "Positional fields marked with isPositional: true and amber badge styling.",
+      "Table dynamically reacts to field checking, renaming, type changes, and deletion."
     ],
     "technical_specs": {
-      "default_edition": "minimal",
-      "supported_editions": [
-        "minimal",
-        "google",
-        "blueprint",
-        "original"
-      ],
-      "container_max_width_zen": "680px",
-      "container_max_width_standard": "850px",
-      "theme_toggle": "light/dark",
-      "query_engine": "DuckDB SQL (REGEXP_EXTRACT, SPLIT_PART, json_extract_string, TRY_CAST)"
+      "variable_name": "discoveredFields",
+      "count": 13,
+      "fields": [
+        "str1",
+        "LID",
+        "Type",
+        "Proc",
+        "PID",
+        "Status",
+        "DurationMs",
+        "Host",
+        "Retries",
+        "SessionID",
+        "ClientIP",
+        "AuthMethod",
+        "ExitCode"
+      ]
     },
-    "cognitive_load_optimization": "Achieves absolute cognitive minimalism by collapsing all complex syntax controls into natural language prose, hiding advanced knobs in a popover, and replacing static input forms with inline interactive click-to-rename typography."
+    "cognitive_load_optimization": "Demonstrates real-world density and data hierarchy without synthetic placeholder labels."
+  },
+  {
+    "id": "REQ-MOCKUP-024",
+    "category": "Scrollbar & Polish",
+    "title": "Classic Desktop & Minimalist Zen Custom Scrollbars",
+    "user_request_origin": "Classic Windows/Desktop scrollbar replica và Minimalist Zen Mode overrides",
+    "user_story": "As a user, I want custom scrollbar styling (.classic-scrollbar) matching classic desktop tools in Original mode, and refined ultra-sleek 5px transparent track scrollbars in Zen mode.",
+    "rationale_and_design_decisions": "Default browser scrollbars are often visually clunky. Custom webkit scrollbar rules provide an authentic desktop feel in classic mode and an ultra-clean, modern aesthetic in Zen mode.",
+    "description": "CSS rules defining `.classic-scrollbar` with 15px width and desktop borders, overridden in `.zen-mode` to 5px width with transparent track and pill thumb.",
+    "status": "implemented_in_mockup",
+    "target_version": "2.0.9",
+    "acceptance_criteria": [
+      "In classic mode, scrollbars render with 15px track and desktop borders.",
+      "In zen mode, scrollbars render with 5px track, transparent background, and rounded thumb.",
+      "Hover states provide clear visual feedback."
+    ],
+    "technical_specs": {
+      "classes": [
+        ".classic-scrollbar",
+        ".zen-mode .classic-scrollbar"
+      ]
+    },
+    "cognitive_load_optimization": "Eliminates visual friction by ensuring scrollbars harmonize with the active design edition."
   }
 ]
