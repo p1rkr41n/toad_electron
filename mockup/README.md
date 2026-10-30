@@ -14,7 +14,7 @@ Phiên bản **Minimalist (Zen) Edition** được thiết kế nhằm đạt đ
 
 1. **Thanh Cấu hình Ngôn ngữ Tự nhiên (Natural Language Config Bar)**:
    - Thay thế toàn bộ 3 khối cấu hình cồng kềnh bằng 1 câu văn tự nhiên mạch lạc, dễ hiểu:  
-     `Extract from [ Details ▾ ] using [ Key=Value ▾ ] split by [ ¦ ] and [ : ]`
+     $$\text{Extract from [ Details ▾ ] using [ Key=Value ▾ ] split by [ ¦ ] and [ : ]}$$
    - Các cấu hình nâng cao (Header Prefix `:`, Header Column Name `log_header`, Quote Wrapper `" .. "`) được thu gọn tinh tế vào nút popover `[⚙ Rules]`.
 
 2. **Hợp nhất Cột & Đổi tên Trực tiếp (Click-to-Rename Inline)**:
@@ -54,15 +54,36 @@ Thanh điều khiển trên cùng của `mockup/index.html` cho phép xem và so
 
 ---
 
-## 3. CÁC TÍNH NĂNG KỸ THUẬT NỀN TẢNG (DUCKDB ENGINE)
+## 3. DANH MỤC 24 ĐẶC TẢ KỸ THUẬT (MAPPING THEO MOCKUP MINIMALISM)
 
-1. **Sinh Câu Lệnh DuckDB Tự Động (Live SQL Preview)**:
-   - Tự động chuyển đổi quy tắc bóc tách sang câu lệnh DuckDB chuẩn (`REGEXP_EXTRACT`, `SPLIT_PART`, `json_extract_string`, `TRY_CAST`).
-   - Hỗ trợ chế độ **Raw (No parsing)** giúp giữ nguyên dữ liệu gốc khi không cần bóc tách.
-   - Tích hợp nút **Copy SQL** 1-click có phản hồi trực quan.
+Toàn bộ 24 yêu cầu trong [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) đã được cập nhật chuẩn hóa hoàn toàn theo kiến trúc **Minimalist (Zen)**:
 
-2. **Duyệt Mẫu Sự Kiện (Sample Event Cycler)**:
-   - Bộ sưu tập 50 dòng log mô phỏng với điều hướng `Row 1 of 50` (`Prev` / `Next`), hiển thị số dòng `01` và nút sao chép mẫu nhanh.
+| ID | Danh mục | Tiêu đề đặc tả | Tình trạng |
+| :--- | :--- | :--- | :---: |
+| `REQ-MOCKUP-001` | Localization | Complete English UI Localization across Minimalist Interface | `Implemented` |
+| `REQ-MOCKUP-002` | Sample Event | Streamlined Sample Event Navigator with Line Gutter & 1-Click Copy | `Implemented` |
+| `REQ-MOCKUP-003` | Header & Modes | Segmented Visual vs Regex Mode Switcher & Rebranded Parse Header | `Implemented` |
+| `REQ-MOCKUP-004` | Natural Language | Natural Language Extraction Sentence (Natural Language Config Bar) | `Implemented` |
+| `REQ-MOCKUP-005` | Natural Language | Advanced Extraction Rules Popover (Header Prefix & Quote Wrapper) | `Implemented` |
+| `REQ-MOCKUP-006` | Parsing Formats | Multi-Format Parsing Engine with Raw Passthrough Fallback | `Implemented` |
+| `REQ-MOCKUP-007` | Delimiters | Configurable Delimiter, Equal Operator & Automatic Quote Resilience | `Implemented` |
+| `REQ-MOCKUP-008` | Data Grid | Discovered Fields Toolbar with Instant Column Search | `Implemented` |
+| `REQ-MOCKUP-009` | Smart Filter | Smart Bulk Selection Filter (⚡ ≥50% Rate Pill) | `Implemented` |
+| `REQ-MOCKUP-010` | Positional Tokens | Positional Field Extractor (+ strX Adder) | `Implemented` |
+| `REQ-MOCKUP-011` | Sorting | Interactive Click-to-Sort Table Headers | `Implemented` |
+| `REQ-MOCKUP-012` | Inline Renaming | Merged Column Typography with Inline Click-to-Rename Interaction | `Implemented` |
+| `REQ-MOCKUP-013` | Type System | Ghost Type Selector & Default Auto-Casting Engine | `Implemented` |
+| `REQ-MOCKUP-014` | Column Removal | Subtle Rate Indicator Dot & Hover-Reveal Column Deletion | `Implemented` |
+| `REQ-MOCKUP-015` | Schema Safety | Real-Time SQL Schema Guardrails & Duplicate Name Detection | `Implemented` |
+| `REQ-MOCKUP-016` | Validation | Footer-Integrated 1,000-Row Inline Verification (▶ Verify 1k rows) | `Implemented` |
+| `REQ-MOCKUP-017` | Action CTA | Action-Oriented Primary CTA with Column Count (Apply Badge) | `Implemented` |
+| `REQ-MOCKUP-018` | DuckDB Engine | Collapsible Live DuckDB SQL Query Preview with 1-Click Copy | `Implemented` |
+| `REQ-MOCKUP-019` | Architecture | Multi-Edition Switcher Bar (Minimalist, Google UX, Blueprint, Original) | `Implemented` |
+| `REQ-MOCKUP-020` | Visual Theme | Dual Theme Adaptability (Dark / Light Zen Mode) | `Implemented` |
+| `REQ-MOCKUP-021` | Documentation | UX Case Study Modal Highlighting 5 Key Innovations | `Implemented` |
+| `REQ-MOCKUP-022` | Feedback | Non-Blocking Toast Notification System | `Implemented` |
+| `REQ-MOCKUP-023` | Sampling Pool | Comprehensive 50-Row Sample Event Pool for Realistic Testing | `Implemented` |
+| `REQ-MOCKUP-024` | Primary Standard | Minimalist Zen Edition as Primary Mockup Architecture | `Implemented` |
 
 ---
 
