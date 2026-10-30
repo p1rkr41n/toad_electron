@@ -742,6 +742,167 @@ async function main() {
     assert.strictEqual(rows[0].col_3, "Type: 2");
   });
 
+  // ===========================================================================
+  // SUITE H: Toad v2.0.4 Universal Schema Discovery, strX Fallback & Smart Coalesce
+  // ===========================================================================
+  reportSuite("SUITE H: Toad v2.0.4 Universal Schema Discovery, strX Fallback & Smart Coalesce");
+
+  await runTest("H.1 Universal Multi-Row Key Discovery on Heterogeneous Mixed-Schema Logs", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE heterogeneous_logs (id INTEGER, Details VARCHAR);
+      INSERT INTO heterogeneous_logs VALUES
+        (1, 'User: fptsupport ¦ LID: 0x2c8b3f03 ¦ Type: 2'),
+        (2, 'TgtUser: fptsupport ¦ SrcUser: LienThongTichHop ¦ SrcIP: 10.0.0.1 ¦ Proc: C:\\Windows\\System32\\svchost.exe'),
+        (3, 'Provider: CIMWin32 ¦ Result: 0x0 ¦ Proc: wmiprvse.exe ¦ Path: %systemroot%\\sys32\\wbem\\wbemcore.dll');
+    `);
+
+    const delim = "¦";
+    const assign = ":";
+    const pattern = (k) => `(?:^|[\\s${delim},;|])${k}\\s*${assign}\\s*(?:"([^"]*)"|([^\\s${delim},;\\r\\n|]+))`;
+
+    // Universal View extracting all keys discovered across heterogeneous rows
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_universal_logs AS
+      SELECT id,
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("User")}', 1), ''), regexp_extract("Details", '${pattern("User")}', 2)), '') AS "User",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("TgtUser")}', 1), ''), regexp_extract("Details", '${pattern("TgtUser")}', 2)), '') AS "TgtUser",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("SrcUser")}', 1), ''), regexp_extract("Details", '${pattern("SrcUser")}', 2)), '') AS "SrcUser",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("Proc")}', 1), ''), regexp_extract("Details", '${pattern("Proc")}', 2)), '') AS "Proc",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("Provider")}', 1), ''), regexp_extract("Details", '${pattern("Provider")}', 2)), '') AS "Provider"
+      FROM heterogeneous_logs;
+    `);
+
+    const rows = await connF.all(`SELECT * FROM v_universal_logs ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    // Row 1
+    assert.strictEqual(rows[0]["User"], "fptsupport");
+    assert.strictEqual(rows[0]["TgtUser"], null);
+    assert.strictEqual(rows[0]["Proc"], null);
+    // Row 2
+    assert.strictEqual(rows[1]["User"], null);
+    assert.strictEqual(rows[1]["TgtUser"], "fptsupport");
+    assert.strictEqual(rows[1]["SrcUser"], "LienThongTichHop");
+    assert.strictEqual(rows[1]["Proc"], "C:\\Windows\\System32\\svchost.exe");
+    // Row 3
+    assert.strictEqual(rows[2]["Provider"], "CIMWin32");
+    assert.strictEqual(rows[2]["Proc"], "wmiprvse.exe");
+  });
+
+  await runTest("H.2 Positional strX Unkeyed Token Fallback (User Constraint: str1, str2, ...)", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE unkeyed_logs (id INTEGER, Details VARCHAR);
+      INSERT INTO unkeyed_logs VALUES
+        (1, 'UNKEYED_HEADER_TAG ¦ User: admin ¦ EXTRA_METRIC_99 ¦ Type: 1'),
+        (2, 'TgtUser: service_acc ¦ Proc: cmd.exe'),
+        (3, 'ANOTHER_STANDALONE_FLAG ¦ Result: success');
+    `);
+
+    const delim = "¦";
+    const assign = ":";
+    const pattern = (k) => `(?:^|[\\s${delim},;|])${k}\\s*${assign}\\s*(?:"([^"]*)"|([^\\s${delim},;\\r\\n|]+))`;
+
+    // str1, str2 unkeyed extraction using list_filter and list_extract
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_unkeyed_extracted AS
+      SELECT id,
+        NULLIF(TRIM(list_extract(list_filter(str_split("Details", '¦'), x -> trim(x) NOT LIKE '%:%'), 1)), '') AS "str1",
+        NULLIF(TRIM(list_extract(list_filter(str_split("Details", '¦'), x -> trim(x) NOT LIKE '%:%'), 2)), '') AS "str2",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("User")}', 1), ''), regexp_extract("Details", '${pattern("User")}', 2)), '') AS "User"
+      FROM unkeyed_logs;
+    `);
+
+    const rows = await connF.all(`SELECT * FROM v_unkeyed_extracted ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    // Row 1 has 2 unkeyed tokens
+    assert.strictEqual(rows[0]["str1"], "UNKEYED_HEADER_TAG");
+    assert.strictEqual(rows[0]["str2"], "EXTRA_METRIC_99");
+    assert.strictEqual(rows[0]["User"], "admin");
+    // Row 2 has 0 unkeyed tokens
+    assert.strictEqual(rows[1]["str1"], null);
+    assert.strictEqual(rows[1]["str2"], null);
+    // Row 3 has 1 unkeyed token
+    assert.strictEqual(rows[2]["str1"], "ANOTHER_STANDALONE_FLAG");
+    assert.strictEqual(rows[2]["str2"], null);
+  });
+
+  await runTest("H.3 Smart Coalescing of Variant Keys (User + TgtUser -> Username)", async () => {
+    const delim = "¦";
+    const assign = ":";
+    const pattern = (k) => `(?:^|[\\s${delim},;|])${k}\\s*${assign}\\s*(?:"([^"]*)"|([^\\s${delim},;\\r\\n|]+))`;
+
+    // Smart Coalesce combining User and TgtUser into single output column "Username"
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_coalesced_user AS
+      SELECT id,
+        NULLIF(COALESCE(
+          NULLIF(regexp_extract("Details", '${pattern("User")}', 1), ''),
+          NULLIF(regexp_extract("Details", '${pattern("User")}', 2), ''),
+          NULLIF(regexp_extract("Details", '${pattern("TgtUser")}', 1), ''),
+          NULLIF(regexp_extract("Details", '${pattern("TgtUser")}', 2), '')
+        ), '') AS "Username"
+      FROM heterogeneous_logs;
+    `);
+
+    const rows = await connF.all(`SELECT * FROM v_coalesced_user ORDER BY id`);
+    assert.strictEqual(rows.length, 3);
+    // Both Row 1 (User: fptsupport) and Row 2 (TgtUser: fptsupport) coalesce into "fptsupport"
+    assert.strictEqual(rows[0]["Username"], "fptsupport");
+    assert.strictEqual(rows[1]["Username"], "fptsupport");
+    assert.strictEqual(rows[2]["Username"], null);
+  });
+
+  await runTest("H.4 High Volume 100,000 Heterogeneous Mixed-Schema Rows Stress Test", async () => {
+    await connF.run(`
+      CREATE OR REPLACE TABLE large_heterogeneous AS
+      SELECT
+        range AS id,
+        CASE
+          WHEN range % 3 = 0 THEN 'User: user_' || (range % 500) || ' ¦ LID: 0x' || range || ' ¦ Type: ' || (range % 10)
+          WHEN range % 3 = 1 THEN 'TgtUser: tgt_' || (range % 500) || ' ¦ SrcUser: src_' || (range % 100) || ' ¦ SrcIP: 10.0.0.' || (range % 255) || ' ¦ Proc: proc_' || (range % 50) || '.exe'
+          ELSE 'STANDALONE_EVENT_' || range || ' ¦ Provider: Prov_' || (range % 20) || ' ¦ Result: 0x0'
+        END AS "Details"
+      FROM range(100000);
+    `);
+
+    const tStart = Date.now();
+    const delim = "¦";
+    const assign = ":";
+    const pattern = (k) => `(?:^|[\\s${delim},;|])${k}\\s*${assign}\\s*(?:"([^"]*)"|([^\\s${delim},;\\r\\n|]+))`;
+
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_large_hetero_view AS
+      SELECT id,
+        NULLIF(COALESCE(
+          NULLIF(regexp_extract("Details", '${pattern("User")}', 1), ''),
+          NULLIF(regexp_extract("Details", '${pattern("User")}', 2), ''),
+          NULLIF(regexp_extract("Details", '${pattern("TgtUser")}', 1), ''),
+          NULLIF(regexp_extract("Details", '${pattern("TgtUser")}', 2), '')
+        ), '') AS "Unified_User",
+        NULLIF(COALESCE(NULLIF(regexp_extract("Details", '${pattern("Proc")}', 1), ''), regexp_extract("Details", '${pattern("Proc")}', 2)), '') AS "Proc",
+        NULLIF(TRIM(list_extract(list_filter(str_split("Details", '¦'), x -> trim(x) NOT LIKE '%:%'), 1)), '') AS "str1"
+      FROM large_heterogeneous;
+    `);
+
+    const sample = await connF.all(`
+      SELECT
+        COUNT(*) AS total,
+        COUNT("Unified_User") AS user_cnt,
+        COUNT("Proc") AS proc_cnt,
+        COUNT("str1") AS str1_cnt
+      FROM v_large_hetero_view;
+    `);
+
+    const duration = Date.now() - tStart;
+    console.log(`    ${CYAN}100,000 heterogeneous rows query execution: ${duration} ms${RESET}`);
+    assert.strictEqual(Number(sample[0].total), 100000);
+    // Rows with % 3 == 0 (33334) + % 3 == 1 (33333) = 66667
+    assert.strictEqual(Number(sample[0].user_cnt), 66667);
+    // Rows with % 3 == 1 = 33333
+    assert.strictEqual(Number(sample[0].proc_cnt), 33333);
+    // Rows with % 3 == 2 = 33333
+    assert.strictEqual(Number(sample[0].str1_cnt), 33333);
+  });
+
   uiDriverF.connPool.giveBack(connF);
 
   // Cleanup temporary directory
