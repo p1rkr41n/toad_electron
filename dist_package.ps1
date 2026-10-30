@@ -16,11 +16,11 @@ $latestExe = Get-ChildItem -Path "D:\Shared_UserData\Downloads\tad\tad-master\pa
 if ($latestExe) {
     Write-Output "Copying $($latestExe.Name) to releases and root..."
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
-    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.0.4.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.0.5.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\$($latestExe.Name)" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\$($latestExe.Name)" -Force
-    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.0.4.exe" -Force
-    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.0.4_portable.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.0.5.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.0.5_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad.exe" -Force
 }
 

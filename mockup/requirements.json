@@ -84,8 +84,20 @@
     "technical_specs": {
       "container_class": "mode-corner-group",
       "buttons": [
-        {"id": "ntab-simple", "label": "Simple", "icon": "Lightning SVG", "default_active": true, "title": "Simple Mode (Default: Fast visual parsing without regex)"},
-        {"id": "ntab-adv", "label": "Regex", "icon": "Wrench SVG", "default_active": false, "title": "Professional Mode (Regular Expression / Regex capture groups)"}
+        {
+          "id": "ntab-simple",
+          "label": "Simple",
+          "icon": "Lightning SVG",
+          "default_active": true,
+          "title": "Simple Mode (Default: Fast visual parsing without regex)"
+        },
+        {
+          "id": "ntab-adv",
+          "label": "Regex",
+          "icon": "Wrench SVG",
+          "default_active": false,
+          "title": "Professional Mode (Regular Expression / Regex capture groups)"
+        }
       ],
       "switch_function": "switchNativeTab(tab)"
     },
@@ -111,7 +123,14 @@
     ],
     "technical_specs": {
       "select_id": "native-format-select",
-      "supported_formats": ["raw", "kv", "json", "csv", "space", "arr"],
+      "supported_formats": [
+        "raw",
+        "kv",
+        "json",
+        "csv",
+        "space",
+        "arr"
+      ],
       "change_handler": "onNativeFormatSelect(this.value, true)"
     },
     "cognitive_load_optimization": {
@@ -210,10 +229,22 @@
     ],
     "technical_specs": {
       "inputs": {
-        "delimiter": {"id": "cfg-delimiter", "default": " "},
-        "equal": {"id": "cfg-equal", "default": "="},
-        "quote_open": {"id": "cfg-quote-open", "default": "\""},
-        "quote_close": {"id": "cfg-quote-close", "default": "\""}
+        "delimiter": {
+          "id": "cfg-delimiter",
+          "default": " "
+        },
+        "equal": {
+          "id": "cfg-equal",
+          "default": "="
+        },
+        "quote_open": {
+          "id": "cfg-quote-open",
+          "default": "\""
+        },
+        "quote_close": {
+          "id": "cfg-quote-close",
+          "default": "\""
+        }
       }
     },
     "cognitive_load_optimization": {
@@ -304,7 +335,12 @@
     "technical_specs": {
       "input_id": "native-field-search",
       "filter_function": "filterNativeFields(query)",
-      "matching_fields": ["data-name", "data-type", ".sample-val", "input[type='text'].col-input"]
+      "matching_fields": [
+        "data-name",
+        "data-type",
+        ".sample-val",
+        "input[type='text'].col-input"
+      ]
     },
     "cognitive_load_optimization": {
       "strategy": "Embedded search icon eliminates need for explicit label; single input replaces 4 filter buttons."
@@ -331,8 +367,18 @@
     ],
     "technical_specs": {
       "sort_function": "sortNativeTable(key)",
-      "sortable_keys": ["name", "type", "fill", "val", "col"],
-      "indicators": {"neutral": "&#8645;", "asc": "&#9650;", "desc": "&#9660;"},
+      "sortable_keys": [
+        "name",
+        "type",
+        "fill",
+        "val",
+        "col"
+      ],
+      "indicators": {
+        "neutral": "&#8645;",
+        "asc": "&#9650;",
+        "desc": "&#9660;"
+      },
       "active_th_class": "active-sort"
     },
     "cognitive_load_optimization": {
@@ -419,7 +465,13 @@
     ],
     "technical_specs": {
       "select_class": "type-select",
-      "supported_types": ["VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP", "BOOLEAN"],
+      "supported_types": [
+        "VARCHAR",
+        "BIGINT",
+        "DOUBLE",
+        "TIMESTAMP",
+        "BOOLEAN"
+      ],
       "sql_casting_pattern": "TRY_CAST(<extract_expr> AS <type>) AS \"<alias>\"",
       "sql_raw_pattern": "<extract_expr> AS \"<alias>\""
     },
@@ -612,7 +664,10 @@
     ],
     "technical_specs": {
       "authoritative_file": "mockup/index.html",
-      "eliminated_files": ["mockup/original.html", "mockup/toad_extractor_mockup.html"]
+      "eliminated_files": [
+        "mockup/original.html",
+        "mockup/toad_extractor_mockup.html"
+      ]
     },
     "cognitive_load_optimization": {
       "strategy": "Eliminating multi-view comparisons removes ambiguity and cognitive clutter for stakeholders and engineering paired programming."
