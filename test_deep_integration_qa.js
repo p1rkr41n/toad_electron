@@ -1144,6 +1144,61 @@ async function main() {
     assert.strictEqual(isOnlyDisplayOrderChange(vpBase, vpFiltered), false, "Filter change must trigger full backend query");
   });
 
+  // ===========================================================================
+  // SUITE J: Toad v2.0.5 Instant Clean Startup & Modernized QuickStart Guide
+  // ===========================================================================
+  reportSuite("SUITE J: Toad v2.0.5 Instant Clean Startup & Modernized QuickStart Guide");
+
+  await runTest("J.1 Startup Configuration Disables Auto-Spawned QuickStart & Modal File Dialog", async () => {
+    const mainTsPath = path.resolve(__dirname, "tad-master/packages/tad-app/app/main.ts");
+    const mainTsContent = fs.readFileSync(mainTsPath, "utf8");
+
+    // Assert that showQuickStart is false on startup
+    assert(
+      mainTsContent.includes("const showQuickStart = false;"),
+      "main.ts must set showQuickStart to false on startup"
+    );
+
+    // Assert that openDialog is NOT called in the ready block when no file is passed
+    const readyBlockMatch = mainTsContent.match(/app\.on\("ready"[\s\S]*?isReady = true;/);
+    assert(readyBlockMatch, "app.on('ready') block must exist");
+    const readyCode = readyBlockMatch[0];
+    assert.strictEqual(
+      readyCode.includes('appWindow.openDialog("openFile"'),
+      false,
+      "app.on('ready') must NOT call appWindow.openDialog on launch (must open clean window)"
+    );
+  });
+
+  await runTest("J.2 Modernized QuickStart Guide Content & Toad v2.0.5 Feature Verification", async () => {
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+
+    // Version verification
+    assert(htmlContent.includes("v2.0.5"), "QuickStart Guide must display v2.0.5 version badge");
+
+    // Feature set verification
+    assert(htmlContent.includes("Universal Column Extractor & Renamer"), "Must document Universal Column Extractor");
+    assert(htmlContent.includes("Heterogeneous Multi-Row Key Discovery"), "Must document Heterogeneous Key Discovery");
+    assert(htmlContent.includes("strX"), "Must document strX positional fallback tokens");
+    assert(htmlContent.includes("Smart Coalescing"), "Must document Smart Coalescing");
+    assert(htmlContent.includes("unmatched_[column]"), "Must document unmatched_[column] fallback");
+    assert(htmlContent.includes("Zero-Cost Instant Column Reordering"), "Must document Zero-Cost Column Reordering");
+    assert(htmlContent.includes("Instant Clean Startup"), "Must document Instant Clean Startup in changelog");
+  });
+
+  await runTest("J.3 QuickStart On-Demand Invocation & IPC Handler Safety", async () => {
+    const quickStartTsPath = path.resolve(__dirname, "tad-master/packages/tad-app/app/quickStart.ts");
+    const qsContent = fs.readFileSync(quickStartTsPath, "utf8");
+
+    assert(qsContent.includes("export const showQuickStart"), "showQuickStart export must exist for on-demand Help menu");
+    assert(qsContent.includes("ensureHandlersRegistered"), "IPC handlers must be guarded against duplicate registrations");
+
+    const appMenuTsPath = path.resolve(__dirname, "tad-master/packages/tad-app/app/appMenu.ts");
+    const menuContent = fs.readFileSync(appMenuTsPath, "utf8");
+    assert(menuContent.includes("quickStart.showQuickStart()"), "Help -> Quick Start Guide menu item must call showQuickStart on demand");
+  });
+
   uiDriverF.connPool.giveBack(connF);
 
   // Cleanup temporary directory
