@@ -18,7 +18,7 @@ Phiên bản **Minimalist (Zen) Edition** giải quyết triệt để tình tr�
    - Các cấu hình nâng cao (Header Prefix `:`, Header Column Name `log_header`, Quote Wrapper `" .. "`) được thu gọn tinh tế vào nút popover `[☵ Rules •]`.
 
 2. **Hợp nhất Cột & Đổi tên Trực tiếp (Click-to-Rename Inline)**:
-   - Hợp nhất cột `Key` và `New name` thành một nhãn `Column (Click to rename)` duy nhất.
+   - Hợp nhất cột `Key` và `New name` thành tiêu đề `Column` gọn gàng duy nhất (lược bỏ chữ `(Click to rename)` ở tiêu đề cột, vẫn giữ tính năng click đổi tên trực tiếp tại từng dòng).
    - Click trực tiếp vào tên cột: nhãn chuyển thành ô nhập liệu ngay tức thì, gõ tên mới rồi nhấn `Enter` hoặc click ra ngoài để lưu lại (hiển thị trực quan dạng `key → newName`).
    - Loại bỏ hoàn toàn hàng chục ô text input tĩnh dư thừa, giúp bảng dữ liệu thoáng đãng và giảm 70% nhiễu thị giác.
 

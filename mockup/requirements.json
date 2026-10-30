@@ -313,16 +313,17 @@
     "id": "REQ-MOCKUP-013",
     "category": "Inline Renaming",
     "title": "Merged Column Typography with Inline Click-to-Rename Interaction",
-    "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn... Click key name to rename inline",
+    "user_request_origin": "bỏ chữ click to rename được không... (ảnh chụp tiêu đề cột COLUMN (CLICK TO RENAME))",
     "user_story": "As a user, I want the discovered Key and New Name merged into a single column where I can simply click any column name to rename it inline so the table is clean, legible, and free of redundant input boxes.",
     "rationale_and_design_decisions": "In 90% of log extraction tasks, users keep the original key name. Displaying 13+ static input boxes across every row creates overwhelming visual noise. Merging Key and New Name into a click-to-rename label eliminates dozens of redundant input boxes. Clicking transforms the text into an input box; pressing Enter or blurring renames it and displays `key → newName`.",
-    "description": "The Minimalist table header displays 'Column (Click to rename)'. Rows render key names as clean typography with a subtle hover pencil icon (✎). Clicking switches to an inline text input; pressing Enter or blurring updates the alias smoothly.",
+    "description": "The Minimalist table header displays a clean 'Column' label, removing the verbose '(Click to rename)' instruction while retaining full inline click-to-rename functionality on the row items. Rows render key names as clean typography with a subtle hover pencil icon (✎). Clicking switches to an inline text input; pressing Enter or blurring updates the alias smoothly.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
-      "Merges Key and New name into a single 'Column (Click to rename)' column.",
-      "Default state shows key name as clean typography with hover pencil indicator (✎).",
-      "Clicking on the column name transforms it into an inline focused text input (#inlineRenameInput_{id}).",
+      "Table header displays clean 'Column' label instead of verbose 'Column (Click to rename)'.",
+      "Hover tooltip on 'Column' header provides guidance: 'Click to sort • Click any column below to rename'.",
+      "Default state in rows shows key name as clean typography with hover pencil indicator (✎).",
+      "Clicking on any column name transforms it into an inline focused text input (#inlineRenameInput_{id}).",
       "Pressing Enter or blurring saves the new name and displays 'key → newName' tag.",
       "Zero permanent static input boxes clutter the table."
     ],
@@ -332,7 +333,7 @@
       "input_id": "inlineRenameInput_{field.id}",
       "renamed_tag": "<span class='text-slate-400'>→</span><span class='px-1.5 py-0.2 rounded bg-blue-50 text-blue-700'>{field.newName}</span>"
     },
-    "cognitive_load_optimization": "Reduces visual clutter by 70% by eliminating redundant input fields, presenting data as readable typography until editing is explicitly requested."
+    "cognitive_load_optimization": "Removes redundant parenthetical instructions from column headers, maintaining a clean, ultra-minimalist data grid."
   },
   {
     "id": "REQ-MOCKUP-014",
