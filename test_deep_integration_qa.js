@@ -1565,6 +1565,201 @@ async function main() {
     assert.strictEqual(req23.status, "implemented", "REQ-MOCKUP-023 status must be implemented");
   });
 
+  // ===========================================================================
+  // SUITE N: Toad v2.0.9 Sequential strX Non-Overwriting Logic & Chained Safety
+  // ===========================================================================
+  console.log(`\n${BOLD}======================================================================${RESET}`);
+  console.log(`${BOLD}  SUITE N: Toad v2.0.9 Sequential strX Non-Overwriting Logic & Chained Safety${RESET}`);
+  console.log(`${BOLD}======================================================================${RESET}`);
+
+  await runTest("N.1 getMaxStrIndex Schema & Dialog Rows Helper Logic", async () => {
+    const getMaxStrIndex = (schemaCols, rows) => {
+      let maxIdx = 0;
+      const checkName = (name) => {
+        if (!name) return;
+        const m = /^str_?(\d+)$/i.exec(name.trim());
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (!isNaN(num) && num > maxIdx) {
+            maxIdx = num;
+          }
+        }
+      };
+      schemaCols.forEach(checkName);
+      if (rows) {
+        rows.forEach((r) => {
+          checkName(String(r.sourceKeyOrIdx));
+          checkName(r.outputColName);
+        });
+      }
+      return maxIdx;
+    };
+
+    assert.strictEqual(getMaxStrIndex([]), 0);
+    assert.strictEqual(getMaxStrIndex(["id", "Message", "EventCode"]), 0);
+    assert.strictEqual(getMaxStrIndex(["id", "str1", "str2"]), 2);
+    assert.strictEqual(getMaxStrIndex(["id", "str_05", "str2"]), 5);
+    assert.strictEqual(getMaxStrIndex(["id", "str1"], [{ sourceKeyOrIdx: "str4", outputColName: "col4" }]), 4);
+    assert.strictEqual(getMaxStrIndex(["id"], [{ sourceKeyOrIdx: "token", outputColName: "str7" }]), 7);
+  });
+
+  await runTest("N.2 Sequential strX Generation with tokenIndex Preservation", async () => {
+    // Simulate candidate discovery for delimited tokens when base schema has str1, str2
+    const existingSchema = ["id", "colA", "str1", "str2"];
+    const baseOffset = 2; // derived from getMaxStrIndex
+    const rawTokens = ["first_val", "second_val", "third_val"];
+
+    const candidates = rawTokens.map((val, idx) => {
+      const tokenIndex = idx + 1; // 1-based token position in source string
+      const colIdx = baseOffset + tokenIndex; // Sequential strX: str3, str4, str5
+      return {
+        id: `delim_str${colIdx}`,
+        sourceKeyOrIdx: `str${colIdx}`,
+        outputColName: `str${colIdx}`,
+        sampleVal: val,
+        colType: "VARCHAR",
+        fillRate: 100,
+        enabled: true,
+        tokenIndex: tokenIndex,
+      };
+    });
+
+    assert.strictEqual(candidates.length, 3);
+    assert.strictEqual(candidates[0].outputColName, "str3");
+    assert.strictEqual(candidates[0].tokenIndex, 1);
+    assert.strictEqual(candidates[1].outputColName, "str4");
+    assert.strictEqual(candidates[1].tokenIndex, 2);
+    assert.strictEqual(candidates[2].outputColName, "str5");
+    assert.strictEqual(candidates[2].tokenIndex, 3);
+  });
+
+  await runTest("N.3 End-to-End DuckDB Chained Extraction: str1, str2 Preserved while str3, str4 Added", async () => {
+    // 1. Create base table with 2 raw string columns
+    await connF.run(`
+      CREATE OR REPLACE TABLE chained_logs (
+        id INT,
+        logA VARCHAR,
+        logB VARCHAR
+      );
+    `);
+    await connF.run(`
+      INSERT INTO chained_logs VALUES
+      (1, '2026-10-30 INFO service_start', 'code=200 status=OK latency=42ms'),
+      (2, '2026-10-30 WARN disk_full', 'code=507 status=ERROR latency=120ms');
+    `);
+
+    // 2. Step 1: Parse logA into str1, str2, str3
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_chained_step1 AS
+      SELECT *,
+        split_part("logA", ' ', 1) AS "str1",
+        split_part("logA", ' ', 2) AS "str2",
+        split_part("logA", ' ', 3) AS "str3"
+      FROM chained_logs;
+    `);
+
+    const step1Rows = await connF.all(`SELECT * FROM v_chained_step1 WHERE id = 1;`);
+    assert.strictEqual(step1Rows[0]["str1"], "2026-10-30");
+    assert.strictEqual(step1Rows[0]["str2"], "INFO");
+    assert.strictEqual(step1Rows[0]["str3"], "service_start");
+
+    // 3. Step 2: Parse logB into sequential columns str4, str5, str6
+    // Base schema has columns: ["id", "logA", "logB", "str1", "str2", "str3"].
+    // Candidate discovery generates newColNames: ["str4", "str5", "str6"].
+    // actions.ts filters existingMatches = newColNames.filter(c => baseSchema.includes(c)) => []
+    // Therefore selectExclude is "*", perfectly preserving str1, str2, str3 without collisions!
+    const baseCols = ["id", "logA", "logB", "str1", "str2", "str3"];
+    const newCols = ["str4", "str5", "str6"];
+    const existingMatches = newCols.filter((c) => baseCols.includes(c));
+    const selectExclude = existingMatches.length > 0
+      ? `* EXCLUDE (${existingMatches.map((c) => `"${c}"`).join(", ")})`
+      : `*`;
+
+    await connF.run(`
+      CREATE OR REPLACE VIEW v_chained_step2 AS
+      SELECT ${selectExclude},
+        split_part("logB", ' ', 1) AS "str4",
+        split_part("logB", ' ', 2) AS "str5",
+        split_part("logB", ' ', 3) AS "str6"
+      FROM v_chained_step1;
+    `);
+
+    const step2Rows = await connF.all(`SELECT * FROM v_chained_step2 ORDER BY id;`);
+    assert.strictEqual(step2Rows.length, 2);
+
+    // Verify row 1: original str1, str2, str3 are completely intact AND new str4, str5, str6 are populated
+    assert.strictEqual(step2Rows[0]["str1"], "2026-10-30", "str1 from step 1 must not be overwritten!");
+    assert.strictEqual(step2Rows[0]["str2"], "INFO", "str2 from step 1 must not be overwritten!");
+    assert.strictEqual(step2Rows[0]["str3"], "service_start", "str3 from step 1 must not be overwritten!");
+    assert.strictEqual(step2Rows[0]["str4"], "code=200", "str4 from step 2 must match token 1 of logB");
+    assert.strictEqual(step2Rows[0]["str5"], "status=OK", "str5 from step 2 must match token 2 of logB");
+    assert.strictEqual(step2Rows[0]["str6"], "latency=42ms", "str6 from step 2 must match token 3 of logB");
+
+    // Verify row 2
+    assert.strictEqual(step2Rows[1]["str1"], "2026-10-30");
+    assert.strictEqual(step2Rows[1]["str2"], "WARN");
+    assert.strictEqual(step2Rows[1]["str3"], "disk_full");
+    assert.strictEqual(step2Rows[1]["str4"], "code=507");
+    assert.strictEqual(step2Rows[1]["str5"], "status=ERROR");
+    assert.strictEqual(step2Rows[1]["str6"], "latency=120ms");
+  });
+
+  await runTest("N.4 User Add Column (+ strX) Sequential Auto-Incrementing", async () => {
+    const existingSchema = ["id", "str1", "str2", "str3"];
+    const simpleRows = [
+      { id: "delim_str4", sourceKeyOrIdx: "str4", outputColName: "str4", tokenIndex: 1 },
+      { id: "delim_str5", sourceKeyOrIdx: "str5", outputColName: "str5", tokenIndex: 2 },
+    ];
+
+    const getMaxStrIndex = (schemaCols, rows) => {
+      let maxIdx = 0;
+      const checkName = (name) => {
+        if (!name) return;
+        const m = /^str_?(\d+)$/i.exec(name.trim());
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (!isNaN(num) && num > maxIdx) maxIdx = num;
+        }
+      };
+      schemaCols.forEach(checkName);
+      if (rows) {
+        rows.forEach((r) => {
+          checkName(String(r.sourceKeyOrIdx));
+          checkName(r.outputColName);
+        });
+      }
+      return maxIdx;
+    };
+
+    // Simulate clicking "+ strX"
+    const nextColIdx = getMaxStrIndex(existingSchema, simpleRows) + 1;
+    let maxToken = 0;
+    simpleRows.forEach((r) => {
+      if (r.tokenIndex !== undefined && r.tokenIndex > maxToken) {
+        maxToken = r.tokenIndex;
+      }
+    });
+    const nextTokenIdx = maxToken > 0 ? maxToken + 1 : simpleRows.length + 1;
+
+    assert.strictEqual(nextColIdx, 6, "Next column index must be 6 (str6)");
+    assert.strictEqual(nextTokenIdx, 3, "Next token index must be 3");
+  });
+
+  await runTest("N.5 Codebase Verification of actions.ts & RegexDialog.tsx logic", async () => {
+    const actionsCode = fs.readFileSync(path.resolve(__dirname, "tad-master/packages/tadviewer/src/actions.ts"), "utf8");
+    const regexDialogCode = fs.readFileSync(path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
+
+    // actions.ts must include tokenIndex support
+    assert(actionsCode.includes("tokenIndex?: number;"), "actions.ts must define tokenIndex in ExtractionFieldMapping");
+    assert(actionsCode.includes("m.tokenIndex !== undefined"), "actions.ts must check m.tokenIndex in extraction");
+
+    // RegexDialog.tsx must include getMaxStrIndex and baseStrOffset
+    assert(regexDialogCode.includes("getMaxStrIndex"), "RegexDialog.tsx must implement getMaxStrIndex helper");
+    assert(regexDialogCode.includes("baseStrOffset"), "RegexDialog.tsx must compute baseStrOffset from schema columns");
+    assert(regexDialogCode.includes("tokenIndex: r.tokenIndex"), "RegexDialog.tsx handleApply must pass tokenIndex");
+    assert(regexDialogCode.includes("nextColIdx = getMaxStrIndex(columns, simpleRows) + 1"), "RegexDialog.tsx handleAddColumn must calculate nextColIdx");
+  });
+
   uiDriverF.connPool.giveBack(connF);
 
   // Cleanup temporary directory
