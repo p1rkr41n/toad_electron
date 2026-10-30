@@ -175,7 +175,9 @@
                     <div id="minimalRulesPopover" class="hidden absolute right-0 mt-1.5 w-64 bg-white rounded-lg shadow-xl border border-slate-200 p-3 z-30 space-y-2.5 text-xs">
                         <div class="font-semibold text-slate-800 flex items-center justify-between">
                             <span>Advanced Extraction Rules</span>
-                            <button onclick="toggleMinimalRulesPopover()" class="text-slate-400 hover:text-slate-600">✕</button>
+                            <button onclick="toggleMinimalRulesPopover()" class="text-slate-400 hover:text-slate-600 flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
                         </div>
                         <label class="flex items-center justify-between text-slate-600">
                             <span>Header Prefix (`:`)</span>
@@ -530,10 +532,14 @@
                     <span>Ready (<strong id="latencyLabel" class="text-slate-700 font-bold">&lt; 15ms</strong>)</span>
                 </div>
                 <button id="minimalInlineTestBtn" onclick="runThousandRowsTest()" class="hidden items-center gap-1 px-2 py-0.5 rounded bg-slate-200/70 hover:bg-slate-200 text-slate-700 font-medium text-[11px] transition-colors">
-                    <span>▶ Verify 1k rows</span>
+                    <span class="flex items-center gap-1">
+                        <svg class="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+                        <span>Verify 1k rows</span>
+                    </span>
                 </button>
-                <span id="schemaValidationBadge" class="hidden px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300">
-                    ⚠️ Duplicate column name detected
+                <span id="schemaValidationBadge" class="hidden items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-100 text-red-700 border border-red-300">
+                    <svg class="w-3 h-3 text-red-600 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <span>Duplicate column name detected</span>
                 </span>
             </div>
 
@@ -557,7 +563,9 @@
                     <span class="text-[11px] font-bold uppercase tracking-wider text-blue-600">Google Cloud & Minimalist UX Review</span>
                     <h3 class="text-base font-bold text-slate-900">5 Key Improvements Over v2.0.9</h3>
                 </div>
-                <button onclick="toggleUxNotesModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100">✕</button>
+                <button onclick="toggleUxNotesModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                </button>
             </div>
 
             <div class="space-y-3 text-xs text-slate-600 leading-relaxed">
@@ -570,7 +578,7 @@
                     <p>In 90% of cases, users keep the original key name. Merging <code>Key</code> and <code>New name</code> removes 13 redundant text inputs; simply click any column name to rename it inline.</p>
                 </div>
                 <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                    <div class="font-bold text-slate-800 mb-0.5">3. Smart Bulk Selection (⚡ ≥50% Rate Pill)</div>
+                    <div class="font-bold text-slate-800 mb-0.5">3. Smart Bulk Selection (≥50% Rate Pill)</div>
                     <p>Log payloads often produce dozens of sparse keys (<10% rate). Adding a 1-click <strong>≥50% Rate</strong> filter saves data engineers from manually unchecking noisy tail fields.</p>
                 </div>
                 <div class="p-3 rounded-lg bg-slate-50 border border-slate-200">
@@ -856,7 +864,7 @@
                                         class="inline-flex items-center gap-1.5 font-mono-code text-xs font-semibold text-slate-800 hover:text-blue-600 transition-colors">
                                         <span class="${field.isPositional ? 'text-slate-900 font-bold' : ''}">${escapeHtml(field.key)}</span>
                                         ${isRenamed ? `<span class="text-slate-400">→</span><span class="px-1.5 py-0.2 rounded bg-blue-50 text-blue-700">${escapeHtml(field.newName)}</span>` : ''}
-                                        <span class="opacity-0 group-hover:opacity-100 text-[10px] text-slate-400 font-sans font-normal">✎</span>
+                                        <svg class="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
                                     </button>
                                 `}
                             </div>
@@ -881,7 +889,11 @@
                             <div class="col-span-1 flex items-center justify-end gap-1.5">
                                 <span class="w-1.5 h-1.5 rounded-full ${dotColor}" title="${field.rate}% fill rate"></span>
                                 <span class="font-mono-code text-[11px] text-slate-400 group-hover:hidden">${field.rate}%</span>
-                                <button onclick="removeField(${field.id})" title="Remove" class="hidden group-hover:inline-block text-slate-400 hover:text-red-500">✕</button>
+                                <button onclick="removeField(${field.id})" title="Remove" class="hidden group-hover:inline-block text-slate-400 hover:text-red-500 transition-colors">
+                                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M18 6L6 18M6 6l12 12"/>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
                     `;

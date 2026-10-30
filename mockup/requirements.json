@@ -318,16 +318,16 @@
     "id": "REQ-MOCKUP-013",
     "category": "Inline Renaming",
     "title": "Merged Column Typography with Inline Click-to-Rename Interaction",
-    "user_request_origin": "bỏ chữ click to rename được không... (ảnh chụp tiêu đề cột COLUMN (CLICK TO RENAME))",
+    "user_request_origin": "bỏ chữ click to rename được không (ảnh chụp COLUMN (CLICK TO RENAME)) và icon đơn sắc (ảnh chụp icon bút chì hiển thị emoji màu vàng/đỏ trên Windows)",
     "user_story": "As a user, I want the discovered Key and New Name merged into a single column where I can simply click any column name to rename it inline so the table is clean, legible, and free of redundant input boxes.",
-    "rationale_and_design_decisions": "In 90% of log extraction tasks, users keep the original key name. Displaying 13+ static input boxes across every row creates overwhelming visual noise. Merging Key and New Name into a click-to-rename label eliminates dozens of redundant input boxes. Clicking transforms the text into an input box; pressing Enter or blurring renames it and displays `key → newName`.",
-    "description": "The Minimalist table header displays a clean 'Column' label, removing the verbose '(Click to rename)' instruction while retaining full inline click-to-rename functionality on the row items. Rows render key names as clean typography with a subtle hover pencil icon (✎). Clicking switches to an inline text input; pressing Enter or blurring updates the alias smoothly.",
+    "rationale_and_design_decisions": "1. In 90% of log extraction tasks, users keep the original key name. Displaying 13+ static input boxes across every row creates overwhelming visual noise. Merging Key and New Name into a click-to-rename label eliminates dozens of redundant input boxes.\n2. Using the Unicode character ✎ (U+270E) causes Windows Segoe UI Emoji and mobile devices to render a colorful yellow-and-red pencil graphic, breaking monochromatic consistency. Replacing it with an inline vector SVG pencil path (viewBox='0 0 24 24', stroke='currentColor', text-slate-400) guarantees crisp, 100% monochromatic rendering across all operating systems.",
+    "description": "The Minimalist table header displays a clean 'Column' label, removing the verbose '(Click to rename)' instruction while retaining full inline click-to-rename functionality on the row items. Rows render key names as clean typography with a subtle hover pencil icon rendered strictly as a monochromatic vector SVG (text-slate-400). Clicking switches to an inline text input; pressing Enter or blurring updates the alias smoothly.",
     "status": "implemented_in_mockup",
     "target_version": "2.0.9",
     "acceptance_criteria": [
       "Table header displays clean 'Column' label instead of verbose 'Column (Click to rename)'.",
       "Hover tooltip on 'Column' header provides guidance: 'Click to sort • Click any column below to rename'.",
-      "Default state in rows shows key name as clean typography with hover pencil indicator (✎).",
+      "Default state in rows shows key name as clean typography with hover pencil indicator rendered strictly as a monochromatic vector SVG (<svg class='w-3 h-3 text-slate-400 ...'>), avoiding OS emoji colorization.",
       "Clicking on any column name transforms it into an inline focused text input (#inlineRenameInput_{id}).",
       "Pressing Enter or blurring saves the new name and displays 'key → newName' tag.",
       "Zero permanent static input boxes clutter the table."
@@ -336,7 +336,9 @@
       "start_handler": "startInlineRename(id)",
       "finish_handler": "finishInlineRename(id, val)",
       "input_id": "inlineRenameInput_{field.id}",
-      "renamed_tag": "<span class='text-slate-400'>→</span><span class='px-1.5 py-0.2 rounded bg-blue-50 text-blue-700'>{field.newName}</span>"
+      "renamed_tag": "<span class='text-slate-400'>→</span><span class='px-1.5 py-0.2 rounded bg-blue-50 text-blue-700'>{field.newName}</span>",
+      "pencil_icon": "<svg class='w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z'/></svg>",
+      "monochromatic_guarantee": "100% inline SVG path, immune to system emoji font fallback"
     },
     "cognitive_load_optimization": "Removes redundant parenthetical instructions from column headers, maintaining a clean, ultra-minimalist data grid."
   },
@@ -375,13 +377,14 @@
     "acceptance_criteria": [
       "Displays a circular color dot indicator: emerald (≥50%) or amber (<50%).",
       "Displays monospace percentage number by default (e.g., '82%').",
-      "Hovering over the row reveals the '✕' remove button in place of percentage.",
+      "Hovering over the row reveals the monochromatic vector SVG '✕' remove button in place of percentage.",
       "Clicking '✕' immediately removes the field from output schema and displays toast notice."
     ],
     "technical_specs": {
       "dot_classes": "w-1.5 h-1.5 rounded-full {dotColor}",
       "delete_btn_class": "hidden group-hover:inline-block text-slate-400 hover:text-red-500",
-      "handler": "removeField(id)"
+      "handler": "removeField(id)",
+      "delete_svg": "<svg class='w-3 h-3' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M18 6L6 18M6 6l12 12'/></svg>"
     },
     "cognitive_load_optimization": "Employs contextual hover disclosure to keep the resting interface serene and clean."
   },

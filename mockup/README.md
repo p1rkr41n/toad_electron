@@ -20,6 +20,7 @@ Phiên bản **Minimalist (Zen) Edition** giải quyết triệt để tình tr�
 2. **Hợp nhất Cột & Đổi tên Trực tiếp (Click-to-Rename Inline)**:
    - Hợp nhất cột `Key` và `New name` thành tiêu đề `Column` gọn gàng duy nhất (lược bỏ chữ `(Click to rename)` ở tiêu đề cột, vẫn giữ tính năng click đổi tên trực tiếp tại từng dòng).
    - Click trực tiếp vào tên cột: nhãn chuyển thành ô nhập liệu ngay tức thì, gõ tên mới rồi nhấn `Enter` hoặc click ra ngoài để lưu lại (hiển thị trực quan dạng `key → newName`).
+   - Icon bút chì gợi ý (pencil icon) khi hover được chuyển hoàn toàn sang định dạng vector SVG đơn sắc (`text-slate-400`), triệt tiêu hoàn toàn hiện tượng hệ điều hành (Windows Segoe UI Emoji) tự động render emoji màu vàng/đỏ.
    - Loại bỏ hoàn toàn hàng chục ô text input tĩnh dư thừa, giúp bảng dữ liệu thoáng đãng và giảm 70% nhiễu thị giác.
 
 3. **Menu Chọn Kiểu Dữ liệu Tinh tế (Ghost Type Select) & Xóa Nhanh Khi Hover**:
@@ -28,13 +29,13 @@ Phiên bản **Minimalist (Zen) Edition** giải quyết triệt để tình tr�
    - Khi rê chuột (hover) vào hàng, nút xóa nhanh `✕` xuất hiện mượt mà cho phép loại bỏ cột khỏi schema chỉ với 1 click.
 
 4. **Thanh Công Cụ Trường Khám Phá Gom Trên 1 Dòng (Single-Line Toolbar)**:
-   - Gom toàn bộ 5 thành phần điều khiển trên cùng 1 dòng ngang duy nhất (không rớt dòng): Tiêu đề `Discovered Fields (13)`, ô tìm kiếm `Search fields...`, nút lọc thông minh `⚡ ≥50% Rate`, nút thêm token vị trí `+ strX`, và cặp nút chọn nhanh `All` / `None`.
+   - Gom toàn bộ 5 thành phần điều khiển trên cùng 1 dòng ngang duy nhất (không rớt dòng): Tiêu đề `Discovered Fields (13)`, ô tìm kiếm `Search fields...`, nút lọc thông minh `≥50% Rate` (icon tia sét SVG đơn sắc), nút thêm token vị trí `+ strX` (icon cộng SVG đơn sắc), và cặp nút chọn nhanh `All` / `None`. Toàn bộ icon sử dụng chuẩn vector SVG đơn sắc (`text-slate-600` / `text-slate-500`).
 
 5. **Kiểm tra Trùng tên Cột Thời Gian Thực (Schema Guardrails)**:
-   - Tự động phát hiện khi 2 cột có cùng tên định danh, hiển thị cảnh báo `⚠️ Duplicate column name detected` và tạm khóa nút `Apply` để ngăn ngừa lỗi cú pháp SQL.
+   - Tự động phát hiện khi 2 cột có cùng tên định danh, hiển thị cảnh báo với icon cảnh báo tam giác SVG vector đỏ mảnh (`Duplicate column name detected`) và tạm khóa nút `Apply` để ngăn ngừa lỗi cú pháp SQL.
 
 6. **Nút Kiểm tra 1.000 Dòng Tích hợp Footer (Inline 1k-Row Verify)**:
-   - Thu gọn khối Test 1.000 dòng cồng kềnh thành nút kiểm tra nhanh `▶ Verify 1k rows` ngay trên thanh Footer, hiển thị thời gian phản hồi siêu tốc (`< 15ms`).
+   - Thu gọn khối Test 1.000 dòng cồng kềnh thành nút kiểm tra nhanh với icon play SVG đơn sắc `Verify 1k rows` ngay trên thanh Footer, hiển thị thời gian phản hồi siêu tốc (`< 15ms`).
 
 7. **Nút Áp dụng Rõ ràng với Bộ đếm Cột (Apply Count Badge)**:
    - Nút `Apply (13)` tích hợp sẵn số lượng cột được chọn, mang lại sự tự tin tuyệt đối cho người dùng trước khi trích xuất.
