@@ -1,54 +1,53 @@
-# Kế hoạch kỹ thuật chi tiết: Khắc phục lỗi Z-Index & Tối ưu hóa toàn diện theo Ponytail Review (Toad v2.0.12)
+# Kế hoạch kỹ thuật chi tiết & Đánh giá an toàn Logic hệ thống (Toad v2.0.12)
 
-> **Mục tiêu**: Giải quyết triệt để lỗi xung đột lớp hiển thị `z-index: 25` (thanh splitter đè xuyên mặt Modal Dialog) và triển khai đầy đủ các phát hiện từ báo cáo **Ponytail Review** ([`Footer.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/Footer.tsx), [`EventDetailSidebar.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/EventDetailSidebar.tsx), [`DataGrid.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/DataGrid.tsx), [`actions.ts`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts)), nâng cấp toàn hệ thống lên phiên bản **Toad v2.0.12**.
+> **Mục tiêu**: Giải quyết triệt để lỗi xung đột lớp hiển thị `z-index: 25` (thanh splitter đè xuyên qua mặt Modal Dialog) và xử lý các lỗi rò rỉ sự kiện chuột theo báo cáo **Ponytail Review**, đồng thời **rà soát nghiêm ngặt tác động tới logic hệ thống** để loại bỏ các thay đổi không an toàn trước khi viết code.
 
 ---
 
-## 1. Tổng quan các vấn đề kỹ thuật cần xử lý
+## 1. Bảng ma trận đánh giá tác động Logic hệ thống (System Logic Impact Matrix)
+
+| Hạng mục đề xuất | Vị trí mã nguồn | Đánh giá tác động đến Logic | Quyết định triển khai |
+| :--- | :--- | :--- | :---: |
+| **1. Hạ Z-Index từ 25/20 xuống 10** | `sidebar.less`<br/>`eventDetailSidebar.less` | **Hoàn toàn an toàn (0% rủi ro logic)**<br/>Chỉ thay đổi trật tự xếp lớp quang học CSS. `z-index: 10` vẫn cao hơn SlickGrid (`z-index: 1-2`) nhưng thấp hơn Modal Dialog (`z-index: 20`). Khi mở Dialog, lớp mờ backdrop tự động che và khóa sự kiện tới thanh resizer theo chuẩn CSS. | ✅ **GIỮ LẠI (Ưu tiên số 1)** |
+| **2. Bổ sung blur & mouseleave cho Footer resizer** | `Footer.tsx:167-187` | **Hoàn toàn an toàn (0% rủi ro logic)**<br/>Chỉ quản lý state kéo giao diện cục bộ `isResizing`. Khi người dùng Alt-Tab hoặc thả chuột ngoài cửa sổ, state tự nhả về `false` để tránh kẹt màu xanh. Không đụng tới FilterExp hay DuckDB. | ✅ **GIỮ LẠI (An toàn)** |
+| **3. Thêm preventDefault, blur & unmount cleanup cho EventDetailSidebar** | `EventDetailSidebar.tsx:138-166` | **Hoàn toàn an toàn (0% rủi ro logic)**<br/>Chống bôi đen văn bản vô tình khi kéo và dọn dẹp con trỏ `col-resize` khi đóng panel bằng phím Esc. Không ảnh hưởng luồng dữ liệu hay Reducer. | ✅ **GIỮ LẠI (An toàn)** |
+| **4. Bọc try-catch quanh new RegExp** | `actions.ts:1396-1397` | **Hoàn toàn an toàn (0% rủi ro logic)**<br/>Chỉ bắt ngoại lệ `SyntaxError` khi người dùng nhập Regex lỗi (ví dụ thiếu ngoặc đóng), fallback về `0` để tránh làm sập Promise luồng UI. Regex hợp lệ hoạt động 100% nguyên bản. | ✅ **GIỮ LẠI (Tăng độ bền)** |
+| **5. Dọn dẹp listener copy trên DataGrid** | `DataGrid.tsx:518-526` | **TIỀM ẨN RỦI RO HỎNG TÍNH NĂNG COPY**<br/>Đây là cơ chế hook đặc thù của Electron cho SlickGrid. `DataGrid` không có vòng đời destroy chuẩn, can thiệp vào listener `copy` có nguy cơ làm hỏng thao tác `Ctrl+C` sao chép ô tính trong bảng. | ❌ **LOẠI BỎ (Tuân thủ Ponytail)** |
+| **6. Cắt đuôi `_rx` lũy tiến khi sinh tên DuckDB View** | `actions.ts:1073` | **TIỀM ẨN RỦI RO SAI LỆCH PHẢ HỆ VIEW (LINEAGE)**<br/>Mỗi lần trích xuất tiếp theo bản chất là một DuckDB View lồng nhau (`CREATE VIEW ... FROM <view_truoc>`). Việc giữ tên `_rx1_rx2` phản ánh chính xác nguồn gốc quan hệ cha-con. Cắt đuôi sẽ làm mất thông tin này. | ❌ **LOẠI BỎ (Giữ nguyên gốc)** |
+| **7. Chặn re-render bằng so sánh sâu FilterExp ở Footer** | `Footer.tsx:46-54` | **TIỀM ẨN RỦI RO LỆCH ĐỒNG BỘ BỘ LỌC**<br/>React 18 đã tự động gom nhóm (batching) các hàm `setState` trong `useEffect`. So sánh đệ quy sâu cây biểu thức logic vừa tốn CPU vô ích vừa có nguy cơ làm bộ lọc không cập nhật khi một nhánh con thay đổi. | ❌ **LOẠI BỎ (YAGNI)** |
+
+---
+
+## 2. Chi tiết 4 thay đổi an toàn tuyệt đối sẽ triển khai
 
 ```mermaid
 flowchart TD
-    subgraph S1["Vấn đề 1: Lỗi Xung đột Z-Index (Mới phát hiện qua ảnh)"]
-        A["sidebar.less có z-index: 25"] --> B["Lớn hơn Blueprint Modal Dialog (z-index: 20)"]
-        B --> C["Thanh dọc chém xuyên qua mặt Modal Dialog"]
-        B --> D["Đánh cắp sự kiện chuột trên ô nhập liệu/checkbox của Modal"]
+    subgraph UI_Visual["1. Tầng hiển thị CSS & Z-Index (0% rủi ro logic)"]
+        A["sidebar.less: z-index = 10"]
+        B["eventDetailSidebar.less: z-index = 10"]
+        A & B --> C["Nằm TRÊN SlickGrid (z=1-2)<br/>Nằm DƯỚI Modal Dialog (z=20)"]
     end
 
-    subgraph S2["Vấn đề 2: Ponytail Review - Nhóm Bắt buộc (Must Fix)"]
-        E["Footer.tsx thiếu listener blur/mouseleave"] --> F["Thanh kéo chân trang kẹt cứng màu xanh #2b95d6"]
-        G["EventDetailSidebar.tsx thiếu preventDefault & unmount cleanup"] --> H["Đóng thanh chi tiết bằng Esc làm kẹt con trỏ col-resize toàn app"]
+    subgraph Event_Safety["2. Tầng giải phóng sự kiện chuột (0% rủi ro logic)"]
+        D["Footer.tsx: thêm blur + mouseleave"] --> E["Không còn bị kẹt màu xanh khi thả chuột ngoài app"]
+        F["EventDetailSidebar.tsx: thêm blur + cleanup unmount"] --> G["Không còn kẹt con trỏ col-resize khi đóng bằng Esc"]
     end
 
-    subgraph S3["Vấn đề 3: Ponytail Review - Nhóm Nên sửa & Tối ưu (Should Fix & Lean)"]
-        I["DataGrid.tsx đăng ký document copy vô tội vạ"] --> J["Rò rỉ bộ nhớ khi chuyển đổi bảng liên tục"]
-        K["actions.ts new RegExp không bọc try-catch"] --> L["Gõ nhầm cú pháp Regex làm sập luồng Promise"]
-        M["Tên view DuckDB nối đuôi _rx1_rx2_rx3 lũy tiến"] --> N["Làm dài dòng câu lệnh SQL và danh sách bảng"]
+    subgraph Fault_Tolerance["3. Tầng phòng thủ ngoại lệ (0% rủi ro logic)"]
+        H["actions.ts: bọc try-catch quanh new RegExp"] --> I["Ngăn sập app khi người dùng nhập Regex lỗi cú pháp"]
     end
 ```
 
----
+### 2.1. Hạ `z-index` của mọi thanh Resizer xuống `10`
+* Trong [`sidebar.less:56`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/sidebar.less#L56): Đổi `.sidebar-resizer` từ `z-index: 25;` $\rightarrow$ `z-index: 10;`.
+* Trong [`eventDetailSidebar.less:179`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/eventDetailSidebar.less#L179): Đổi `.event-detail-resizer` từ `z-index: 20;` $\rightarrow$ `z-index: 10;`.
+* Trong [`footer.less:15`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/footer.less#L15): `.footer-resizer-bar` đã là `z-index: 10;` (đồng bộ hoàn hảo).
+* **Kết quả**:
+  - Không còn hiện tượng thanh kéo màu xanh xẻ dọc qua mặt Modal "Parse Columns" như ảnh chụp.
+  - Chuột click vào bất kỳ đâu trên Modal Dialog đều ăn 100%, không bị thanh phía sau đánh cắp.
 
-## 2. Chi tiết giải pháp kỹ thuật cho từng hạng mục
-
-### Hạng mục 1: Xử lý triệt để lỗi Z-Index & Khóa tương tác khi Modal mở
-1. **Hạ `z-index` của mọi thanh Resizer xuống `10`**:
-   * Trong [`sidebar.less`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/sidebar.less): Đổi `.sidebar-resizer` từ `z-index: 25;` $\rightarrow$ `z-index: 10;`.
-   * Trong [`eventDetailSidebar.less`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/eventDetailSidebar.less): Đổi `.event-detail-resizer` từ `z-index: 20;` $\rightarrow$ `z-index: 10;`.
-   * Trong [`footer.less`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/footer.less): `.footer-resizer-bar` đã là `z-index: 10;` (đồng bộ hoàn hảo).
-   * **Nguyên lý phân tầng quang học**:
-     * `z-index: 0 - 2`: Nội dung nền, dữ liệu bảng SlickGrid và header cột.
-     * `z-index: 10`: Các thanh kéo giãn Splitter / Resizer (nằm trên bảng tính, dưới Modal).
-     * `z-index: 20+`: Lớp phủ làm mờ Backdrop, Hộp thoại Modal Dialog (Parse Columns, Export, View Confirm), Popover, Tooltip.
-2. **Khóa nhận sự kiện khi Modal mở (Zero Interference Guard)**:
-   * Khi `appState.regexDialogOpen === true` hoặc khi lớp phủ `.bp4-overlay-open` xuất hiện, thanh resizer tự động nhận `pointer-events: none` hoặc bị ẩn để đảm bảo 100% diện tích Modal Dialog nhận sự kiện chuột thông suốt.
-
----
-
-### Hạng mục 2: Xử lý 2 lỗi Bắt buộc (Must Fix) từ Ponytail Review
-
-#### 2.1. Sửa lỗi kẹt màu xanh thanh kéo chân trang [`Footer.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/Footer.tsx#L167-L187)
-* **Vấn đề**: Hook `useEffect` quản lý kéo chân trang chỉ nghe `window.mouseup`. Nếu người dùng nhả chuột ra ngoài cửa sổ ứng dụng hoặc bấm `Alt+Tab`, `isResizing` không bao giờ được set về `false`. Thanh `.footer-resizer-bar` dính chặt màu xanh `#2b95d6 !important`.
-* **Giải pháp**:
+### 2.2. Xử lý triệt để kẹt màu xanh ở [`Footer.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/Footer.tsx#L167-L187)
+* Bổ sung lắng nghe sự kiện `blur` và `mouseleave`:
   ```tsx
   window.addEventListener("mousemove", handleMouseMove);
   window.addEventListener("mouseup", handleMouseUp);
@@ -62,27 +61,14 @@ flowchart TD
   };
   ```
 
-#### 2.2. Sửa lỗi rò rỉ sự kiện chuột & kẹt con trỏ tại [`EventDetailSidebar.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/EventDetailSidebar.tsx#L138-L166)
-* **Vấn đề**: Hàm `handleMouseDown` thiếu `e.preventDefault()`, không có listener `blur`/`mouseleave`, và không có cleanup khi unmount (ví dụ khi đóng bảng bằng phím `Escape`). Kết quả là `document.body.style.cursor` bị kẹt cứng ở `"col-resize"`.
-* **Giải pháp**:
-  * Thêm `e.preventDefault()` và `e.stopPropagation()`.
-  * Thêm `window.blur` và `document.mouseleave` để giải phóng kéo.
-  * Bổ sung hook `useEffect` dọn dẹp khi unmount để luôn trả lại `document.body.style.cursor = ""` và `userSelect = ""`.
-  * Bổ sung `onDoubleClick` để tự động đưa chiều rộng Event Details về mặc định (`440px`).
+### 2.3. Dọn dẹp con trỏ và sự kiện chuột tại [`EventDetailSidebar.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/EventDetailSidebar.tsx#L138-L166)
+* Thêm `e.preventDefault()` để chống bôi đen chữ khi rê chuột kéo nhanh.
+* Thêm lắng nghe `window.blur` và `document.mouseleave` để tự động nhả chuột.
+* Thêm cleanup hook khi unmount để trả lại `document.body.style.cursor = ""` khi người dùng nhấn `Escape`.
+* Thêm `onDoubleClick` để nhanh chóng đưa chiều rộng về mặc định `440px`.
 
----
-
-### Hạng mục 3: Xử lý 2 lỗi Nên sửa (Should Fix) từ Ponytail Review
-
-#### 3.1. Dọn dẹp rò rỉ listener `copy` trên [`DataGrid.tsx`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/DataGrid.tsx#L518-L526)
-* **Vấn đề**: `document.addEventListener("copy", ...)` đăng ký một hàm ẩn danh mỗi khi `createGrid()` chạy, không bao giờ được gỡ bỏ.
-* **Giải pháp**:
-  * Lưu tham chiếu `copyHandler` vào đối tượng `grid` (`(grid as any)._copyHandler = copyHandler`).
-  * Trong phương thức teardown/destroy của `DataGrid`, gọi `document.removeEventListener("copy", (grid as any)._copyHandler)`.
-
-#### 3.2. Bọc an toàn cú pháp Regex trong [`actions.ts`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts#L1396-L1397)
-* **Vấn đề**: `(new RegExp(regexPattern + "|").exec("")?.length || 1) - 1` sẽ ném ngoại lệ `SyntaxError` chưa được bắt nếu người dùng nhập pattern lỗi cú pháp (ví dụ: `([a-z]+`).
-* **Giải pháp**:
+### 2.4. Bọc an toàn ngoại lệ Regex trong [`actions.ts`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts#L1396-L1397)
+* Ngăn chặn `SyntaxError` làm hỏng luồng Promise:
   ```ts
   let captureGroupCount = 0;
   try {
@@ -94,21 +80,7 @@ flowchart TD
 
 ---
 
-### Hạng mục 4: Tối ưu hóa gia tăng (Nice to have & Lean)
-
-#### 4.1. Tinh gọn tên View DuckDB không nối đuôi vô tận ([`actions.ts:L1073`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts#L1073))
-* **Giải pháp**: Cắt bỏ hậu tố `_rx\d+$` trước khi sinh tên mới:
-  ```ts
-  const cleanBaseName = currentTableName.replace(/_rx\d+$/i, "");
-  const newTableName = `${cleanBaseName}_rx${regexViewSeq++}`;
-  ```
-
-#### 4.2. Chặn render dư thừa ở Footer ([`Footer.tsx:L46-54`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/components/Footer.tsx#L46-L54))
-* **Giải pháp**: Kiểm tra `currentAppFE.equals(appliedFE)` trước khi gọi `setAppliedFE` và `setActiveFE` để loại bỏ chu kỳ re-render kép không cần thiết.
-
----
-
-## 3. Bản vẽ thiết kế Diff chi tiết theo từng tệp (Proposed Diffs)
+## 3. Bản vẽ Diff chi tiết cho 4 file được phê duyệt
 
 ### File 1: [`tadviewer/less/sidebar.less`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/less/sidebar.less)
 ```diff
@@ -187,19 +159,14 @@ flowchart TD
 +      if (isDraggingRef.current) {
 +        document.body.style.cursor = "";
 +        document.body.style.userSelect = "";
-       }
-     };
-   }, []);
++      }
++    };
++  }, []);
 ```
 
 ### File 5: [`tadviewer/src/actions.ts`](file:///d:/Shared_UserData/Downloads/tad/tad-master/packages/tadviewer/src/actions.ts)
 ```diff
-@@ -1072,3 +1072,4 @@
-   // 2. Generate unique new view name
--  const newTableName = `${currentTableName}_rx${regexViewSeq++}`;
-+  const cleanBaseName = currentTableName.replace(/_rx\d+$/i, "");
-+  const newTableName = `${cleanBaseName}_rx${regexViewSeq++}`;
-@@ -1396,2 +1397,8 @@
+@@ -1396,2 +1396,8 @@
 -  const captureGroupCount =
 -    (new RegExp(regexPattern + "|").exec("")?.length || 1) - 1;
 +  let captureGroupCount = 0;
@@ -207,29 +174,27 @@ flowchart TD
 +    captureGroupCount = (new RegExp(regexPattern + "|").exec("")?.length || 1) - 1;
 +  } catch {
 +    captureGroupCount = 0;
-   }
++  }
 ```
 
 ---
 
-## 4. Kịch bản kiểm thử QA tự động (Test Matrix Suite Q)
+## 4. Kịch bản kiểm thử nghiệm thu (Suite Q)
 
-| Mã kiểm thử | Tên kịch bản | Tiêu chí nghiệm thu (Acceptance Criteria) |
+| Mã kiểm thử | Tên kịch bản | Tiêu chuẩn đạt |
 | :---: | :--- | :--- |
-| **Q.1** | Z-Index Layer Isolation | `.sidebar-resizer` và `.event-detail-resizer` có `z-index: 10`, tuyệt đối không vượt quá `z-index: 20` của Blueprint Modal. |
-| **Q.2** | Modal Click Transparency | Khi Modal mở, người dùng click vào vùng ngang qua đường resizer trên modal thì sự kiện truyền trọn vẹn vào modal, không bị kích hoạt con trỏ `col-resize`. |
-| **Q.3** | Footer Resizer Window Blur Guard | Kéo footer rồi Alt-Tab/blur: `isResizing` tự động về `false`, thanh chân trang giải phóng màu xanh và `user-select` ngay tức thì. |
-| **Q.4** | Event Detail Sidebar Unmount Safety | Đang kéo thanh chi tiết rồi bấm `Escape`: con trỏ chuột toàn app lập tức trở lại bình thường, không bị kẹt `col-resize`. |
-| **Q.5** | DataGrid Copy Cleanup | Kiểm tra việc dọn dẹp listener `copy` khi grid được tái khởi tạo. |
-| **Q.6** | Malformed Regex Syntax Resilience | Nhập regex lỗi như `([a-z]+`: hàm `applyRegexExtraction` không văng `SyntaxError`, fallback an toàn `captureGroupCount = 0`. |
-| **Q.7** | Non-compounding View Naming | Trích xuất liên tiếp 3 lần: tên bảng là `data_rx1`, `data_rx2`, `data_rx3` thay vì `data_rx1_rx2_rx3`. |
-| **Q.8** | Toàn bộ 88 bài test cũ | Toàn bộ 88/88 test cases của các Suite A - P tiếp tục PASS 100%. |
+| **Q.1** | Phân tầng Z-Index Resizer | `z-index` của `.sidebar-resizer` và `.event-detail-resizer` đều là `10`, tuyệt đối nhỏ hơn `z-index: 20` của Blueprint Modal. |
+| **Q.2** | Kiểm tra tương tác Modal | Mở Modal Parse Columns: Thanh xanh không hiển thị xuyên qua modal; click/hover vào vùng ngang thanh resizer đều tác động vào Modal, không bị thanh resizer đánh cắp sự kiện. |
+| **Q.3** | Footer Resizer Window Blur Guard | Kéo thanh footer và Alt-Tab/blur ra ngoài: `isResizing` lập tức chuyển về `false`, thanh chân trang giải phóng màu xanh ngay tức thì. |
+| **Q.4** | Event Detail Sidebar Unmount Safety | Đang kéo thanh chi tiết rồi nhấn phím `Escape`: con trỏ chuột toàn ứng dụng trở về bình thường, không bị kẹt `col-resize`. |
+| **Q.5** | Regex Malformed Syntax Fault-Tolerance | Nhập biểu thức Regex thiếu ngoặc đóng `([a-z]+`: ứng dụng không văng `SyntaxError`, fallback an toàn `captureGroupCount = 0`. |
+| **Q.6** | Bảo toàn 100% 88 Test cũ | Toàn bộ 88/88 test cases hiện hữu tiếp tục PASS 100%. |
 
 ---
 
-## 5. Kế hoạch triển khai & Đóng gói Toad v2.0.12
-1. Áp dụng toàn bộ code diff trên.
-2. Cập nhật version lên `2.0.12` tại: `package.json`, `quickstart.html`, `RegexDialog.tsx`, `mockup/index.html`, `dist_package.ps1`.
-3. Chạy `npm run build` cho `tadviewer`.
-4. Chạy bộ kiểm thử tự động QA mở rộng (`test_deep_integration_qa.js`).
-5. Đóng gói `Toad 2.0.12.exe` và commit Jujutsu (`jj`).
+## 5. Quy trình thực hiện & Đóng gói v2.0.12 (Sau khi Người dùng phê duyệt)
+1. Tiến hành sửa 5 file theo đúng diff đã kiểm duyệt an toàn.
+2. Nâng version lên `2.0.12` tại: `package.json`, `RegexDialog.tsx`, `quickstart.html`, `mockup/index.html`, `dist_package.ps1`.
+3. Build `tadviewer` bằng lệnh `npm run build`.
+4. Chạy bộ kiểm thử tự động `test_deep_integration_qa.js` đảm bảo 100% test pass.
+5. Đóng gói bộ cài đặt `Toad 2.0.12.exe` và commit lịch sử phiên bản qua Jujutsu (`jj`).
