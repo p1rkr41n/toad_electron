@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parse Columns v2.0.13 — Interactive Mockup</title>
+    <title>Parse Columns v2.0.14 — Interactive Mockup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
         <div class="flex items-center gap-2">
             <div class="bg-slate-800 p-0.5 rounded-md border border-slate-700 flex items-center text-xs font-medium">
                 <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
-                    Visual v2.0.13 (Default)
+                    Visual v2.0.14 (Default)
                 </button>
                 <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
                     <span>Google UX</span>
@@ -108,7 +108,7 @@
                     <path d="M433 173l-35 37 35 37h-84v48h84l-35 37 35 39 79-83z" />
                 </svg>
                 <h1 class="text-[15px] font-bold text-slate-800 tracking-tight">Parse Columns</h1>
-                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.13</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.14</span>
                 
             </div>
 
@@ -742,7 +742,7 @@
                 smartBtn.classList.add('hidden');
                 applyCount.classList.add('hidden');
 
-                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.13)";
+                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.14)";
                 badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-900 text-blue-200 border border-blue-700 font-semibold";
                 subDesc.textContent = "Production v2.0.10 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns";
             }
@@ -1234,7 +1234,7 @@
             }, 2200);
         }
 
-        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.13)
+        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.14)
         window.onload = function () {
             setDesignEdition('minimal');
         };
