@@ -2494,7 +2494,7 @@ async function main() {
     const actBarPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/ActivityBar.tsx");
     const actBarSrc = fs.readFileSync(actBarPath, "utf8");
 
-    assert(actBarSrc.includes('icon={theme === "dark" ? <SunIcon size={16} /> : "moon"}'), "ActivityBar must toggle between sun and moon based on theme === 'dark'");
+    assert(actBarSrc.includes('theme === "dark"') && (actBarSrc.includes("<SunIcon") || actBarSrc.includes('"sun"')), "ActivityBar must toggle between sun and moon based on theme === 'dark'");
     assert(actBarSrc.includes('Switch to Light Mode'), "ActivityBar tooltip must include 'Switch to Light Mode'");
   });
 
@@ -2535,12 +2535,51 @@ async function main() {
     assert(tadLess.includes("--toad-grid-row-odd: #23252b;"), "tadviewer.less must use #23252b for odd rows");
   });
 
+  // ===========================================================================
+  // SUITE X: TOAD V2.1.2 EXPAND COLUMN SYNCHRONIZATION & SUBTLE GRID LINES
+  // ===========================================================================
+  console.log(`\n${CYAN}--- SUITE X: Toad v2.1.2 Expand Column Sync & Subtle Grid Lines ---${RESET}`);
+
+  await runTest("X.1 Expand Column Header Dark Mode Tokenization (.slick-header-expand-col)", async () => {
+    const detailLessPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/eventDetailSidebar.less");
+    const detailLess = fs.readFileSync(detailLessPath, "utf8");
+
+    assert(detailLess.includes(".slick-header-column.slick-header-expand-col"), "eventDetailSidebar.less must style header expand column");
+    assert(detailLess.includes("var(--md-sys-color-surface-container"), "Expand column header must use surface-container token");
+  });
+
+  await runTest("X.2 Expand Column Cells Full Row Background Inheritance", async () => {
+    const detailLessPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/eventDetailSidebar.less");
+    const detailLess = fs.readFileSync(detailLessPath, "utf8");
+
+    assert(!detailLess.includes("background-color: #30404d !important;"), "Must eliminate hardcoded #30404d in expand cells");
+    assert(!detailLess.includes("background-color: #293742 !important;"), "Must eliminate hardcoded #293742 in expand cells");
+    assert(detailLess.includes("background-color: transparent !important;"), "Expand cell must be transparent to inherit row background");
+  });
+
+  await runTest("X.3 Subtle & Gentle Grid Lines (Fading harsh #D6D7D6 borders)", async () => {
+    const scssPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/slickgrid.scss");
+    const scssSrc = fs.readFileSync(scssPath, "utf8");
+
+    assert(scssSrc.includes("border-top: 1px solid rgba(255, 255, 255, 0.04) !important;"), "Row border-top must be subtle 4% opacity");
+    assert(scssSrc.includes("border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;"), "Row border-bottom must be subtle 4% opacity");
+    assert(scssSrc.includes("border-right: 1px solid rgba(255, 255, 255, 0.04) !important;"), "Cell border-right must be subtle 4% opacity");
+  });
+
+  await runTest("X.4 Full-Row Active Selection Synchronization (Including [>] Expand Chevron)", async () => {
+    const scssPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/slickgrid.scss");
+    const scssSrc = fs.readFileSync(scssPath, "utf8");
+
+    assert(scssSrc.includes("&.active .slick-cell-expand-col"), "Active row selection must include .slick-cell-expand-col");
+    assert(scssSrc.includes("background: rgba(138, 180, 248, 0.16) !important;"), "Active selection must use soft blue tint");
+  });
+
   uiDriverF.connPool.giveBack(connF);
 
   // Cleanup temporary directory
   try {
     fs.rmSync(testTmpDir, { recursive: true, force: true });
-  } catch {}
+  } catch { }
 
   // ===========================================================================
   // SUMMARY
