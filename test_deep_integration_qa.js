@@ -1246,7 +1246,7 @@ async function main() {
   await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
     const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
@@ -1256,7 +1256,7 @@ async function main() {
 
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.7") || htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display version badge");
+    assert(htmlContent.includes("v2.0.7") || htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Universal Column Extractor & Parser (Parse Mode)"), "quickstart.html must document Parse Mode");
   });
 
@@ -1412,7 +1412,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -1431,7 +1431,7 @@ async function main() {
     // 4. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display version badge");
+    assert(htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Version 2.0.8"), "quickstart.html must include Version 2.0.8 changelog block");
 
     // 5. requirements.json
@@ -1544,7 +1544,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -1554,7 +1554,7 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display version badge");
+    assert(htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Version 2.0.9"), "quickstart.html must include Version 2.0.9 changelog block");
 
     // 4. requirements.json
@@ -1804,7 +1804,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -1815,13 +1815,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.10") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
     assert(htmlContent.includes("Version 2.0.10"), "quickstart.html must include Version 2.0.10 changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display version badge");
 
     // 5. requirements.json
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
@@ -1891,7 +1891,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -1901,12 +1901,12 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -1967,7 +1967,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -1978,13 +1978,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
     assert(htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.0.13") || htmlContent.includes("Version 2.0.12") || htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.1.2"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2116,7 +2116,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -2126,13 +2126,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
     assert(htmlContent.includes("Version 2.0.13") || htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.1.2"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2166,7 +2166,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -2176,13 +2176,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
     assert(htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.1.2"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display valid badge");
   });
 
   await runTest("S.4 Production Webpack Bundle Verification (tadapp.bundle.js)", async () => {
@@ -2253,7 +2253,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
     assert(Array.isArray(pkgApp.build.electronLanguages), "package.json must configure electronLanguages");
     assert(pkgApp.build.electronLanguages.includes("vi"), "electronLanguages must include vi");
     assert(pkgApp.build.electronLanguages.includes("en-US"), "electronLanguages must include en-US");
@@ -2267,13 +2267,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2"), "quickstart.html must display version badge");
-    assert(htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.1.2"), "quickstart.html must include changelog block");
+    assert(htmlContent.includes("v2.1.0") || htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display version badge");
+    assert(htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.1.2") || htmlContent.includes("Version 2.1.3"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display version badge");
   });
 
   // ===========================================================================
@@ -2456,7 +2456,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert.strictEqual(pkgApp.version, "2.1.2", "tad-app package.json version must be 2.1.2");
+    assert(pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
@@ -2467,13 +2467,13 @@ async function main() {
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.1.2"), "quickstart.html must display v2.1.2 badge");
-    assert(htmlContent.includes("Version 2.1.2"), "quickstart.html must include Version 2.1.2 changelog block");
+    assert(htmlContent.includes("v2.1.2") || htmlContent.includes("v2.1.3"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("Version 2.1.2") || htmlContent.includes("Version 2.1.3"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.2"), "Dialog header must display v2.1.2 badge");
+    assert(dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2572,6 +2572,114 @@ async function main() {
 
     assert(scssSrc.includes("&.active .slick-cell-expand-col"), "Active row selection must include .slick-cell-expand-col");
     assert(scssSrc.includes("background: rgba(138, 180, 248, 0.16) !important;"), "Active selection must use soft blue tint");
+  });
+
+  // ===========================================================================
+  // SUITE Y: TOAD V2.1.3 DELIMITED PARSING ENGINE & DISCOVERED FIELDS RECTIFICATION
+  // ===========================================================================
+  console.log(`\n${CYAN}--- SUITE Y: Toad v2.1.3 Delimited Parsing Engine & Discovered Fields Rectification ---${RESET}`);
+
+  await runTest("Y.1 W3C / IIS Web Log Auto-Detection Space Spec Compliance", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    assert(!dialogSrc.includes("body.split(/\\s{2,}|\\t/).length >= 3"), "RegexDialog.tsx must eliminate flawed \\s{2,} space split");
+    assert(dialogSrc.includes("detectedDelim === \" \" && tokens.length >= 2"), "RegexDialog.tsx must correctly detect single-space separated logs");
+    assert(dialogSrc.includes("kvTokensEqual.length >= 2 && (kvTokensEqual.length >= Math.ceil(tokens.length / 3) || tokens.length <= 4)"), "Key=Value detection must require dominant KV tokens, not isolated query params");
+  });
+
+  await runTest("Y.2 DuckDB Delimited Positional Extraction Spec (No list_filter Column Shifting)", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    const actionsTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/actions.ts");
+    const actionsSrc = fs.readFileSync(actionsTsPath, "utf8");
+
+    // In RegexDialog.tsx:
+    assert(dialogSrc.includes("split_part(regexp_replace(${targetCol}, '\\\\s+', ' ', 'g'), ' ', ${idx})"), "constructSql must use regexp_replace whitespace collapse without dropping tokens");
+    assert(dialogSrc.includes("formatType === \"kv\" || (formatType === \"raw\" && kvAssign && kvAssign.trim().length > 0)"), "RegexDialog must decouple Raw mode from KV without explicit kvAssign");
+
+    // In actions.ts:
+    assert(actionsSrc.includes("formatType === \"kv\" || (formatType === \"raw\" && params.kvAssign && params.kvAssign.trim().length > 0)"), "actions.ts must decouple Raw mode from KV branch without explicit kvAssign");
+  });
+
+  await runTest("Y.3 Live DuckDB Execution of W3C Web Log Parsing with Query String & Port Stability", async () => {
+    // Insert test W3C log rows (one with query param d=..., one with static '-')
+    await connF.run(`
+      CREATE OR REPLACE TABLE test_w3c_logs (
+        id INTEGER,
+        raw_event VARCHAR
+      );
+      INSERT INTO test_w3c_logs VALUES
+      (1, '2026-10-26 10:24:12 192.168.14.111 GET /ScriptResource.axd d=nv7asgRUU0tRmHNR2D6t1BTmtstklUsfe 443 - 172.18.1.5 Mozilla/5.0 - 200 0 0 15'),
+      (2, '2026-10-26 10:24:28 192.168.14.111 GET /z3.txt - 443 - 172.18.1.5 Mozilla/5.0 - 200 0 0 15');
+    `);
+
+    // Create view extracting columns positionally using v2.1.3 logic
+    const viewSql = `
+      CREATE OR REPLACE VIEW v_w3c_extracted AS
+      SELECT
+        id,
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 1)) AS "log_date",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 2)) AS "log_time",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 3)) AS "client_ip",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 4)) AS "method",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 5)) AS "uri_stem",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 6)) AS "uri_query",
+        TRIM(split_part(regexp_replace(raw_event, '\\s+', ' ', 'g'), ' ', 7)) AS "s_port"
+      FROM test_w3c_logs;
+    `;
+    await connF.run(viewSql);
+
+    const rows = await connF.all(`SELECT id, method, uri_query, s_port FROM v_w3c_extracted ORDER BY id`);
+    assert.strictEqual(rows[0]["method"], "GET");
+    assert.strictEqual(rows[0]["uri_query"], "d=nv7asgRUU0tRmHNR2D6t1BTmtstklUsfe");
+    assert.strictEqual(rows[0]["s_port"], "443", "Row 1 (with query string) must have s_port = 443");
+
+    assert.strictEqual(rows[1]["method"], "GET");
+    assert.strictEqual(rows[1]["uri_query"], "-");
+    assert.strictEqual(rows[1]["s_port"], "443", "Row 2 (static without query string) must have identical s_port = 443 (NO column shifting)");
+  });
+
+  await runTest("Y.4 Key=Value Regex & URL Query Delimiter Isolation (& Exclusion)", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    const actionsTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/actions.ts");
+    const actionsSrc = fs.readFileSync(actionsTsPath, "utf8");
+
+    assert(dialogSrc.includes("[^\\\\s${escapedDelim},;\\\\r\\\\n|&]+"), "RegexDialog KV regex value pattern must exclude & to prevent query swallowing");
+    assert(actionsSrc.includes("[^\\\\s${escapedDelim},;\\\\r\\\\n|&]+"), "actions.ts KV regex value pattern must exclude & to prevent query swallowing");
+  });
+
+  await runTest("Y.5 Discovered Fields Sticky Table Header & Delimiter Indicator (␣)", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    assert(dialogSrc.includes("position: \"sticky\", top: 0, zIndex: 2"), "Discovered Fields thead must use sticky top: 0");
+    assert(dialogSrc.includes("delimiter === \" \" ? \"␣\" : delimiter"), "minDelimInput must display visual ␣ symbol for space delimiter");
+  });
+
+  await runTest("Y.6 Toad v2.1.3 Version Synchronization Spec Compliance", async () => {
+    // 1. tad-app package.json
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    assert.strictEqual(pkgApp.version, "2.1.3", "tad-app package.json version must be 2.1.3");
+
+    // 2. dist_package.ps1
+    const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
+    const distPs1 = fs.readFileSync(distPs1Path, "utf8");
+    assert(distPs1.includes("Toad 2.1.3.exe"), "dist_package.ps1 must reference Toad 2.1.3.exe");
+    assert(distPs1.includes("toad_v2.1.3_portable.exe"), "dist_package.ps1 must reference toad_v2.1.3_portable.exe");
+
+    // 3. quickstart.html
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+    assert(htmlContent.includes("v2.1.3"), "quickstart.html must display v2.1.3 badge");
+    assert(htmlContent.includes("Version 2.1.3"), "quickstart.html must include Version 2.1.3 changelog block");
+
+    // 4. RegexDialog.tsx header badge
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    assert(dialogSrc.includes("v2.1.3"), "Dialog header must display v2.1.3 badge");
   });
 
   uiDriverF.connPool.giveBack(connF);
