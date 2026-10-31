@@ -1,6 +1,6 @@
 # BẢN THIẾT KẾ GIAO DIỆN CHÍNH THỨC (MOCKUP) - TOAD COLUMN EXTRACTOR & FAST PARSER
 
-> **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Parse Columns & Regex) cho **Toad v2.0.9**, đồng bộ hóa 100% nguyên bản từ [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html) sang tệp mockup chính [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html), ngôn ngữ tiếng Anh chuẩn quốc tế, tối ưu hóa công thái học nhận thức (Zen Minimalist Edition).  
+> **Mục tiêu:** Giao diện bóc tách cột và trích xuất dữ liệu nhanh (Parse Columns & Regex) cho **Toad v2.0.10**, đồng bộ hóa 100% nguyên bản từ [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html) sang tệp mockup chính [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html), ngôn ngữ tiếng Anh chuẩn quốc tế, tối ưu hóa công thái học nhận thức (Zen Minimalist Edition).  
 > **Tệp Mockup tương tác chính:** [`mockup/index.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/index.html)  
 > **Tệp Mockup đối chiếu:** [`mockup/parse_columns_mockup.html`](file:///d:/Shared_UserData/Downloads/tad/mockup/parse_columns_mockup.html)  
 > **Tệp Đặc tả yêu cầu kỹ thuật:** [`mockup/requirements.json`](file:///d:/Shared_UserData/Downloads/tad/mockup/requirements.json) *(25 yêu cầu chi tiết REQ-MOCKUP-001 đến REQ-MOCKUP-025, đặc tả chi tiết tới từng nút, cử chỉ click/hover/keydown, DOM ID và trạng thái tương tác)*  

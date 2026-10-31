@@ -1246,7 +1246,7 @@ async function main() {
   await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10", "tad-app package.json version must be valid");
 
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
     const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
@@ -1412,12 +1412,12 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9", "tad-app package.json version must be 2.0.8 or 2.0.9");
+    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.0.8.exe") || distPs1.includes("Toad 2.0.9.exe"), "dist_package.ps1 must reference latest Toad exe");
+    assert(distPs1.includes("Toad 2.0.8.exe") || distPs1.includes("Toad 2.0.9.exe") || distPs1.includes("Toad 2.0.10.exe"), "dist_package.ps1 must reference latest Toad exe");
 
     // 3. RegexDialog.tsx UI elements
     const regexDialogPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
@@ -1431,7 +1431,7 @@ async function main() {
     // 4. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9"), "quickstart.html must display version badge");
+    assert(htmlContent.includes("v2.0.8") || htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Version 2.0.8"), "quickstart.html must include Version 2.0.8 changelog block");
 
     // 5. requirements.json
@@ -1473,7 +1473,7 @@ async function main() {
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
     assert(dialogSrc.includes("<ParseSplitIcon"), "Dialog header must render ParseSplitIcon");
-    assert(dialogSrc.includes("v2.0.9"), "Dialog header must display v2.0.9 badge");
+    assert(dialogSrc.includes("v2.0.9") || dialogSrc.includes("v2.0.10"), "Dialog header must display version badge");
   });
 
   await runTest("M.2 Field Mapping Table Header Streamlining (Key, Type, Rate, Sample, New name)", async () => {
@@ -1540,22 +1540,21 @@ async function main() {
     assert(!dialogSrc.includes("Apply (${enabledCount} Columns)"), "Action button must not append static column counts");
   });
 
-  await runTest("M.6 Toad v2.0.9 Version Synchronization & REQ-MOCKUP-023 Spec Compliance", async () => {
+  await runTest("M.6 Toad v2.0.9 / v2.0.10 Version Synchronization & REQ-MOCKUP-023 Spec Compliance", async () => {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert.strictEqual(pkgApp.version, "2.0.9", "tad-app package.json version must be 2.0.9");
+    assert(pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10", "tad-app package.json version must be 2.0.9 or 2.0.10");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.0.9.exe"), "dist_package.ps1 must reference Toad 2.0.9.exe");
-    assert(distPs1.includes("toad_v2.0.9_portable.exe"), "dist_package.ps1 must reference toad_v2.0.9_portable.exe");
+    assert(distPs1.includes("Toad 2.0.9.exe") || distPs1.includes("Toad 2.0.10.exe"), "dist_package.ps1 must reference latest Toad exe");
 
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.0.9"), "quickstart.html must display v2.0.9 badge");
+    assert(htmlContent.includes("v2.0.9") || htmlContent.includes("v2.0.10"), "quickstart.html must display version badge");
     assert(htmlContent.includes("Version 2.0.9"), "quickstart.html must include Version 2.0.9 changelog block");
 
     // 4. requirements.json
@@ -1760,6 +1759,76 @@ async function main() {
     assert(regexDialogCode.includes("baseStrOffset"), "RegexDialog.tsx must compute baseStrOffset from schema columns");
     assert(regexDialogCode.includes("tokenIndex: r.tokenIndex"), "RegexDialog.tsx handleApply must pass tokenIndex");
     assert(regexDialogCode.includes("nextColIdx = getMaxStrIndex(columns, simpleRows) + 1"), "RegexDialog.tsx handleAddColumn must calculate nextColIdx");
+  });
+
+  // ===========================================================================
+  // SUITE O: Toad v2.0.10 Streamlined Compact Verification & Field Grid Maximization
+  // ===========================================================================
+  reportSuite("SUITE O: Toad v2.0.10 Streamlined Compact Verification & Field Grid Maximization");
+
+  await runTest("O.1 Header Prefix Default OFF (Opt-in Architecture)", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    assert(dialogSrc.includes("const [hasHeader, setHasHeader] = useState<boolean>(false);"), "hasHeader must default to false in RegexDialog.tsx");
+
+    const mockupPath = path.resolve(__dirname, "mockup/index.html");
+    const mockupSrc = fs.readFileSync(mockupPath, "utf8");
+    assert(!mockupSrc.includes('id="headerPrefixCheck" type="checkbox" checked'), "Header prefix checkbox must not be checked by default in mockup");
+  });
+
+  await runTest("O.2 Removal of Redundant Body 1,000 Rows Test Card & Retention of Compact Footer Trigger", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    // Ensure the old redundant test card in body is removed
+    assert(!dialogSrc.includes("Batch Validation & Match Rate Bar (Real-Data 1,000 Rows Test"), "Old redundant 1,000 Rows Test card must be removed from dialog body");
+    // Ensure compact footer test trigger is retained
+    assert(dialogSrc.includes("id=\"minimalInlineTestBtn\""), "Footer must retain minimal inline test button");
+    assert(dialogSrc.includes("▶ Test"), "Footer test button must show compact '▶ Test' label");
+
+    const mockupPath = path.resolve(__dirname, "mockup/index.html");
+    const mockupSrc = fs.readFileSync(mockupPath, "utf8");
+    assert(!mockupSrc.includes('id="thousandTestBox"'), "Mockup must no longer contain thousandTestBox in body");
+  });
+
+  await runTest("O.3 Discovered Fields Table Grid Maximized to 280px Height", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    assert(dialogSrc.includes('maxHeight: "280px"'), "Discovered Fields mapping grid container must have maxHeight: '280px'");
+
+    const mockupPath = path.resolve(__dirname, "mockup/index.html");
+    const mockupSrc = fs.readFileSync(mockupPath, "utf8");
+    assert(mockupSrc.includes("max-h-[280px]"), "Mockup fieldsTableBody must use max-h-[280px]");
+  });
+
+  await runTest("O.4 Toad v2.0.10 Version Synchronization & REQ-MOCKUP-024 Spec Compliance", async () => {
+    // 1. tad-app package.json
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    assert.strictEqual(pkgApp.version, "2.0.10", "tad-app package.json version must be 2.0.10");
+
+    // 2. dist_package.ps1
+    const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
+    const distPs1 = fs.readFileSync(distPs1Path, "utf8");
+    assert(distPs1.includes("Toad 2.0.10.exe"), "dist_package.ps1 must reference Toad 2.0.10.exe");
+    assert(distPs1.includes("toad_v2.0.10_portable.exe"), "dist_package.ps1 must reference toad_v2.0.10_portable.exe");
+
+    // 3. quickstart.html
+    const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
+    const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
+    assert(htmlContent.includes("v2.0.10"), "quickstart.html must display v2.0.10 badge");
+    assert(htmlContent.includes("Version 2.0.10"), "quickstart.html must include Version 2.0.10 changelog block");
+
+    // 4. RegexDialog.tsx header badge
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    assert(dialogSrc.includes("v2.0.10"), "Dialog header must display v2.0.10 badge");
+
+    // 5. requirements.json
+    const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
+    const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
+    const req24 = reqs.find((r) => r.id === "REQ-MOCKUP-024");
+    assert(req24, "requirements.json must contain REQ-MOCKUP-024");
+    assert.strictEqual(req24.target_version, "2.0.10", "REQ-MOCKUP-024 target_version must be 2.0.10");
   });
 
   uiDriverF.connPool.giveBack(connF);

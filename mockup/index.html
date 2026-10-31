@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parse Columns v2.0.9 — Interactive Mockup</title>
+    <title>Parse Columns v2.0.10 — Interactive Mockup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
         <div class="flex items-center gap-2">
             <div class="bg-slate-800 p-0.5 rounded-md border border-slate-700 flex items-center text-xs font-medium">
                 <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
-                    Visual v2.0.9 (Default)
+                    Visual v2.0.10 (Default)
                 </button>
                 <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
                     <span>Google UX</span>
@@ -108,7 +108,7 @@
                     <path d="M433 173l-35 37 35 37h-84v48h84l-35 37 35 39 79-83z" />
                 </svg>
                 <h1 class="text-[15px] font-bold text-slate-800 tracking-tight">Parse Columns</h1>
-                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.9</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.10</span>
                 
             </div>
 
@@ -187,7 +187,7 @@
                         </div>
                         <label class="flex items-center justify-between text-slate-600">
                             <span>Header Prefix (`:`)</span>
-                            <input type="checkbox" checked onchange="document.getElementById('headerPrefixCheck').checked = this.checked; toggleHeaderPrefix();" class="rounded">
+                            <input type="checkbox" onchange="document.getElementById('headerPrefixCheck').checked = this.checked; toggleHeaderPrefix();" class="rounded">
                         </label>
                         <div class="flex items-center justify-between text-slate-600">
                             <span>Header Column</span>
@@ -322,7 +322,7 @@
                     <!-- Header Prefix controls -->
                     <div class="flex flex-wrap items-center gap-2">
                         <label class="flex items-center gap-1.5 font-bold text-slate-700 cursor-pointer">
-                            <input id="headerPrefixCheck" type="checkbox" checked onchange="toggleHeaderPrefix()" class="w-3.5 h-3.5 rounded">
+                            <input id="headerPrefixCheck" type="checkbox" onchange="toggleHeaderPrefix()" class="w-3.5 h-3.5 rounded">
                             <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                                 <circle cx="6" cy="6" r="3"/>
                                 <circle cx="6" cy="18" r="3"/>
@@ -459,39 +459,12 @@
                 </div>
 
                 <!-- Scrollable Table Body (5 visible rows height just like screenshot) -->
-                <div id="fieldsTableBody" class="max-h-[215px] overflow-y-scroll classic-scrollbar divide-y divide-slate-200/80">
+                <div id="fieldsTableBody" class="max-h-[280px] overflow-y-scroll classic-scrollbar divide-y divide-slate-200/80">
                     <!-- Populated dynamically by JavaScript -->
                 </div>
             </div>
 
-            <!-- 7. 1,000 ROWS TEST BAR -->
-            <div id="thousandTestBox" class="bg-[#f0f7ff] border border-[#bae6fd] rounded-md px-3.5 py-2.5 space-y-2">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <div class="flex items-center gap-2 text-xs">
-                        <svg class="w-3.5 h-3.5 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-                        </svg>
-                        <span class="font-bold text-[#0369a1]">1,000 Rows Test:</span>
-                        <span id="testStatusText" class="italic text-slate-600">
-                            Ready to test
-                        </span>
-                    </div>
-
-                    <button id="runTestBtn" onclick="runThousandRowsTest()" class="flex items-center gap-1.5 px-3 py-1 rounded bg-[#1d63b8] hover:bg-[#154e94] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer">
-                        <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                        <span>▶ Test</span>
-                    </button>
-                </div>
-
-                <!-- Progress Track -->
-                <div class="w-full h-1.5 bg-slate-200/90 rounded-full overflow-hidden">
-                    <div id="testProgressBar" class="h-full bg-[#0284c7] rounded-full transition-all duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-
-            <!-- 8. SQL PREVIEW COLLAPSIBLE -->
+            <!-- 7. SQL PREVIEW COLLAPSIBLE -->
             <div class="pt-1">
                 <div class="flex items-center justify-between text-xs">
                     <button onclick="toggleSqlPreview()" class="flex items-center gap-1.5 font-semibold text-slate-600 hover:text-slate-900 py-1">
@@ -560,7 +533,7 @@
             <div class="flex items-center justify-between border-b border-slate-200 pb-3">
                 <div>
                     <span class="text-[11px] font-bold uppercase tracking-wider text-blue-600">Google Cloud & Minimalist UX Review</span>
-                    <h3 class="text-base font-bold text-slate-900">5 Key Improvements Over v2.0.9</h3>
+                    <h3 class="text-base font-bold text-slate-900">5 Key Improvements Over v2.0.10</h3>
                 </div>
                 <button onclick="toggleUxNotesModal()" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center">
                     <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -687,7 +660,7 @@
             renderFieldsTable();
         }
 
-        // Switch between Original v2.0.9, Google UX, and Minimalist Zen
+        // Switch between Original v2.0.10, Google UX, and Minimalist Zen
         function setDesignEdition(edition) {
             currentDesignEdition = edition;
             const btnOrig = document.getElementById('uxSwitchOriginal');
@@ -701,7 +674,7 @@
             const minimalTopBar = document.getElementById('minimalTopBar');
             const classicSource = document.getElementById('classicSourceSection');
             const visualConfig = document.getElementById('visualConfigPanel');
-            const thousandTestBox = document.getElementById('thousandTestBox');
+            const thousandTestBox = document.getElementById('thousandTestBox'); if (thousandTestBox)
             const classicHeader = document.getElementById('classicTableHeader');
             const minimalHeader = document.getElementById('minimalTableHeader');
             const tableWrapper = document.getElementById('tableWrapperBox');
@@ -769,9 +742,9 @@
                 smartBtn.classList.add('hidden');
                 applyCount.classList.add('hidden');
 
-                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.9)";
+                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.10)";
                 badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-900 text-blue-200 border border-blue-700 font-semibold";
-                subDesc.textContent = "Production v2.0.9 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns";
+                subDesc.textContent = "Production v2.0.10 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns";
             }
 
             renderFieldsTable();
@@ -1235,7 +1208,7 @@
             }, 2200);
         }
 
-        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.9)
+        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.10)
         window.onload = function () {
             setDesignEdition('minimal');
         };

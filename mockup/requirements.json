@@ -1036,9 +1036,9 @@
     "user_request_origin": "tôi muốn thiết kế lại bảng này nhìn sạch đẹp chuẩn UX hơn",
     "user_story": "As an analyst working with data tables, I want a sleek, narrow custom scrollbar (6px width, slate-300 thumb) with exactly 5 visible rows max-height so that scrolling feels responsive and never obscures table content.",
     "rationale_and_design_decisions": "1. Default OS scrollbars on Windows are 16px wide, clunky, and visually obtrusive.\n2. Custom CSS scrollbar (.classic-scrollbar) provides a 6px slim track with soft rounded thumb that darkens gracefully on hover.\n3. Table height is fixed to max-h-[215px], showing exactly 5 rows with an unmistakable scroll affordance for the 6th row.",
-    "description": "Custom CSS scrollbar classes (.classic-scrollbar) applied to data table body (#fieldsTableBody), providing 6px slim track and thumb styling.",
+    "description": "Custom CSS scrollbar with expanded 280px max-height (v2.0.10), showing 8-10 rows cleanly after removal of redundant 1,000 rows test card.",
     "status": "implemented_in_mockup",
-    "target_version": "2.0.9",
+    "target_version": "2.0.10",
     "acceptance_criteria": [
       "Scrollbar width is restricted to 6px with transparent/soft track.",
       "Thumb uses bg-slate-300 with rounded-full geometry.",
@@ -1052,8 +1052,8 @@
     },
     "technical_specs": {
       "css_class": "classic-scrollbar",
-      "max_height": "215px",
-      "visible_rows": 5,
+      "max_height": "280px",
+      "visible_rows": 8,
       "scrollbar_width": "6px",
       "thumb_color": "#cbd5e1",
       "thumb_hover_color": "#94a3b8"
