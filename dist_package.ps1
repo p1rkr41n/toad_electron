@@ -58,6 +58,8 @@ if (-not (Test-Path $duckDbUnpacked)) {
 }
 Write-Output ">>> duckdb.node native binding verified intact in app.asar.unpacked."
 
+& node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); }"
+
 Write-Output "=== STEP 5: Copying binaries to release and root directories ==="
 $releaseDir = "$rootDir\releases"
 $latestExe = Get-ChildItem -Path "$appDir\release\*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1

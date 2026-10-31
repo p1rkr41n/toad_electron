@@ -2854,6 +2854,7 @@ async function main() {
     assert(files.includes("!**/node_modules/@blueprintjs/**"), "Must exclude duplicate Blueprint packages");
     assert(files.includes("!**/*.map"), "Must exclude all sourcemaps across node_modules");
     assert(files.includes("!**/*.ts"), "Must exclude uncompiled TypeScript files");
+    assert(!files.includes("!**/node_modules/lodash/**"), "Must NOT exclude lodash as it is required by reltab backend");
   });
 
   await runTest("AA.3 DuckDB Native Driver & Addon Dynamic Linking Integrity", async () => {
@@ -2910,6 +2911,19 @@ async function main() {
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
     assert(dialogSrc.includes("v2.1.5"), "Dialog header must display v2.1.5 badge");
+  });
+
+  await runTest("AA.6 Backend Transitive Dependency Audit & Lodash Preservation Integrity", async () => {
+    // 1. reltab/dist/toSql.js must be able to require lodash
+    const toSqlPath = path.resolve(__dirname, "tad-master/packages/reltab/dist/toSql.js");
+    const toSql = require(toSqlPath);
+    assert(toSql, "reltab toSql must load cleanly");
+
+    // 2. package.json must NOT exclude lodash
+    const pkgAppPath = path.resolve(__dirname, "tad-master/packages/tad-app/package.json");
+    const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
+    const files = pkgApp.build.files;
+    assert(!files.includes("!**/node_modules/lodash/**"), "lodash must not be excluded from package.json build.files");
   });
 
   uiDriverF.connPool.giveBack(connF);
