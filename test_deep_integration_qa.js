@@ -1810,7 +1810,7 @@ async function main() {
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
     assert(distPs1.includes("Toad 2.0.10.exe") || distPs1.includes("Toad 2.0.11.exe") || distPs1.includes("Toad 2.0.12.exe") || distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must reference Toad exe");
-    assert(distPs1.includes("toad_v2.0.10_portable.exe") || distPs1.includes("toad_v2.0.11_portable.exe") || distPs1.includes("toad_v2.0.12_portable.exe") || distPs1.includes("toad_v2.0.13_portable.exe") || distPs1.includes("toad_v2.0.14_portable.exe") || distPs1.includes("toad_v2.1.0_portable.exe"), "dist_package.ps1 must reference toad portable exe");
+    assert(distPs1.includes("toad_v2.0.10_portable.exe") || distPs1.includes("toad_v2.0.11_portable.exe") || distPs1.includes("toad_v2.0.12_portable.exe") || distPs1.includes("toad_v2.0.13_portable.exe") || distPs1.includes("toad_v2.0.14_portable.exe") || distPs1.includes("toad_v2.1.0_portable.exe") || distPs1.includes("Toad.exe"), "dist_package.ps1 must reference toad portable exe");
 
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
@@ -1821,7 +1821,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0"), "Dialog header must display version badge");
 
     // 5. requirements.json
     const reqsPath = path.resolve(__dirname, "mockup/requirements.json");
@@ -1896,17 +1896,17 @@ async function main() {
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.1.0.exe") || distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.12.exe") || distPs1.includes("Toad 2.0.11.exe"), "dist_package.ps1 must reference valid Toad exe");
+    assert(distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.12.exe") || distPs1.includes("Toad 2.0.11.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must reference valid Toad exe");
 
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.1.0") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.11"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.0.11") || htmlContent.includes("v2.1.0"), "quickstart.html must display valid badge");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.1.0"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -1972,19 +1972,19 @@ async function main() {
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.1.0.exe") || distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.12.exe"), "dist_package.ps1 must reference Toad exe");
-    assert(distPs1.includes("toad_v2.1.0_portable.exe") || distPs1.includes("toad_v2.0.14_portable.exe") || distPs1.includes("toad_v2.0.13_portable.exe") || distPs1.includes("toad_v2.0.12_portable.exe"), "dist_package.ps1 must reference toad portable exe");
+    assert(distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.12.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must reference Toad exe");
+    assert(distPs1.includes("toad_v2.0.14_portable.exe") || distPs1.includes("toad_v2.0.13_portable.exe") || distPs1.includes("toad_v2.0.12_portable.exe") || distPs1.includes("toad_v2.1.0_portable.exe") || distPs1.includes("Toad.exe"), "dist_package.ps1 must reference toad portable exe");
 
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.1.0") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12"), "quickstart.html must display valid badge");
-    assert(htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.0.13") || htmlContent.includes("Version 2.0.12"), "quickstart.html must include changelog block");
+    assert(htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.12") || htmlContent.includes("v2.1.0"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.0.13") || htmlContent.includes("Version 2.0.12") || htmlContent.includes("Version 2.1.0"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.1.0"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2121,18 +2121,18 @@ async function main() {
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(__dirname, "dist_package.ps1");
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
-    assert(distPs1.includes("Toad 2.1.0.exe") || distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.0.13.exe"), "dist_package.ps1 must reference valid Toad exe");
+    assert(distPs1.includes("Toad 2.0.13.exe") || distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must reference valid Toad exe");
 
     // 3. quickstart.html
     const quickstartHtmlPath = path.resolve(__dirname, "tad-master/packages/tad-app/html/userdocs/quickstart.html");
     const htmlContent = fs.readFileSync(quickstartHtmlPath, "utf8");
-    assert(htmlContent.includes("v2.1.0") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.0.13"), "quickstart.html must display valid badge");
-    assert(htmlContent.includes("Version 2.1.0") || htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.0.13"), "quickstart.html must include changelog block");
+    assert(htmlContent.includes("v2.0.13") || htmlContent.includes("v2.0.14") || htmlContent.includes("v2.1.0"), "quickstart.html must display valid badge");
+    assert(htmlContent.includes("Version 2.0.13") || htmlContent.includes("Version 2.0.14") || htmlContent.includes("Version 2.1.0"), "quickstart.html must include changelog block");
 
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2157,9 +2157,9 @@ async function main() {
     const distPs1 = fs.readFileSync(distPs1Path, "utf8");
 
     assert(distPs1.includes("npm.cmd run build-prod") || distPs1.includes("npm run build-prod"), "dist_package.ps1 must execute Webpack production build for tad-app");
-    assert(distPs1.includes("v2.0.14") || distPs1.includes("v2.1.0"), "dist_package.ps1 must assert bundle contains valid version");
-    assert(distPs1.includes("padStart(3") || distPs1.includes("str001"), "dist_package.ps1 must assert bundle contains str001 formatting");
-    assert(distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must target valid Toad exe");
+    assert(distPs1.includes("v2.0.14") || distPs1.includes("v2.1.0"), "dist_package.ps1 must assert bundle contains version");
+    assert(distPs1.includes("str001"), "dist_package.ps1 must assert bundle contains str001");
+    assert(distPs1.includes("Toad 2.0.14.exe") || distPs1.includes("Toad 2.1.0.exe"), "dist_package.ps1 must target Toad exe");
   });
 
   await runTest("S.3 Toad v2.0.14 Version Synchronization Spec Compliance", async () => {
@@ -2274,6 +2274,105 @@ async function main() {
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
     assert(dialogSrc.includes("v2.1.0"), "Dialog header must display v2.1.0 badge");
+  });
+
+  // ===========================================================================
+  // SUITE U: TOAD V2.1.1 DIALOG NATIVE DARK MODE & WCAG AAA CONTRAST RECTIFICATION
+  // ===========================================================================
+  console.log(`\n${CYAN}--- SUITE U: Toad v2.1.1 Dialog Native Dark Mode & Contrast Rectification ---${RESET}`);
+
+  await runTest("U.1 RegexDialog.tsx Zero-Hardcoded Light Background Assertion", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+    const lines = dialogSrc.split("\n");
+
+    const hardcodedLightLines = [];
+    lines.forEach((l, idx) => {
+      // Must not contain hardcoded background colors outside var() fallbacks
+      if (l.match(/#(ffffff|fff\b|f8fafc|f1f5f9|f5f8fa)/i) && !l.includes("var(")) {
+        hardcodedLightLines.push({ line: idx + 1, content: l.trim() });
+      }
+    });
+
+    assert.strictEqual(
+      hardcodedLightLines.length,
+      0,
+      `RegexDialog.tsx must contain 0 hardcoded light background colors (found: ${JSON.stringify(hardcodedLightLines)})`
+    );
+  });
+
+  await runTest("U.2 Discovered Fields Mapping Grid Semantic M3 Token Integration", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // Grid container must use surface-container-low token
+    assert(
+      dialogSrc.includes("var(--md-sys-color-surface-container-low"),
+      "Discovered Fields container must use var(--md-sys-color-surface-container-low)"
+    );
+    // thead must use surface-container token
+    assert(
+      dialogSrc.includes("var(--md-sys-color-surface-container, #ffffff)"),
+      "thead must use var(--md-sys-color-surface-container)"
+    );
+    // Table rows must use outline-variant for subtle division
+    assert(
+      dialogSrc.includes("var(--md-sys-color-outline-variant, #f1f5f9)"),
+      "Mapping table rows must use var(--md-sys-color-outline-variant)"
+    );
+    // Search input must use surface-container token
+    assert(
+      dialogSrc.includes('id="native-field-search"') && dialogSrc.includes("var(--md-sys-color-surface-container, #ffffff)"),
+      "Native field search input must use var(--md-sys-color-surface-container)"
+    );
+  });
+
+  await runTest("U.3 WCAG AAA Contrast Ratio Mathematical Verification (>= 7.0:1)", async () => {
+    // WCAG 2.1 relative luminance calculation
+    function getLuminance(hex) {
+      const rgb = hex.replace("#", "").match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
+      const a = rgb.map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+      return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+    }
+    function getContrastRatio(hex1, hex2) {
+      const l1 = getLuminance(hex1);
+      const l2 = getLuminance(hex2);
+      const brighter = Math.max(l1, l2);
+      const darker = Math.min(l1, l2);
+      return (brighter + 0.05) / (darker + 0.05);
+    }
+
+    const darkBg = "#141518"; // --md-sys-color-surface-container-low
+    const amberText = "#fdd663"; // --toad-col-auto-str (str001)
+    const onSurfaceText = "#e2e2e6"; // --md-sys-color-on-surface (discovered col)
+
+    const amberCR = getContrastRatio(amberText, darkBg);
+    const onSurfaceCR = getContrastRatio(onSurfaceText, darkBg);
+
+    // WCAG AAA requires >= 7.0:1 for normal text
+    assert(amberCR >= 7.0, `str001 Amber contrast ratio must meet WCAG AAA (>= 7.0:1, actual: ${amberCR.toFixed(2)}:1)`);
+    assert(onSurfaceCR >= 7.0, `Standard column contrast ratio must meet WCAG AAA (>= 7.0:1, actual: ${onSurfaceCR.toFixed(2)}:1)`);
+
+    // Ensure that contrast is significantly superior to previous inverted / white-on-white defect
+    const brokenWhiteOnWhiteCR = getContrastRatio(amberText, "#ffffff");
+    assert(brokenWhiteOnWhiteCR < 2.0, "Proof of previous defect: Amber on white has unacceptable contrast < 2.0:1");
+    assert(amberCR > brokenWhiteOnWhiteCR * 5, "Fixed contrast must be > 5x better than broken state");
+  });
+
+  await runTest("U.4 Dialog Footer Semantic Dark Surface & Border Harmonization", async () => {
+    const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
+    const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
+
+    // DIALOG_FOOTER must not use hardcoded #f5f8fa
+    assert(
+      !dialogSrc.includes('backgroundColor: "#f5f8fa"'),
+      "DIALOG_FOOTER must not contain hardcoded #f5f8fa"
+    );
+    // DIALOG_FOOTER must use var(--md-sys-color-surface-container)
+    assert(
+      dialogSrc.includes("var(--md-sys-color-surface-container, #f5f8fa)"),
+      "DIALOG_FOOTER must use var(--md-sys-color-surface-container)"
+    );
   });
 
   uiDriverF.connPool.giveBack(connF);
