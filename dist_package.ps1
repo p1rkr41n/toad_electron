@@ -19,13 +19,13 @@ if (-not (Test-Path $bundlePath)) {
     throw "ERROR: Cannot find tadapp.bundle.js!"
 }
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not $bundleContent.Contains("v2.0.14")) {
-    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.0.14!"
+if (-not $bundleContent.Contains("v2.1.0")) {
+    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.1.0!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
     throw "ASSERTION ERROR: tadapp.bundle.js does not contain padStart(3 for str001!"
 }
-Write-Output ">>> Bundle Verification SUCCESS: contains v2.0.14 and str001."
+Write-Output ">>> Bundle Verification SUCCESS: contains v2.1.0 and str001."
 
 Write-Output "=== STEP 4: Packaging Electron App with electron-builder ==="
 & npm.cmd run dist
@@ -38,12 +38,12 @@ $latestExe = Get-ChildItem -Path "D:\Shared_UserData\Downloads\tad\tad-master\pa
 if ($latestExe) {
     Write-Output "Copying $($latestExe.Name) to releases and root..."
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
-    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.0.14.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.1.0.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\$($latestExe.Name)" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\$($latestExe.Name)" -Force
-    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.0.14.exe" -Force
-    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.0.14_portable.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.1.0.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.1.0_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad.exe" -Force
 }
 
-Write-Output "=== Packaging completed successfully: Toad 2.0.14! ==="
+Write-Output "=== Packaging completed successfully: Toad 2.1.0! ==="
