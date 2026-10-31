@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parse Columns v2.0.12 — Interactive Mockup</title>
+    <title>Parse Columns v2.0.13 — Interactive Mockup</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,7 +79,7 @@
         <div class="flex items-center gap-2">
             <div class="bg-slate-800 p-0.5 rounded-md border border-slate-700 flex items-center text-xs font-medium">
                 <button id="uxSwitchOriginal" onclick="setDesignEdition('original')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all">
-                    Visual v2.0.12 (Default)
+                    Visual v2.0.13 (Default)
                 </button>
                 <button id="uxSwitchGoogle" onclick="setDesignEdition('google')" class="px-2.5 py-1 rounded text-slate-400 hover:text-white transition-all flex items-center gap-1">
                     <span>Google UX</span>
@@ -108,7 +108,7 @@
                     <path d="M433 173l-35 37 35 37h-84v48h84l-35 37 35 39 79-83z" />
                 </svg>
                 <h1 class="text-[15px] font-bold text-slate-800 tracking-tight">Parse Columns</h1>
-                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.12</span>
+                <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700 rounded border border-blue-200">v2.0.13</span>
                 
             </div>
 
@@ -589,7 +589,7 @@
 
         // 13 Discovered Fields matching the exact screenshot top 5 + 8 scrollable fields
         let discoveredFields = [
-            { id: 1, key: 'str1', type: 'VARCHAR', rate: 100, sample: 'fptsupport', newName: 'str1', checked: true, isPositional: true },
+            { id: 1, key: 'str001', type: 'VARCHAR', rate: 100, sample: 'fptsupport', newName: 'str001', checked: true, isPositional: true },
             { id: 2, key: 'LID', type: 'VARCHAR', rate: 82, sample: '0x2c8b3f03', newName: 'LID', checked: true, isPositional: false },
             { id: 3, key: 'Type', type: 'BIGINT', rate: 82, sample: '2', newName: 'Type', checked: true, isPositional: false },
             { id: 4, key: 'Proc', type: 'VARCHAR', rate: 12, sample: 'C:\\Windows\\System32\\inets...', newName: 'Proc', checked: true, isPositional: false },
@@ -742,7 +742,7 @@
                 smartBtn.classList.add('hidden');
                 applyCount.classList.add('hidden');
 
-                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.12)";
+                badgeLabel.textContent = "Authoritative Visual Mode (v2.0.13)";
                 badgeLabel.className = "px-1.5 py-0.5 text-[10px] rounded bg-blue-900 text-blue-200 border border-blue-700 font-semibold";
                 subDesc.textContent = "Production v2.0.10 Visual Spec • Prominent Delimiter & Assign • Pure-text headers • Sequential strX columns";
             }
@@ -999,17 +999,43 @@
             if (minMaster) minMaster.checked = allChecked;
         }
 
-        // Add sequential positional column (+ strX) without overwriting existing columns
+        function formatStrColName(idx) {
+            if (idx <= 0) idx = 1;
+            if (idx <= 999) return 'str' + String(idx).padStart(3, '0');
+            const excess = idx - 1000;
+            const blockIdx = Math.floor(excess / 999);
+            const offset = (excess % 999) + 1;
+            const letter = String.fromCharCode(65 + (blockIdx % 26));
+            const cycle = Math.floor(blockIdx / 26);
+            const prefix = cycle > 0 ? letter + cycle : letter;
+            return 'str' + prefix + String(offset).padStart(3, '0');
+        }
+
+        function parseStrColIndex(name) {
+            if (!name) return null;
+            const trimmed = name.trim();
+            const mAlpha = /^str([A-Z])(\d{3,})$/i.exec(trimmed);
+            if (mAlpha) {
+                const block = mAlpha[1].toUpperCase().charCodeAt(0) - 65;
+                const offset = parseInt(mAlpha[2], 10);
+                return 1000 + block * 999 + (offset - 1);
+            }
+            const mNum = /^str_?(\d+)$/i.exec(trimmed);
+            if (mNum) return parseInt(mNum[1], 10);
+            return null;
+        }
+
+        // Add sequential positional column (+ str001..str999 & strA001..) without overwriting existing columns
         function addPositionalField() {
             let maxIdx = 0;
             discoveredFields.forEach(f => {
-                const m1 = /^str_?(\d+)$/i.exec((f.key || '').trim());
-                if (m1) maxIdx = Math.max(maxIdx, parseInt(m1[1], 10));
-                const m2 = /^str_?(\d+)$/i.exec((f.newName || '').trim());
-                if (m2) maxIdx = Math.max(maxIdx, parseInt(m2[1], 10));
+                const idx1 = parseStrColIndex(f.key || '');
+                if (idx1 !== null) maxIdx = Math.max(maxIdx, idx1);
+                const idx2 = parseStrColIndex(f.newName || '');
+                if (idx2 !== null) maxIdx = Math.max(maxIdx, idx2);
             });
             const nextIdx = maxIdx + 1;
-            const newKey = `str${nextIdx}`;
+            const newKey = formatStrColName(nextIdx);
             discoveredFields.push({
                 id: Date.now(),
                 key: newKey,
@@ -1208,7 +1234,7 @@
             }, 2200);
         }
 
-        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.12)
+        // Initialize table on load (Defaults to Authoritative Visual Mode v2.0.13)
         window.onload = function () {
             setDesignEdition('minimal');
         };
