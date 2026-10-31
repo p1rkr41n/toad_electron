@@ -188,3 +188,4 @@ flowchart TD
 | **Thiếu thư viện Frontend** | Trung bình | Không có | File `tadapp.bundle.js` do Webpack sinh ra là dạng self-contained bundle, đã đóng gói đầy đủ React, UI components và CSS. |
 | **Lỗi module tiến trình Main** | Trung bình | Không có | Danh sách module `main.ts` require đã được kiểm toán 100% bằng script AST và giữ lại đầy đủ. |
 | **Hồi quy dung lượng sau này** | Thấp | Không có | Đã có Cổng kiểm soát dung lượng tự động (Size Gate) trong script build, tự động chặn build nếu vượt ngưỡng. |
+
