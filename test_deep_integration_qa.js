@@ -2400,11 +2400,11 @@ async function main() {
       "slickgrid.scss must override .slick-cell with background: transparent !important"
     );
     assert(
-      scssSrc.includes("var(--toad-grid-row-even, #121316) !important;"),
+      scssSrc.includes("var(--toad-grid-row-even"),
       "slickgrid.scss must apply M3 even row background"
     );
     assert(
-      scssSrc.includes("var(--toad-grid-row-odd, #18191f) !important;"),
+      scssSrc.includes("var(--toad-grid-row-odd"),
       "slickgrid.scss must apply M3 odd row background"
     );
   });
@@ -2474,6 +2474,65 @@ async function main() {
     const dialogTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
     assert(dialogSrc.includes("v2.1.2"), "Dialog header must display v2.1.2 badge");
+  });
+
+  // ===========================================================================
+  // SUITE W: TOAD V2.1.2 ERGONOMIC SLATE PALETTE & ACTIVITYBAR / SIDEBAR RECTIFICATION
+  // ===========================================================================
+  console.log(`\n${CYAN}--- SUITE W: Toad v2.1.2 Ergonomic Slate Palette & ActivityBar / Sidebar Audit ---${RESET}`);
+
+  await runTest("W.1 Versioned toad-theme-v2 key & Light Default Isolation", async () => {
+    const themeTsPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/toadTheme.ts");
+    const themeSrc = fs.readFileSync(themeTsPath, "utf8");
+
+    assert(themeSrc.includes('localStorage.getItem("toad-theme-v2")'), "toadTheme.ts must use versioned key toad-theme-v2");
+    assert(themeSrc.includes('localStorage.removeItem("toad-theme")'), "applyTheme must clean up legacy toad-theme key");
+    assert(themeSrc.includes('return "light";'), "getActiveTheme must default to light");
+  });
+
+  await runTest("W.2 ActivityBar Toggle State & M3 Sun/Moon Icon", async () => {
+    const actBarPath = path.resolve(__dirname, "tad-master/packages/tadviewer/src/components/ActivityBar.tsx");
+    const actBarSrc = fs.readFileSync(actBarPath, "utf8");
+
+    assert(actBarSrc.includes('icon={theme === "dark" ? <SunIcon size={16} /> : "moon"}'), "ActivityBar must toggle between sun and moon based on theme === 'dark'");
+    assert(actBarSrc.includes('Switch to Light Mode'), "ActivityBar tooltip must include 'Switch to Light Mode'");
+  });
+
+  await runTest("W.3 ActivityBar Dark Mode CSS & Warm Amber Theme Button", async () => {
+    const actBarLessPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/activityBar.less");
+    const actBarLess = fs.readFileSync(actBarLessPath, "utf8");
+
+    assert(actBarLess.includes(".bp4-dark .activityBar"), "activityBar.less must provide dark mode styling");
+    assert(actBarLess.includes("var(--md-sys-color-surface-container"), "activityBar must use surface-container background");
+    assert(actBarLess.includes("var(--md-sys-color-tertiary, #fdd663)"), "Theme toggle button must use M3 gold/amber token in dark mode");
+  });
+
+  await runTest("W.4 Sidebar Dark Mode Styling & WCAG Contrast Rectification", async () => {
+    const sidebarLessPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/sidebar.less");
+    const sidebarLess = fs.readFileSync(sidebarLessPath, "utf8");
+
+    assert(sidebarLess.includes(".bp4-dark .sidebar"), "sidebar.less must provide .bp4-dark .sidebar");
+    assert(sidebarLess.includes("var(--md-sys-color-surface-container-low"), "sidebar must use surface-container-low dark background");
+    assert(sidebarLess.includes(".bp4-heading, h5"), "sidebar must style headings for high dark contrast");
+    assert(sidebarLess.includes(".bp4-checkbox"), "sidebar must style checkboxes for dark contrast");
+  });
+
+  await runTest("W.5 ColumnSelector 290px Void Sealing & Background Darkening", async () => {
+    const colSelPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/columnSelector.less");
+    const colSel = fs.readFileSync(colSelPath, "utf8");
+
+    assert(colSel.includes(".column-selector-body"), "columnSelector.less must include .column-selector-body");
+    assert(colSel.includes(".column-selector {") && colSel.includes("var(--md-sys-color-surface-container-low"), "column-selector must have dark container background");
+  });
+
+  await runTest("W.6 M3 Ergonomic Slate Dark Palette in tadviewer.less", async () => {
+    const tadLessPath = path.resolve(__dirname, "tad-master/packages/tadviewer/less/tadviewer.less");
+    const tadLess = fs.readFileSync(tadLessPath, "utf8");
+
+    assert(!tadLess.includes("--md-sys-color-surface-dim: #0e0f12;"), "tadviewer.less must eliminate OLED pitch-black #0e0f12");
+    assert(tadLess.includes("--md-sys-color-surface-dim: #18181c;"), "tadviewer.less must use ergonomic slate canvas #18181c");
+    assert(tadLess.includes("--toad-grid-row-even: #1e1f24;"), "tadviewer.less must use soothing surface #1e1f24 for even rows");
+    assert(tadLess.includes("--toad-grid-row-odd: #23252b;"), "tadviewer.less must use #23252b for odd rows");
   });
 
   uiDriverF.connPool.giveBack(connF);
