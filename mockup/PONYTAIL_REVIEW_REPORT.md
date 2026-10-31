@@ -67,3 +67,4 @@ The recent updates introduced Toad v2.0.11, fixing the sticky blue bar on the pr
 
 ### Not checked:
 Native C++ DuckDB SIMD extensions on Linux/macOS architectures (testing was performed on Windows x64 build environment).
+
