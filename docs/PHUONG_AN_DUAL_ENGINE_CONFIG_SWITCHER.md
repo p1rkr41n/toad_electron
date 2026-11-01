@@ -281,3 +281,4 @@ gantt
 1. **Tính khả thi:** Phương án phân tầng **Smart Launcher + HostBridge Abstraction** là phương án chuẩn mực quốc tế, giải quyết tận gốc nguyên nhân thất bại của lần thử nghiệm trước (vốn cố gắng thay thế nóng Electron bằng Tauri mà chưa bóc tách UI).
 2. **Tính an toàn tuyệt đối:** Bản phát hành ổn định hiện tại **Toad v2.1.6** được bảo toàn 100%, đóng vai trò là "mỏ neo" vững chắc và là động cơ fallback mặc định.
 3. **Đề xuất thực hiện:** Bắt đầu triển khai từ **Giai đoạn 1 (Tách UI Bridge trong `tadviewer`)** trên một nhánh riêng biệt, đảm bảo mọi commit đều có QA đối soát qua `run_tests.js`.
+
