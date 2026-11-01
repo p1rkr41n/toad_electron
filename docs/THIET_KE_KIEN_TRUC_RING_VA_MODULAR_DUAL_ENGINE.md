@@ -1,359 +1,327 @@
-# BẢN ĐẶC TẢ KIẾN TRÚC DẠNG RING (RING ARCHITECTURE) & PHƯƠNG ÁN MODULE HÓA HỆ THỐNG DUAL-ENGINE TOAD
+# BẢN ĐẶC TẢ KIẾN TRÚC RING & CHUYỂN ĐỔI ENGINE (TAURI vs V8) QUA CONFIG.INI
 > **Tài liệu:** `docs/THIET_KE_KIEN_TRUC_RING_VA_MODULAR_DUAL_ENGINE.md`  
 > **Dự án:** TOAD - Log & Forensic Data Analysis Platform  
-> **Phiên bản mục tiêu:** Toad v2.3.0+ Modular Architecture  
-> **Trạng thái:** Bản thiết kế chi tiết (Comprehensive Architecture Blueprint & BA Specification)
+> **Phạm vi tinh gọn (Tuned Scope):** **CHỈ chuyển đổi duy nhất giữa 2 Runtime Engine: Tauri vs V8 (Electron)**. Toàn bộ các cấu phần khác (CSDL DuckDB, Giao diện React/SlickGrid, Quản lý File FSDriver, Hàng đợi Ingestion) được **GIỮ CỐ ĐỊNH & DÙNG CHUNG 100%**.  
+> **Phiên bản baseline ổn định:** Toad v2.1.6  
+> **Trạng thái:** Bản thiết kế chi tiết tinh gọn (Tuned Architecture & BA Specification)
 
 ---
 
-## CHƯƠNG I: TỔNG QUAN BA & PHÂN TÍCH NGHIỆP VỤ NÂNG CAO
+## CHƯƠNG I: PHÂN TÍCH NGHIỆP VỤ & PHẠM VI TINH GỌN (TUNED BA)
 
-### 1.1. Mục tiêu Nghiệp vụ (Business Goals)
-1. **Khử phụ thuộc nguyên khối (Decoupling Monolith):** Hiện tại hệ thống đang bị gắn chặt giữa logic xử lý dữ liệu DuckDB, logic giao diện React SlickGrid và môi trường chạy Electron. Mục tiêu là bẻ gãy sự phụ thuộc này thành các **Ring (Vòng đồng tâm)** độc lập.
-2. **Cơ chế Chuyển đổi Kiến trúc Đơn giản (Simple Switch):** Cho phép thay đổi Engine chạy ngầm (**Electron** $\leftrightarrow$ **Tauri**) hoặc Engine CSDL (**DuckDB In-Memory** $\leftrightarrow$ **DuckDB Persistent** $\leftrightarrow$ **Custom Engine**) chỉ thông qua 1 cấu hình khóa đơn giản trong `config.ini`.
-3. **Khả năng Mở rộng Module Mới (Extensibility):** Bất kỳ lập trình viên nào cũng có thể viết thêm 1 module mới (ví dụ: Module giải mã log EVTX mới, Module parser định dạng mới, hoặc Engine hiển thị Web/Tauri mới) mà **không cần sửa một dòng code nào trong lõi (Core)**.
+### 1.1. Phạm vi Thiết kế: Đúng trọng tâm, Không Over-Engineering
+Theo yêu cầu thực tế của dự án, hệ thống **không cần** chuyển đổi nhiều loại cơ sở dữ liệu hay plugin rườm rà. Hệ thống tập trung tối đa vào **1 bài toán duy nhất**:
 
-### 1.2. Các Ràng buộc Bất biến (Invariants)
-* **Invariant 1 (Lõi Không Phụ thuộc OS):** Lõi xử lý dữ liệu và bảng quan hệ (RelTab) tuyệt đối không được gọi `window`, `document`, `process`, `electron` hay `tauri`. Lõi phải chạy được trên Node.js thuần, WebWorker, Deno hoặc WebAssembly.
-* **Invariant 2 (Bảo toàn Baseline v2.1.6):** Mọi module hóa không được làm gãy bất kỳ test case nào trong bộ 133 tests của `run_tests.js`.
-* **Invariant 3 (Tính Tương thích Hồ sơ Người dùng):** Đổi engine không được làm mất cấu hình `toadAppData` hay Parquet Cache.
+$$\boxed{\text{Chuyển đổi linh hoạt giữa 2 Runtime Engine: } \mathbf{Tauri} \longleftrightarrow \mathbf{V8} \text{ (Electron)}}$$
+
+| Thành phần hệ thống | Trạng thái chuyển đổi | Cơ chế vận hành |
+| :--- | :---: | :--- |
+| **Runtime Engine (Vỏ chạy ứng dụng)** | 🔄 **SWITCHABLE** | **V8 (Electron)** $\longleftrightarrow$ **Tauri (Rust + WebView2)** qua `config.ini`. |
+| **Cơ sở dữ liệu (DuckDB Engine)** | 🔒 **CỐ ĐỊNH** | Duy trì duy nhất **Dual-Engine DuckDB** (`uiDbc` tương tác & `ingestDbc` nạp ngầm). Không đổi. |
+| **Giao diện Người dùng (UI Canvas)** | 🔒 **CỐ ĐỊNH** | Duy trì duy nhất React 18, Virtualized SlickGrid, Material 3 Dark/Light. Không đổi. |
+| **Hệ thống nạp File (FSDriver)** | 🔒 **CỐ ĐỊNH** | Duy trì duy nhất Shortest Job First (SJF) và Parquet cache. Không đổi. |
+| **Hồ sơ dữ liệu (`toadAppData`)** | 🔒 **CỐ ĐỊNH** | Dùng chung 100% thư mục dữ liệu, lịch sử file và filter presets. Không đổi. |
+
+### 1.2. Mục tiêu Nghiệp vụ Cốt lõi
+* **Lựa chọn V8 (Mặc định - Electron / Node.js V8 Runtime):** Dành cho chuyên viên điều tra chuyên sâu. Yêu cầu Chromium độc lập, tương thích 100% với file log siêu lớn (20GB - 40GB), không bao giờ phụ thuộc vào cập nhật hệ điều hành.
+* **Lựa chọn Tauri (Tối ưu - Rust + Edge WebView2 Runtime):** Dành cho máy tính hiện trường, máy ảo RAM yếu (4GB - 8GB). Khởi động siêu tốc (< 0.4s), tiết kiệm 70% RAM.
+* **Chuyển đổi tức thì:** Người dùng chỉ cần sửa 1 dòng `engine = v8` hoặc `engine = tauri` trong `config.ini`.
 
 ---
 
-## CHƯƠNG II: MÔ HÌNH KIẾN TRÚC PHÂN TẦNG DẠNG RING (CONCENTRIC RING ARCHITECTURE)
+## CHƯƠNG II: MÔ HÌNH KIẾN TRÚC PHÂN TẦNG DẠNG RING (RING ARCHITECTURE)
 
-Hệ thống được tổ chức thành 4 vòng đồng tâm. **Quy tắc phụ thuộc (Dependency Rule):** Mã nguồn ở vòng ngoài có thể phụ thuộc vào vòng trong, nhưng mã nguồn ở vòng trong **TUYỆT ĐỐI KHÔNG BIẾT VÀ KHÔNG PHỤ THUỘC VÀO VÒNG NGOÀI**.
+Hệ thống được tổ chức thành 4 vòng đồng tâm. Điểm chuyển đổi (Switch Point) duy nhất nằm ở **Ring 2** và **Ring 3**:
 
 ```mermaid
 flowchart TD
-    subgraph Ring3["RING 3: OUTER SHELL & RUNTIME HOSTS (Vỏ ngoài cùng)"]
-        ElectronHost["Electron Host (Node.js Main + Chromium)"]
-        TauriHost["Tauri Host (Rust Core + WebView2)"]
-        ReactUI["Presentation UI (React 18 + SlickGrid + M3 Themes)"]
-        OSNative["OS Native APIs (Win32 Menu, File System, Registry)"]
+    subgraph Ring3["RING 3: DUAL RUNTIME SHELL (Điểm chuyển đổi Engine)"]
+        direction LR
+        V8Shell["Engine V8 (Node.js V8 + Chromium)\n- Ổn định tuyệt đối\n- Full Native Win32 Menu"]
+        TauriShell["Engine Tauri (Rust + Edge WebView2)\n- Khởi động tức thì < 0.4s\n- Tiết kiệm 70% RAM"]
+        SharedUI["Shared UI Canvas (React 18 + SlickGrid + M3 Themes)"]
     end
 
-    subgraph Ring2["RING 2: HOST BRIDGE & PORTS ADAPTERS (Lớp Cổng Chuyển Tiếp)"]
-        IHostBridge["IHostBridge Contract"]
-        IEngineAdapter["IEngineAdapter Contract"]
-        IDataSourceAdapter["IDataSourceAdapter Contract"]
-        EventBus["Async Event Bus & Service Registry"]
+    subgraph Ring2["RING 2: HOST BRIDGE ADAPTER (Lớp Adapter duy nhất)"]
+        IHostBridge["Interface: IHostBridge\n(openDialog, invokeQuery, onEvent, setMenu)"]
+        V8Adapter["V8HostAdapter.ts\n(ipcRenderer)"]
+        TauriAdapter["TauriHostAdapter.ts\n(tauri.invoke)"]
     end
 
-    subgraph Ring1["RING 1: APPLICATION SERVICES & INGESTION ENGINE (Dịch vụ Ứng dụng)"]
+    subgraph Ring1["RING 1: DATA ENGINE & INGESTION (Cố định & Dùng chung)"]
+        DualDuckDB["Dual-Engine DuckDB Service (uiDbc & ingestDbc)"]
         MLM["MultipleLoadingManager (SJF Queue, VIP Click)"]
-        FSDriver["FSDriver (Path Normalizer, File Stats)"]
-        DualDuckDBService["Dual Engine Service (uiDbc & ingestDbc)"]
-        RAMCacheManager["RAM First-Page Micro-Cache (1000 rows < 2ms)"]
-        ExtractorService["Vectorized Column Extractor Service (CTE split_log)"]
+        RAMCache["RAM First-Page Micro-Cache (< 2ms)"]
+        FSDriver["FSDriver (Parquet Converter & File Watcher)"]
     end
 
-    subgraph Ring0["RING 0: DOMAIN CORE & RELTAB MATHEMATICS (Lõi Nguyên Tử)"]
-        RelTab["RelTab Query Specification & AST"]
-        Schema["Schema, ColumnVal, ValType Definitions"]
-        FilterExp["Filter Expressions & Aggregation Algebra"]
-        ConfigModel["Config Entities & Pure Validation Logic"]
+    subgraph Ring0["RING 0: DOMAIN CORE & RELTAB MATH (Lõi Bất Biến)"]
+        RelTab["RelTab Query Algebra & AST"]
+        Schema["Schema, ColumnVal & ValType Definitions"]
+        Filter["Filter Expressions & Aggregation Logic"]
     end
 
-    Ring3 --> Ring2
-    Ring2 --> Ring1
+    V8Shell -. "engine = v8" .-> V8Adapter
+    TauriShell -. "engine = tauri" .-> TauriAdapter
+    V8Adapter --> IHostBridge
+    TauriAdapter --> IHostBridge
+    SharedUI --> IHostBridge
+    IHostBridge --> Ring1
     Ring1 --> Ring0
 ```
 
 ### Chi tiết 4 Vòng Ring:
-
-#### 1. Ring 0: Domain Core (Lõi Nguyên Tử - Pure Mathematics & Entities)
-* **Trách nhiệm:** Định nghĩa cấu trúc bảng quan hệ (`TableRep`, `Schema`), đại số quan hệ (`FilterExp`, `AggRow`), các kiểu dữ liệu trừu tượng (`ValType: Integer | Real | Text | Boolean | Timestamp`).
-* **Đặc tính:** 100% Pure TypeScript/Rust. Zero dependencies. Không I/O, không gọi đĩa, không gọi mạng.
-* **Package tương ứng:** `packages/reltab` (được tinh giản).
-
-#### 2. Ring 1: Application Services (Dịch vụ Ứng dụng & Điều phối Dữ liệu)
-* **Trách nhiệm:** 
-  * Quản lý tiến trình nạp song song Shortest Job First (`MultipleLoadingManager`).
-  * Điều phối 2 Engine DuckDB (`uiDbc` xử lý tương tác UI, `ingestDbc` nạp ngầm Parquet).
-  * Bộ nhớ đệm tầng 1: RAM First-Page Micro-Cache.
-  * Phân tích bóc tách cột tự động qua Vectorized CTE SQL (`split_log`).
-* **Đặc tính:** Chứa logic nghiệp vụ điều tra số (DFIR), không phụ thuộc vào việc UI vẽ bằng gì hay App chạy trên Electron hay Tauri.
-
-#### 3. Ring 2: Host Bridge & Adapter Ports (Tầng Giao tiếp & Cổng Chuyển đổi)
-* **Trách nhiệm:** 
-  * Cung cấp các Hợp đồng Giao tiếp chuẩn (Contracts): `IHostBridge`, `IEngineHost`, `IDialogHost`, `IMenuHost`.
-  * **Module Registry (Sổ đăng ký Module)**: Quản lý đăng ký động và nạp các module tại thời điểm ứng dụng khởi động.
-* **Đặc tính:** Là "bức tường lửa" ngăn cách hoàn toàn giữa Lõi và Nền tảng thực thi của OS.
-
-#### 4. Ring 3: Outer Shell & Runtimes (Vỏ Thực thi Ngoại vi)
-* **Trách nhiệm:**
-  * **Host Shell 1 (Electron)**: Cung cấp cửa sổ Chromium, IPC qua `ipcRenderer`/`ipcMain`, Menu Win32 native.
-  * **Host Shell 2 (Tauri)**: Cung cấp cửa sổ WebView2 qua WRY/TAO, IPC qua `#[tauri::command]`, Menu Rust.
-  * **UI Presentation**: React 18 Components, SlickGrid ảo hóa 100.000 dòng, Bộ style Material 3 Ergonomic Slate.
+1. **Ring 0 (Lõi Nguyên Tử - Bất biến):** `reltab` - Chứa toàn bộ logic toán học, kiểu dữ liệu, định dạng bảng. Thuần TypeScript/Rust, không dính dáng đến OS hay giao diện.
+2. **Ring 1 (Dịch vụ Dữ liệu DuckDB - Bất biến):** Cung cấp 2 kết nối DuckDB độc lập (`uiDbc` phục vụ SlickGrid < 50ms, `ingestDbc` nạp ngầm Parquet). Cả 2 engine V8 và Tauri đều gọi chung dịch vụ này.
+3. **Ring 2 (Host Bridge - Cổng Chuyển Tiếp):** Định nghĩa hợp đồng chung `IHostBridge`. Chỉ gồm đúng **2 Adapter**:
+   * `V8HostAdapter`: Dùng khi chạy trên Electron/V8.
+   * `TauriHostAdapter`: Dùng khi chạy trên Tauri.
+4. **Ring 3 (Vỏ Thực Thi - Runtime Shells):** 
+   * Vỏ A: Tiến trình Electron (V8 engine).
+   * Vỏ B: Tiến trình Tauri (Rust engine).
+   * Giao diện React hiển thị dùng chung 100%.
 
 ---
 
-## CHƯƠNG III: THIẾT KẾ MODULE HÓA CẤU PHẦN (COMPONENT MODULARIZATION)
+## CHƯƠNG III: THIẾT KẾ MODULE HÓA TINH GỌN (LEAN COMPONENT STRUCTURE)
 
-Để hệ thống có thể chuyển đổi mượt mà, toàn bộ mã nguồn được tái cấu trúc thành **6 Module độc lập**:
+Thay vì chia vụn vặt nhiều module, cấu trúc dự án được phân định gọn gàng đúng 4 khối:
 
 ```
 tad/
-├── modules/
-│   ├── core/                  # Ring 0: RelTab Domain Core
-│   │   ├── src/schema/
-│   │   ├── src/query/
-│   │   └── package.json
+├── packages/
+│   ├── reltab/                # [Ring 0] Core Domain & Math (Dùng chung)
+│   ├── reltab-duckdb/         # [Ring 1] Dual DuckDB Driver (Dùng chung)
+│   ├── reltab-fs/             # [Ring 1] File Ingestion & SJF Queue (Dùng chung)
 │   │
-│   ├── engine-duckdb/         # Ring 1: Dịch vụ DuckDB Dual-Engine & Cache
-│   │   ├── src/drivers/
-│   │   ├── src/cache/
-│   │   ├── src/extractor/
-│   │   └── package.json
+│   ├── host-bridge/           # [Ring 2] Interface IHostBridge + V8/Tauri Adapters
+│   │   ├── src/IHostBridge.ts
+│   │   ├── src/V8HostAdapter.ts
+│   │   ├── src/TauriHostAdapter.ts
+│   │   └── src/index.ts       # Runtime Auto-Detector Factory
 │   │
-│   ├── host-bridge/           # Ring 2: Interface chung & Module Registry
-│   │   ├── src/contracts/     # IHostBridge, IEngineAdapter
-│   │   ├── src/registry/      # ModuleRegistry & ServiceLocator
-│   │   └── package.json
+│   ├── tadviewer/             # [Ring 3] Giao diện React UI Canvas (Dùng chung)
+│   │   ├── src/components/DataGrid.tsx
+│   │   └── src/themes/
 │   │
-│   ├── shell-electron/        # Ring 3A: Vỏ bọc Electron
-│   │   ├── app/main.ts
-│   │   ├── app/ElectronBridge.ts
-│   │   └── package.json
+│   ├── shell-v8/              # [Ring 3A] Engine V8 (Electron Main Process)
+│   │   └── app/main.ts
 │   │
-│   ├── shell-tauri/           # Ring 3B: Vỏ bọc Tauri v2
-│   │   ├── src-tauri/src/main.rs
-│   │   ├── src/TauriBridge.ts
-│   │   └── Cargo.toml
-│   │
-│   └── ui-canvas/             # Ring 3C: Giao diện người dùng dùng chung
-│       ├── src/components/DataGrid/
-│       ├── src/components/Sidebar/
-│       ├── src/themes/
-│       └── package.json
+│   └── shell-tauri/           # [Ring 3B] Engine Tauri (Rust WRY/TAO Host)
+│       ├── src-tauri/src/main.rs
+│       └── src-tauri/capabilities/default.json
 ```
 
 ---
 
-## CHƯƠNG IV: CƠ CHẾ SWITCH MODULE & SWITCH ENGINE ĐƠN GIẢN
+## CHƯƠNG IV: CƠ CHẾ SWITCH ENGINE ĐƠN GIẢN QUA CONFIG.INI
 
-### 4.1. Cấu hình Khởi động trong `config.ini`
-Cơ chế chuyển đổi vận hành thông qua file `config.ini` chuẩn hóa với tính năng tự động thẩm định và fallback:
+### 4.1. File `config.ini` Cực Kỳ Đơn Giản
+Người dùng chỉ cần chỉ định mục `[runtime]`:
 
 ```ini
 [runtime]
-; Chọn Shell hiển thị: electron | tauri | auto
-shell = electron
+; Lựa chọn engine khởi chạy:
+; - v8    : Engine Node.js V8 + Chromium (Electron) - Tương thích và ổn định tối đa (Mặc định).
+; - tauri : Engine Rust + Edge WebView2 (Tauri) - Siêu nhẹ, khởi động tức thì.
+engine = v8
 
-; Chọn Engine CSDL: duckdb_dual | duckdb_single | custom
-engine = duckdb_dual
-
-; Tự động fallback về Electron nếu shell chỉ định bị lỗi khởi tạo
+; Tự động fallback về v8 nếu engine tauri gặp lỗi môi trường WebView2
 auto_fallback = true
 
-[modules]
-; Bật/tắt các module tính năng mở rộng
-enable_forensic_decoders = true
-enable_column_extractor = true
-enable_ram_micro_cache = true
+[general]
+viewer = toad
+language = en
+page_size = 1000
+max_concurrent_files = 4
+max_concurrent_gb = 1.0
+
+[duckdb]
+max_memory = auto
+threads = 0
+background_threads = auto
 ```
 
-### 4.2. Trình Điều phối Khởi động Thông minh (Smart Bootstrapper Dispatcher)
-Ứng dụng sử dụng một launcher native siêu nhẹ (`Toad.exe` ~1.5MB) đặt ở thư mục gốc:
+### 4.2. Luồng Điều Phối của Launcher (`Toad.exe` ~1.5MB)
+Khi người dùng bấm mở `Toad.exe`:
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor User as Người dùng
-    participant Launcher as Toad.exe (Smart Dispatcher)
-    participant Config as config.ini
-    participant ShellElectron as engines/electron/Toad.exe
-    participant ShellTauri as engines/tauri/toad-tauri.exe
+flowchart TD
+    Start([Khởi chạy Toad.exe]) --> ReadConfig[Đọc config.ini: engine]
+    ReadConfig --> Decision{engine == ?}
 
-    User->>Launcher: Click mở Toad.exe
-    Launcher->>Config: Đọc [runtime] shell
-    alt shell == "electron"
-        Launcher->>ShellElectron: Khởi chạy tiến trình Electron
-        ShellElectron-->>User: Giao diện mở với Chromium Runtime
-    else shell == "tauri"
-        Launcher->>Launcher: Kiểm tra WebView2 Registry
-        alt WebView2 Hợp lệ
-            Launcher->>ShellTauri: Khởi chạy tiến trình Tauri
-            ShellTauri-->>User: Giao diện mở với Tauri/WebView2 Runtime
-        else Thiếu WebView2 & auto_fallback == true
-            Launcher->>Config: Ghi log cảnh báo
-            Launcher->>ShellElectron: Tự động kích hoạt Electron Fallback
-            ShellElectron-->>User: Mở an toàn bằng Electron (Hiển thị toast thông báo)
-        end
-    end
+    Decision -- "v8 (mặc định)" --> BootV8[Khởi chạy engines/v8/Toad.exe\n(Electron V8 Runtime)]
+    
+    Decision -- "tauri" --> CheckWV2{Có WebView2 trên Windows?}
+    CheckWV2 -- "Có" --> BootTauri[Khởi chạy engines/tauri/toad-tauri.exe\n(Tauri Runtime)]
+    CheckWV2 -- "Không & auto_fallback=true" --> FallbackLog[Ghi log cảnh báo] --> BootV8
+
+    BootV8 --> AppReady([Ứng dụng sẵn sàng phân tích])
+    BootTauri --> AppReady
 ```
 
-### 4.3. Module Registry & Cơ chế Đăng ký Động trong Code
-Tại Ring 2, `ModuleRegistry` đảm nhiệm việc đăng ký và nạp các implementation:
+---
+
+## CHƯƠNG V: MÃ NGUỒN CỐT LÕI CỦA TẦNG CHUYỂN ĐỔI (HOST BRIDGE)
+
+### 5.1. Interface Hợp Đồng Chung: `IHostBridge.ts`
+Giao diện React chỉ tương tác thông qua interface này:
 
 ```typescript
-// modules/host-bridge/src/registry/ModuleRegistry.ts
+// packages/host-bridge/src/IHostBridge.ts
 
-export interface IModule {
-  readonly id: string;
-  readonly name: string;
-  readonly version: string;
-  initialize(): Promise<void>;
-  dispose(): Promise<void>;
+export interface OpenDialogOptions {
+  title?: string;
+  defaultPath?: string;
+  filters?: { name: string; extensions: string[] }[];
+  multiple?: boolean;
+  directory?: boolean;
 }
 
-export class ModuleRegistry {
-  private static instance: ModuleRegistry;
-  private modules = new Map<string, IModule>();
+export interface IHostBridge {
+  readonly engineName: 'v8' | 'tauri';
 
-  static getInstance(): ModuleRegistry {
-    if (!this.instance) this.instance = new ModuleRegistry();
-    return this.instance;
+  // Hộp thoại mở file
+  showOpenDialog(options: OpenDialogOptions): Promise<string[] | null>;
+
+  // Gọi truy vấn dữ liệu tới DuckDB
+  invokeQuery<T = any>(channel: string, payload?: any): Promise<T>;
+
+  // Đăng ký nhận sự kiện (tiến trình nạp file, phím tắt menu)
+  onEvent<T = any>(eventName: string, listener: (data: T) => void): () => void;
+
+  // Điều khiển giao diện
+  setTheme(theme: 'light' | 'dark'): void;
+  restartWithEngine(targetEngine: 'v8' | 'tauri'): Promise<void>;
+}
+```
+
+### 5.2. Hai Adapter Hiện Thực: `V8HostAdapter` & `TauriHostAdapter`
+
+#### A. Adapter cho Engine V8 (Electron):
+```typescript
+// packages/host-bridge/src/V8HostAdapter.ts
+import { IHostBridge, OpenDialogOptions } from './IHostBridge';
+
+export class V8HostAdapter implements IHostBridge {
+  readonly engineName = 'v8' as const;
+  private ipc = (window as any).electron?.ipcRenderer;
+
+  async showOpenDialog(options: OpenDialogOptions): Promise<string[] | null> {
+    return await this.ipc.invoke('dialog:open', options);
   }
 
-  register(module: IModule): void {
-    console.log(`[ModuleRegistry] Đăng ký module: ${module.id} (v${module.version})`);
-    this.modules.set(module.id, module);
+  async invokeQuery<T = any>(channel: string, payload?: any): Promise<T> {
+    return await this.ipc.invoke(channel, payload);
   }
 
-  get<T extends IModule>(id: string): T {
-    const mod = this.modules.get(id);
-    if (!mod) {
-      throw new Error(`[ModuleRegistry] Không tìm thấy module: ${id}`);
-    }
-    return mod as T;
+  onEvent<T = any>(eventName: string, listener: (data: T) => void): () => void {
+    const handler = (_: any, data: T) => listener(data);
+    this.ipc.on(eventName, handler);
+    return () => this.ipc.removeListener(eventName, handler);
   }
+
+  setTheme(theme: 'light' | 'dark'): void {
+    document.documentElement.className = `theme-${theme}`;
+    localStorage.setItem('toad-theme-v2', theme);
+  }
+
+  async restartWithEngine(targetEngine: 'v8' | 'tauri'): Promise<void> {
+    await this.ipc.invoke('app:switch-engine', targetEngine);
+  }
+}
+```
+
+#### B. Adapter cho Engine Tauri:
+```typescript
+// packages/host-bridge/src/TauriHostAdapter.ts
+import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-dialog';
+import { IHostBridge, OpenDialogOptions } from './IHostBridge';
+
+export class TauriHostAdapter implements IHostBridge {
+  readonly engineName = 'tauri' as const;
+
+  async showOpenDialog(options: OpenDialogOptions): Promise<string[] | null> {
+    const res = await open({
+      title: options.title,
+      defaultPath: options.defaultPath,
+      multiple: options.multiple ?? false,
+      directory: options.directory ?? false,
+      filters: options.filters,
+    });
+    if (!res) return null;
+    return Array.isArray(res) ? res : [res];
+  }
+
+  async invokeQuery<T = any>(channel: string, payload?: any): Promise<T> {
+    return await invoke<T>(channel, payload ?? {});
+  }
+
+  onEvent<T = any>(eventName: string, listener: (data: T) => void): () => void {
+    let unlistenFn: (() => void) | null = null;
+    listen<T>(eventName, (event) => listener(event.payload)).then((fn) => {
+      unlistenFn = fn;
+    });
+    return () => {
+      if (unlistenFn) unlistenFn();
+    };
+  }
+
+  setTheme(theme: 'light' | 'dark'): void {
+    document.documentElement.className = `theme-${theme}`;
+    localStorage.setItem('toad-theme-v2', theme);
+  }
+
+  async restartWithEngine(targetEngine: 'v8' | 'tauri'): Promise<void> {
+    await invoke('app_switch_engine', { targetEngine });
+  }
+}
+```
+
+### 5.3. Factory Tự Động Nhận Diện Engine
+Trong ứng dụng React, chỉ cần gọi `getHostBridge()`:
+```typescript
+// packages/host-bridge/src/index.ts
+import { IHostBridge } from './IHostBridge';
+import { V8HostAdapter } from './V8HostAdapter';
+import { TauriHostAdapter } from './TauriHostAdapter';
+
+let activeBridge: IHostBridge | null = null;
+
+export function getHostBridge(): IHostBridge {
+  if (activeBridge) return activeBridge;
+
+  // Nếu môi trường có cờ Tauri
+  if (typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window)) {
+    activeBridge = new TauriHostAdapter();
+    return activeBridge;
+  }
+
+  // Mặc định là Engine V8 (Electron)
+  activeBridge = new V8HostAdapter();
+  return activeBridge;
 }
 ```
 
 ---
 
-## CHƯƠNG V: QUY CHUẨN & HƯỚNG DẪN VIẾT MODULE MỚI (MODULE DEVELOPER SDK)
+## CHƯƠNG VI: QUY TRÌNH KHI MUỐN VIẾT MỘT RUNTIME ENGINE MỚI
 
-Khi muốn viết thêm một module mới (ví dụ: Module kết nối CSDL ClickHouse hoặc SQLite, hoặc Module bóc tách log định dạng mới), lập trình viên tuân thủ **Quy trình 4 Bước Chuẩn mực**:
+Trong tương lai, nếu nhóm phát triển muốn viết thêm một Runtime Engine mới (ví dụ: **Web Browser Engine** để chạy trực tiếp trên Google Chrome qua WebAssembly), quy trình cực kỳ đơn vị và chỉ gồm **3 bước**:
 
-### Bước 1: Kế thừa Contract tương ứng từ Ring 2 (`host-bridge`)
-Mọi module cơ sở dữ liệu mới phải hiện thực interface `IDataEngineModule`:
-
-```typescript
-// modules/engine-clickhouse/src/ClickHouseEngineModule.ts
-import { IModule } from '@toad/host-bridge';
-import { RelTabQuery, QueryResult } from '@toad/core';
-
-export class ClickHouseEngineModule implements IModule {
-  readonly id = 'engine_clickhouse';
-  readonly name = 'ClickHouse Local Native Driver';
-  readonly version = '1.0.0';
-
-  async initialize(): Promise<void> {
-    console.log('[ClickHouseEngine] Khởi tạo kết nối ClickHouse...');
-    // Cài đặt driver
-  }
-
-  async executeQuery(query: RelTabQuery): Promise<QueryResult> {
-    // Chuyển đổi RelTab AST sang cú pháp SQL ClickHouse
-    // Thực thi và trả về QueryResult dạng bảng
-    return { rows: [], schema: null, rowCount: 0 };
-  }
-
-  async dispose(): Promise<void> {
-    console.log('[ClickHouseEngine] Đóng kết nối.');
-  }
-}
-```
-
-### Bước 2: Đăng ký Module vào Hệ thống
-Trong file khởi tạo của ứng dụng:
-```typescript
-import { ModuleRegistry } from '@toad/host-bridge';
-import { ClickHouseEngineModule } from '@toad/engine-clickhouse';
-
-// Đăng ký vào registry
-ModuleRegistry.getInstance().register(new ClickHouseEngineModule());
-```
-
-### Bước 3: Khai báo Switch trong `config.ini`
-Người dùng hoặc quản trị viên chỉ cần cập nhật:
-```ini
-[runtime]
-engine = clickhouse
-```
-
-### Bước 4: Viết Bộ Test Đơn lập (Isolated Unit Test)
-Module mới được test độc lập hoàn toàn mà không cần mở giao diện người dùng:
-```typescript
-// tests/clickhouse_module.test.ts
-const engine = ModuleRegistry.getInstance().get<ClickHouseEngineModule>('engine_clickhouse');
-assert(engine !== null);
-```
+1. **Bước 1**: Tạo file `WebBrowserHostAdapter.ts` trong `packages/host-bridge/` kế thừa `IHostBridge`.
+2. **Bước 2**: Bổ sung nhánh nhận diện vào `packages/host-bridge/src/index.ts`.
+3. **Bước 3**: Thêm tùy chọn `engine = web` vào `config.ini`.  
+*(Tuyệt đối không cần sửa đổi bất kỳ dòng code nào trong `reltab`, `reltab-duckdb` hay giao diện React `tadviewer`!)*
 
 ---
 
-## CHƯƠNG VI: KẾ HOẠCH TRIỂN KHAI THEO 4 GIAI ĐOẠN CHI TIẾT
+## CHƯƠNG VII: KẾ HOẠCH TRIỂN KHAI 3 GIAI ĐOẠN TINH GỌN
 
-```mermaid
-gantt
-    title Lộ trình Triển khai Kiến trúc Ring & Dual-Engine Toad
-    dateFormat  YYYY-MM-DD
-    section Giai đoạn 1: Ring Decoupling
-    Tách Ring 0: Chuẩn hóa packages/reltab độc lập tuyệt đối        :2026-11-03, 4d
-    Tách Ring 1: Đóng gói Dual DuckDB & Cache Service               :2026-11-07, 5d
-    Xây dựng Ring 2: HostBridge Contracts & ModuleRegistry          :2026-11-12, 4d
-    section Giai đoạn 2: UI Switch Adapter
-    Refactor tadviewer thành ui-canvas sử dụng IHostBridge          :2026-11-16, 6d
-    Triển khai ElectronHostAdapter (Đảm bảo 133/133 tests PASS)     :2026-11-22, 4d
-    section Giai đoạn 3: Tauri Shell Module
-    Xây dựng module shell-tauri hoàn chỉnh                          :2026-11-26, 6d
-    Khắc phục triệt để Menu Win32, ACL permissions & Theme          :2026-12-02, 5d
-    section Giai đoạn 4: Launcher & Đóng gói
-    Lập trình Smart Bootstrapper Dispatcher (Toad.exe)              :2026-12-07, 4d
-    Tích hợp config.ini switcher & cơ chế fallback tự động          :2026-12-11, 3d
-    Nghiệm thu toàn diện Dual-Engine qua run_tests.js               :2026-12-14, 3d
-```
-
-### Chi tiết các Giai đoạn Thực thi:
-
-#### Giai đoạn 1: Phân tầng Kiến trúc Dạng Ring (Ring Decoupling)
-* **Mục tiêu:** Rà soát và tách triệt để Ring 0 (`reltab`) và Ring 1 (`engine-duckdb`).
-* **Hành động cụ thể:**
-  1. Di chuyển toàn bộ các lệnh gọi I/O trực tiếp (`fs.readFileSync`, `path.resolve`) ra khỏi `reltab`.
-  2. Bọc toàn bộ các hàm gọi DuckDB (`getUIDuckDBDriver`, `getIngestDuckDBDriver`) thành một Dịch vụ có vòng đời rõ ràng (`initialize`, `execute`, `dispose`).
-  3. Xây dựng module `host-bridge` chứa các interface và `ModuleRegistry`.
-* **Tiêu chuẩn nghiệm thu (Gate 1):** Ring 0 và Ring 1 chạy unit test độc lập không cần Electron.
-
-#### Giai đoạn 2: Module hóa Giao diện & Triển khai Electron Adapter
-* **Mục tiêu:** Chuyển giao diện `tadviewer` thành module `ui-canvas` thuần khiết.
-* **Hành động cụ thể:**
-  1. Thay thế toàn bộ các lệnh gọi `ipcRenderer` bằng `getHostBridge().invokeQuery()`.
-  2. Thay thế toàn bộ các hộp thoại native (`dialog.showOpenDialog`) bằng `getHostBridge().showOpenDialog()`.
-  3. Hiện thực hóa `ElectronHostAdapter` và chạy bộ test hồi quy.
-* **Tiêu chuẩn nghiệm thu (Gate 2):** Bộ test **133 test cases trên `run_tests.js` đạt 100% PASS** với kiến trúc Bridge mới.
-
-#### Giai đoạn 3: Hiện thực Module Tauri Shell Độc lập
-* **Mục tiêu:** Xây dựng vỏ bọc `shell-tauri` đạt độ tương đồng 100% về tính năng.
-* **Hành động cụ thể:**
-  1. Sử dụng mã nguồn Menu Win32 chuẩn từ tài liệu `docs_tauri_v2/03_TAURI_V2_MENUS_AND_WINDOW_MANAGEMENT.md`.
-  2. Khai báo file `capabilities/default.json` đầy đủ để triệt tiêu lỗi `plugin:event|listen not allowed by ACL`.
-  3. Thêm CSS normalizer giải quyết hiện tượng lệch màu thanh cuộn Dark Mode trên WebView2.
-* **Tiêu chuẩn nghiệm thu (Gate 3):** `shell-tauri` khởi chạy độc lập, mở được file CSV/Parquet mẫu và hiển thị đúng theme Dark Mode.
-
-#### Giai đoạn 4: Smart Bootstrapper Dispatcher & Đóng gói Hợp nhất
-* **Mục tiêu:** Cung cấp trải nghiệm 1 file thực thi duy nhất cho người dùng cuối.
-* **Hành động cụ thể:**
-  1. Biên dịch Launcher `Toad.exe` bằng Rust/C nhỏ gọn (~1.5MB) với cơ chế kiểm tra WebView2 và fallback an toàn.
-  2. Cập nhật script đóng gói `dist_package.ps1` gom chung thư mục `dist` và 2 shell thực thi.
-  3. Thêm tham số kiểm thử cho `run_tests.js`:
-     * `node run_tests.js --engine=electron`
-     * `node run_tests.js --engine=tauri`
-     * `node run_tests.js --all`
-* **Tiêu chuẩn nghiệm thu (Gate 4):** Đổi `engine` trong `config.ini` chuyển đổi mượt mà giữa Electron và Tauri; nếu thiếu WebView2 tự động mở bằng Electron mà không hề báo lỗi.
-
----
-
-## CHƯƠNG VII: BẢNG SO SÁNH TRƯỚC VÀ SAU KHI ÁP DỤNG KIẾN TRÚC RING
-
-| Đặc tính kỹ thuật | Kiến trúc Cũ (Monolith v2.1.6) | Kiến trúc Mới (Ring & Modular v2.3.0) |
-| :--- | :--- | :--- |
-| **Tính liên kết mã nguồn** | Giao diện React gắn chặt vào Electron `ipcRenderer`. | Giao diện React chỉ biết `IHostBridge` trừu tượng. |
-| **Cơ chế đổi Engine** | Không thể đổi (chỉ chạy duy nhất Electron). | Đổi linh hoạt qua `config.ini` (`electron` $\leftrightarrow$ `tauri`). |
-| **Khả năng Fallback** | Không có (sập là dừng hẳn ứng dụng). | Tự động rơi về Electron an toàn nếu máy thiếu WebView2. |
-| **Mở rộng Module mới** | Phải sửa trực tiếp vào mã nguồn lõi. | Kế thừa interface Ring 2 và đăng ký qua `ModuleRegistry`. |
-| **Kiểm thử tự động** | Phải khởi động cả ứng dụng lớn để test. | Test riêng từng Ring: Ring 0 $\rightarrow$ Ring 1 $\rightarrow$ Ring 2 $\rightarrow$ Ring 3. |
-| **Dung lượng đóng gói** | Bản Electron: ~72 MB. | Bản Dual-Engine nén hợp nhất: **~80 - 85 MB** (chứa cả 2 engine). |
-| **Mức chiếm RAM** | Cố định: ~200 - 300 MB. | Linh hoạt: **~40 - 60 MB** khi chạy Tauri; ~200 MB khi chạy Electron. |
+| Giai đoạn | Mục tiêu & Công việc | Tiêu chuẩn Nghiệm thu |
+| :---: | :--- | :--- |
+| **Giai đoạn 1** | **Host Bridge Refactoring**: Bọc toàn bộ các lệnh gọi native trong `tadviewer` qua `IHostBridge`. Triển khai `V8HostAdapter`. | Bộ test **133 test cases trên `run_tests.js` đạt 100% PASS**. Ứng dụng V8 chạy nguyên bản. |
+| **Giai đoạn 2** | **Tauri Shell Implementation**: Xây dựng module `shell-tauri` độc lập, tích hợp Menu Win32 Rust và cấp quyền ACL theo tài liệu `docs_tauri_v2/`. | Khởi chạy `toad-tauri.exe` độc lập, mở file CSV/Parquet và Dark Mode chuẩn 100%. |
+| **Giai đoạn 3** | **Launcher Switcher & Packaging**: Viết launcher `Toad.exe` (~1.5MB) đọc `config.ini` chuyển giữa `v8` và `tauri`. Đóng gói bản phân phối kép. | Thay đổi `engine = v8` $\leftrightarrow$ `tauri` trong `config.ini` chuyển đổi mượt mà; tự động fallback nếu thiếu WebView2. |

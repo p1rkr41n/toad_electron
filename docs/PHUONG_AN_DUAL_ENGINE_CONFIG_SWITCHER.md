@@ -1,7 +1,7 @@
-# PHƯƠNG ÁN KỸ THUẬT & ĐẶC TẢ BA: KIẾN TRÚC DUAL-ENGINE (ELECTRON & TAURI) CHUYỂN ĐỔI LINH HOẠT QUA CONFIG.INI
+# PHƯƠNG ÁN KỸ THUẬT & ĐẶC TẢ BA: CHUYỂN ĐỔI RUNTIME ENGINE (TAURI vs V8) QUA CONFIG.INI
 > **Dự án:** TOAD - Log & Forensic Data Analysis Platform  
 > **Tài liệu:** `docs/PHUONG_AN_DUAL_ENGINE_CONFIG_SWITCHER.md`  
-> **Mục tiêu:** Cho phép người dùng chuyển đổi linh hoạt giữa 2 runtime engine (**Electron** và **Tauri**) thông qua thiết lập `config.ini` mà vẫn dùng chung 1 bộ giao diện, 1 hệ thống dữ liệu DuckDB, và 1 profile người dùng duy nhất.  
+> **Phạm vi trọng tâm (Tuned Scope):** Chuyển đổi duy nhất giữa 2 runtime engine (**V8 / Electron** và **Tauri**) thông qua thiết lập `config.ini`. Toàn bộ hệ thống cơ sở dữ liệu DuckDB, giao diện React SlickGrid và hệ thống nạp file được giữ cố định và dùng chung 100%.  
 > **Phiên bản baseline ổn định:** Toad v2.1.6  
 > **Trạng thái:** Kế hoạch kiến trúc & Đặc tả yêu cầu kỹ thuật (BA & Technical Design)
 
@@ -101,12 +101,12 @@ max_concurrent_gb = 1.0
 
 [runtime]
 ; Lựa chọn engine khởi chạy:
-; - electron : Sử dụng nền tảng Electron (Chromium + Node.js) - Độ ổn định và tương thích cao nhất (Mặc định).
-; - tauri    : Sử dụng nền tảng Tauri v2 (Rust + WebView2) - Tối ưu dung lượng RAM và khởi động siêu tốc.
-; - auto     : Tự động phát hiện (ưu tiên Tauri nếu máy đủ điều kiện, fallback Electron).
-engine = electron
+; - v8       : Nền tảng Node.js V8 + Chromium (Electron) - Độ ổn định và tương thích cao nhất (Mặc định).
+; - tauri    : Nền tảng Tauri v2 (Rust + WebView2) - Tối ưu dung lượng RAM và khởi động siêu tốc.
+; - auto     : Tự động phát hiện (ưu tiên Tauri nếu đủ điều kiện, fallback về v8).
+engine = v8
 
-; Tự động fallback về Electron nếu engine tauri gặp sự cố khởi tạo
+; Tự động fallback về v8 nếu engine tauri gặp sự cố khởi tạo
 auto_fallback = true
 
 [duckdb]
