@@ -208,3 +208,4 @@ Nếu bạn muốn tạo quyền hạn riêng để kiểm soát xem cửa sổ 
 }
 ```
 Phương chế này đảm bảo mã độc từ webview bên ngoài không bao giờ có thể tự ý kích hoạt các hàm nguy hiểm trên máy tính người dùng.
+

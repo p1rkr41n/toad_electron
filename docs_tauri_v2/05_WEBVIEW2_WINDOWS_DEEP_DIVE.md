@@ -151,3 +151,4 @@ pub fn open_developer_tools(window: tauri::WebviewWindow) {
     }
 }
 ```
+
