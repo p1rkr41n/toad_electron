@@ -11,8 +11,10 @@ async function runSmokeTest() {
   console.log("======================================================================");
 
   // 1. Check Portable Exe
-  const portableExe = path.resolve(ROOT_DIR, "Toad 2.1.6.exe");
-  assert(fs.existsSync(portableExe), `Toad 2.1.6.exe must exist in root: ${portableExe}`);
+  const exe230 = path.resolve(ROOT_DIR, "Toad 2.3.0.exe");
+  const exe216 = path.resolve(ROOT_DIR, "Toad 2.1.6.exe");
+  const portableExe = fs.existsSync(exe230) ? exe230 : exe216;
+  assert(fs.existsSync(portableExe), `Portable executable must exist in root: ${portableExe}`);
   const exeStats = fs.statSync(portableExe);
   const exeSizeMB = (exeStats.size / (1024 * 1024)).toFixed(2);
   console.log(`[PASS] Portable Exe verified: ${portableExe}`);

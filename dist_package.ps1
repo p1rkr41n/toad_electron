@@ -30,8 +30,8 @@ if (-not (Test-Path $bundlePath)) {
     throw "ERROR: Cannot find tadapp.bundle.js!"
 }
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not ($bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
-    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.1.6!"
+if (-not ($bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
+    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.3.0 or v2.1.6!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
     throw "ASSERTION ERROR: tadapp.bundle.js does not contain padStart(3 for str001!"
@@ -76,6 +76,8 @@ if ($latestExe) {
 
     Write-Output "Copying $($latestExe.Name) to releases and root..."
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.3.0.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$rootDir\toad_v2.3.0_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.1.6.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\toad_v2.1.6_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.1.5.exe" -Force
@@ -96,6 +98,8 @@ if ($latestExe) {
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad 2.0.8.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\$($latestExe.Name)" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\$($latestExe.Name)" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.3.0.exe" -Force
+    Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.3.0_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.1.6.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\toad_v2.1.6_portable.exe" -Force
     Copy-Item $latestExe.FullName -Destination "$releaseDir\Toad 2.1.5.exe" -Force
