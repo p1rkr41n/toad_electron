@@ -154,3 +154,4 @@ Khi chạy lệnh `cargo tauri build`:
 2. **Rust Compilation**: `rustc` biên dịch mã nguồn `src-tauri` cùng toàn bộ crate thành file nhị phân native (`.exe`).
 3. **Asset Ingestion**: Toàn bộ nội dung thư mục `frontendDist` được nhúng trực tiếp hoặc tải động qua giao thức an toàn `asset://` hoặc `tauri://localhost`.
 4. **Binary Packaging**: Sinh ra file thực thi duy nhất trong `src-tauri/target/release/` với dung lượng chỉ từ ~7MB - 12MB.
+

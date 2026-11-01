@@ -174,3 +174,4 @@ Các thuộc tính quan trọng đối với giao diện phân tích dữ liệu
 * `"decorations": true`: Giữ lại khung viền và 3 nút chuẩn Windows (Thu nhỏ, Phóng to, Đóng).
 * `"transparent": false`: Đảm bảo hiệu năng vẽ (GPU render) của SlickGrid đạt 60fps, không bị tốn tài nguyên compositing.
 * `"minWidth": 900, "minHeight": 600`: Đảm bảo layout 3 cột (Sidebar, Grid, Filter Pane) không bị vỡ trên màn hình bé.
+

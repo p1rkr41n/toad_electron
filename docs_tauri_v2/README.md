@@ -30,3 +30,4 @@ Tài liệu trong thư mục này được phân thành 6 chuyên đề chuyên 
   $\rightarrow$ Xem mục 4 trong [`05_WEBVIEW2_WINDOWS_DEEP_DIVE.md`](file:///d:/Shared_UserData/Downloads/tad/docs_tauri_v2/05_WEBVIEW2_WINDOWS_DEEP_DIVE.md).
 * **Cách gọi DuckDB từ Rust trả về DataGrid React?**  
   $\rightarrow$ Xem mục 5 trong [`04_RUST_BACKEND_FOR_TAURI.md`](file:///d:/Shared_UserData/Downloads/tad/docs_tauri_v2/04_RUST_BACKEND_FOR_TAURI.md).
+
