@@ -20,6 +20,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const assert = require("assert");
+const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "..");
 
 // Colors for clean visual output
 const GREEN = "\x1b[32m";
@@ -75,7 +76,7 @@ async function testCaseAsync(name, fn) {
 
 // Global mocks for renderer/browser modules
 global.window = global;
-const tvPath = path.resolve(__dirname, "tad-master/packages/tadviewer/dist/tadviewer.js");
+const tvPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/tadviewer.js");
 require.cache[tvPath] = {
   id: tvPath,
   filename: tvPath,
@@ -92,15 +93,15 @@ require.cache[tvPath] = {
 const {
   validateAndEnsureConfig,
   DEFAULT_CONFIG,
-} = require("./tad-master/packages/tad-app/app_dist/portableAppData");
+} = require(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/app_dist/portableAppData"));
 
 const {
   MultipleLoadingManager,
   getCanonicalPathFromDSPath,
-} = require("./tad-master/packages/tadviewer/dist/MultipleLoadingManager");
+} = require(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/MultipleLoadingManager"));
 
-const { FSDriver } = require("./tad-master/packages/reltab-fs/dist/reltab-fs");
-const { Database } = require("./tad-master/node_modules/duckdb-async");
+const { FSDriver } = require(path.resolve(ROOT_DIR, "tad-master/packages/reltab-fs/dist/reltab-fs"));
+const { Database } = require(path.resolve(ROOT_DIR, "tad-master/node_modules/duckdb-async"));
 
 async function runAllSuites() {
   const startTime = Date.now();
@@ -111,7 +112,7 @@ async function runAllSuites() {
   reportSuite("SUITE 1: Config.ini Parsing, Defaults & Auto-Healing (TC-1.3.17-01, TC-1.3.18-01, TC-1.3.18-05)");
 
   testCase("1.1 Root config.ini parses correctly with Toad v1.3.18 specifications", () => {
-    const configPath = path.resolve(__dirname, "config.ini");
+    const configPath = path.resolve(ROOT_DIR, "config.ini");
     assert(fs.existsSync(configPath), "Root config.ini must exist");
     const cfg = validateAndEnsureConfig(configPath);
     assert.strictEqual(cfg.general.viewer, "toad");
@@ -122,7 +123,7 @@ async function runAllSuites() {
   });
 
   testCase("1.2 Auto-heal recovers corrupt numeric and string values to defaults", () => {
-    const tmpConfig = path.resolve(__dirname, `tmp_config_test_${Date.now()}.ini`);
+    const tmpConfig = path.resolve(ROOT_DIR, `tmp_config_test_${Date.now()}.ini`);
     fs.writeFileSync(
       tmpConfig,
       `[general]
@@ -150,7 +151,7 @@ threads = -5
   });
 
   testCase("1.3 Valid custom values are properly parsed and retained", () => {
-    const tmpConfig = path.resolve(__dirname, `tmp_config_valid_${Date.now()}.ini`);
+    const tmpConfig = path.resolve(ROOT_DIR, `tmp_config_valid_${Date.now()}.ini`);
     fs.writeFileSync(
       tmpConfig,
       `[general]
@@ -176,7 +177,7 @@ threads = 4
   });
 
   testCase("1.4 Corrupted syntax triggers backup and auto-generates clean template", () => {
-    const tmpConfig = path.resolve(__dirname, `tmp_config_syntax_${Date.now()}.ini`);
+    const tmpConfig = path.resolve(ROOT_DIR, `tmp_config_syntax_${Date.now()}.ini`);
     // Malformed INI syntax with binary characters
     fs.writeFileSync(tmpConfig, "\x00\x01\x02\xFF\xFE[unclosed_section\n=bad_pair", "utf8");
 
@@ -202,7 +203,7 @@ threads = 4
   reportSuite("SUITE 2: Reltab-FS File Size Detection (stat.size) (TC-1.3.17-01)");
 
   await testCaseAsync("2.1 FSDriver scans data directory and populates node.fileSizeBytes accurately", async () => {
-    const testDir = path.resolve(__dirname, "data_sample");
+    const testDir = path.resolve(ROOT_DIR, "data_sample");
     assert(fs.existsSync(testDir), "data_sample directory must exist");
 
     const driver = new FSDriver(null, testDir, true, false);
@@ -680,7 +681,7 @@ threads = 4
   reportSuite("SUITE 12: Dual DuckDB Engine Architecture & Instant Table Mount (v2.0.0)");
 
   await testCaseAsync("12.1 Dual DuckDB drivers initialize independent Database instances", async () => {
-    const { getUIDuckDBDriver, getIngestDuckDBDriver } = require("./tad-master/packages/reltab-fs/dist/reltab-fs");
+    const { getUIDuckDBDriver, getIngestDuckDBDriver } = require(path.resolve(ROOT_DIR, "tad-master/packages/reltab-fs/dist/reltab-fs"));
     const uiDriver = await getUIDuckDBDriver();
     const ingestDriver = await getIngestDuckDBDriver();
 
@@ -690,15 +691,15 @@ threads = 4
   });
 
   await testCaseAsync("12.2 Instant UI Parquet Mount: db_ui mounts Parquet view in < 5ms", async () => {
-    const { Database } = require("./tad-master/node_modules/duckdb-async");
-    const { createViewFromParquet } = require("./tad-master/packages/reltab-duckdb/dist/reltab-duckdb");
+    const { Database } = require(path.resolve(ROOT_DIR, "tad-master/node_modules/duckdb-async"));
+    const { createViewFromParquet } = require(path.resolve(ROOT_DIR, "tad-master/packages/reltab-duckdb/dist/reltab-duckdb"));
 
     const dbIngest = await Database.create(":memory:");
     const dbUi = await Database.create(":memory:");
     const cIngest = await dbIngest.connect();
     const cUi = await dbUi.connect();
 
-    const tmpParquet = path.resolve(__dirname, `tmp_parquet_mount_${Date.now()}.parquet`);
+    const tmpParquet = path.resolve(ROOT_DIR, `tmp_parquet_mount_${Date.now()}.parquet`);
     await cIngest.exec(`COPY (SELECT i, 'val_' || i as name FROM range(1, 10000) t(i)) TO '${tmpParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)`);
 
     // Warm-up DuckDB's internal parquet extension and metadata reader on ui connection
@@ -724,15 +725,15 @@ threads = 4
   });
 
   await testCaseAsync("12.3 Dual Engine Benchmark: UI DataGrid query completes in < 50ms while Ingest Engine is running heavy COPY", async () => {
-    const { Database } = require("./tad-master/node_modules/duckdb-async");
+    const { Database } = require(path.resolve(ROOT_DIR, "tad-master/node_modules/duckdb-async"));
     const dbIngest = await Database.create(":memory:");
     const dbUi = await Database.create(":memory:");
     const cIngest = await dbIngest.connect();
     const cUi = await dbUi.connect();
 
     // Setup dataset on UI engine
-    const datasetParquet = path.resolve(__dirname, `tmp_dual_dataset_${Date.now()}.parquet`);
-    const backgroundParquet = path.resolve(__dirname, `tmp_dual_bg_${Date.now()}.parquet`);
+    const datasetParquet = path.resolve(ROOT_DIR, `tmp_dual_dataset_${Date.now()}.parquet`);
+    const backgroundParquet = path.resolve(ROOT_DIR, `tmp_dual_bg_${Date.now()}.parquet`);
 
     // Ingest engine writes datasetParquet first
     await cIngest.exec(`COPY (SELECT i, 'event_' || i as evt FROM range(1, 50000) t(i)) TO '${datasetParquet.replace(/\\/g, "/")}' (FORMAT PARQUET)`);
@@ -792,7 +793,12 @@ threads = 4
   }
 }
 
-runAllSuites().catch((err) => {
-  console.error("Unhandled QA Test Suite Error:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  runAllSuites().catch((err) => {
+    console.error("Unhandled QA Test Suite Error:", err);
+    process.exit(1);
+  });
+}
+
+module.exports = { runLegacySuites: runAllSuites };
+

@@ -3,14 +3,16 @@ const path = require("path");
 const fs = require("fs");
 const assert = require("assert");
 
+const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "..");
+
 async function runSmokeTest() {
   console.log("======================================================================");
   console.log("  SMOKE TEST: TOAD v2.1.6 RUNTIME INTEGRITY & STARTUP VERIFICATION");
   console.log("======================================================================");
 
   // 1. Check Portable Exe
-  const portableExe = path.resolve(__dirname, "Toad 2.1.6.exe");
-  assert(fs.existsSync(portableExe), "Toad 2.1.6.exe must exist in root");
+  const portableExe = path.resolve(ROOT_DIR, "Toad 2.1.6.exe");
+  assert(fs.existsSync(portableExe), `Toad 2.1.6.exe must exist in root: ${portableExe}`);
   const exeStats = fs.statSync(portableExe);
   const exeSizeMB = (exeStats.size / (1024 * 1024)).toFixed(2);
   console.log(`[PASS] Portable Exe verified: ${portableExe}`);
@@ -26,9 +28,9 @@ async function runSmokeTest() {
   console.log("[PASS] Binary PE Header verified valid: 'MZ'");
 
   // 2. Check asar package
-  const asarPath = path.resolve(__dirname, "tad-master/packages/tad-app/release/win-unpacked/resources/app.asar");
-  assert(fs.existsSync(asarPath), "app.asar must exist");
-  const asar = require(path.resolve(__dirname, "tad-master/node_modules/@electron/asar"));
+  const asarPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/release/win-unpacked/resources/app.asar");
+  assert(fs.existsSync(asarPath), `app.asar must exist: ${asarPath}`);
+  const asar = require(path.resolve(ROOT_DIR, "tad-master/node_modules/@electron/asar"));
   const files = asar.listPackage(asarPath);
   console.log(`[PASS] app.asar contains ${files.length} packaged entries`);
 
@@ -45,8 +47,8 @@ async function runSmokeTest() {
   console.log("[PASS] Verified: Zero .map files in app.asar (Webpack prod devtool=false)");
 
   // 3. Smoke Test App Launch
-  const unpackedExe = path.resolve(__dirname, "tad-master/packages/tad-app/release/win-unpacked/Toad.exe");
-  assert(fs.existsSync(unpackedExe), "win-unpacked/Toad.exe must exist");
+  const unpackedExe = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/release/win-unpacked/Toad.exe");
+  assert(fs.existsSync(unpackedExe), `win-unpacked/Toad.exe must exist: ${unpackedExe}`);
 
   console.log("\n[INFO] Launching win-unpacked/Toad.exe for live process smoke test...");
   let stderrLog = "";
@@ -100,9 +102,14 @@ async function runSmokeTest() {
 
   console.log("[PASS] Smoke test completed successfully with 100% HEALTHY result!");
   console.log("======================================================================\n");
+  return true;
 }
 
-runSmokeTest().catch((err) => {
-  console.error("FATAL SMOKE TEST FAILURE:", err);
-  process.exit(1);
-});
+if (require.main === module) {
+  runSmokeTest().catch((err) => {
+    console.error("FATAL SMOKE TEST FAILURE:", err);
+    process.exit(1);
+  });
+}
+
+module.exports = { runSmokeTest };
