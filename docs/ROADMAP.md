@@ -54,3 +54,4 @@ Toad aims to be the fastest, most ergonomic forensic log analysis and incident r
 ### 4.2. Host Bridge Abstraction Layer (`IHostBridge`)
 - **Concept**: Decouple the React/SlickGrid UI from Electron-specific IPC by defining a vendor-neutral bridge interface.
 - **Benefit**: Enables future dual-target builds (Electron for guaranteed Chromium consistency and native menus; lightweight webview shells for minimal RAM usage).
+

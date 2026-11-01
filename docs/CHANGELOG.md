@@ -85,3 +85,4 @@
 - **Adaptive Memory Guard**: 70% RAM limits and dynamic concurrent file budgeting.
 - **Forensic Decoders**: Base64 UTF-16LE, URL decode, and defanger.
 - **Omnisearch**: Full-dataset IoC search across all columns.
+

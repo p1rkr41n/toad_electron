@@ -135,3 +135,4 @@ Toad includes an embedded SQL Vectorized Column Extractor capable of parsing com
 - **ActivityBar & Sidebar Synchronization**:
   - Warm amber theme button with instant M3 Sun/Moon glyph transition.
   - Expand column `_expand` synchronization with full row selection state.
+
