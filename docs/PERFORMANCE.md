@@ -72,3 +72,4 @@ During stress tests running 4 concurrent ingestion workers streaming CSV/JSONL:
    - *Fix*: Created dual-branch resolution: If `isCacheReady(path)` is true, immediately mount the view without triggering a loading state.
 3. **DuckDB Dynamic Linking Integrity**:
    - `duckdb.node` must remain unpacked outside `app.asar` in `app.asar.unpacked` to ensure the OS native dynamic linker (`LoadLibraryA`) can load DuckDB native symbols without extraction errors.
+
