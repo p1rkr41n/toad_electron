@@ -1,2 +1,2 @@
-cf5e02e7af29f321b76e0e12d393d5215c19de6521f3b968a9e4ef00cbb199b0  Toad-2.4.0-x64-portable.exe
-2a7a8ed420a19fc45932f75e66000ffa3a12ccb7bc71f4c52fb61b0fb8de78ff  Toad-2.4.0-x64-portable.zip
+948d69f146526449873f949d93618812ebf1fdaf90d7bfe25f9edf3f7e4778f4  Toad-2.4.0-x64-portable.exe
+d64060aafba04ab8b6ac4279090bfd57659db0c2bed6dcc01ca6f2e04b763f34  Toad-2.4.0-x64-portable.zip

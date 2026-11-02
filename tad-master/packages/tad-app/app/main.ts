@@ -286,6 +286,22 @@ const appInit = (options: any) => {
     };
   });
 
+  ipcMain.handle("project:getFiles", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    const files = ledger.getProjectFiles(req?.projectId);
+    return files.map((f: any) => ({
+      filePath: f.source_path,
+      fileName: path.basename(f.source_path),
+      projectId: f.project_id || req?.projectId,
+      projectName: f.project_name || "Untitled-1",
+      fileSizeBytes: f.source_size,
+      rowCount: f.row_count,
+      status: f.status,
+      parquetPath: f.parquet_path,
+    }));
+  });
+
   ipcMain.handle("project:create", async (event, req) => {
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
@@ -620,6 +636,16 @@ const initApp =
             appInit(options);
             try {
               await reltabDuckDB.initToadLedger();
+              reltabDuckDB.ToadParquetLedger.getInstance().subscribe(() => {
+                try {
+                  const wins = BrowserWindow.getAllWindows();
+                  for (const w of wins) {
+                    if (w && !w.isDestroyed() && w.webContents) {
+                      w.webContents.send("project:workspaceChanged");
+                    }
+                  }
+                } catch {}
+              });
             } catch (err) {
               log.warn("Error initializing ToadLedger in main process:", err);
             }

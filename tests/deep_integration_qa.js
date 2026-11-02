@@ -3638,6 +3638,83 @@ async function main() {
     assert(releaseNotes.includes("Toad v2.4.0"), "v2.4.0_NOTES.md must exist and document v2.4.0");
   });
 
+  await runTest("GG.8 IPC Handler Completeness & Event Broadcast in main.ts", async () => {
+    const mainTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/app/main.ts");
+    const mainSrc = fs.readFileSync(mainTsPath, "utf8");
+    assert(mainSrc.includes('ipcMain.handle("project:getWorkspace"'), "main.ts must register project:getWorkspace");
+    assert(mainSrc.includes('ipcMain.handle("project:getFiles"'), "main.ts must register project:getFiles");
+    assert(mainSrc.includes('ipcMain.handle("project:create"'), "main.ts must register project:create");
+    assert(mainSrc.includes('ipcMain.handle("project:delete"'), "main.ts must register project:delete");
+    assert(mainSrc.includes('ipcMain.handle("project:getCacheSize"'), "main.ts must register project:getCacheSize");
+    assert(mainSrc.includes('ipcMain.handle("project:addFiles"'), "main.ts must register project:addFiles");
+    assert(mainSrc.includes('ipcMain.handle("project:addFolder"'), "main.ts must register project:addFolder");
+    assert(mainSrc.includes('ipcMain.handle("project:moveOrphanFiles"'), "main.ts must register project:moveOrphanFiles");
+    assert(mainSrc.includes('ipcMain.handle("project:setActive"'), "main.ts must register project:setActive");
+    assert(mainSrc.includes('project:workspaceChanged'), "main.ts must broadcast project:workspaceChanged on ledger change");
+  });
+
+  await runTest("GG.9 Multi-Project File Cross-Contamination Prevention & Pruning on Replay", async () => {
+    const isolateDir = path.join(testSuiteGGDir, "cross_isolate_test");
+    fs.mkdirSync(isolateDir, { recursive: true });
+    const isolateLedgerPath = path.join(isolateDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(isolateLedgerPath);
+    await ledger.initLedger();
+
+    // 1. Create Project Alpha & Project Beta
+    const prjA = "prj_alpha";
+    const prjB = "prj_beta";
+    await ledger.createProject("Project Alpha", prjA);
+    await ledger.createProject("Project Beta", prjB);
+
+    // 2. Add file_alpha.csv to Project Alpha
+    const fileAlpha = path.join(isolateDir, "file_alpha.csv");
+    fs.writeFileSync(fileAlpha, "col1,col2\nval1,val2\n", "utf8");
+    await ledger.addFileToProject(prjA, fileAlpha, "Project Alpha");
+
+    // Verify it is in Alpha
+    assert.strictEqual(ledger.getProjectFiles(prjA).length, 1);
+    assert.strictEqual(ledger.getProjectFiles(prjB).length, 0);
+
+    // 3. Switch active project to Beta
+    ledger.setActiveProjectId(prjB);
+    assert.strictEqual(ledger.getActiveProjectId(), prjB);
+
+    // 4. Simulate ingestion engine recording FILE_READY for file_alpha.csv without project_id
+    await ledger.recordEvent({
+      event_id: `evt-ready-${Date.now()}`,
+      event_type: "FILE_READY",
+      timestamp: Date.now(),
+      source_path: fileAlpha,
+      source_size: 100,
+      source_mtime: Date.now(),
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 10,
+      status: "READY",
+      duration_ms: 5,
+      extra_json: "{}",
+    });
+
+    // 5. Assert file_alpha.csv REMAINS in Project Alpha (Project hijacking guard)
+    const filesA = ledger.getProjectFiles(prjA);
+    const filesB = ledger.getProjectFiles(prjB);
+    assert.strictEqual(filesA.length, 1, "File must remain in Project Alpha");
+    assert.strictEqual(filesB.length, 0, "File must NOT leak into Project Beta");
+    assert.strictEqual(filesA[0].project_id, prjA);
+
+    // 6. Delete Project Alpha
+    await ledger.deleteProjectCascade(prjA);
+    assert.strictEqual(ledger.getProjectFiles(prjA).length, 0);
+
+    // 7. Cold restart - reload from disk
+    const reloadedLedger = new reltabDuckDB.ToadParquetLedger(isolateLedgerPath);
+    await reloadedLedger.initLedger();
+
+    // 8. Assert no zombie files from deleted Project Alpha exist in cache
+    const reloadedFilesA = reloadedLedger.getProjectFiles(prjA);
+    assert.strictEqual(reloadedFilesA.length, 0, "Deleted project files must be pruned from cache on cold restart");
+  });
+
   // Cleanup temporary directory
   try {
     fs.rmSync(testTmpDir, { recursive: true, force: true });

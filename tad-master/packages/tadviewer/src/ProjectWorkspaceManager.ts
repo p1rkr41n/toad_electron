@@ -82,6 +82,13 @@ export class ProjectWorkspaceManager {
   private constructor() {
     this.expandedMap.set("prj_untitled_1", true);
     this.expandedMap.set("orphan_prj", true);
+
+    const bridge = getBridge();
+    if (bridge && typeof bridge.onEvent === "function") {
+      bridge.onEvent("project:workspaceChanged", () => {
+        this.notify();
+      });
+    }
   }
 
   public subscribe(listener: WorkspaceChangeListener): () => void {
@@ -214,6 +221,14 @@ export class ProjectWorkspaceManager {
   }
 
   public async deleteProject(projectId: string): Promise<{ deletedFiles: number; freedBytes: number }> {
+    try {
+      const { MultipleLoadingManager } = require("./MultipleLoadingManager");
+      const files = await this.getProjectFiles(projectId);
+      for (const f of files) {
+        MultipleLoadingManager.getInstance().clearFirstPageCache(f.filePath);
+      }
+    } catch {}
+
     const bridge = getBridge();
     let result = { deletedFiles: 0, freedBytes: 0 };
     if (bridge && typeof bridge.invoke === "function") {
@@ -221,6 +236,13 @@ export class ProjectWorkspaceManager {
         result = await bridge.invoke("project:delete", { projectId });
         this.expandedMap.delete(projectId);
         this.notify();
+        setTimeout(async () => {
+          const ws = await this.getWorkspace();
+          if (ws.projects.length === 0) {
+            await this.createProject("Untitled-1", "prj_untitled_1");
+          }
+          this.notify();
+        }, 550);
         return result;
       } catch {}
     }
@@ -231,6 +253,13 @@ export class ProjectWorkspaceManager {
       result = await ledger.deleteProjectCascade(projectId);
       this.expandedMap.delete(projectId);
       this.notify();
+      setTimeout(async () => {
+        const ws = await this.getWorkspace();
+        if (ws.projects.length === 0) {
+          await this.createProject("Untitled-1", "prj_untitled_1");
+        }
+        this.notify();
+      }, 550);
       return result;
     }
 
@@ -316,6 +345,7 @@ export class ProjectWorkspaceManager {
   }
 
   public async setActiveProject(projectId: string): Promise<void> {
+    if (!projectId || projectId === "orphan_prj") return;
     this.activeProjectId = projectId;
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
