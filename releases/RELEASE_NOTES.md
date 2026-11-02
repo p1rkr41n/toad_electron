@@ -1,3 +1,27 @@
+# TOAD v2.4.0 Release (Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2)
+
+## 1. Giới thiệu phiên bản v2.4.0
+Phiên bản **Toad v2.4.0** tái cấu trúc toàn diện thanh điều hướng Workspace và cơ chế quản lý dữ liệu nhiều dự án (Multi-Project Workspace Navigator):
+
+1. **Thanh điều hướng Cây thư mục 2 Cấp (2-Tier Project Tree)**:
+   - Cấp 1 hiển thị các Dự án: `Untitled-1` mặc định, các dự án tùy chỉnh do người dùng tạo, và `orphan_prj` tự động gom các tệp nạp từ các phiên bản trước.
+   - Cấp 2 hiển thị danh sách tệp thuộc từng dự án kèm biểu tượng trạng thái trực quan (`[READY]`, `[MODIFIED]`, `[STARTED]`).
+   - Tích hợp thanh công cụ dự án: Tạo Project mới, Thêm tệp đơn/nhiều tệp, Thêm toàn bộ thư mục vào project, Xóa project với tính toán dung lượng giải phóng đĩa.
+
+2. **Mở rộng Double-Valid Parquet State Ledger v2**:
+   - Schema Parquet WAL được bổ sung `project_id`, `project_name`, và `event_type` (`PROJECT_CREATE`, `FILE_READY`, `PROJECT_DELETE`, etc.).
+   - Khởi tạo tự động project `Untitled-1` ngay khi cold-start.
+   - Backward compatibility 100%: Bản ghi legacy không có `project_id` được ánh xạ ảo vào `orphan_prj` trên UI mà không cần can thiệp sửa đổi database cũ.
+   - Giữ kích thước State Ledger siêu nhẹ (< 30KB) với dictionary encoding, truy vấn snapshot trạng thái bằng DuckDB trong < 5ms.
+
+3. **Cơ chế Tự phục hồi Untitled-1 (500ms Debounce)**:
+   - Khi người dùng xóa toàn bộ các dự án (số dự án = 0), hệ thống kích hoạt bộ hẹn giờ 500ms để tự động tạo lại dự án `Untitled-1`, đảm bảo ứng dụng không bao giờ rơi vào trạng thái rỗng.
+
+4. **Xóa Cascade Cache Cleanup**:
+   - Khi xóa một dự án, hệ thống tự động quét và dọn sạch toàn bộ các tệp cache đệm Parquet (`*_cached_*.parquet`) và tệp tạm rác (`*.tmp_*`) liên quan trong thư mục `temp/`, giải phóng dung lượng đĩa tức thì mà vẫn bảo toàn an toàn cho tệp gốc.
+
+---
+
 # TOAD v2.0.1 Release (Zero-Block Dual DuckDB Engine, Dynamic Libuv Threadpool & RAM First-Page Micro-Cache)
 
 ## 1. Giới thiệu phiên bản v2.0.1

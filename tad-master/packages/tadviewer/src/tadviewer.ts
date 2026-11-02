@@ -39,4 +39,5 @@ export * from "./ViewState";
 export * from "./utils/ForensicDecoder";
 export * from "./toadTheme";
 export * from "./MultipleLoadingManager";
+export * from "./ProjectWorkspaceManager";
 export { actions };

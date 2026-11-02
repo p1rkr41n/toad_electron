@@ -242,16 +242,36 @@ export function getIngestConfig(): IngestConfig {
 // GIAI ĐOẠN 3: Parquet State Ledger (WAL) & Double Validation Engine
 // =============================================================================
 
+export interface ProjectInfo {
+  projectId: string;
+  projectName: string;
+  status: "READY" | "DELETED";
+  createdAt: number;
+  isOrphan?: boolean;
+}
+
+export type ToadEventType =
+  | "FILE_READY"
+  | "FILE_MODIFIED"
+  | "FILE_STARTED"
+  | "FILE_ERROR"
+  | "FILE_DELETED"
+  | "PROJECT_CREATE"
+  | "PROJECT_DELETE";
+
 export interface ToadLedgerEntry {
   event_id: string;
+  event_type?: ToadEventType | string;
   timestamp: number;
+  project_id?: string;
+  project_name?: string;
   source_path: string;
   source_size: number;
   source_mtime: number;
   parquet_path: string;
   parquet_size: number;
   row_count: number;
-  status: "STARTED" | "READY" | "ERROR" | "STALE";
+  status: "STARTED" | "READY" | "ERROR" | "STALE" | "MODIFIED" | "DELETED";
   duration_ms: number;
   extra_json: string;
   src_bytes?: number;
@@ -262,22 +282,56 @@ export interface ToadLedgerEntry {
  * Quản lý State Ledger toàn hệ thống TOAD bằng Parquet
  * Hoạt động theo mô hình Append-Only Transaction Journal (WAL):
  * - File `toad_ledger.parquet` chỉ thêm bản ghi, không bao giờ ghi đè lịch sử.
- * - Khi ứng dụng khởi động, nạp snapshot trạng thái mới nhất per source_path.
- * - Hỗ trợ Double Validation (Freshness nguồn & Tính toàn vẹn Parquet vật lý).
+ * - Quản lý không gian Project đa tầng (Multi-Project Workspace Navigator).
+ * - Khởi tạo tức thì Untitled-1 khi cold-start hoặc khi xóa sạch project (500ms debounce).
+ * - Cascade Cache Cleanup: Xóa sạch cache vật lý *_cached_*.parquet và temp files khi xóa project.
+ * - Tương thích ngược 100% với ledger cũ qua ánh xạ ảo orphan_prj.
  */
 export class ToadParquetLedger {
   private static instance: ToadParquetLedger | null = null;
   private ledgerPath: string | null = null;
   private cache: Map<string, ToadLedgerEntry> = new Map();
+  private projects: Map<string, ProjectInfo> = new Map();
+  private activeProjectId: string = "prj_untitled_1";
   private writeQueue: Promise<void> = Promise.resolve();
   private isLoaded: boolean = false;
   private db: Database | null = null;
+  private recoveryTimer: NodeJS.Timeout | null = null;
+  private listeners: Set<() => void> = new Set();
+
+  constructor(customLedgerPath?: string) {
+    if (customLedgerPath) {
+      this.ledgerPath = customLedgerPath;
+    }
+  }
 
   public static getInstance(): ToadParquetLedger {
     if (!ToadParquetLedger.instance) {
       ToadParquetLedger.instance = new ToadParquetLedger();
     }
     return ToadParquetLedger.instance;
+  }
+
+  public static resetInstance(): void {
+    if (ToadParquetLedger.instance) {
+      ToadParquetLedger.instance.clearDefaultProjectRecovery();
+    }
+    ToadParquetLedger.instance = null;
+  }
+
+  public subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notifyChange(): void {
+    for (const listener of this.listeners) {
+      try {
+        listener();
+      } catch {}
+    }
   }
 
   public getLedgerPath(): string {
@@ -311,11 +365,432 @@ export class ToadParquetLedger {
     return Array.from(this.cache.values());
   }
 
-  public async initLedger(db?: Database): Promise<void> {
-    if (this.isLoaded) return;
+  public getActiveProjectId(): string {
+    return this.activeProjectId;
+  }
+
+  public setActiveProjectId(id: string): void {
+    this.activeProjectId = id;
+    this.notifyChange();
+  }
+
+  public getProject(projectId: string): ProjectInfo | undefined {
+    return this.projects.get(projectId);
+  }
+
+  public getProjectName(projectId?: string): string {
+    if (!projectId) return "Untitled-1";
+    if (projectId === "orphan_prj") return "orphan_prj";
+    const p = this.projects.get(projectId);
+    return p ? p.projectName : "Untitled-1";
+  }
+
+  public getProjects(): Array<ProjectInfo & { fileCount: number; totalBytes: number }> {
+    const result: Array<ProjectInfo & { fileCount: number; totalBytes: number }> = [];
+    const files = this.getAllEntries().filter((e) => e.status !== "DELETED");
+
+    for (const proj of this.projects.values()) {
+      if (proj.status !== "DELETED") {
+        const projFiles = files.filter((f) => f.project_id === proj.projectId);
+        const totalBytes = projFiles.reduce(
+          (sum, f) => sum + (Number(f.source_size) || 0),
+          0
+        );
+        result.push({
+          ...proj,
+          fileCount: projFiles.length,
+          totalBytes,
+        });
+      }
+    }
+
+    const orphanFiles = files.filter(
+      (f) => !f.project_id || f.project_id === "orphan_prj"
+    );
+    if (orphanFiles.length > 0) {
+      const totalBytes = orphanFiles.reduce(
+        (sum, f) => sum + (Number(f.source_size) || 0),
+        0
+      );
+      result.push({
+        projectId: "orphan_prj",
+        projectName: "orphan_prj",
+        status: "READY",
+        createdAt: 0,
+        isOrphan: true,
+        fileCount: orphanFiles.length,
+        totalBytes,
+      });
+    }
+
+    return result;
+  }
+
+  public getProjectFiles(projectId: string): ToadLedgerEntry[] {
+    const files = this.getAllEntries().filter((e) => e.status !== "DELETED");
+    if (projectId === "orphan_prj") {
+      return files.filter((f) => !f.project_id || f.project_id === "orphan_prj");
+    }
+    return files.filter((f) => f.project_id === projectId);
+  }
+
+  public async ensureDefaultProject(): Promise<string> {
+    const defaultId = "prj_untitled_1";
+    const defaultName = "Untitled-1";
+    const existing = this.projects.get(defaultId);
+    if (!existing || existing.status === "DELETED") {
+      this.projects.set(defaultId, {
+        projectId: defaultId,
+        projectName: defaultName,
+        status: "READY",
+        createdAt: Date.now(),
+      });
+      this.activeProjectId = defaultId;
+      await this.recordEvent({
+        event_id: `prj-init-${Date.now()}`,
+        event_type: "PROJECT_CREATE",
+        timestamp: Date.now(),
+        project_id: defaultId,
+        project_name: defaultName,
+        source_path: "",
+        source_size: 0,
+        source_mtime: 0,
+        parquet_path: "",
+        parquet_size: 0,
+        row_count: 0,
+        status: "READY",
+        duration_ms: 0,
+        extra_json: JSON.stringify({ isDefault: true }),
+      });
+    }
+    this.activeProjectId = defaultId;
+    this.notifyChange();
+    return defaultId;
+  }
+
+  public async createProject(
+    projectName: string,
+    projectId?: string
+  ): Promise<string> {
+    this.clearDefaultProjectRecovery();
+    const id =
+      projectId ||
+      `prj_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+    const name = projectName.trim() || "Untitled Project";
+    const proj: ProjectInfo = {
+      projectId: id,
+      projectName: name,
+      status: "READY",
+      createdAt: Date.now(),
+    };
+    this.projects.set(id, proj);
+    this.activeProjectId = id;
+
+    await this.recordEvent({
+      event_id: `prj-create-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type: "PROJECT_CREATE",
+      timestamp: Date.now(),
+      project_id: id,
+      project_name: name,
+      source_path: "",
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "READY",
+      duration_ms: 0,
+      extra_json: JSON.stringify({ manual: true }),
+    });
+
+    this.notifyChange();
+    return id;
+  }
+
+  public getProjectCacheSize(projectId: string): {
+    fileCount: number;
+    totalBytes: number;
+    formattedSize: string;
+  } {
+    const files = this.getProjectFiles(projectId);
+    let totalBytes = 0;
+    for (const f of files) {
+      if (f.parquet_path && fs.existsSync(f.parquet_path)) {
+        try {
+          totalBytes += fs.statSync(f.parquet_path).size;
+        } catch {}
+      } else if (f.parquet_size) {
+        totalBytes += Number(f.parquet_size);
+      }
+    }
+    let formattedSize = "0 MB";
+    if (totalBytes >= 1024 * 1024 * 1024) {
+      formattedSize = `${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    } else {
+      formattedSize = `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+    return { fileCount: files.length, totalBytes, formattedSize };
+  }
+
+  public async deleteProjectCascade(
+    projectId: string
+  ): Promise<{ deletedFiles: number; freedBytes: number }> {
+    const proj = this.projects.get(projectId);
+    const projName = proj ? proj.projectName : projectId;
+    const files = this.getProjectFiles(projectId);
+
+    let deletedFiles = 0;
+    let freedBytes = 0;
+
+    for (const f of files) {
+      if (f.parquet_path && fs.existsSync(f.parquet_path)) {
+        try {
+          const sz = fs.statSync(f.parquet_path).size;
+          fs.unlinkSync(f.parquet_path);
+          freedBytes += sz;
+          deletedFiles++;
+        } catch (err) {
+          log.warn(`[CascadeCleanup] Error deleting parquet cache: ${f.parquet_path}`, err);
+        }
+
+        try {
+          const dir = path.dirname(f.parquet_path);
+          const base = path.basename(f.parquet_path, ".parquet");
+          if (fs.existsSync(dir)) {
+            const entries = fs.readdirSync(dir);
+            for (const ent of entries) {
+              if (
+                ent.startsWith(base) &&
+                (ent.includes(".tmp") || ent.includes(".tmp_"))
+              ) {
+                const tmpFull = path.join(dir, ent);
+                try {
+                  fs.unlinkSync(tmpFull);
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
+
+      this.cache.delete(this.normalizePath(f.source_path));
+
+      try {
+        const { MultipleLoadingManager } = require("tadviewer");
+        if (MultipleLoadingManager) {
+          MultipleLoadingManager.getInstance().clearFirstPageCache(f.source_path);
+        }
+      } catch {}
+    }
+
+    await this.recordEvent({
+      event_id: `prj-del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type: "PROJECT_DELETE",
+      timestamp: Date.now(),
+      project_id: projectId,
+      project_name: projName,
+      source_path: "",
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "DELETED",
+      duration_ms: 0,
+      extra_json: JSON.stringify({ freedBytes, deletedFiles }),
+    });
+
+    if (this.projects.has(projectId)) {
+      const p = this.projects.get(projectId)!;
+      p.status = "DELETED";
+      this.projects.delete(projectId);
+    }
+
+    const activeCount = Array.from(this.projects.values()).filter(
+      (p) => p.status !== "DELETED"
+    ).length;
+    if (activeCount === 0) {
+      this.scheduleDefaultProjectRecovery(500);
+    } else if (this.activeProjectId === projectId) {
+      const remaining = Array.from(this.projects.values()).find(
+        (p) => p.status !== "DELETED"
+      );
+      if (remaining) {
+        this.activeProjectId = remaining.projectId;
+      }
+    }
+
+    this.notifyChange();
+    return { deletedFiles, freedBytes };
+  }
+
+  public scheduleDefaultProjectRecovery(delayMs: number = 500): void {
+    this.clearDefaultProjectRecovery();
+    this.recoveryTimer = setTimeout(async () => {
+      const activeCount = Array.from(this.projects.values()).filter(
+        (p) => p.status !== "DELETED"
+      ).length;
+      if (activeCount === 0) {
+        log.info(
+          "[ToadLedger] 0.5s rule: Recreating Untitled-1 default project..."
+        );
+        await this.ensureDefaultProject();
+      }
+    }, delayMs);
+  }
+
+  public clearDefaultProjectRecovery(): void {
+    if (this.recoveryTimer) {
+      clearTimeout(this.recoveryTimer);
+      this.recoveryTimer = null;
+    }
+  }
+
+  public async addFileToProject(
+    projectId: string,
+    filePath: string,
+    projectName?: string
+  ): Promise<ToadLedgerEntry> {
+    let proj = this.projects.get(projectId);
+    if (!proj) {
+      await this.ensureDefaultProject();
+      projectId = this.activeProjectId;
+      proj = this.projects.get(projectId);
+    }
+    const pName = projectName || proj?.projectName || "Untitled-1";
+
+    let stat = { size: 0, mtimeMs: Date.now() };
+    try {
+      if (fs.existsSync(filePath)) {
+        stat = fs.statSync(filePath);
+      }
+    } catch {}
+
+    const cfg = getIngestConfig();
+    const cachedPaths = getDeterministicParquetPath(filePath, cfg.temp_dir);
+    const validity = getCacheValidityStatus(filePath, cachedPaths);
+    const status =
+      validity === "VALID"
+        ? "READY"
+        : validity === "MODIFIED"
+        ? "MODIFIED"
+        : "STARTED";
+
+    let pSize = 0;
+    if (cachedPaths && fs.existsSync(cachedPaths.parquetPath)) {
+      try {
+        pSize = fs.statSync(cachedPaths.parquetPath).size;
+      } catch {}
+    }
+
+    const entry: ToadLedgerEntry = {
+      event_id: `add-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type:
+        status === "READY"
+          ? "FILE_READY"
+          : status === "MODIFIED"
+          ? "FILE_MODIFIED"
+          : "FILE_STARTED",
+      timestamp: Date.now(),
+      project_id: projectId,
+      project_name: pName,
+      source_path: filePath,
+      source_size: stat.size,
+      source_mtime: Math.round(stat.mtimeMs),
+      parquet_path: cachedPaths ? cachedPaths.parquetPath : "",
+      parquet_size: pSize,
+      row_count: 0,
+      status,
+      duration_ms: 0,
+      extra_json: JSON.stringify({ addedBy: "user" }),
+    };
+
+    await this.recordEvent(entry);
+    return entry;
+  }
+
+  public async addFolderToProject(
+    projectId: string,
+    folderPath: string,
+    projectName?: string
+  ): Promise<ToadLedgerEntry[]> {
+    const supportedExts = new Set([
+      ".csv",
+      ".tsv",
+      ".parquet",
+      ".json",
+      ".jsonl",
+      ".ndjson",
+      ".log",
+      ".txt",
+      ".evtx",
+    ]);
+
+    const addedFiles: string[] = [];
+    const scan = (dir: string) => {
+      if (!fs.existsSync(dir)) return;
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const ent of entries) {
+        const full = path.join(dir, ent.name);
+        if (ent.isDirectory()) {
+          scan(full);
+        } else if (ent.isFile()) {
+          const ext = path.extname(ent.name).toLowerCase();
+          if (
+            supportedExts.has(ext) ||
+            ent.name.toLowerCase().endsWith(".csv.gz") ||
+            ent.name.toLowerCase().endsWith(".tsv.gz")
+          ) {
+            addedFiles.push(full);
+          }
+        }
+      }
+    };
+
+    scan(folderPath);
+    const results: ToadLedgerEntry[] = [];
+    for (const filePath of addedFiles) {
+      const e = await this.addFileToProject(projectId, filePath, projectName);
+      results.push(e);
+    }
+    return results;
+  }
+
+  public async moveOrphanFilesToProject(
+    targetProjectId: string
+  ): Promise<void> {
+    const proj = this.projects.get(targetProjectId);
+    if (!proj) return;
+    const orphanFiles = this.getProjectFiles("orphan_prj");
+    for (const f of orphanFiles) {
+      const updated: ToadLedgerEntry = {
+        ...f,
+        event_id: `move-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        event_type: "FILE_READY",
+        timestamp: Date.now(),
+        project_id: targetProjectId,
+        project_name: proj.projectName,
+        extra_json: JSON.stringify({ movedFrom: "orphan_prj" }),
+      };
+      await this.recordEvent(updated);
+    }
+    this.notifyChange();
+  }
+
+  public async initLedger(
+    db?: Database,
+    forceReload?: boolean
+  ): Promise<void> {
+    if (this.isLoaded && !forceReload) return;
+    if (forceReload) {
+      this.cache.clear();
+      this.projects.clear();
+      this.isLoaded = false;
+    }
     if (db) this.db = db;
     const lPath = this.getLedgerPath();
     if (!fs.existsSync(lPath)) {
+      await this.ensureDefaultProject();
       this.isLoaded = true;
       return;
     }
@@ -324,22 +799,145 @@ export class ToadParquetLedger {
       const activeDb = this.db || (await this.getOrCreateInternalDb());
       const conn = await activeDb.connect();
       try {
-        const sql = `
-          SELECT * EXCLUDE (rn) FROM (
-            SELECT *, ROW_NUMBER() OVER (PARTITION BY source_path ORDER BY timestamp DESC) as rn
-            FROM read_parquet('${escapeSqlPath(lPath)}')
-          ) WHERE rn = 1
-        `;
+        const descRows = await conn.all(
+          `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
+        );
+        const colNames = new Set(
+          descRows.map((r: any) => String(r.column_name).toLowerCase())
+        );
+        const hasProjectCols =
+          colNames.has("project_id") && colNames.has("event_type");
+
+        let sql = "";
+        if (hasProjectCols) {
+          sql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}') ORDER BY timestamp ASC`;
+        } else {
+          const eventIdExpr = colNames.has("event_id")
+            ? "event_id"
+            : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
+          const timestampExpr = colNames.has("timestamp")
+            ? "CAST(timestamp AS BIGINT) as timestamp"
+            : colNames.has("cached_at")
+            ? "CAST(cached_at AS BIGINT) as timestamp"
+            : "1700000000000::BIGINT as timestamp";
+          const sourcePathExpr = colNames.has("source_path")
+            ? "source_path"
+            : colNames.has("file_name")
+            ? "file_name as source_path"
+            : "'' as source_path";
+          const sourceSizeExpr = colNames.has("source_size")
+            ? "CAST(source_size AS BIGINT) as source_size"
+            : colNames.has("file_size_bytes")
+            ? "CAST(file_size_bytes AS BIGINT) as source_size"
+            : "0::BIGINT as source_size";
+          const sourceMtimeExpr = colNames.has("source_mtime")
+            ? "CAST(source_mtime AS BIGINT) as source_mtime"
+            : colNames.has("file_mtime_ms")
+            ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
+            : "0::BIGINT as source_mtime";
+          const parquetPathExpr = colNames.has("parquet_path")
+            ? "parquet_path"
+            : "'' as parquet_path";
+          const parquetSizeExpr = colNames.has("parquet_size")
+            ? "CAST(parquet_size AS BIGINT) as parquet_size"
+            : colNames.has("parquet_size_bytes")
+            ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
+            : "0::BIGINT as parquet_size";
+          const rowCountExpr = colNames.has("row_count")
+            ? "CAST(row_count AS BIGINT) as row_count"
+            : "0::BIGINT as row_count";
+          const statusExpr = colNames.has("status")
+            ? "status"
+            : "'READY' as status";
+          const durationExpr = colNames.has("duration_ms")
+            ? "CAST(duration_ms AS INTEGER) as duration_ms"
+            : colNames.has("ingestion_duration_ms")
+            ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
+            : "0::INTEGER as duration_ms";
+          const extraJsonExpr = colNames.has("extra_json")
+            ? "extra_json"
+            : "'{}' as extra_json";
+          const partitionCol = colNames.has("source_path")
+            ? "source_path"
+            : colNames.has("file_name")
+            ? "file_name"
+            : "1";
+          const orderCol = colNames.has("timestamp")
+            ? "timestamp"
+            : colNames.has("cached_at")
+            ? "cached_at"
+            : "1";
+
+          sql = `
+            SELECT * EXCLUDE (rn) FROM (
+              SELECT 
+                ${eventIdExpr},
+                'FILE_READY' as event_type,
+                ${timestampExpr},
+                'orphan_prj' as project_id,
+                'orphan_prj' as project_name,
+                ${sourcePathExpr},
+                ${sourceSizeExpr},
+                ${sourceMtimeExpr},
+                ${parquetPathExpr},
+                ${parquetSizeExpr},
+                ${rowCountExpr},
+                ${statusExpr},
+                ${durationExpr},
+                ${extraJsonExpr},
+                ROW_NUMBER() OVER (PARTITION BY ${partitionCol} ORDER BY ${orderCol} DESC) as rn
+              FROM read_parquet('${escapeSqlPath(lPath)}')
+            ) WHERE rn = 1
+          `;
+        }
+
         const rows = await conn.all(sql);
         for (const row of rows) {
+          const evtType = String(row.event_type || "");
+          const projId = row.project_id ? String(row.project_id) : "orphan_prj";
+          const projName = row.project_name
+            ? String(row.project_name)
+            : projId === "orphan_prj"
+            ? "orphan_prj"
+            : "Untitled-1";
+
+          if (evtType === "PROJECT_CREATE") {
+            this.projects.set(projId, {
+              projectId: projId,
+              projectName: projName,
+              status: "READY",
+              createdAt: Number(row.timestamp),
+            });
+            continue;
+          }
+
+          if (evtType === "PROJECT_DELETE") {
+            if (this.projects.has(projId)) {
+              this.projects.get(projId)!.status = "DELETED";
+              this.projects.delete(projId);
+            }
+            continue;
+          }
+
+          const srcPath = String(row.source_path || "");
+          if (!srcPath) continue;
+
+          if (row.status === "DELETED") {
+            this.cache.delete(this.normalizePath(srcPath));
+            continue;
+          }
+
           const entry: ToadLedgerEntry = {
             event_id: String(row.event_id),
+            event_type: evtType || "FILE_READY",
             timestamp: Number(row.timestamp),
-            source_path: String(row.source_path),
+            project_id: projId,
+            project_name: projName,
+            source_path: srcPath,
             source_size: Number(row.source_size),
             source_mtime: Number(row.source_mtime),
-            parquet_path: String(row.parquet_path),
-            parquet_size: Number(row.parquet_size),
+            parquet_path: String(row.parquet_path || ""),
+            parquet_size: Number(row.parquet_size || 0),
             row_count: Number(row.row_count || 0),
             status: row.status as any,
             duration_ms: Number(row.duration_ms || 0),
@@ -347,9 +945,24 @@ export class ToadParquetLedger {
           };
           this.cache.set(this.normalizePath(entry.source_path), entry);
         }
+
+        const activeCount = Array.from(this.projects.values()).filter(
+          (p) => p.status !== "DELETED"
+        ).length;
+        if (activeCount === 0) {
+          await this.ensureDefaultProject();
+        } else {
+          const first = Array.from(this.projects.values()).find(
+            (p) => p.status !== "DELETED"
+          );
+          if (first) {
+            this.activeProjectId = first.projectId;
+          }
+        }
+
         this.isLoaded = true;
         log.info(
-          `[ToadLedger] Da nap thanh cong ${this.cache.size} ban ghi trang thai tu Parquet Ledger: ${lPath}`
+          `[ToadLedger] Da nap thanh cong ${this.cache.size} files, ${this.projects.size} projects tu Parquet Ledger: ${lPath}`
         );
       } finally {
         await conn.close();
@@ -357,6 +970,7 @@ export class ToadParquetLedger {
     } catch (err) {
       log.warn("[ToadLedger] Khong the nap ledger snapshot tu file Parquet:", err);
       this.isLoaded = true;
+      await this.ensureDefaultProject();
     }
   }
 
@@ -368,8 +982,33 @@ export class ToadParquetLedger {
   }
 
   public async recordEvent(evt: ToadLedgerEntry): Promise<void> {
-    const norm = this.normalizePath(evt.source_path);
-    this.cache.set(norm, evt);
+    if (!evt.project_id) {
+      evt.project_id = this.activeProjectId || "prj_untitled_1";
+    }
+    if (!evt.project_name) {
+      evt.project_name = this.getProjectName(evt.project_id);
+    }
+    if (!evt.event_type) {
+      evt.event_type =
+        evt.status === "READY"
+          ? "FILE_READY"
+          : evt.status === "MODIFIED"
+          ? "FILE_MODIFIED"
+          : evt.status === "ERROR"
+          ? "FILE_ERROR"
+          : evt.status === "DELETED"
+          ? "FILE_DELETED"
+          : "FILE_STARTED";
+    }
+
+    if (evt.source_path) {
+      const norm = this.normalizePath(evt.source_path);
+      if (evt.status === "DELETED") {
+        this.cache.delete(norm);
+      } else {
+        this.cache.set(norm, evt);
+      }
+    }
 
     this.writeQueue = this.writeQueue.then(async () => {
       try {
@@ -385,27 +1024,110 @@ export class ToadParquetLedger {
           const tmpPath = `${lPath}.tmp_${Date.now()}_${Math.random()
             .toString(36)
             .slice(2, 7)}`;
-          const safeSource = escapeSqlPath(evt.source_path).replace(/'/g, "''");
-          const safeParquet = escapeSqlPath(evt.parquet_path).replace(/'/g, "''");
+          const safeSource = escapeSqlPath(evt.source_path || "").replace(/'/g, "''");
+          const safeParquet = escapeSqlPath(evt.parquet_path || "").replace(/'/g, "''");
           const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
+          const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
+          const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
+          const safeEventType = (evt.event_type || "FILE_READY").replace(/'/g, "''");
 
           const rowSql = `SELECT 
             '${evt.event_id}' as event_id,
+            '${safeEventType}' as event_type,
             CAST(${evt.timestamp} AS BIGINT) as timestamp,
+            '${safeProjectId}' as project_id,
+            '${safeProjectName}' as project_name,
             '${safeSource}' as source_path,
-            CAST(${evt.source_size} AS BIGINT) as source_size,
-            CAST(${evt.source_mtime} AS BIGINT) as source_mtime,
+            CAST(${evt.source_size || 0} AS BIGINT) as source_size,
+            CAST(${evt.source_mtime || 0} AS BIGINT) as source_mtime,
             '${safeParquet}' as parquet_path,
-            CAST(${evt.parquet_size} AS BIGINT) as parquet_size,
-            CAST(${evt.row_count} AS BIGINT) as row_count,
+            CAST(${evt.parquet_size || 0} AS BIGINT) as parquet_size,
+            CAST(${evt.row_count || 0} AS BIGINT) as row_count,
             '${evt.status}' as status,
-            CAST(${evt.duration_ms} AS INTEGER) as duration_ms,
+            CAST(${evt.duration_ms || 0} AS INTEGER) as duration_ms,
             '${safeExtra}' as extra_json
           `;
 
           if (fs.existsSync(lPath)) {
+            const descRows = await conn.all(
+              `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
+            );
+            const colNames = new Set(
+              descRows.map((r: any) => String(r.column_name).toLowerCase())
+            );
+
+            let readOldSql = "";
+            if (!colNames.has("project_id") || !colNames.has("event_type")) {
+              const eventIdCol = colNames.has("event_id")
+                ? "event_id"
+                : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
+              const timestampCol = colNames.has("timestamp")
+                ? "CAST(timestamp AS BIGINT) as timestamp"
+                : colNames.has("cached_at")
+                ? "CAST(cached_at AS BIGINT) as timestamp"
+                : "1700000000000::BIGINT as timestamp";
+              const sourcePathCol = colNames.has("source_path")
+                ? "source_path"
+                : colNames.has("file_name")
+                ? "file_name as source_path"
+                : "'' as source_path";
+              const sourceSizeCol = colNames.has("source_size")
+                ? "CAST(source_size AS BIGINT) as source_size"
+                : colNames.has("file_size_bytes")
+                ? "CAST(file_size_bytes AS BIGINT) as source_size"
+                : "0::BIGINT as source_size";
+              const sourceMtimeCol = colNames.has("source_mtime")
+                ? "CAST(source_mtime AS BIGINT) as source_mtime"
+                : colNames.has("file_mtime_ms")
+                ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
+                : "0::BIGINT as source_mtime";
+              const parquetPathCol = colNames.has("parquet_path")
+                ? "parquet_path"
+                : "'' as parquet_path";
+              const parquetSizeCol = colNames.has("parquet_size")
+                ? "CAST(parquet_size AS BIGINT) as parquet_size"
+                : colNames.has("parquet_size_bytes")
+                ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
+                : "0::BIGINT as parquet_size";
+              const rowCountCol = colNames.has("row_count")
+                ? "CAST(row_count AS BIGINT) as row_count"
+                : "0::BIGINT as row_count";
+              const statusCol = colNames.has("status")
+                ? "status"
+                : "'READY' as status";
+              const durationCol = colNames.has("duration_ms")
+                ? "CAST(duration_ms AS INTEGER) as duration_ms"
+                : colNames.has("ingestion_duration_ms")
+                ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
+                : "0::INTEGER as duration_ms";
+              const extraJsonCol = colNames.has("extra_json")
+                ? "extra_json"
+                : "'{}' as extra_json";
+
+              readOldSql = `
+                SELECT
+                  ${eventIdCol},
+                  ${colNames.has("event_type") ? "event_type" : "'FILE_READY' as event_type"},
+                  ${timestampCol},
+                  ${colNames.has("project_id") ? "project_id" : "'orphan_prj' as project_id"},
+                  ${colNames.has("project_name") ? "project_name" : "'orphan_prj' as project_name"},
+                  ${sourcePathCol},
+                  ${sourceSizeCol},
+                  ${sourceMtimeCol},
+                  ${parquetPathCol},
+                  ${parquetSizeCol},
+                  ${rowCountCol},
+                  ${statusCol},
+                  ${durationCol},
+                  ${extraJsonCol}
+                FROM read_parquet('${escapeSqlPath(lPath)}')
+              `;
+            } else {
+              readOldSql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`;
+            }
+
             const appendSql = `COPY (
-              SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')
+              ${readOldSql}
               UNION ALL
               ${rowSql}
             ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
