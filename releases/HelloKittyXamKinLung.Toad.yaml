@@ -15,6 +15,6 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.4.0/Toad-2.4.0-x64-portable.exe
-    InstallerSha256: CF5E02E7AF29F321B76E0E12D393D5215C19DE6521F3B968A9E4EF00CBB199B0
+    InstallerSha256: 948D69F146526449873F949D93618812EBF1FDAF90D7BFE25F9EDF3F7E4778F4
 ManifestType: singleton
 ManifestVersion: 1.6.0

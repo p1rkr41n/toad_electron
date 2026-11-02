@@ -140,8 +140,11 @@ export const FileTreeItemLabel: React.FC<{
         >
           {dsNode.displayName}
         </span>
+        {isReady && (
+          <span className="ds-file-node-ready-badge">[READY]</span>
+        )}
         {isModified && (
-          <span className="ds-file-node-modified-badge">MODIFIED</span>
+          <span className="ds-file-node-modified-badge">[MODIFIED]</span>
         )}
         {isProcessing && (
           <span className="ds-file-node-percent">{Math.round(percent)}%</span>
@@ -277,7 +280,9 @@ const dsNodeTreeNode = (
   if (dsNode.description) {
     ret.secondaryLabel = (
       <Tooltip usePortal={true} boundary="window" content={dsNode.description}>
-        <Icon icon="eye-open" />
+        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "4px" }}>
+          ({dsNode.description})
+        </span>
       </Tooltip>
     );
   }
@@ -332,52 +337,66 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const activeProjectId = ws.activeProjectId || "prj_untitled_1";
         const projectTreeNodes: DSTreeNodeInfo[] = [];
 
+        const allProjectFilePaths = new Set<string>();
+
         for (const proj of ws.projects) {
           const files = await pwManager.getProjectFiles(proj.projectId);
           const isExpanded = pwManager.isProjectExpanded(proj.projectId);
 
-          const dscPlaceholder: any = {
-            getChildren: async () => [],
-            getTableName: async (dsPath: DataSourcePath) => {
-              return getCanonicalPathFromDSPath(dsPath);
-            },
-            isCacheReady: () => false,
-            getCacheStatus: () => "UNPROCESSED",
-          };
+          const fileItemsForMLM: any[] = [];
+          const childFileNodes: DSTreeNodeInfo[] = [];
 
-          const fileItemsForMLM = files.map((f) => ({
-            dsPath: {
-              sourceId: { providerName: "localfs" as const, resourceId: f.filePath },
-              path: ["."],
-            },
-            dsc: dscPlaceholder,
-            fileName: f.fileName,
-            fileSizeBytes: f.fileSizeBytes,
-          }));
-          if (fileItemsForMLM.length > 0) {
-            MultipleLoadingManager.getInstance().registerFiles(fileItemsForMLM, stateRef);
-          }
+          for (const f of files) {
+            allProjectFilePaths.add(f.filePath.toLowerCase());
 
-          const filteredFiles = files.filter(
-            (f) =>
-              !searchQuery ||
-              f.fileName.toLowerCase().includes(searchQuery.toLowerCase())
-          );
+            let fileDsc: any = null;
+            if (rtc) {
+              try {
+                fileDsc = await rtc.connect({ providerName: "localfs", resourceId: f.filePath });
+              } catch {}
+            }
+            if (!fileDsc) {
+              fileDsc = {
+                getChildren: async () => [],
+                getTableName: async (dsPath: DataSourcePath) => getCanonicalPathFromDSPath(dsPath),
+                isCacheReady: () => f.status === "READY",
+                getCacheStatus: () =>
+                  f.status === "READY"
+                    ? "VALID"
+                    : f.status === "MODIFIED"
+                    ? "MODIFIED"
+                    : "UNPROCESSED",
+              };
+            }
 
-          const childFileNodes: DSTreeNodeInfo[] = filteredFiles.map((f) => {
             const dsPath: DataSourcePath = {
               sourceId: { providerName: "localfs", resourceId: f.filePath },
               path: ["."],
             };
-            const dsNode: DataSourceNode = {
-              id: f.fileName,
-              kind: "File",
-              displayName: f.fileName,
-              isContainer: false,
+
+            fileItemsForMLM.push({
+              dsPath,
+              dsc: fileDsc,
+              fileName: f.fileName,
               fileSizeBytes: f.fileSizeBytes,
-            };
-            return dsNodeTreeNode(dscPlaceholder, dsPath, dsNode, stateRef);
-          });
+            });
+
+            if (!searchQuery || f.fileName.toLowerCase().includes(searchQuery.toLowerCase())) {
+              const dsNode: DataSourceNode = {
+                id: f.fileName,
+                kind: "File",
+                displayName: f.fileName,
+                isContainer: false,
+                fileSizeBytes: f.fileSizeBytes,
+                description: f.rowCount ? `${Number(f.rowCount).toLocaleString()} rows` : undefined,
+              };
+              childFileNodes.push(dsNodeTreeNode(fileDsc, dsPath, dsNode, stateRef));
+            }
+          }
+
+          if (fileItemsForMLM.length > 0) {
+            MultipleLoadingManager.getInstance().registerFiles(fileItemsForMLM, stateRef);
+          }
 
           const projNode: DSTreeNodeInfo = {
             id: `project_${proj.projectId}`,
@@ -433,7 +452,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 }}
                 onMoveOrphan={async (e) => {
                   e.stopPropagation();
-                  await pwManager.moveOrphanFilesToProject(activeProjectId);
+                  await pwManager.moveOrphanFilesToProject("prj_untitled_1");
                   throttledRefresh.current();
                 }}
               />
@@ -442,7 +461,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
             nodeData: {
               isProject: true,
               projectId: proj.projectId,
-              dsc: dscPlaceholder,
+              dsc: null as any,
               dsPath: { sourceId: { providerName: "localfs", resourceId: "" }, path: [] },
               dsNode: { id: proj.projectId, kind: "Dataset", displayName: proj.projectName, isContainer: true },
             },
@@ -455,6 +474,10 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const rootSources = await rtc.getDataSources();
         const legacyRootNodes: DSTreeNodeInfo[] = [];
         for (const sourceId of rootSources) {
+          const resId = String((sourceId as any).resourceId || "").toLowerCase();
+          if (resId && allProjectFilePaths.has(resId)) {
+            continue;
+          }
           const sourceIdStr = JSON.stringify(sourceId);
           let rootTreeNode = nextNodeMap[sourceIdStr];
           if (!rootTreeNode) {

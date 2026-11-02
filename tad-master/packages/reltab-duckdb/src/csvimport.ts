@@ -370,6 +370,7 @@ export class ToadParquetLedger {
   }
 
   public setActiveProjectId(id: string): void {
+    if (!id || id === "orphan_prj") return;
     this.activeProjectId = id;
     this.notifyChange();
   }
@@ -543,19 +544,26 @@ export class ToadParquetLedger {
     let freedBytes = 0;
 
     for (const f of files) {
-      if (f.parquet_path && fs.existsSync(f.parquet_path)) {
+      let pPath = f.parquet_path;
+      if (!pPath && f.source_path) {
+        const cfg = getIngestConfig();
+        const cp = getDeterministicParquetPath(f.source_path, cfg.temp_dir);
+        if (cp) pPath = cp.parquetPath;
+      }
+
+      if (pPath && fs.existsSync(pPath)) {
         try {
-          const sz = fs.statSync(f.parquet_path).size;
-          fs.unlinkSync(f.parquet_path);
+          const sz = fs.statSync(pPath).size;
+          fs.unlinkSync(pPath);
           freedBytes += sz;
           deletedFiles++;
         } catch (err) {
-          log.warn(`[CascadeCleanup] Error deleting parquet cache: ${f.parquet_path}`, err);
+          log.warn(`[CascadeCleanup] Error deleting parquet cache: ${pPath}`, err);
         }
 
         try {
-          const dir = path.dirname(f.parquet_path);
-          const base = path.basename(f.parquet_path, ".parquet");
+          const dir = path.dirname(pPath);
+          const base = path.basename(pPath, ".parquet");
           if (fs.existsSync(dir)) {
             const entries = fs.readdirSync(dir);
             for (const ent of entries) {
@@ -573,12 +581,35 @@ export class ToadParquetLedger {
         } catch {}
       }
 
+      // Close and drop corresponding DuckDB VIEW if existing
+      try {
+        let viewName = "";
+        if (f.extra_json) {
+          try {
+            const extra = JSON.parse(f.extra_json);
+            viewName = extra.view;
+          } catch {}
+        }
+        if (!viewName && f.source_path) {
+          viewName = genTableName(f.source_path);
+        }
+        if (viewName) {
+          const activeDb = this.db || (await this.getOrCreateInternalDb());
+          const dropConn = await activeDb.connect();
+          try {
+            await dropConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
+          } finally {
+            await dropConn.close();
+          }
+        }
+      } catch {}
+
       this.cache.delete(this.normalizePath(f.source_path));
 
       try {
-        const { MultipleLoadingManager } = require("tadviewer");
-        if (MultipleLoadingManager) {
-          MultipleLoadingManager.getInstance().clearFirstPageCache(f.source_path);
+        const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
+        if (globalMLM && typeof globalMLM.clearFirstPageCache === "function") {
+          globalMLM.clearFirstPageCache(f.source_path);
         }
       } catch {}
     }
@@ -757,9 +788,14 @@ export class ToadParquetLedger {
   }
 
   public async moveOrphanFilesToProject(
-    targetProjectId: string
+    targetProjectId?: string
   ): Promise<void> {
-    const proj = this.projects.get(targetProjectId);
+    let targetId = targetProjectId;
+    if (!targetId || targetId === "orphan_prj" || !this.projects.has(targetId)) {
+      await this.ensureDefaultProject();
+      targetId = "prj_untitled_1";
+    }
+    const proj = this.projects.get(targetId);
     if (!proj) return;
     const orphanFiles = this.getProjectFiles("orphan_prj");
     for (const f of orphanFiles) {
@@ -768,7 +804,7 @@ export class ToadParquetLedger {
         event_id: `move-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         event_type: "FILE_READY",
         timestamp: Date.now(),
-        project_id: targetProjectId,
+        project_id: targetId,
         project_name: proj.projectName,
         extra_json: JSON.stringify({ movedFrom: "orphan_prj" }),
       };
@@ -946,6 +982,16 @@ export class ToadParquetLedger {
           this.cache.set(this.normalizePath(entry.source_path), entry);
         }
 
+        // Prune any cache entries belonging to deleted projects
+        for (const [key, entry] of this.cache.entries()) {
+          if (entry.project_id && entry.project_id !== "orphan_prj") {
+            const p = this.projects.get(entry.project_id);
+            if (!p || p.status === "DELETED") {
+              this.cache.delete(key);
+            }
+          }
+        }
+
         const activeCount = Array.from(this.projects.values()).filter(
           (p) => p.status !== "DELETED"
         ).length;
@@ -982,6 +1028,14 @@ export class ToadParquetLedger {
   }
 
   public async recordEvent(evt: ToadLedgerEntry): Promise<void> {
+    if (!evt.project_id && evt.source_path) {
+      const existing = this.cache.get(this.normalizePath(evt.source_path));
+      if (existing && existing.project_id) {
+        evt.project_id = existing.project_id;
+        evt.project_name =
+          existing.project_name || this.getProjectName(existing.project_id);
+      }
+    }
     if (!evt.project_id) {
       evt.project_id = this.activeProjectId || "prj_untitled_1";
     }
