@@ -1,11 +1,11 @@
 $ErrorActionPreference = "Stop"
 
-$nodePath = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64"
-$gitPath = "D:\Shared_UserData\Downloads\tad\mingit\cmd"
+$rootDir = $PSScriptRoot
+$nodePath = "$rootDir\node-v18.20.4-win-x64"
+$gitPath = "$rootDir\mingit\cmd"
 $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
-$rootDir = "D:\Shared_UserData\Downloads\tad"
 $appDir = "$rootDir\tad-master\packages\tad-app"
 
 Write-Output "=== PRE-BUILD: Cleaning stale build artifacts ==="
@@ -17,7 +17,7 @@ if (Test-Path "$appDir\release\win-unpacked") {
 }
 
 Write-Output "=== STEP 1: Building tadviewer ==="
-Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
+Set-Location "$rootDir\tad-master\packages\tadviewer"
 & npm.cmd run build
 
 Write-Output "=== STEP 2: Building Webpack Production for tad-app ==="
@@ -61,7 +61,8 @@ if (-not (Test-Path $duckDbUnpacked)) {
 }
 Write-Output ">>> duckdb.node native binding verified intact in app.asar.unpacked."
 
-& node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); }"
+$asarRequirePath = "$($rootDir.Replace('\', '/'))/tad-master/node_modules/@electron/asar"
+& node -e "const asar = require('$asarRequirePath'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); }"
 
 Write-Output "=== STEP 5: Copying binaries to release and root directories ==="
 $releaseDir = "$rootDir\releases"
