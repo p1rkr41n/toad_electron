@@ -594,12 +594,12 @@ const main = () => {
 
         log.warn("[TOAD] Dang don dep temp truoc khi thoat...");
 
-        // Chờ 80ms cho Windows giải phóng file handles sau khi DuckDB đóng
+        // Chờ 150ms cho Windows giải phóng file handles sau khi DuckDB đóng
         setTimeout(() => {
           cleanTempDir(portableEnv.tempDir);
           log.warn("[TOAD] Da don dep temp thanh cong. Thoat ung dung.");
           app.exit(0);
-        }, 80);
+        }, 150);
       }
     });
 
