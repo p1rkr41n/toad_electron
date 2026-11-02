@@ -205,27 +205,80 @@
   font-size: 12px;
   transition: color 0.2s ease;
 
-  // Trạng thái ĐÃ XỬ LÝ XONG: Màu đen đậm (Light) / Trắng sáng (Dark)
+  // Light Mode Baseline
   &.ds-status-ready {
     color: #111827 !important;
     font-weight: 600;
   }
 
-  // Trạng thái CHỜ hoặc ĐANG XỬ LÝ: Màu xám
+  &.ds-status-processing {
+    color: #0284c7 !important;
+    font-weight: 600;
+  }
+
   &.ds-status-pending {
     color: #94a3b8 !important;
     font-weight: 400;
   }
 
-  &.ds-status-processing {
+  &.ds-status-idle {
     color: #475569 !important;
-    font-weight: 500;
+    font-weight: 400;
   }
 
-  // Trạng thái LỖI: Màu đỏ cảnh báo
   &.ds-status-error {
     color: #ef4444 !important;
     font-weight: 600;
+  }
+}
+
+// Dark Mode Overrides (Material Design 3 High Contrast)
+.bp4-dark, .toad-dark {
+  .ds-file-node-title {
+    &.ds-status-ready {
+      color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+      font-weight: 600;
+    }
+
+    &.ds-status-processing {
+      color: var(--md-sys-color-primary, #8ab4f8) !important;
+      font-weight: 600;
+    }
+
+    &.ds-status-pending {
+      color: var(--md-sys-color-on-surface-variant, #9da1b0) !important;
+      font-weight: 400;
+    }
+
+    &.ds-status-idle {
+      color: var(--md-sys-color-on-surface-variant, #9da1b0) !important;
+      font-weight: 400;
+    }
+
+    &.ds-status-error {
+      color: var(--md-sys-color-error, #f28b82) !important;
+      font-weight: 600;
+    }
+  }
+
+  .ds-file-progress-track {
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  // Tree Node Selection & Hover Ergonomics
+  .sidebar {
+    .bp4-tree-node-content:hover {
+      background-color: rgba(255, 255, 255, 0.06) !important;
+    }
+
+    .bp4-tree-node.bp4-tree-node-selected > .bp4-tree-node-content {
+      background-color: var(--md-sys-color-primary-container, #1f385c) !important;
+      color: #ffffff !important;
+
+      .ds-file-node-title {
+        color: #ffffff !important;
+      }
+    }
   }
 }
 

@@ -93,7 +93,8 @@ export const FileTreeItemLabel: React.FC<{
   const isReady = isCurrentActiveView || (item ? item.status === "ready" : false);
   const isProcessing = !isReady && (item ? item.status === "processing" : false);
   const isError = !isReady && (item ? item.status === "error" : false);
-  const isPending = !isReady && !isProcessing && !isError;
+  const isPending = !isReady && !isProcessing && !isError && (item ? item.status === "pending" : false);
+  const isIdle = !isReady && !isProcessing && !isError && (!item || item.status === "idle");
   const percent = item ? item.percent : 0;
 
   return (
@@ -107,7 +108,9 @@ export const FileTreeItemLabel: React.FC<{
               ? "ds-status-processing"
               : isError
               ? "ds-status-error"
-              : "ds-status-pending"
+              : isPending
+              ? "ds-status-pending"
+              : "ds-status-idle"
           }`}
           title={
             isError
@@ -116,7 +119,9 @@ export const FileTreeItemLabel: React.FC<{
               ? `${dsNode.displayName} (Sẵn sàng)`
               : isProcessing
               ? `${dsNode.displayName} - Đang nạp ${Math.round(percent)}%`
-              : `${dsNode.displayName} - Đang chờ nạp ngầm`
+              : isPending
+              ? `${dsNode.displayName} - Đang chờ nạp ngầm`
+              : `${dsNode.displayName} (Nhấp để mở tức thì)`
           }
         >
           {dsNode.displayName}

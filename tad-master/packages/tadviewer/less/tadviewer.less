@@ -321,3 +321,39 @@ html.bp4-dark ::-webkit-scrollbar-thumb:hover {
 html, body, .tad-app-pane {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
+
+/* ==========================================================================
+   Google Material 3 Dark Theme for Center Cards & Grid Borders (Toad v2.3.2)
+   ========================================================================== */
+.bp4-dark, .toad-dark {
+  #epGrid {
+    border-left-color: var(--md-sys-color-outline-variant, #3c3e47) !important;
+  }
+
+  .center-loading-pane,
+  .center-empty-pane,
+  .center-error-pane {
+    background-color: var(--md-sys-color-surface-dim, #18181c) !important;
+  }
+
+  .main-loading-card,
+  .main-empty-card,
+  .main-error-card {
+    background: var(--md-sys-color-surface-container, #25262c) !important;
+    border-color: var(--md-sys-color-outline-variant, #3c3e47) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .main-loading-title,
+  .main-empty-title {
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+  }
+
+  .main-loading-subtitle,
+  .main-empty-desc,
+  .main-loading-progress-stats,
+  .main-loading-hint {
+    color: var(--md-sys-color-on-surface-variant, #9da1b0) !important;
+  }
+}
+

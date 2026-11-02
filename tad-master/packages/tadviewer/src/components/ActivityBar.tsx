@@ -69,6 +69,7 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
+          gap: "8px",
         }}
       >
         <Button

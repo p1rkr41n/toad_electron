@@ -11,7 +11,7 @@ function getActions(): typeof import("./actions") {
   return _actions;
 }
 
-export type FileIngestStatus = "pending" | "processing" | "ready" | "error";
+export type FileIngestStatus = "idle" | "pending" | "processing" | "ready" | "error";
 
 export interface FileIngestItem {
   key: string;
@@ -269,8 +269,16 @@ export class MultipleLoadingManager {
     }
     let hasNew = false;
     const now = Date.now();
+    const MAX_IMMEDIATE_PRELOAD = 8;
+    let pendingCount = 0;
+    for (const f of this.files.values()) {
+      if (f.status === "pending" || f.status === "processing") {
+        pendingCount++;
+      }
+    }
 
-    for (const item of items) {
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
       const key = JSON.stringify(item.dsPath);
       const canonicalPath = getCanonicalPathFromDSPath(item.dsPath);
 
@@ -297,6 +305,16 @@ export class MultipleLoadingManager {
           }
         }
 
+        // Bounded Pre-load: Nếu thư mục quá nhiều tệp, chỉ nạp ngầm trước MAX_IMMEDIATE_PRELOAD tệp đầu,
+        // các tệp còn lại gắn trạng thái "idle" (On-Demand: nhấp để mở tức thì)
+        let initialStatus: FileIngestStatus = "idle";
+        if (isAlreadyReady) {
+          initialStatus = "ready";
+        } else if (pendingCount < MAX_IMMEDIATE_PRELOAD) {
+          initialStatus = "pending";
+          pendingCount++;
+        }
+
         this.files.set(key, {
           key,
           canonicalPath,
@@ -304,10 +322,10 @@ export class MultipleLoadingManager {
           dsc: item.dsc,
           fileName: item.fileName,
           fileSizeBytes: item.fileSizeBytes,
-          status: isAlreadyReady ? "ready" : "pending",
+          status: initialStatus,
           percent: isAlreadyReady ? 100 : 0,
           priority: 0,
-          addedTime: now,
+          addedTime: now + i,
           version: 1,
         });
         hasNew = true;
@@ -337,9 +355,10 @@ export class MultipleLoadingManager {
       return;
     }
 
-    // Đẩy priority lên cao nhất với bản sao bất biến
+    // Đẩy priority lên cao nhất với bản sao bất biến, đảm bảo status là "pending"
     const updated: FileIngestItem = {
       ...item,
+      status: "pending",
       priority: Date.now(),
       version: (item.version || 0) + 1,
     };
@@ -574,7 +593,27 @@ export class MultipleLoadingManager {
       }
 
       if (pendingList.length === 0) {
-        break;
+        // Nếu không còn file pending và queue rảnh hoàn toàn,
+        // thong thả kích hoạt dần tối đa 2 file idle kế tiếp
+        if (this.activeItems.size === 0) {
+          let promoted = 0;
+          for (const item of this.files.values()) {
+            if (item.status === "idle") {
+              const updatedItem: FileIngestItem = {
+                ...item,
+                status: "pending",
+                version: (item.version || 0) + 1,
+              };
+              this.files.set(item.key, updatedItem);
+              pendingList.push(updatedItem);
+              promoted++;
+              if (promoted >= 2) break;
+            }
+          }
+        }
+        if (pendingList.length === 0) {
+          break;
+        }
       }
 
       // Sắp xếp hàng đợi theo thuật toán:

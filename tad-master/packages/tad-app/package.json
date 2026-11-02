@@ -1,6 +1,6 @@
 {
   "name": "toad",
-  "version": "2.3.0",
+  "version": "2.3.2",
   "homepage": "https://example.com",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -37,7 +37,7 @@
   "author": "HelloKittyXamKinLung <dev@example.com>",
   "license": "MIT",
   "dependencies": {
-    "host-bridge": "^2.3.0",
+    "host-bridge": "^2.3.1",
     "aggtree": "^0.12.0",
     "command-line-args": "^5.2.0",
     "command-line-usage": "^6.1.1",

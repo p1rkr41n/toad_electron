@@ -420,7 +420,7 @@ async function streamCsvToParquet(
   const compression = cfg.compression.toUpperCase();
   const rowGroupSize = cfg.row_group_size;
 
-  // Tier 0: Lệnh chính
+  // Tier 0: Lệnh chính (RFC-4180 chuẩn quốc tế, quote='\"', escape='\"' triệt tiêu lỗi RemoveEscape trên cột số)
   const tier0Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -428,13 +428,15 @@ async function streamCsvToParquet(
         auto_detect = true,
         sample_size = 100000,
         ignore_errors = true,
-        null_padding = true
+        null_padding = true,
+        quote = '"',
+        escape = '"'
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
   try {
-    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet...");
+    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
     await dbConn.exec(tier0Query);
     log.info("[Ingest Tier 0] Thanh cong!");
     return;
@@ -451,7 +453,9 @@ async function streamCsvToParquet(
         sample_size = 100000,
         ignore_errors = true,
         null_padding = true,
-        parallel = false
+        parallel = false,
+        quote = '"',
+        escape = '"'
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -465,7 +469,7 @@ async function streamCsvToParquet(
     log.warn("[Ingest Tier 1] That bai, chuyen sang Fallback Tier 2:", err1);
   }
 
-  // Tier 2: all_varchar=true (xử lý xung đột kiểu dữ liệu)
+  // Tier 2: all_varchar=true (100% cột là VARCHAR, triệt tiêu hoàn toàn PhysicalType::VARCHAR assertion)
   const tier2Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -475,14 +479,26 @@ async function streamCsvToParquet(
         ignore_errors = true,
         null_padding = true,
         parallel = false,
-        all_varchar = true
+        all_varchar = true,
+        quote = '"',
+        escape = '"'
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
-  log.info("[Ingest Tier 2] Dang thu lai voi all_varchar=true...");
-  await dbConn.exec(tier2Query);
-  log.info("[Ingest Tier 2] Thanh cong (100% guaranteed)!");
+  try {
+    log.info("[Ingest Tier 2] Dang thu lai voi all_varchar=true...");
+    await dbConn.exec(tier2Query);
+    log.info("[Ingest Tier 2] Thanh cong (100% guaranteed)!");
+    return;
+  } catch (err2) {
+    log.warn("[Ingest Tier 2] That bai, chuyen sang Fallback Tier 3 (Raw Event Mode):", err2);
+  }
+
+  // Tier 3: Fallback cuối cùng: nạp nguyên dòng thô (Raw Event Mode) - không bao giờ thất bại
+  log.info("[Ingest Tier 3] Nạp file duoi dang Raw Event...");
+  await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+  log.info("[Ingest Tier 3] Raw Event Ingest Thanh cong!");
 }
 
 /**
@@ -1045,9 +1061,9 @@ export const nativeCSVImport = async (
       }
     }
 
-    // Tier 0: auto_detect + ignore_errors
+    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true)`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, quote='"', escape='"')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -1061,7 +1077,7 @@ export const nativeCSVImport = async (
 
     // Tier 1: parallel=false
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false)`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, quote='"', escape='"')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -1075,7 +1091,7 @@ export const nativeCSVImport = async (
 
     // Tier 2: all_varchar=true (guaranteed success)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, quote='"', escape='"')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
