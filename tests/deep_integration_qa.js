@@ -4043,6 +4043,74 @@ async function main() {
     assert(releaseNotes.includes("Toad v2.4.1"), "v2.4.1_NOTES.md must exist and document v2.4.1");
   });
 
+  await runTest("HH.7 Project Renaming via ToadParquetLedger, Manager & IPC", async () => {
+    const mainTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/app/main.ts");
+    const mainSrc = fs.readFileSync(mainTsPath, "utf8");
+    assert(mainSrc.includes('ipcMain.handle("project:rename"'), "main.ts must register project:rename IPC handler");
+
+    const pwmSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/ProjectWorkspaceManager.ts"), "utf8");
+    assert(pwmSrc.includes("renameProject(projectId: string, newName: string)"), "ProjectWorkspaceManager must define renameProject");
+
+    const sidebarSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx"), "utf8");
+    assert(sidebarSrc.includes('text="Rename Project..."'), "DataSourceSidebar context menu must include Rename Project");
+    assert(sidebarSrc.includes("handleRenameProjectSubmit"), "DataSourceSidebar must implement handleRenameProjectSubmit");
+
+    // Real ledger test for renameProject
+    const isolateDir = path.join(testTmpDir, "rename_project_test");
+    fs.mkdirSync(isolateDir, { recursive: true });
+    const ledgerPath = path.join(isolateDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Initial Project Name");
+    assert.strictEqual(ledger.getProjectName(prjId), "Initial Project Name", "Initial project name must match");
+
+    const renameOk = await ledger.renameProject(prjId, "New Renamed Project");
+    assert.strictEqual(renameOk, true, "renameProject must return true for valid project");
+    assert.strictEqual(ledger.getProjectName(prjId), "New Renamed Project", "Project name must be updated in memory");
+
+    // Replay from ledger to verify persistence
+    const reloadedLedger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await reloadedLedger.initLedger();
+    assert.strictEqual(reloadedLedger.getProjectName(prjId), "New Renamed Project", "Renamed project name must persist across ledger replay");
+  });
+
+  await runTest("HH.8 File Node Click Unimpeded & Processing Indicator", async () => {
+    const sidebarSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx"), "utf8");
+    // Verify stopPropagation has been removed from file-node-meta
+    assert(!sidebarSrc.includes('className="file-node-meta" onClick={(e) => e.stopPropagation()}'),
+      "file-node-meta must NOT stop propagation so status dots, row counts, and reload badges receive clicks");
+    assert(sidebarSrc.includes("file-node-percent"), "file-node-meta must render file-node-percent for processing indication");
+  });
+
+  await runTest("HH.9 Context Menu Positioning Bounds, Scroll Dismissal & Theming", async () => {
+    const sidebarSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx"), "utf8");
+    const lessSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/less/sidebar.less"), "utf8");
+
+    // Bounds protection in context menu positioning
+    assert(sidebarSrc.includes("Math.max(10, Math.min(projectContextMenu.x"), "Context menu must bound X coordinates [10, innerWidth - 230]");
+    assert(sidebarSrc.includes("Math.max(10, Math.min(projectContextMenu.y"), "Context menu must bound Y coordinates [10, innerHeight - 260]");
+
+    // Dismissal on wheel and scroll
+    assert(sidebarSrc.includes('window.addEventListener("wheel", handleCloseMenu'), "Context menu must dismiss on window wheel event");
+    assert(sidebarSrc.includes('window.addEventListener("scroll", handleCloseMenu'), "Context menu must dismiss on window scroll event");
+
+    // LESS theme support
+    assert(lessSrc.includes(".toad-context-menu-header"), "sidebar.less must style .toad-context-menu-header");
+    assert(lessSrc.includes(".toad-project-context-menu"), "sidebar.less must style .toad-project-context-menu");
+  });
+
+  await runTest("HH.10 Active Project Accent, Reserved Hover Bounds & In-Flow Orphan Header Actions", async () => {
+    const lessSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/less/sidebar.less"), "utf8");
+    const sidebarSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx"), "utf8");
+
+    assert(lessSrc.includes("border-left: 2px solid #0284c7"), "sidebar.less must style active project left border accent in Light mode");
+    assert(lessSrc.includes("border-left-color: #38bdf8"), "sidebar.less must style active project left border accent in Dark mode");
+    assert(lessSrc.includes("min-width: 88px"), "sidebar.less must reserve at least 88px for .project-node-right to prevent hover action overlap");
+    assert(sidebarSrc.includes("project-orphan-actions"), "DataSourceSidebar.tsx must render in-flow project-orphan-actions");
+    assert(sidebarSrc.includes("isExpanded: q ? true : isExpanded"), "DataSourceSidebar.tsx must auto-expand matching projects during search filtering");
+  });
+
   // Cleanup temporary directory
   try {
     fs.rmSync(testTmpDir, { recursive: true, force: true });

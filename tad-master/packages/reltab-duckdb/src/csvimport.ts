@@ -509,6 +509,39 @@ export class ToadParquetLedger {
     return id;
   }
 
+  public async renameProject(
+    projectId: string,
+    newName: string
+  ): Promise<boolean> {
+    if (!projectId || projectId === "orphan_prj") return false;
+    const name = (newName || "").trim();
+    if (!name) return false;
+    const proj = this.projects.get(projectId);
+    if (!proj) return false;
+
+    proj.projectName = name;
+
+    await this.recordEvent({
+      event_id: `prj-ren-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type: "PROJECT_CREATE",
+      timestamp: Date.now(),
+      project_id: projectId,
+      project_name: name,
+      source_path: "",
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "READY",
+      duration_ms: 0,
+      extra_json: JSON.stringify({ renamed: true }),
+    });
+
+    this.notifyChange();
+    return true;
+  }
+
   public getProjectCacheSize(projectId: string): {
     fileCount: number;
     totalBytes: number;
