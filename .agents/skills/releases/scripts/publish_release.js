@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const version = process.argv[2] || '2.3.5';
+const version = process.argv[2] || '2.4.0';
 const owner = 'p1rkr41n';
 const repo = 'toad_electron';
 
@@ -38,7 +38,7 @@ async function main() {
     body += `\n\n### 🛡️ Checksums & Integrity\n\`\`\`\n${checksums}\n\`\`\``;
   }
 
-  const releaseTitle = `Toad v${version} - Session Auto-Restore, Modified Red Status & Orphan Purge Release`;
+  const releaseTitle = `Toad v${version} - Multi-Project Workspace Navigator & Cascade Cleanup Release`;
 
   // 1. Check if release already exists
   let releaseId = null;
