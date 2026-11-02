@@ -85,7 +85,14 @@ export interface DbDriver {
 
   // Double-Valid Parquet Ledger check (fast synchronous check)
   isCacheReady?(path: DataSourcePath): boolean;
+  getCacheStatus?(path: DataSourcePath): CacheValidityStatus;
 }
+
+export type CacheValidityStatus =
+  | "VALID"
+  | "MODIFIED"
+  | "CORRUPTED"
+  | "UNPROCESSED";
 
 /**
  * A local or remote connection to a data source.
@@ -119,6 +126,7 @@ export interface DataSourceConnection {
 
   // Double-Valid Parquet Ledger check (fast synchronous check)
   isCacheReady?(path: DataSourcePath): boolean;
+  getCacheStatus?(path: DataSourcePath): CacheValidityStatus;
 }
 
 /**
@@ -294,10 +302,23 @@ export class DbDataSource implements DataSourceConnection {
   }
 
   isCacheReady(path: DataSourcePath): boolean {
+    if (typeof (this.db as any).getCacheStatus === "function") {
+      return (this.db as any).getCacheStatus(path) === "VALID";
+    }
     if (typeof (this.db as any).isCacheReady === "function") {
       return (this.db as any).isCacheReady(path);
     }
     return false;
+  }
+
+  getCacheStatus(path: DataSourcePath): CacheValidityStatus {
+    if (typeof (this.db as any).getCacheStatus === "function") {
+      return (this.db as any).getCacheStatus(path);
+    }
+    if (typeof (this.db as any).isCacheReady === "function") {
+      return (this.db as any).isCacheReady(path) ? "VALID" : "UNPROCESSED";
+    }
+    return "UNPROCESSED";
   }
 }
 

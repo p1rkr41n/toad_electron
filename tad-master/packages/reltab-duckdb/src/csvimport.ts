@@ -254,6 +254,8 @@ export interface ToadLedgerEntry {
   status: "STARTED" | "READY" | "ERROR" | "STALE";
   duration_ms: number;
   extra_json: string;
+  src_bytes?: number;
+  src_mtime_ms?: number;
 }
 
 /**
@@ -299,6 +301,10 @@ export class ToadParquetLedger {
 
   public getEntry(sourcePath: string): ToadLedgerEntry | undefined {
     return this.cache.get(this.normalizePath(sourcePath));
+  }
+
+  public getSnapshot(sourcePath: string): ToadLedgerEntry | undefined {
+    return this.getEntry(sourcePath);
   }
 
   public getAllEntries(): ToadLedgerEntry[] {
@@ -433,11 +439,19 @@ export interface NativeCSVImportOptions {
   forceReopen?: boolean;
 }
 
+export type CacheValidityStatus =
+  | "VALID"
+  | "MODIFIED"
+  | "CORRUPTED"
+  | "UNPROCESSED";
+
 export interface ParquetCachePaths {
   parquetPath: string;
   tmpPath: string;
   cacheKey: string;
 }
+
+export type DeterministicParquetPaths = ParquetCachePaths;
 
 /**
  * Sinh đường dẫn Parquet xác định (deterministic) dựa trên canonical path của file nguồn
@@ -474,6 +488,53 @@ export function getDeterministicParquetPath(
 }
 
 /**
+ * Thẩm định Parquet cache chi tiết theo trạng thái 4 cấp độ:
+ * - "VALID"      : File nguồn và Parquet cache khớp 100% với Ledger -> Xanh lá / Sẵn sàng tức thì
+ * - "MODIFIED"   : File nguồn đã bị sửa đổi (mtime hoặc size lệch) -> Cảnh báo ĐỎ CAM #ef4444
+ * - "CORRUPTED"  : Bản ghi READY tồn tại nhưng file Parquet vật lý bị mất hoặc size = 0
+ * - "UNPROCESSED": Chưa từng nạp hoặc đang dở dang / forceReopen=true
+ */
+export function getCacheValidityStatus(
+  filePath: string,
+  cachedPaths?: DeterministicParquetPaths | null,
+  forceReopen: boolean = false
+): CacheValidityStatus {
+  if (forceReopen) return "UNPROCESSED";
+  const ledger = ToadParquetLedger.getInstance();
+  const entry = ledger.getSnapshot(filePath);
+  if (!entry || entry.status !== "READY") return "UNPROCESSED";
+
+  if (!fs.existsSync(filePath)) return "UNPROCESSED";
+  let srcStat: fs.Stats;
+  try {
+    srcStat = fs.statSync(filePath);
+  } catch {
+    return "UNPROCESSED";
+  }
+
+  // Level 1: Kiểm tra tệp nguồn
+  const entryMtime = (entry as any).src_mtime_ms !== undefined ? (entry as any).src_mtime_ms : entry.source_mtime;
+  const entrySize = (entry as any).src_bytes !== undefined ? (entry as any).src_bytes : entry.source_size;
+  const isTimeMatch = Math.abs(srcStat.mtimeMs - Number(entryMtime)) <= 1000;
+  const isSizeMatch = srcStat.size === Number(entrySize);
+  if (!isTimeMatch || !isSizeMatch) {
+    return "MODIFIED"; // Phát hiện tệp đã bị sửa đổi!
+  }
+
+  // Level 2: Kiểm tra tệp cache Parquet vật lý
+  const parquetPath = cachedPaths?.parquetPath || entry.parquet_path;
+  if (!parquetPath || !fs.existsSync(parquetPath)) return "CORRUPTED";
+  try {
+    const pStat = fs.statSync(parquetPath);
+    if (pStat.size === 0 || pStat.size !== Number(entry.parquet_size)) return "CORRUPTED";
+  } catch {
+    return "CORRUPTED";
+  }
+
+  return "VALID";
+}
+
+/**
  * Double Validation Engine: Thẩm định Parquet cache 2 tầng:
  * - Level 1 (Source Freshness): Kiểm tra mtime và size của file nguồn đối chiếu với Ledger.
  * - Level 2 (Physical Cache Integrity): Kiểm tra file Parquet tồn tại và size khớp với Ledger.
@@ -507,28 +568,7 @@ export function checkDoubleValidCache(
 
     // LEVEL 1 & 2: Double Validation khi có bản ghi trong Ledger
     if (entry && entry.status === "READY") {
-      // 1.1 Source size
-      if (srcStat.size !== entry.source_size) {
-        log.info(
-          `[DoubleValid] Level 1 Fail: Kich thuoc nguon thay doi (${srcStat.size} vs ${entry.source_size}) cho ${filePath}`
-        );
-        return false;
-      }
-      // 1.2 Source mtime (dung sai 1000ms do filesystem timestamp precision)
-      if (Math.abs(srcStat.mtimeMs - entry.source_mtime) > 1000) {
-        log.info(
-          `[DoubleValid] Level 1 Fail: Thoi gian sua doi nguon thay doi (${srcStat.mtimeMs} vs ${entry.source_mtime}) cho ${filePath}`
-        );
-        return false;
-      }
-      // 2.1 Parquet physical size
-      if (parquetStat.size !== entry.parquet_size) {
-        log.info(
-          `[DoubleValid] Level 2 Fail: Kich thuoc Parquet thay doi (${parquetStat.size} vs ${entry.parquet_size}) cho ${filePath}`
-        );
-        return false;
-      }
-      return true;
+      return getCacheValidityStatus(filePath, cachedInfo, forceReopen) === "VALID";
     }
 
     // Fallback: Legacy Parquet Cache (so sánh mtime nguồn vs parquet)

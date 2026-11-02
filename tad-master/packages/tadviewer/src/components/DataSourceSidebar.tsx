@@ -91,10 +91,11 @@ export const FileTreeItemLabel: React.FC<{
   }, [appState.viewState?.dsPath, key, canonicalPath]);
 
   const isReady = isCurrentActiveView || (item ? item.status === "ready" : false);
-  const isProcessing = !isReady && (item ? item.status === "processing" : false);
-  const isError = !isReady && (item ? item.status === "error" : false);
-  const isPending = !isReady && !isProcessing && !isError && (item ? item.status === "pending" : false);
-  const isIdle = !isReady && !isProcessing && !isError && (!item || item.status === "idle");
+  const isModified = !isReady && (item ? item.status === "modified" : false);
+  const isProcessing = !isReady && !isModified && (item ? item.status === "processing" : false);
+  const isError = !isReady && !isModified && (item ? item.status === "error" : false);
+  const isPending = !isReady && !isModified && !isProcessing && !isError && (item ? item.status === "pending" : false);
+  const isIdle = !isReady && !isModified && !isProcessing && !isError && (!item || item.status === "idle");
   const percent = item ? item.percent : 0;
 
   return (
@@ -104,6 +105,8 @@ export const FileTreeItemLabel: React.FC<{
           className={`ds-file-node-title ${
             isReady
               ? "ds-status-ready"
+              : isModified
+              ? "ds-status-modified"
               : isProcessing
               ? "ds-status-processing"
               : isError
@@ -113,7 +116,9 @@ export const FileTreeItemLabel: React.FC<{
               : "ds-status-idle"
           }`}
           title={
-            isError
+            isModified
+              ? "File nguồn đã bị sửa đổi! Nhấp để nạp lại bản mới nhất"
+              : isError
               ? `Lỗi: ${item?.error || "Không thể nạp tệp"}`
               : isReady
               ? `${dsNode.displayName} (Sẵn sàng)`
@@ -126,6 +131,9 @@ export const FileTreeItemLabel: React.FC<{
         >
           {dsNode.displayName}
         </span>
+        {isModified && (
+          <span className="ds-file-node-modified-badge">MODIFIED</span>
+        )}
         {isProcessing && (
           <span className="ds-file-node-percent">{Math.round(percent)}%</span>
         )}

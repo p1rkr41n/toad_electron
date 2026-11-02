@@ -209,6 +209,16 @@ export const createFromFile = async (
   if (!isIPFSPath(targetPath)) {
     realTargetPath = await fsPromises.realpath(targetPath);
   }
+  try {
+    const stat = fs.statSync(realTargetPath);
+    if (stat.isDirectory()) {
+      const env = (global as any).toadPortableEnv;
+      if (env?.appDataDir) {
+        const { updateLastOpenedDirectory } = require("./portableAppData");
+        updateLastOpenedDirectory(env.appDataDir, realTargetPath);
+      }
+    }
+  } catch {}
   const openParams = fileOpenParams(realTargetPath);
   const win = await create(openParams);
   return win;
@@ -260,6 +270,16 @@ export const openDialog = async (
   const openPaths = openRet.filePaths;
   if (openPaths && openPaths.length > 0) {
     const filePath = openPaths[0];
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.isDirectory()) {
+        const env = (global as any).toadPortableEnv;
+        if (env?.appDataDir) {
+          const { updateLastOpenedDirectory } = require("./portableAppData");
+          updateLastOpenedDirectory(env.appDataDir, filePath);
+        }
+      }
+    } catch {}
     const openParams = fileOpenParams(filePath);
     if (win && isInitialized(win.id)) {
       win.webContents.send("open-file", {

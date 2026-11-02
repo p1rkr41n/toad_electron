@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 
-const version = process.argv[2] || '2.3.4';
+const version = process.argv[2] || '2.3.5';
 const owner = 'p1rkr41n';
 const repo = 'toad_electron';
 

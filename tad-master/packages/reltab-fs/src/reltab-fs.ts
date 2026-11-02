@@ -4,6 +4,7 @@ import * as path from "path";
 import * as fsPromises from "fs/promises";
 
 import {
+  CacheValidityStatus,
   ColumnStatsMap,
   DataSourceConnection,
   DataSourceId,
@@ -219,6 +220,10 @@ export class FSDriver implements DbDriver {
    * Double-Valid Parquet Ledger check (kiểm tra nhanh đồng bộ trạng thái cache)
    */
   isCacheReady(dsPath: DataSourcePath): boolean {
+    return this.getCacheStatus(dsPath) === "VALID";
+  }
+
+  getCacheStatus(dsPath: DataSourcePath): CacheValidityStatus {
     try {
       const targetPath = this.getTargetPath(dsPath);
       const cfg = reltabDuckDB.getIngestConfig();
@@ -226,9 +231,9 @@ export class FSDriver implements DbDriver {
         targetPath,
         cfg.temp_dir
       );
-      return reltabDuckDB.checkDoubleValidCache(targetPath, cachedPaths);
+      return reltabDuckDB.getCacheValidityStatus(targetPath, cachedPaths);
     } catch {
-      return false;
+      return "UNPROCESSED";
     }
   }
 

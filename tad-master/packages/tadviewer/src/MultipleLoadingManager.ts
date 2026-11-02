@@ -11,7 +11,7 @@ function getActions(): typeof import("./actions") {
   return _actions;
 }
 
-export type FileIngestStatus = "idle" | "pending" | "processing" | "ready" | "error";
+export type FileIngestStatus = "idle" | "pending" | "processing" | "ready" | "error" | "modified";
 
 export interface FileIngestItem {
   key: string;
@@ -294,6 +294,17 @@ export class MultipleLoadingManager {
         if (existing.fileSizeBytes === undefined && item.fileSizeBytes !== undefined) {
           existing.fileSizeBytes = item.fileSizeBytes;
         }
+        if (item.dsc && typeof (item.dsc as any).getCacheStatus === "function") {
+          try {
+            const cs = (item.dsc as any).getCacheStatus(item.dsPath);
+            if (cs === "MODIFIED" && existing.status !== "modified" && existing.status !== "processing") {
+              existing.status = "modified";
+              existing.percent = 0;
+              existing.version = (existing.version || 0) + 1;
+              hasNew = true;
+            }
+          } catch {}
+        }
       } else {
         // Kiểm tra xem tệp này đã được nạp sẵn sàng ở 1 nguồn khác chưa (cache hit)
         let isAlreadyReady = false;
@@ -306,20 +317,34 @@ export class MultipleLoadingManager {
         }
 
         // DOUBLE-VALID PARQUET LEDGER CHECK:
-        // Kiểm tra tức thì xem file này đã có Parquet cache hợp lệ trên đĩa chưa
-        if (!isAlreadyReady && item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
+        let cacheStatus: reltab.CacheValidityStatus = "UNPROCESSED";
+        if (item.dsc && typeof (item.dsc as any).getCacheStatus === "function") {
           try {
-            isAlreadyReady = (item.dsc as any).isCacheReady(item.dsPath);
+            cacheStatus = (item.dsc as any).getCacheStatus(item.dsPath);
+          } catch { }
+        } else if (item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
+          try {
+            if ((item.dsc as any).isCacheReady(item.dsPath)) {
+              cacheStatus = "VALID";
+            }
           } catch { }
         }
 
-        // Bounded Pre-load: Nếu thư mục quá nhiều tệp, chỉ nạp ngầm trước MAX_IMMEDIATE_PRELOAD tệp đầu,
-        // các tệp còn lại gắn trạng thái "idle" (On-Demand: nhấp để mở tức thì)
         let initialStatus: FileIngestStatus = "idle";
-        if (isAlreadyReady) {
+        let initialPercent = 0;
+
+        if (cacheStatus === "VALID") {
           initialStatus = "ready";
+          initialPercent = 100;
+        } else if (cacheStatus === "MODIFIED") {
+          initialStatus = "modified";
+          initialPercent = 0;
+        } else if (isAlreadyReady) {
+          initialStatus = "ready";
+          initialPercent = 100;
         } else if (pendingCount < MAX_IMMEDIATE_PRELOAD) {
           initialStatus = "pending";
+          initialPercent = 0;
           pendingCount++;
         }
 
@@ -331,7 +356,7 @@ export class MultipleLoadingManager {
           fileName: item.fileName,
           fileSizeBytes: item.fileSizeBytes,
           status: initialStatus,
-          percent: isAlreadyReady ? 100 : 0,
+          percent: initialPercent,
           priority: 0,
           addedTime: now + i,
           version: 1,
@@ -349,14 +374,33 @@ export class MultipleLoadingManager {
   /**
    * Người dùng click vào file: Đẩy độ ưu tiên cao nhất để nạp ngay!
    */
-  public prioritize(key: string, stateRef?: StateRef<AppState>) {
+  public prioritize(keyOrCanon: string, stateRef?: StateRef<AppState>) {
     if (stateRef) {
       this.stateRef = stateRef;
     }
-    const item = this.files.get(key);
+    const item = this.files.get(keyOrCanon) || this.getItemByCanonical(keyOrCanon);
     if (!item) return;
+    const key = item.key;
 
     this.pendingActiveOpenKey = key;
+
+    // Nếu là "modified", kích hoạt nạp lại từ nguồn (forceReopen)
+    if (item.status === "modified") {
+      log.info(`[MultipleLoading] File ${item.fileName} bi MODIFIED, uu tien nap lai tu nguon voi forceReopen=true`);
+      const processingItem: FileIngestItem = {
+        ...item,
+        status: "processing",
+        percent: 0,
+        priority: Date.now() + 1000000,
+        version: (item.version || 0) + 1,
+      };
+      this.activeItems.set(item.key, processingItem);
+      this.files.set(item.key, processingItem);
+      const siblingKeys = this.canonicalMap.get(processingItem.canonicalPath);
+      this.notify();
+      this.dispatchWorker(processingItem, siblingKeys, { forceReopen: true });
+      return;
+    }
 
     // Nếu đã ready rồi thì không cần xếp hàng
     if (item.status === "ready") {
@@ -364,7 +408,20 @@ export class MultipleLoadingManager {
     }
 
     // Double-Valid Parquet Ledger check: nếu cache đã hợp lệ thì mark ready tức thì
-    if (item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
+    if (item.dsc && typeof (item.dsc as any).getCacheStatus === "function") {
+      try {
+        const cStatus = (item.dsc as any).getCacheStatus(item.dsPath);
+        if (cStatus === "VALID") {
+          this.markReady(item.dsPath);
+          return;
+        } else if (cStatus === "MODIFIED") {
+          const modItem = { ...item, status: "modified" as FileIngestStatus };
+          this.files.set(key, modItem);
+          this.prioritize(key, stateRef);
+          return;
+        }
+      } catch { }
+    } else if (item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
       try {
         if ((item.dsc as any).isCacheReady(item.dsPath)) {
           this.markReady(item.dsPath);
@@ -716,7 +773,8 @@ export class MultipleLoadingManager {
    */
   private async dispatchWorker(
     processingItem: FileIngestItem,
-    siblingKeys?: Set<string>
+    siblingKeys?: Set<string>,
+    options?: { forceReopen?: boolean }
   ) {
     const targetItem = processingItem;
     const sizeMb = ((processingItem.fileSizeBytes || 0) / (1024 * 1024)).toFixed(2);
@@ -726,7 +784,10 @@ export class MultipleLoadingManager {
 
     try {
       // Gọi getTableName để DuckDB import file và tạo parquet cache
-      const tableName = await processingItem.dsc.getTableName(processingItem.dsPath, { isBackground: true });
+      const tableName = await processingItem.dsc.getTableName(processingItem.dsPath, {
+        isBackground: true,
+        forceReopen: options?.forceReopen === true,
+      } as any);
       log.info(
         `[MultipleLoading] Hoan tat nạp file ${processingItem.fileName} thanh cong -> Bang: ${tableName}`
       );

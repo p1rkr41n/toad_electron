@@ -25,6 +25,8 @@ export interface ToadConfig {
     page_size: number;
     max_concurrent_files: number;
     max_concurrent_gb: number;
+    auto_restore_last_directory: boolean;
+    last_directory: string;
   };
   duckdb: {
     max_memory: string;
@@ -64,6 +66,8 @@ export const DEFAULT_CONFIG: ToadConfig = {
     page_size: 1000,
     max_concurrent_files: 4,
     max_concurrent_gb: 1,
+    auto_restore_last_directory: true,
+    last_directory: "",
   },
   duckdb: {
     max_memory: "auto",
@@ -103,6 +107,10 @@ page_size = 1000
 max_concurrent_files = 4
 # Maximum concurrent data processing budget in GB (default: 1, unit is GB)
 max_concurrent_gb = 1
+# Automatically restore last opened directory on startup (true/false)
+auto_restore_last_directory = true
+# Last opened directory path
+last_directory = 
 
 [duckdb]
 # Maximum RAM allocated for DuckDB engine:
@@ -291,6 +299,8 @@ language = ${cfg.general.language}
 page_size = ${cfg.general.page_size}
 max_concurrent_files = ${cfg.general.max_concurrent_files}
 max_concurrent_gb = ${cfg.general.max_concurrent_gb}
+auto_restore_last_directory = ${cfg.general.auto_restore_last_directory}
+last_directory = ${cfg.general.last_directory}
 
 [duckdb]
 max_memory = ${cfg.duckdb.max_memory}
@@ -437,6 +447,22 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
     needRewrite = true;
   }
 
+  const auto_restore_last_directory =
+    parsed.general?.auto_restore_last_directory !== undefined
+      ? String(parsed.general.auto_restore_last_directory).toLowerCase() === "true"
+      : (() => {
+          needRewrite = true;
+          return DEFAULT_CONFIG.general.auto_restore_last_directory;
+        })();
+
+  const last_directory =
+    parsed.general?.last_directory !== undefined
+      ? String(parsed.general.last_directory).trim()
+      : (() => {
+          needRewrite = true;
+          return DEFAULT_CONFIG.general.last_directory;
+        })();
+
   // [duckdb]
   let max_memory =
     parsed.duckdb?.max_memory || DEFAULT_CONFIG.duckdb.max_memory;
@@ -537,6 +563,8 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       page_size,
       max_concurrent_files,
       max_concurrent_gb,
+      auto_restore_last_directory,
+      last_directory,
     },
     duckdb: { max_memory, threads, background_threads, add_raw_event },
     parquet: {
@@ -701,6 +729,81 @@ export function cleanTempDir(tempDir: string): void {
   }
 }
 
+/**
+ * Cập nhật last_directory vào config.ini và memory config khi người dùng mở thư mục
+ */
+export function updateLastOpenedDirectory(appDataDir: string, dirPath: string): void {
+  try {
+    if (!dirPath) return;
+    let targetDir = dirPath;
+    if (fs.existsSync(dirPath)) {
+      const stat = fs.statSync(dirPath);
+      if (!stat.isDirectory()) {
+        targetDir = path.dirname(dirPath);
+      }
+    }
+    const configPath = path.join(appDataDir, "config.ini");
+    if (!fs.existsSync(configPath)) return;
+
+    // Cập nhật bộ nhớ config hiện tại nếu có
+    const env = (global as any).toadPortableEnv;
+    if (env && env.config && env.config.general) {
+      env.config.general.last_directory = targetDir;
+    }
+
+    let content = fs.readFileSync(configPath, "utf8");
+    if (/^\s*last_directory\s*=/m.test(content)) {
+      content = content.replace(/^\s*last_directory\s*=.*$/m, `last_directory = ${targetDir}`);
+    } else {
+      content = content.replace(/\[general\]/i, `[general]\nlast_directory = ${targetDir}`);
+    }
+    fs.writeFileSync(configPath, content, "utf8");
+    log.info(`[PortableAppData] Da cap nhat last_directory vao config.ini: ${targetDir}`);
+  } catch (err) {
+    log.warn("[PortableAppData] Khong the cap nhat last_directory:", err);
+  }
+}
+
+export const setLastOpenedDirectory = updateLastOpenedDirectory;
+
+/**
+ * Quét dọn các file tạm dở dang mồ côi (*.tmp, *.tmp_*.parquet) từ các phiên bị crash trước đó.
+ * Được gọi ngay khi khởi động ứng dụng (không phụ thuộc temp_cleanup).
+ * Tuyệt đối bảo tồn các tệp cache hoàn chỉnh (*_cached_*.parquet) và state ledger (*_ledger.parquet).
+ */
+export function purgeOrphanTempFiles(tempDir: string): number {
+  let purgedCount = 0;
+  try {
+    if (!fs.existsSync(tempDir)) return 0;
+    const entries = fs.readdirSync(tempDir);
+    for (const entry of entries) {
+      if (entry === "toad_ledger.parquet" || entry.endsWith("_ledger.parquet")) {
+        continue; // Bảo tồn state ledger
+      }
+      // Nhận diện file rác tạm: đuôi .tmp hoặc chứa .tmp_ (ví dụ sample_40gb_cached_*.tmp_1793626527527.parquet)
+      const isOrphan = entry.endsWith(".tmp") || entry.includes(".tmp_");
+      if (isOrphan) {
+        const fullPath = path.join(tempDir, entry);
+        try {
+          const stat = fs.statSync(fullPath);
+          if (stat.isDirectory()) {
+            fs.rmSync(fullPath, { recursive: true, force: true });
+          } else {
+            fs.unlinkSync(fullPath);
+          }
+          purgedCount++;
+          log.info(`[OrphanPurge] Da don file rac mo coi: ${entry}`);
+        } catch (err: any) {
+          log.warn(`[OrphanPurge] Khong the xoa file mo coi ${entry}:`, err?.message);
+        }
+      }
+    }
+  } catch (err: any) {
+    log.warn("[OrphanPurge] Loi khi quet thu muc temp:", err?.message);
+  }
+  return purgedCount;
+}
+
 // =============================================================================
 // ENTRYPOINT: Khởi tạo toàn bộ Portable Environment
 // =============================================================================
@@ -735,6 +838,12 @@ export function initPortableEnvironment(): PortableEnvironment {
   // ĐỌC VÀ VALIDATE CONFIG TRƯỚC TIÊN
   const config = validateAndEnsureConfig(configPath);
   validateAndEnsurePresets(presetsPath);
+
+  // Quét dọn các file dở dang mồ côi (*.tmp_*.parquet) từ các lần crash trước
+  const orphanPurged = purgeOrphanTempFiles(tempDir);
+  if (orphanPurged > 0) {
+    log.info(`[PortableAppData] Startup Orphan Cleaner da giai phong ${orphanPurged} file rac do dang`);
+  }
 
   // Chỉ dọn dẹp file temp tồn đọng nếu temp_cleanup = true trong config.ini
   if (config.system.temp_cleanup) {
