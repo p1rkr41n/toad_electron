@@ -1,8 +1,8 @@
 $ErrorActionPreference = "Stop"
 
 $rootDir = $PSScriptRoot
-$nodePath = "$rootDir\node-v18.20.4-win-x64"
-$gitPath = "$rootDir\mingit\cmd"
+$nodePath = if (Test-Path "$rootDir\node-v18.20.4-win-x64") { "$rootDir\node-v18.20.4-win-x64" } else { "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64" }
+$gitPath = if (Test-Path "$rootDir\mingit\cmd") { "$rootDir\mingit\cmd" } else { "D:\Shared_UserData\Downloads\tad\mingit\cmd" }
 $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
