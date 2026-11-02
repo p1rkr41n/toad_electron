@@ -108,6 +108,7 @@ export class MultipleLoadingManager {
   private maxConcurrentGB: number = 1;
 
   private constructor() {
+    (globalThis as any).multipleLoadingManagerInstance = this;
     this.loadConfig();
     this.startPollingLoop();
   }
@@ -248,8 +249,30 @@ export class MultipleLoadingManager {
     this.firstPageCache.set(keyOrCanon, entry);
   }
 
-  public clearFirstPageCache(): void {
-    this.firstPageCache.clear();
+  public clearFirstPageCache(targetKeyOrPath?: string): void {
+    if (targetKeyOrPath) {
+      this.firstPageCache.delete(targetKeyOrPath);
+      const canon = targetKeyOrPath.replace(/[\/\\]+/g, "\\").toLowerCase();
+      this.firstPageCache.delete(canon);
+    } else {
+      this.firstPageCache.clear();
+    }
+  }
+
+  public unregisterFile(filePathOrKey: string): void {
+    const canon = filePathOrKey.replace(/[\/\\]+/g, "\\").toLowerCase();
+    const keySet = this.canonicalMap.get(canon);
+    if (keySet) {
+      for (const k of keySet) {
+        this.files.delete(k);
+        this.activeItems.delete(k);
+      }
+      this.canonicalMap.delete(canon);
+    }
+    this.files.delete(filePathOrKey);
+    this.activeItems.delete(filePathOrKey);
+    this.clearFirstPageCache(filePathOrKey);
+    this.notify();
   }
 
   /**

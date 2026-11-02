@@ -182,7 +182,7 @@ export class ProjectWorkspaceManager {
       const files = ledger.getProjectFiles(projectId);
       return files.map((f: any) => ({
         filePath: f.source_path,
-        fileName: path.basename(f.source_path),
+        fileName: path.basename(f.source_path || ""),
         projectId: f.project_id || projectId,
         projectName: f.project_name || "Untitled-1",
         fileSizeBytes: f.source_size,
@@ -225,7 +225,9 @@ export class ProjectWorkspaceManager {
       const { MultipleLoadingManager } = require("./MultipleLoadingManager");
       const files = await this.getProjectFiles(projectId);
       for (const f of files) {
-        MultipleLoadingManager.getInstance().clearFirstPageCache(f.filePath);
+        if (f.filePath) {
+          MultipleLoadingManager.getInstance().unregisterFile(f.filePath);
+        }
       }
     } catch {}
 
@@ -238,7 +240,10 @@ export class ProjectWorkspaceManager {
         this.notify();
         setTimeout(async () => {
           const ws = await this.getWorkspace();
-          if (ws.projects.length === 0) {
+          const nonOrphan = (ws.projects || []).filter(
+            (p: any) => !p.isOrphan && p.status !== "DELETED"
+          );
+          if (nonOrphan.length === 0) {
             await this.createProject("Untitled-1", "prj_untitled_1");
           }
           this.notify();
@@ -255,7 +260,10 @@ export class ProjectWorkspaceManager {
       this.notify();
       setTimeout(async () => {
         const ws = await this.getWorkspace();
-        if (ws.projects.length === 0) {
+        const nonOrphan = (ws.projects || []).filter(
+          (p: any) => !p.isOrphan && p.status !== "DELETED"
+        );
+        if (nonOrphan.length === 0) {
           await this.createProject("Untitled-1", "prj_untitled_1");
         }
         this.notify();
