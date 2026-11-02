@@ -386,6 +386,20 @@
       overflow: hidden;
     }
   }
+
+  .bp4-tree-node.bp4-tree-node-selected > .bp4-tree-node-content {
+    background-color: #0284c7 !important;
+    color: #ffffff !important;
+
+    .file-node-title,
+    .ds-file-node-title {
+      color: #ffffff !important;
+    }
+
+    .file-node-rowcount {
+      color: rgba(255, 255, 255, 0.8) !important;
+    }
+  }
 }
 
 /* ==========================================================================
@@ -462,6 +476,9 @@
   overflow: hidden;
 
   &.is-active {
+    border-left: 2px solid #0284c7;
+    padding-left: 4px;
+
     .project-title-text {
       color: #0284c7;
       font-weight: 700;
@@ -524,6 +541,8 @@
     position: relative;
     flex: 0 0 auto;
     margin-left: 6px;
+    min-width: 88px;
+    justify-content: flex-end;
 
     .project-meta-pill {
       font-size: 10px;
@@ -554,6 +573,19 @@
           font-size: 12px;
         }
       }
+    }
+
+    .project-orphan-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+
+      .orphan-pill {
+        font-size: 10px;
+        color: #64748b;
+        white-space: nowrap;
+        opacity: 1 !important;
+      }
 
       .project-orphan-move-btn {
         padding: 1px 6px;
@@ -561,7 +593,6 @@
         line-height: 20px;
         font-size: 10px;
         font-weight: 600;
-        opacity: 0.95;
       }
     }
   }
@@ -570,7 +601,7 @@
 // Hover trigger: Reveal action icons, fade meta text
 .bp4-tree-node-content:hover {
   .project-node-row {
-    .project-meta-pill {
+    .project-meta-pill:not(.orphan-pill) {
       opacity: 0;
     }
     .project-hover-actions {
@@ -745,10 +776,32 @@
 
 /* Right-Click Context Menu */
 .toad-project-context-menu {
+  position: fixed;
+  z-index: 99999;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  min-width: 210px;
+
   .bp4-menu {
+    background: #ffffff;
     border-radius: 6px;
     padding: 4px 0;
   }
+
+  .toad-context-menu-header {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #64748b;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    list-style: none;
+  }
+
   .bp4-menu-item {
     font-size: 12px;
     line-height: 24px;
@@ -759,6 +812,22 @@
 // Dark Mode Overrides (v2.4.1)
 .bp4-dark,
 .toad-dark {
+  .toad-project-context-menu {
+    background: var(--md-sys-color-surface-container, #222329);
+    border-color: var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.12));
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+
+    .bp4-menu {
+      background: var(--md-sys-color-surface-container, #222329);
+      color: var(--md-sys-color-on-surface, #e3e3e8);
+    }
+
+    .toad-context-menu-header {
+      color: var(--md-sys-color-on-surface-variant, #94a3b8);
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+
   .project-workspace-header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.02);
@@ -792,8 +861,11 @@
       color: #f1f5f9;
     }
 
-    &.is-active .project-node-title-group .project-title-text {
-      color: #38bdf8;
+    &.is-active {
+      border-left-color: #38bdf8;
+      .project-node-title-group .project-title-text {
+        color: #38bdf8;
+      }
     }
 
     &.is-orphan .project-node-title-group .project-title-text {

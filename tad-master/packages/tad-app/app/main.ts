@@ -324,6 +324,12 @@ const appInit = (options: any) => {
     return await ledger.createProject(req?.projectName || "Untitled Project", req?.projectId);
   });
 
+  ipcMain.handle("project:rename", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.renameProject(req?.projectId, req?.newName);
+  });
+
   ipcMain.handle("project:delete", async (event, req) => {
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();

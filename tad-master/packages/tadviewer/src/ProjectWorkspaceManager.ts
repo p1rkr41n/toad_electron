@@ -239,6 +239,27 @@ export class ProjectWorkspaceManager {
     return "prj_untitled_1";
   }
 
+  public async renameProject(projectId: string, newName: string): Promise<boolean> {
+    if (!projectId || projectId === "orphan_prj" || !newName.trim()) return false;
+    const bridge = getBridge();
+    if (bridge && typeof bridge.invoke === "function") {
+      try {
+        const res = await bridge.invoke("project:rename", { projectId, newName: newName.trim() });
+        this.notify();
+        return !!res;
+      } catch {}
+    }
+
+    const duckdb = getReltabDuckDB();
+    if (duckdb && duckdb.ToadParquetLedger) {
+      const ledger = duckdb.ToadParquetLedger.getInstance();
+      const res = await ledger.renameProject(projectId, newName.trim());
+      this.notify();
+      return !!res;
+    }
+    return false;
+  }
+
   public async deleteProject(projectId: string): Promise<{ deletedFiles: number; freedBytes: number }> {
     try {
       const { MultipleLoadingManager } = require("./MultipleLoadingManager");

@@ -96,6 +96,7 @@ const getFileFormatIcon = (fileName: string): React.ReactElement => {
 };
 
 const formatRowCountCompact = (count: number): string => {
+  if (count == null || isNaN(count)) return "";
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
   return `${count}`;
@@ -148,7 +149,10 @@ export const FileTreeItemLabel: React.FC<{
   const percent = item ? item.percent : 0;
 
   const rawRowCount = (dsNode as any).rawRowCount;
-  const rowCountText = rawRowCount != null ? formatRowCountCompact(Number(rawRowCount)) : undefined;
+  const rowCountText =
+    rawRowCount != null && rawRowCount !== "" && !isNaN(Number(rawRowCount))
+      ? formatRowCountCompact(Number(rawRowCount))
+      : undefined;
   const fileSizeBytes = dsNode.fileSizeBytes;
 
   const statusTitle = isModified
@@ -178,7 +182,7 @@ export const FileTreeItemLabel: React.FC<{
           <span className="file-hover-val">{formatFileBytes(fileSizeBytes)}</span>
         </div>
       )}
-      {rawRowCount != null && (
+      {rawRowCount != null && rawRowCount !== "" && !isNaN(Number(rawRowCount)) && (
         <div className="file-hover-row">
           <span className="file-hover-label">Tổng số dòng:</span>
           <span className="file-hover-val">{Number(rawRowCount).toLocaleString()} dòng</span>
@@ -232,8 +236,12 @@ export const FileTreeItemLabel: React.FC<{
           {dsNode.displayName}
         </span>
 
-        <div className="file-node-meta" onClick={(e) => e.stopPropagation()}>
-          {rowCountText && <span className="file-node-rowcount">{rowCountText}</span>}
+        <div className="file-node-meta">
+          {isProcessing ? (
+            <span className="file-node-rowcount file-node-percent">{Math.round(percent)}%</span>
+          ) : rowCountText ? (
+            <span className="file-node-rowcount">{rowCountText}</span>
+          ) : null}
 
           {isReady && (
             <span className="status-dot status-dot-ready" title="Ready (Cache hit)">
@@ -325,49 +333,59 @@ export const ProjectNodeLabel: React.FC<{
       </div>
 
       <div className="project-node-right">
-        <span className="project-meta-pill">
-          {project.fileCount} {project.fileCount === 1 ? "file" : "files"}
-          {project.totalBytes > 0 && ` • ${formattedSize}`}
-        </span>
+        {!isOrphan ? (
+          <>
+            <span className="project-meta-pill">
+              {project.fileCount} {project.fileCount === 1 ? "file" : "files"}
+              {project.totalBytes > 0 && ` • ${formattedSize}`}
+            </span>
 
-        <div className="project-hover-actions" onClick={(e) => e.stopPropagation()}>
-          {!isOrphan ? (
-            <>
-              <Button
-                className="project-hover-btn"
-                icon="plus"
-                minimal={true}
-                small={true}
-                title="Add Files to Project"
-                onClick={onAddFile}
-              />
-              <Button
-                className="project-hover-btn"
-                icon="folder-open"
-                minimal={true}
-                small={true}
-                title="Add Folder to Project"
-                onClick={onAddFolder}
-              />
-              <Button
-                className="project-hover-btn"
-                icon="clean"
-                minimal={true}
-                small={true}
-                title="Purge Parquet Cache"
-                onClick={onPurge}
-              />
-              <Button
-                className="project-hover-btn"
-                icon="trash"
-                intent={Intent.DANGER}
-                minimal={true}
-                small={true}
-                title="Delete Project & Cascade Cache"
-                onClick={onDelete}
-              />
-            </>
-          ) : (
+            <div className="project-hover-actions" onClick={(e) => e.stopPropagation()}>
+              <Tooltip content="Add Files to Project" position={Position.TOP} hoverOpenDelay={400}>
+                <Button
+                  className="project-hover-btn"
+                  icon="plus"
+                  minimal={true}
+                  small={true}
+                  onClick={onAddFile}
+                />
+              </Tooltip>
+              <Tooltip content="Add Folder to Project" position={Position.TOP} hoverOpenDelay={400}>
+                <Button
+                  className="project-hover-btn"
+                  icon="folder-open"
+                  minimal={true}
+                  small={true}
+                  onClick={onAddFolder}
+                />
+              </Tooltip>
+              <Tooltip content="Purge Parquet Cache" position={Position.TOP} hoverOpenDelay={400}>
+                <Button
+                  className="project-hover-btn"
+                  icon="clean"
+                  minimal={true}
+                  small={true}
+                  onClick={onPurge}
+                />
+              </Tooltip>
+              <Tooltip content="Delete Project & Cascade Cache" position={Position.TOP} hoverOpenDelay={400}>
+                <Button
+                  className="project-hover-btn"
+                  icon="trash"
+                  intent={Intent.DANGER}
+                  minimal={true}
+                  small={true}
+                  onClick={onDelete}
+                />
+              </Tooltip>
+            </div>
+          </>
+        ) : (
+          <div className="project-orphan-actions" onClick={(e) => e.stopPropagation()}>
+            <span className="project-meta-pill orphan-pill">
+              {project.fileCount} {project.fileCount === 1 ? "file" : "files"}
+              {project.totalBytes > 0 && ` • ${formattedSize}`}
+            </span>
             <Button
               className="project-orphan-move-btn"
               icon="inheritance"
@@ -378,8 +396,8 @@ export const ProjectNodeLabel: React.FC<{
               title="Move all legacy files to Untitled-1"
               onClick={onMoveOrphan}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -418,18 +436,20 @@ const extendDSPath = (basePath: DataSourcePath, item: string) => ({
   path: basePath.path.concat([item]),
 });
 
-type RootNodeMap = { [resourceId: string]: DSTreeNodeInfo };
-
 export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   expanded,
   stateRef,
 }) => {
   const [treeState, setTreeState] = useState<DSTreeNodeInfo[]>([]);
-  const [rootNodeMap, setRootNodeMap] = useState<RootNodeMap>({});
   const [selectedNode, setSelectedNode] = useState<DSTreeNodeInfo | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [renameTarget, setRenameTarget] = useState<{
+    projectId: string;
+    currentName: string;
+  } | null>(null);
+  const [renameNewName, setRenameNewName] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{
     projectId: string;
     projectName: string;
@@ -463,7 +483,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     };
   }, [stateRef]);
 
-  // Context menu dismissal listeners
+  // Context menu dismissal listeners (click, contextmenu, Escape, and scroll/wheel)
   useEffect(() => {
     const handleCloseMenu = () => setProjectContextMenu(null);
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -473,10 +493,14 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       window.addEventListener("click", handleCloseMenu);
       window.addEventListener("contextmenu", handleCloseMenu);
       window.addEventListener("keydown", handleKeyDown);
+      window.addEventListener("wheel", handleCloseMenu, { passive: true });
+      window.addEventListener("scroll", handleCloseMenu, { passive: true, capture: true });
       return () => {
         window.removeEventListener("click", handleCloseMenu);
         window.removeEventListener("contextmenu", handleCloseMenu);
         window.removeEventListener("keydown", handleKeyDown);
+        window.removeEventListener("wheel", handleCloseMenu);
+        window.removeEventListener("scroll", handleCloseMenu, { capture: true });
       };
     }
   }, [projectContextMenu]);
@@ -512,7 +536,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const activeProjectId = ws.activeProjectId || "prj_untitled_1";
         const projectTreeNodes: DSTreeNodeInfo[] = [];
 
-        const allProjectFilePaths = new Set<string>();
         const q = searchQuery.toLowerCase().trim();
 
         for (const proj of ws.projects) {
@@ -524,10 +547,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           const fileDscMap = new Map<string, any>();
 
           for (const f of files) {
-            if (f.filePath) {
-              allProjectFilePaths.add(normPath(f.filePath));
-            }
-
             let fileDsc: any = null;
             if (rtc) {
               try {
@@ -614,7 +633,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
             }
             if (folderChildNodes.length > 0) {
               const folderKey = `proj_${proj.projectId}_folder_${fName}`;
-              const isFolderExp = expandedFolders.has(folderKey);
+              const isFolderExp = q ? true : expandedFolders.has(folderKey);
               childFileNodes.push({
                 id: folderKey,
                 icon: isFolderExp ? "folder-open" : "folder-close",
@@ -647,7 +666,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
             id: `project_${proj.projectId}`,
             icon: proj.isOrphan ? "archive" : "projects",
             hasCaret: true,
-            isExpanded,
+            isExpanded: q ? true : isExpanded,
             label: (
               <ProjectNodeLabel
                 project={proj}
@@ -728,7 +747,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       } catch (err) {
         console.error("error refreshing data sources: ", err);
       }
-    }, 500)
+    }, 150)
   );
 
   useEffect(() => {
@@ -802,6 +821,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       const projId = (treeNode.nodeData as any).projectId;
       pwManager.toggleProjectExpanded(projId);
       pwManager.setActiveProject(projId);
+      treeNode.isExpanded = !treeNode.isExpanded;
       forceUpdate();
       return;
     }
@@ -919,6 +939,18 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     }
   };
 
+  const handleRenameProjectSubmit = async () => {
+    if (!renameTarget || !renameNewName.trim()) return;
+    try {
+      await pwManager.renameProject(renameTarget.projectId, renameNewName.trim());
+      setRenameTarget(null);
+      setRenameNewName("");
+      throttledRefresh.current();
+    } catch (err) {
+      console.error("Error renaming project:", err);
+    }
+  };
+
   const handleExecutePurgeAllCache = async () => {
     try {
       const ws = await pwManager.getWorkspace();
@@ -938,30 +970,33 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         <div className="project-header-top-row">
           <span className="project-header-title">Projects</span>
           <div className="project-header-actions">
-            <Button
-              className="project-toolbar-btn"
-              icon="plus"
-              minimal={true}
-              small={true}
-              title="New Project (Create new analysis project)"
-              onClick={() => setNewProjectOpen(true)}
-            />
-            <Button
-              className="project-toolbar-btn"
-              icon="refresh"
-              minimal={true}
-              small={true}
-              title="Refresh Workspace (Sync Ledger state)"
-              onClick={() => throttledRefresh.current()}
-            />
-            <Button
-              className="project-toolbar-btn"
-              icon="clean"
-              minimal={true}
-              small={true}
-              title="Clear All Cache (Purge parquet caches across all projects)"
-              onClick={() => setPurgeAllOpen(true)}
-            />
+            <Tooltip content="New Project (Create new analysis project)" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn"
+                icon="plus"
+                minimal={true}
+                small={true}
+                onClick={() => setNewProjectOpen(true)}
+              />
+            </Tooltip>
+            <Tooltip content="Refresh Workspace (Sync Ledger state)" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn"
+                icon="refresh"
+                minimal={true}
+                small={true}
+                onClick={() => throttledRefresh.current()}
+              />
+            </Tooltip>
+            <Tooltip content="Clear All Cache (Purge parquet caches across all projects)" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn"
+                icon="clean"
+                minimal={true}
+                small={true}
+                onClick={() => setPurgeAllOpen(true)}
+              />
+            </Tooltip>
           </div>
         </div>
 
@@ -999,31 +1034,13 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           className="toad-project-context-menu"
           style={{
             position: "fixed",
-            left: Math.min(projectContextMenu.x, window.innerWidth - 220),
-            top: Math.min(projectContextMenu.y, window.innerHeight - 240),
-            zIndex: 99999,
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
-            borderRadius: "6px",
-            overflow: "hidden",
-            background: "var(--md-sys-color-surface-container, #222329)",
-            border: "1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.12))",
-            minWidth: "210px",
+            left: Math.max(10, Math.min(projectContextMenu.x, window.innerWidth - 230)),
+            top: Math.max(10, Math.min(projectContextMenu.y, window.innerHeight - 260)),
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <Menu className="bp4-elevation-3" style={{ background: "transparent" }}>
-            <li
-              className="bp4-menu-header"
-              style={{
-                padding: "6px 12px",
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "var(--md-sys-color-on-surface-variant, #94a3b8)",
-                borderBottom: "1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.08))",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-              }}
-            >
+          <Menu className="bp4-elevation-3">
+            <li className="toad-context-menu-header">
               {projectContextMenu.project.projectName}
             </li>
             {!projectContextMenu.project.isOrphan ? (
@@ -1070,6 +1087,19 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     } catch (err) {
                       console.error("Error adding folder:", err);
                     }
+                  }}
+                />
+                <MenuItem
+                  icon="edit"
+                  text="Rename Project..."
+                  onClick={() => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    setRenameTarget({
+                      projectId: proj.projectId,
+                      currentName: proj.projectName,
+                    });
+                    setRenameNewName(proj.projectName);
                   }}
                 />
                 <MenuItem
@@ -1205,6 +1235,51 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
               onClick={handleCreateProjectSubmit}
             >
               Create Project
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Rename Project Dialog */}
+      <Dialog
+        isOpen={renameTarget !== null}
+        onClose={() => setRenameTarget(null)}
+        title="Rename Project"
+        icon="edit"
+        style={{ width: "380px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)", marginBottom: "8px" }}>
+            Enter a new name for project <strong>{renameTarget?.currentName}</strong>:
+          </p>
+          <InputGroup
+            autoFocus={true}
+            placeholder="e.g. Incident-2026, Threat-Hunting"
+            value={renameNewName}
+            onChange={(e) => setRenameNewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                renameNewName.trim() &&
+                renameNewName.trim() !== renameTarget?.currentName
+              ) {
+                handleRenameProjectSubmit();
+              }
+            }}
+          />
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setRenameTarget(null)}>Cancel</Button>
+            <Button
+              intent={Intent.PRIMARY}
+              disabled={
+                !renameNewName.trim() ||
+                renameNewName.trim() === renameTarget?.currentName
+              }
+              onClick={handleRenameProjectSubmit}
+            >
+              Rename
             </Button>
           </div>
         </div>
