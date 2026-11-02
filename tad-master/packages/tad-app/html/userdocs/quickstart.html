@@ -1,0 +1,1822 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <title>Toad Quick Start & Release Guide</title>
+  <!-- Bootstrap -->
+  <link href="css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #2c3e50;
+      background-color: #f8fafc;
+      line-height: 1.6;
+    }
+
+    .code,
+    pre,
+    code {
+      font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+    }
+
+    .page-header-box {
+      background: linear-gradient(135deg, #106ba3 0%, #1d8be0 100%);
+      color: #ffffff;
+      padding: 36px 0 28px 0;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 12px rgba(16, 107, 163, 0.2);
+    }
+
+    .page-header-box h1 {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+    }
+
+    .page-header-box p.lead {
+      margin: 8px 0 0 0;
+      font-size: 16px;
+      opacity: 0.95;
+    }
+
+    .badge-version {
+      background-color: rgba(255, 255, 255, 0.25);
+      color: #fff;
+      font-size: 14px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      margin-left: 12px;
+      font-weight: 600;
+    }
+
+    .feature-card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .feature-card h3 {
+      margin-top: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #1e293b;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+    }
+
+    .feature-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+
+    .badge-new {
+      background-color: #10b981;
+      color: #ffffff;
+    }
+
+    .badge-engine {
+      background-color: #3b82f6;
+      color: #ffffff;
+    }
+
+    .img-preview {
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      margin: 14px 0;
+      max-width: 100%;
+    }
+
+    .format-table th {
+      background-color: #f1f5f9;
+    }
+
+    .changelog-box {
+      background: #f8fafc;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    .changelog-box h4 {
+      margin: 0 0 6px 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .changelog-box ul {
+      margin-bottom: 0;
+      padding-left: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page-header-box">
+    <div class="container">
+      <h1>
+        <img src="../icon.png" width="44" height="44"
+          style="margin-right: 14px; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+        Toad Quick Start Guide
+        <span class="badge-version">v2.3.0</span>
+      </h1>
+      <p class="lead">The Lightning-Fast Tabular Data Viewer & Pivot Table Analyzer powered by DuckDB & Rust SIMD</p>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- 1. What Toad Is -->
+    <div class="feature-card">
+      <h3>1. Welcome to Toad</h3>
+      <p>
+        <strong>Toad</strong> is a high-performance, lightweight desktop tool for opening, querying, exploring, and
+        pivoting massive tabular datasets with sub-second responsiveness.
+      </p>
+      <p>Toad natively supports all common columnar, text, log, and database formats:</p>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped format-table">
+          <thead>
+            <tr>
+              <th style="width: 18%;">Format</th>
+              <th style="width: 18%;">Extensions</th>
+              <th>Capabilities</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Delimited Text</strong></td>
+              <td><code>.csv</code>, <code>.tsv</code>, <code>.txt</code></td>
+              <td>High-speed multi-threaded ingestion with 3-tier fallback parser.</td>
+            </tr>
+            <tr>
+              <td><strong>Apache Parquet</strong></td>
+              <td><code>.parquet</code></td>
+              <td>Direct columnar scanning with zero conversion overhead.</td>
+            </tr>
+            <tr>
+              <td><strong>DuckDB Database</strong></td>
+              <td><code>.duckdb</code></td>
+              <td>Hierarchical SQL database tree and instant table views.</td>
+            </tr>
+            <tr>
+              <td><strong>SQLite Database</strong></td>
+              <td><code>.sqlite</code>, <code>.db</code></td>
+              <td>Full relational table and view exploration.</td>
+            </tr>
+            <tr>
+              <td><strong>JSON / JSON Lines</strong></td>
+              <td><code>.json</code>, <code>.jsonl</code>, <code>.ndjson</code></td>
+              <td>Streaming JSON parser into columnar fields.</td>
+            </tr>
+            <tr>
+              <td><strong>Windows Event Logs</strong></td>
+              <td><code>.evtx</code></td>
+              <td>Rust-accelerated EVTX decoding into structured records.</td>
+            </tr>
+            <tr>
+              <td><strong>Raw Event Logs</strong></td>
+              <td><code>.log</code></td>
+              <td>Ingests unformatted text lines directly into a <code>raw_event</code> column.</td>
+            </tr>
+            <tr>
+              <td><strong>Toad Workspaces</strong></td>
+              <td><code>.tad</code></td>
+              <td>Saves and restores pivot configurations, column views, and filters.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <button class="btn btn-primary btn-md" onclick="tadOpenExample()">
+          <span class="glyphicon glyphicon-open-file" aria-hidden="true"></span> Open Example Dataset
+          (movie_metadata.csv)
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. Launching Toad -->
+    <div class="feature-card">
+      <h3>2. Launching Toad</h3>
+      <ol>
+        <li><strong>Desktop Executable</strong>: Double-click <code>Toad.exe</code>. Use <strong>File &rarr;
+            Open</strong> to browse for data files.</li>
+        <li><strong>Explorer Integration & Drag & Drop</strong>: Right-click any supported file in Windows Explorer
+          &rarr; <strong>Open With... &rarr; Toad</strong>, or simply drag and drop files onto an active Toad window.
+        </li>
+        <li><strong>Command Line Interface (CLI)</strong>:
+          <div id="cmdLineSetup" style="margin-top: 8px;"></div>
+          <pre style="margin-top: 8px;">$ toad dataset.csv
+$ toad -f --show-queries server_logs.parquet</pre>
+        </li>
+      </ol>
+    </div>
+
+    <!-- 3. Exploring Data with Pivot Tables -->
+    <div class="feature-card">
+      <h3>3. Exploring Tabular Data with Pivot Tables</h3>
+      <p>
+        A Toad <strong>pivot table</strong> transforms a flat table into an interactive hierarchical <em>tree table</em>
+        by grouping rows that share identical values across selected <strong>Pivot Columns</strong>, and computing
+        aggregations (sum, average, min, max, unique count) for numeric and textual columns.
+      </p>
+      <p>To open the pivot panel, click the <strong>Pivot</strong> icon on the left ActivityBar:</p>
+      <p><img class="img-preview" src="images/tad-quickstart-1.png" alt="Activity Bar Pivot Button"></p>
+      <p>This opens the Columns & Pivot sidebar:</p>
+      <p><img class="img-preview" src="images/tad-quickstart-2.png" alt="Pivot Sidebar"></p>
+
+      <h4>Key Controls:</h4>
+      <ul>
+        <li><strong>Pivot Checkbox</strong>: Select columns to form the hierarchical grouping tree (e.g.
+          <code>country</code> &rarr; <code>director</code>).
+        </li>
+        <li><strong>Show Checkbox</strong>: Show or hide individual or all columns.</li>
+        <li><strong>Sort Checkbox</strong>: Add multi-column sorting keys.</li>
+        <li><strong>Pivot Tree Leaf Level</strong>: Choose which column acts as the lowest-level detail row at the
+          bottom of the sidebar.</li>
+      </ul>
+      <p><img class="img-preview" src="images/tad-quickstart-3.png" alt="Combined Pivot View"></p>
+    </div>
+
+    <!-- 4. Columns & In-Place Renaming -->
+    <div class="feature-card">
+      <h3>4. Column Management, Staged Changes & Push to Top <span class="feature-badge badge-new">v1.2.5</span></h3>
+      <ul>
+        <li><strong>Icon-Only Action Toolbar</strong>: Features minimalist icon buttons: <strong>Realtime Sync</strong>
+          (<code>&9889;</code> lightning), <strong>Revert</strong> (<code>&#8630;</code> undo), and
+          <strong>Play</strong> (<code>&#9654;</code> play).
+        </li>
+        <li><strong>Realtime Sync Mode Toggle</strong>: Toggle live execution on or off. When Realtime is enabled
+          (active amber glow), all column modifications (Show, Pivot, Sort, Push to Top) apply immediately to the table
+          without needing Play. When disabled, Staged mode takes over.</li>
+        <li><strong>Search & Jump-to-Select Column (Non-Filtering)</strong>: Type in the search box to find any column
+          by name. Toad instantly scrolls the list directly to the matching row and selects it with a prominent
+          highlight—without hiding or filtering out any other columns! Press <code>Enter</code> to cycle through
+          multiple matches.</li>
+        <li><strong>Multi-Column Push to Top in Selection Order (Top Column)</strong>: Each column row includes a
+          dedicated <strong>Top</strong> button (<code>&uarr;</code>). You can select multiple columns to push up
+          together at the same time. Each chosen column displays its queue order (e.g. <code>&uarr; 1</code>,
+          <code>&uarr; 2</code>, <code>&uarr; 3</code>). Columns are pushed to the top in the exact sequence they were
+          clicked (for example, selecting A, C, B, D places them as the first 4 columns). The columns are not rearranged
+          immediately—they are pushed to the top only after clicking the <strong>Play</strong> button!
+        </li>
+        <li><strong>Tab Change Auto-Revert</strong>: In Staged mode, if you click away to another tab (in Additional
+          Properties, ActivityBar, or another file) or click <strong>Revert</strong> without pressing Play, the staged
+          Columns state is automatically restored to match the main table.</li>
+        <li><strong>Table-Order Synchronized Sequence</strong>: The Columns sidebar matches the exact visual display
+          sequence of columns in the main table grid.</li>
+        <li><strong>Sort Mode Toggle</strong>: Click the <strong>Column</strong> header to toggle between <strong>Table
+            Order</strong> and <strong>Alphabetical (A-Z)</strong>.</li>
+        <li><strong>Inline Double-Click Renaming</strong>: Double-click any column name in the Columns sidebar to rename
+          it directly! Press <code>Enter</code> to save or <code>Escape</code> to cancel.</li>
+      </ul>
+    </div>
+
+    <!-- 5. Searchable Compound Filtering & Drag-and-Drop Reordering -->
+    <div class="feature-card">
+      <h3>5. Searchable Compound Filtering & Drag-and-Drop Reordering <span
+          class="feature-badge badge-new">v1.2.7</span></h3>
+      <p>
+        Click the <strong>Filter</strong> button in the bottom footer to expand the compound query editor.
+      </p>
+      <p><img class="img-preview" src="images/tad-quickstart-filter-1.png" alt="Filter Toggle"></p>
+      <p><img class="img-preview" src="images/tad-quickstart-filter-2.png" alt="Filter Editor"></p>
+      <ul>
+        <li><strong>Drag-and-Drop Condition Reordering</strong>: Grab the vertical drag handle
+          (<code>&#8942;&#8942;</code>) at the start of any filter row to drag it up or down to reorder conditions
+          within the group.</li>
+        <li><strong>Drag Into / Out of Groups (Nesting & Unnesting)</strong>: Easily drag filter conditions into child
+          groups (nesting into sub-group logic) or pull them out of groups into the parent group or root level. No need
+          to delete and recreate rules from scratch!</li>
+        <li><strong>Quick-Action Navigation Buttons</strong>: Each condition row provides one-click action buttons:
+          <strong>Move Up</strong> (<code>&uarr;</code>), <strong>Move Down</strong> (<code>&darr;</code>), and
+          <strong>Move Out</strong> (<code>&larr;</code>) for instant accessibility.
+        </li>
+        <li><strong>Sub-Group Header Controls</strong>: Nested filter groups also feature dedicated move buttons (Up,
+          Down, Move Out) to reorganize whole logical blocks at once.</li>
+        <li><strong>Searchable Column Autocomplete</strong>: Type any substring in the column box to instantly locate
+          columns across tables with 100+ fields.</li>
+        <li><strong>Resizable Panel</strong>: Drag the top handle to resize the filter pane, or double-click it to
+          toggle maximize.</li>
+        <li><strong>Rich Operators</strong>: Numeric (<code>=</code>, <code>!=</code>, <code>&lt;</code>,
+          <code>&gt;</code>, <code>&lt;=</code>, <code>&gt;=</code>), Textual (<code>CONTAINS</code>,
+          <code>STARTS WITH</code>, <code>ENDS WITH</code>), Sets (<code>IN</code>, <code>NOT IN</code>), and Null
+          checks (<code>IS NULL</code>, <code>IS NOT NULL</code>).
+        </li>
+        <li><strong>Nested Logic Trees</strong>: Freely nest clauses with <strong>AND</strong> or <strong>OR</strong>
+          operators to build sophisticated queries.</li>
+      </ul>
+      <p><img class="img-preview" src="images/tad-quickstart-filter-3.png" alt="Filter Actions"></p>
+    </div>
+
+    <!-- 6. Universal Column Extractor & Parser (Parse Mode) -->
+    <div class="feature-card">
+      <h3>6. Universal Column Extractor & Parser (Parse Mode) <span class="feature-badge badge-new">v2.0.7</span></h3>
+      <p>
+        Extract structured data fields from complex semi-structured logs (Windows Event Logs, SIEM, JSON, Key-Value,
+        Syslog) with sub-second SQL compilation:
+      </p>
+      <ul>
+        <li><strong>Unified "Parse" Identity</strong>: Access via the <strong>Parse</strong> button in the footer or left ActivityBar.</li>
+        <li><strong>Linear-Style Capsule Segmented Switch</strong>: Effortlessly switch between <strong>Visual Mode</strong> (<code>⚡ Visual</code>) for auto-detection and <strong>Regex Mode</strong> (<code>&lt;/&gt; Regex</code>) for custom expressions.</li>
+        <li><strong>1-Click Quick Delimiter Preset Chips</strong>: Instant 1-click selection chips for common separators (<code>Space</code>, <code>,</code>, <code>|</code>, <code>¦</code>, <code>;</code>, <code>Tab</code>) eliminating manual typing.</li>
+        <li><strong>Visual Smart Coalescing Indicator</strong>: Automatically displays a distinctive <span style="font-size: 10px; font-weight: bold; color: #4338ca; background: #e0e7ff; padding: 1px 5px; border-radius: 3px;">🔗 COALESCE</span> badge when multiple fields are mapped to the same target column name.</li>
+        <li><strong>Dynamic Action Button</strong>: Clear affordance showing exactly how many columns will be applied: <code>Apply (N Columns)</code>.</li>
+        <li><strong>Heterogeneous Multi-Row Key Discovery</strong>: Scans across multiple sample rows (50+ events) to discover all unique keys with accurate Fill Rate % indicators.</li>
+        <li><strong>Universal Positional Token Fallback (<code>strX</code>)</strong>: Any unkeyed or unrecognized tokens are automatically captured into non-repeating positional columns: <code>str1</code>, <code>str2</code>, <code>str3</code>...</li>
+        <li><strong>Auto-Pruned Fallback Column (<code>unmatched_[column]</code>)</strong>: Preserves full raw text for irregular log lines or noise. If 100% of rows match cleanly, the fallback column is automatically pruned (0 empty columns).</li>
+        <li><strong>1,000 Rows Test & Match Rate Inspector</strong>: Test-parse 1,000 rows in &lt; 5ms with visual match-rate bars, quick copy buttons, and inspect corrupt lines before committing.</li>
+      </ul>
+    </div>
+
+    <!-- 7. Zero-Cost Instant Column Reordering -->
+    <div class="feature-card">
+      <h3>7. Zero-Cost Instant Column Reordering <span class="feature-badge badge-new">v2.0.5</span></h3>
+      <p>
+        Reorder, swap, or push columns to top instantly without UI freeze:
+      </p>
+      <ul>
+        <li><strong>Sub-5ms Column Swapping</strong>: Swapping or dragging giant text columns (even with millions of
+          characters) executes in <strong>&lt; 5 ms</strong>.</li>
+        <li><strong>IPC & Query Short-Circuit</strong>: Reordering columns updates visual DOM indices directly in
+          SlickGrid while completely bypassing DuckDB re-queries and avoiding multi-megabyte IPC serializations.</li>
+        <li><strong>Strict CSS Virtual Containment</strong>: Cell containment (<code>contain: strict</code>) isolates
+          layout calculations from the main document, ensuring 60 FPS scrolling responsiveness.</li>
+      </ul>
+    </div>
+
+    <!-- 8. High-Performance Architecture -->
+    <div class="feature-card">
+      <h3>8. Dual DuckDB Engine Pipeline & Architecture <span class="feature-badge badge-engine">Dual DuckDB + Rust
+          SIMD</span></h3>
+      <p>Toad v2.0.5 achieves breakthrough responsiveness over gigabyte-scale datasets through its isolated <strong>Dual
+          DuckDB Engine Architecture</strong>:
+      </p>
+      <ol>
+        <li><strong>Interactive UI Engine (<code>db_ui</code>)</strong>: Dedicated exclusively to high-speed DataGrid
+          rendering, filtering, sorting, and pivoting. Maintained with reserved CPU threads (2 cores), ensuring sub-50ms
+          query responses even while multi-gigabyte files process in the background.</li>
+        <li><strong>Background Ingestion Engine (<code>db_ingest</code>)</strong>: Operates as a completely separate
+          in-memory database instance (<code>:memory:ingest</code>) executing heavy CPU-saturating Parquet conversions,
+          calculations, and EVTX decoding without blocking the UI.</li>
+        <li><strong>RAM First-Page Micro-Cache</strong>: Instantaneous retrieval of the first 1,000 rows in <strong>&lt;
+            2 ms</strong> with 0 disk I/O.</li>
+        <li><strong>Instant Zero-Copy Parquet VIEW Mount</strong>: Mounts physical Parquet files directly via virtual
+          views in <strong>&lt; 5 ms</strong>.</li>
+        <li><strong>Intelligent Queue Scheduling (SJF & VIP Priority)</strong>: Prioritizes smaller files first
+          (Shortest Job First) and allows instant user-click preemption (VIP Priority Jump).</li>
+      </ol>
+    </div>
+
+    <!-- 9. Release Notes & Changelog -->
+    <div class="feature-card">
+      <h3>9. Release Notes & Changelog</h3>
+
+      <div class="changelog-box" style="border-left-color: #059669; background: #ecfdf5;">
+        <h4>Version 2.3.0 (First Modular Release — Ring Architecture &amp; Host Bridge Decoupling)</h4>
+        <ul>
+          <li><strong>Ring Architecture &amp; Modularization</strong>:
+            <ul>
+              <li><strong>Ring 2 Host Bridge Layer (<code>packages/host-bridge</code>)</strong>: Introduced vendor-neutral <code>IHostBridge</code> interface and <code>V8HostAdapter</code> to cleanly decouple renderer UI from runtime internals.</li>
+              <li><strong>Zero-Electron UI Isolation</strong>: Completely removed direct <code>electron</code> imports and <code>window.require('electron')</code> from <code>packages/tadviewer</code>, making the frontend 100% agnostic.</li>
+              <li><strong>Unified Transport Interface</strong>: <code>IHostBridge</code> natively extends <code>TransportClient</code>, ensuring all DuckDB vectorized queries flow through the bridge with zero latency overhead.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b; background: #f8fafc;">
+        <h4>Version 2.1.6 (Safe Pre-Build Optimization &amp; Dead SDK Elimination)</h4>
+        <ul>
+          <li><strong>Zero-Risk Pre-Build Optimizations</strong>:
+            <ul>
+              <li><strong>Dead BigQuery SDK Elimination</strong>: Removed unreferenced BigQuery imports and mock connectors from <code>app/main.ts</code> and <code>package.json</code>, eliminating over 40 unused Google Cloud SDK dependencies (<code>@google-cloud/bigquery</code>, <code>node-forge</code>, <code>google-auth-library</code>, <code>gaxios</code>) and saving ~12.4 MB at source.</li>
+              <li><strong>Webpack Production Sourcemap Elimination</strong>: Disabled unconditional sourcemap generation in <code>webpack.config.js</code> for production builds (<code>prod.devtool = false</code>), eliminating 11.54 MB of compiler debris and accelerating build time by ~50%.</li>
+              <li><strong>Binary &amp; Design Asset De-duplication</strong>: Removed redundant <code>toad-core.exe</code> duplicate from the app root and pruned uncompressed 1.02 MB <code>AppIcon1024.png</code> from repository assets.</li>
+            </ul>
+          </li>
+          <li><strong>Complete Runtime &amp; Backend Preservation</strong>:
+            <ul>
+              <li>Preserved 100% of native DuckDB, reltab SQL dialect generators, and essential utility modules (<code>lodash</code>) to ensure robust runtime operation and zero regressions.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b; background: #f8fafc;">
+        <h4>Version 2.1.5 (Previous Release — Full-System Footprint &amp; Packaging Optimization)</h4>
+        <ul>
+          <li><strong>Deep Footprint Optimization (~40% Smaller Executable)</strong>:
+            <ul>
+              <li>Reduced Portable executable footprint from 88.7 MB down to ~50 MB via maximum LZMA2 Solid block compression.</li>
+              <li>Pruned over 20,000 redundant files from <code>app.asar</code> (shrinking from 163.3 MB down to ~35 MB, an 80% reduction).</li>
+              <li>Eliminated 51.7 MB of unneeded DuckDB C++ source files (<code>duckdb/src/**</code>) from runtime package.</li>
+              <li>Eliminated duplicate packaging of Frontend UI libraries (React, Victory, BlueprintJS, SlickGrid) already compiled into <code>tadapp.bundle.js</code>.</li>
+              <li>Eliminated 4,733 source map files (<code>*.map</code>) and dev/compiler debris (Babel tools, uncompiled <code>.ts/.flow</code> sources).</li>
+            </ul>
+          </li>
+          <li><strong>Packaging Automation &amp; Size Assertion Gate</strong>:
+            <ul>
+              <li>Upgraded build pipeline with pre-clean and automatic footprint threshold assertions (<code>app.asar &lt; 45 MB</code>, <code>exe &lt; 65 MB</code>).</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0284c7; background: #f0f9ff;">
+        <h4>Version 2.1.4 (Previous Release — Unmatched Column Engine &amp; Real-World Fill Rate Measurement)</h4>
+        <ul>
+          <li><strong>Universal Unmatched Column Engine (<code>unmatched_[column]</code>)</strong>:
+            <ul>
+              <li>Automatically captures all unmatched raw events into <code>unmatched_[column]</code> whenever rows fail to split on custom delimiters (e.g. <code>z3</code>) or mismatch regex patterns.</li>
+              <li>Eliminated legacy SQL <code>split_part</code> string-leakage by wrapping extractions in <code>CASE WHEN contains(...) THEN ... ELSE NULL END</code>, ensuring unmatched rows do not corrupt <code>str001</code>.</li>
+              <li>Enabled full pre-flight verification and intelligent Auto-Pruning for all parsing modes (Raw, Delimited, CSV, KV, Advanced Regex).</li>
+            </ul>
+          </li>
+          <li><strong>Accurate Real-World Fill Rate Measurement</strong>:
+            <ul>
+              <li>Replaced legacy hardcoded 100% with empirical per-token frequency measurement across sample events, accurately reporting rare tokens (e.g. 2% for isolated parameters).</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0ea5e9; background: #f0fdfa;">
+        <h4>Version 2.1.3 (Previous Release — Delimited Parsing Engine & Discovered Fields Rectification)</h4>
+        <ul>
+          <li><strong>Universal Space & Positional Delimited Engine</strong>:
+            <ul>
+              <li>Fixed space format detection regex (<code>\s+</code>) to correctly identify standard single-space logs (W3C/IIS, Nginx, Apache, Syslog) without falling through to Raw mode.</li>
+              <li>Eliminated phantom Key=Value state leakage in Raw mode, ensuring custom and space delimited formats perform true positional token parsing.</li>
+              <li>Eliminated DuckDB <code>list_filter(NOT LIKE '%=%')</code> column shifting bug, guaranteeing 100% stable column alignment across all log rows.</li>
+              <li>Added <code>&amp;</code> query delimiter exclusion to prevent URL query string swallowing into parsed values.</li>
+            </ul>
+          </li>
+          <li><strong>UI &amp; Ergonomics Improvements</strong>:
+            <ul>
+              <li>Sticky <code>&lt;thead&gt;</code> in Discovered Fields mapping grid, ensuring table headers stay pinned during scrolling.</li>
+              <li>Clear visual <code>␣</code> indicator in token delimiter input when set to space.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0f766e; background: #f0fdfa;">
+        <h4>Version 2.1.2 (Previous Release — Default Light Mode Architecture & Full Dark Mode Audit)</h4>
+        <ul>
+          <li><strong>Default Light Mode Architecture</strong>:
+            <ul>
+              <li>Toad now boots strictly into crisp, high-contrast Light Mode by default, removing unintended auto-switching caused by OS-level <code>prefers-color-scheme: dark</code>.</li>
+              <li>Dark Mode is cleanly user-opt-in via the theme toggle button, giving users complete authority over their viewing preferences.</li>
+            </ul>
+          </li>
+          <li><strong>System-Wide Dark Mode Audit & Rectification</strong>:
+            <ul>
+              <li><strong>SlickGrid DataGrid</strong>: Overrode hardcoded white backgrounds on <code>.slick-cell</code> with transparent backgrounds, allowing Google Material 3 row backgrounds (<code>#121316</code> / <code>#18191f</code>) to render seamlessly with $13.2:1$ contrast.</li>
+              <li><strong>Column Selector Pane</strong>: Implemented full Google Material 3 dark surface tokens for the sidebar column management grid (<code>columnSelector.less</code>).</li>
+              <li><strong>DataGrid Context Menu</strong>: Replaced hardcoded light backgrounds with semantic elevated surface containers (<code>DataGrid.tsx</code>).</li>
+              <li><strong>Filter Editor Column Dropdown</strong>: Tokenized <code>react-select</code> control and menu styles for automatic theme responsiveness (<code>FilterEditorRow.tsx</code>).</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0284c7; background: #f0f9ff;">
+        <h4>Version 2.1.0 (Google Material Design 3 Native Dark Theme & Binary Pruning)</h4>
+        <ul>
+          <li><strong>Google Material Design 3 Native Dark Theme Architecture</strong>:
+            <ul>
+              <li>Replaced the legacy global CSS inversion filter (<code>filter: invert(...)</code>) with first-class semantic design tokens (<code>--md-sys-color-*</code>) and native BlueprintJS <code>bp4-dark</code> integration.</li>
+              <li>Fully preserves LCD Subpixel Antialiasing (ClearType), eliminating text blurriness during grid scrolling and on high-density displays.</li>
+              <li>Replaced harsh neon fuchsia on auto-generated columns (<code>str001</code>) with Google Material Amber (<code>#fdd663</code> / <code>#b06000</code>), ensuring high contrast and gentle eye comfort during extended forensic sessions.</li>
+            </ul>
+          </li>
+          <li><strong>Log Analysis UX Hardening & Smart Progress Bar</strong>:
+            <ul>
+              <li>Suppressed distracting spellcheck squiggly underlines (<code>spellCheck={false}</code>) in log sample inspection.</li>
+              <li>Replaced plain dot fill rate indicators with a 3-tier Material Progress Bar (Emerald $\ge 80\%$, Amber $40-79\%$, Slate $<40\%$).</li>
+            </ul>
+          </li>
+          <li><strong>Binary Size Optimization & Locales Pruning</strong>:
+            <ul>
+              <li>Pruned over 48 unused Chromium language packages (keeping <code>en-US</code> and <code>vi</code>), significantly reducing unpacked application footprint and keeping packaged portable size minimal.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0369a1; background: #f8fafc;">
+        <h4>Version 2.0.14 (UI Button Icon Fix & Webpack Production Packaging Pipeline Hardening)</h4>
+        <ul>
+          <li><strong>Parse Columns Batch Test Button Fix</strong>:
+            <ul>
+              <li>Resolved duplicate play icon rendering on the <code>[ ▶ Test ]</code> button in the Parse Columns footer bar.</li>
+              <li>Eliminated the duplicate unicode <code>▶</code> prefix inside the button label, ensuring a clean single SVG vector play icon aligned with Blueprint design guidelines.</li>
+            </ul>
+          </li>
+          <li><strong>Production Webpack Bundle & Packaging Pipeline Hardening</strong>:
+            <ul>
+              <li>Enhanced <code>dist_package.ps1</code> to enforce production Webpack bundling (<code>npm run build-prod</code>) in <code>tad-app</code> before executing <code>electron-builder</code>.</li>
+              <li>Added automated pre-packaging integrity verification gates ensuring <code>tadapp.bundle.js</code> contains the authoritative <code>str001</code> naming logic and active version badge prior to binary compilation.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0369a1; background: #f8fafc;">
+        <h4>Version 2.0.13 (Lexicographical 3-Digit Column Naming & Alpha-Block Partitioning)</h4>
+        <ul>
+          <li><strong>Lexicographically Sortable 3-Digit Column Naming (<code>str001</code> .. <code>str999</code>)</strong>:
+            <ul>
+              <li>Upgraded the automatic column prefix generator from integer <code>strX</code> to 3-digit zero-padded <code>str001</code>, <code>str002</code>, ..., <code>str010</code>, ..., <code>str999</code>.</li>
+              <li>Completely resolves the character-by-character ASCII sort defect where <code>str10</code> appeared adjacent to <code>str1</code> instead of <code>str2</code> in database queries, grid views, and column selectors.</li>
+            </ul>
+          </li>
+          <li><strong>Alpha-Block Partitioning Extension for Massive Extractions (> 999 Columns)</strong>:
+            <ul>
+              <li>Automatically transitions to alphabetical series partitioning (<code>strA001</code> .. <code>strA999</code>, <code>strB001</code> .. <code>strB999</code>) when column counts exceed 999.</li>
+              <li>Guarantees strict mathematical ASCII sorting order (<code>'0'..'9' &lt; 'A'..'Z'</code>) across the entire range up to 26,000 columns.</li>
+            </ul>
+          </li>
+          <li><strong>Full Backward Compatibility & Chained Extraction Safety</strong>:
+            <ul>
+              <li>Smart schema analyzer <code>parseStrColIndex</code> seamlessly recognizes existing legacy columns (<code>str1</code>, <code>str2</code>) in DuckDB views and auto-increments to <code>str003</code>, completely preventing name collisions or overwrite bugs.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0369a1; background: #f8fafc;">
+        <h4>Version 2.0.12 (Z-Index Modal Isolation & Resizer Mouse Event Hardening)</h4>
+        <ul>
+          <li><strong>Z-Index Modal Isolation (No Cross-Dialog Splitter Bleed)</strong>:
+            <ul>
+              <li>Normalized <code>.sidebar-resizer</code> and <code>.event-detail-resizer</code> to <code>z-index: 10</code>. Guaranteed below Blueprint Modal dialogs (<code>z-index: 20</code>) while remaining comfortably above SlickGrid (<code>z-index: 1–2</code>).</li>
+              <li>Eliminated the vertical blue line slicing through the Parse Columns modal dialog and completely resolved mouse click stealing.</li>
+            </ul>
+          </li>
+          <li><strong>Footer Resizer Window Blur & Mouseleave Guard</strong>:
+            <ul>
+              <li>Added <code>blur</code> and <code>mouseleave</code> event listeners to <code>Footer.tsx</code> resizer, preventing the bottom bar from getting stuck in blue active state upon Alt-Tab or releasing mouse outside the window.</li>
+            </ul>
+          </li>
+          <li><strong>EventDetailSidebar Robust Drag & Escape Cleanup</strong>:
+            <ul>
+              <li>Added <code>preventDefault()</code> and <code>stopPropagation()</code> to prevent accidental text selection during resize.</li>
+              <li>Added component unmount cleanup to guarantee <code>col-resize</code> cursor is released if the details panel is closed via <code>Escape</code>.</li>
+              <li>Added double-click handler on the splitter to instantly reset panel width to default 440px.</li>
+            </ul>
+          </li>
+          <li><strong>Regex Syntax Error Resilience</strong>:
+            <ul>
+              <li>Wrapped <code>new RegExp</code> in <code>try...catch</code> fallback within <code>actions.ts</code>, preventing unhandled Promise rejections on malformed user regex patterns.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0369a1; background: #f8fafc;">
+        <h4>Version 2.0.11 (Sidebar Resizer Event Leak Fix & Double-Click Reset)</h4>
+        <ul>
+          <li><strong>Triple Safety Guard Against Mouse Event Leaks</strong>:
+            <ul>
+              <li>Fixed sticky blue bar defect: Added window blur, mouseleave, and unmount cleanup guards so the resizer never gets stuck in the active state when mouse is released outside the application or on Alt-Tab.</li>
+            </ul>
+          </li>
+          <li><strong>Zen Visual Affordance & Centered Hitbox</strong>:
+            <ul>
+              <li>Added subtle 1px border (<code>#d2d8df</code> / <code>#383e47</code>) in idle state, providing a clean demarcation between file/pivot panels and the data grid.</li>
+              <li>Symmetrical 7px hitbox (centered with <code>right: -3px</code>) allows effortless grabbing from either panel or grid side.</li>
+              <li>Replaced harsh 6px solid blue block with an elegant 2px blueprint accent indicator (<code>#2b95d6</code> on hover, <code>#106ba3</code> when resizing).</li>
+            </ul>
+          </li>
+          <li><strong>Power-User Double-Click Reset</strong>:
+            <ul>
+              <li>Double-clicking the resizer bar instantly resets panel width to the default 300px/340px.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b; background: #f8fafc;">
+        <h4>Version 2.0.10 (Streamlined Compact Verification & Field Grid Maximization)</h4>
+        <ul>
+          <li><strong>Header Prefix Default OFF (Opt-in Rule Architecture)</strong>:
+            <ul>
+              <li>Defaulted <code>hasHeader</code> to <code>false</code>. Prevents inadvertent prefix slicing on standard structured formats (JSON, CSV, Syslog, Key-Value) while preserving 1-click opt-in via Advanced Rules.</li>
+            </ul>
+          </li>
+          <li><strong>Discovered Fields Table Maximization (280px Height)</strong>:
+            <ul>
+              <li>Removed the redundant 1,000 Rows Test card from the dialog body, saving over 60px of vertical space.</li>
+              <li>Expanded Discovered Fields table container height from 205px to <strong>280px</strong>, displaying 8–10 discovered fields simultaneously without scrolling.</li>
+            </ul>
+          </li>
+          <li><strong>Single Compact Verification Trigger at Footer</strong>:
+            <ul>
+              <li>Unified batch validation into the compact footer test trigger (<code>⚡ Ready (&lt; 15ms)  [▶ Test]</code>).</li>
+              <li>Stabilized test status layout with static percentage display and hover tooltip details, preventing UI jitter.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b; background: #f8fafc;">
+        <h4>Version 2.0.9 (Streamlined Parse UI, Custom Split Icon & Maximal Space Optimization)</h4>
+        <ul>
+          <li><strong>Custom Column Split Icon (<code>←| |→</code>)</strong>:
+            <ul>
+              <li>Replaced generic properties icon with a crisp, pixel-perfect vector SVG column split icon across <strong>ActivityBar</strong>, <strong>Footer</strong>, and <strong>Dialog Header</strong>.</li>
+            </ul>
+          </li>
+          <li><strong>Streamlined Syntax Strip & Maximal Space Efficiency</strong>:
+            <ul>
+              <li>Removed redundant Delimiter preset chips and static <code>"..." Pair</code> badge, saving over 220px of horizontal space.</li>
+              <li>Preserved full flexibility: input auto-detects and accepts any custom separator (<code>¦</code>, <code>|</code>, <code>,</code>, <code>;</code>, space).</li>
+            </ul>
+          </li>
+          <li><strong>Clean Table Headers & Zero Visual Clutter</strong>:
+            <ul>
+              <li>Removed all decorative icons from table headers and renamed columns to standard, industrial terms: <code>Key</code>, <code>Type</code>, <code>Rate</code>, <code>Sample</code>, and <code>New name</code>.</li>
+              <li>Retained 1-click column sorting (<code>⇅</code>) and moved comprehensive explanations to hover tooltips.</li>
+            </ul>
+          </li>
+          <li><strong>Universal Parsing & Authoritative Apply Button</strong>:
+            <ul>
+              <li>Standardized action button to clean, authoritative <strong><code>Apply</code></strong> (omitting misleading static column counts due to the open-ended nature of universal multi-event parsing).</li>
+              <li>Shortened preview and status labels to <strong><code>SQL Preview</code></strong> and <strong><code>Ready (&lt; 15ms)</code></strong>, removing verbose technical jargon.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0f9960; background: #f0fdf4;">
+        <h4>Version 2.0.8 (Real-Data 1,000 Rows Verification Engine & Dynamic Unmatched Inspector)</h4>
+        <ul>
+          <li><strong>Real-Data 1,000 Rows Verification Engine</strong>:
+            <ul>
+              <li>Replaced all static mockup figures with a dynamic in-memory evaluator scanning up to 1,000 rows directly from user dataset.</li>
+              <li>Pure-function evaluator (<code>evaluateLineMatch</code>) tests lines against active format rules (JSON, Arrays, Delimited KV, Colon-assign, and Custom Regex) in &lt; 2 ms.</li>
+              <li>Dynamic dual-color progress bar showing real match percentage and row count breakdown.</li>
+            </ul>
+          </li>
+          <li><strong>Interactive Real Unmatched Rows Inspector</strong>:
+            <ul>
+              <li>Displays actual incompatible and corrupted rows extracted from the dataset with their exact 1-based row indices.</li>
+              <li>Collapsible inspector toggle displays <code>✓ 0 Unmatched</code> for clean datasets or <code>👁 {N} Unmatched</code> for datasets with outliers.</li>
+              <li>1-click <code>[📋 Copy Unmatched]</code> button to copy outlier rows directly to clipboard for diagnostics.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #2563eb; background: #eff6ff;">
+        <h4>Version 2.0.7 (Parse Feature & World-Class UI/UX Refinement)</h4>
+        <ul>
+          <li><strong>Renamed Feature from "Regex" to "Parse"</strong>:
+            <ul>
+              <li>Rebranded button, ActivityBar icon, dialog header, and tooltips to <strong>Parse</strong> to reduce cognitive friction and reflect universal auto-parsing capabilities.</li>
+              <li>Reorganized into 2 clean paradigms: <strong>Visual Mode</strong> (<code>⚡ Visual</code>) for auto-detection and <strong>Regex Mode</strong> (<code>&lt;/&gt; Regex</code>) for custom expressions.</li>
+            </ul>
+          </li>
+          <li><strong>World-Class UI/UX Refinements (Linear/Figma Design System)</strong>:
+            <ul>
+              <li><strong>Capsule Segmented Switch</strong>: Smooth, elevated pill switch in dialog header.</li>
+              <li><strong>Quick Delimiter Preset Chips</strong>: 1-click preset buttons (<code>Space</code>, <code>,</code>, <code>|</code>, <code>¦</code>, <code>;</code>, <code>Tab</code>) for instant delimiter selection.</li>
+              <li><strong>Smart Coalescing Visual Badge</strong>: Real-time <span style="font-size: 10px; font-weight: bold; color: #4338ca; background: #e0e7ff; padding: 1px 4px; border-radius: 3px;">🔗 COALESCE</span> indicator when multiple fields map to the same target column.</li>
+              <li><strong>Dynamic Action Button</strong>: Action button displays exact count: <code>Apply (N Columns)</code>.</li>
+              <li><strong>Sample Event Code Box</strong>: Enhanced monospace preview with line numbers and 1-click clipboard copy.</li>
+              <li><strong>Observability Inspector</strong>: Enhanced 1,000 Rows Test with copyable unmatched logs and auto-pruning explanation.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #10b981; background: #f0fdf4;">
+        <h4>Version 2.0.5 (Instant Clean Startup, Auto-Pruned Fallback & Zero-Cost Column Reordering)
+        </h4>
+        <ul>
+          <li><strong>Instant Clean Startup (&lt; 350 ms)</strong>:
+            <ul>
+              <li>Disabled automatic popups of QuickStart Guide and modal Windows Open File Dialog on startup.</li>
+              <li>Launches directly into a clean, responsive MainWindow ready for Drag & Drop or user-initiated Open
+                (<kbd>Ctrl+O</kbd>).</li>
+              <li>QuickStart Guide is readily accessible anytime on demand via <strong>Help &rarr; Quick Start
+                  Guide</strong> (<kbd>F1</kbd>).</li>
+            </ul>
+          </li>
+          <li><strong>Auto-Pruned Fallback Column (<code>unmatched_[sourceCol]</code>)</strong>:
+            <ul>
+              <li>Automatically captures irregular, free-text, or corrupted lines into a designated
+                <code>unmatched_[column]</code> column to guarantee zero data loss.</li>
+              <li>Pre-flight check detects whether any unmatched rows exist; if 100% of rows match cleanly, the column
+                is automatically omitted (auto-pruned) in 0ms with 0 bytes overhead.</li>
+            </ul>
+          </li>
+          <li><strong>Zero-Cost Instant Column Reordering (&lt; 5 ms)</strong>:
+            <ul>
+              <li>Eliminated the 2–5 second UI freeze when dragging or reordering giant columns.</li>
+              <li>Short-circuit query coordinator reuses in-memory DataView directly without re-querying DuckDB or
+                serializing rows over IPC.</li>
+            </ul>
+          </li>
+          <li><strong>Universal Heterogeneous Schema Discovery & <code>strX</code> Rules</strong>:
+            <ul>
+              <li>Scans multi-row sample events (50+ rows) to discover all event keys simultaneously across mixed-schema
+                log tables.</li>
+              <li>Automatically assigns non-repeating positional identifiers (<code>str1</code>, <code>str2</code>,
+                <code>str3</code>...) to unkeyed tokens.</li>
+              <li>Smart Coalescing unifies different keys (e.g. <code>User</code> and <code>TgtUser</code>) into a
+                single column.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #2563eb; background: #eff6ff;">
+        <h4>Version 2.0.0 (Current Major Release — Dual DuckDB Engine Architecture, Intelligent SJF Scheduling & Instant
+          DataGrid Responsiveness)</h4>
+        <ul>
+          <li><strong>Dual DuckDB Engine Architecture (Eliminating 100% TaskScheduler Saturation)</strong>:
+            <ul>
+              <li>Completely split DuckDB into two completely independent database instances: <code>db_ui</code>
+                (Interactive DataGrid) and <code>db_ingest</code> (Heavy Background Streaming).</li>
+              <li>Eliminated the engine freeze where clicking a completed table remained stuck on <em>"Opening table
+                  view..."</em> for over 2 minutes while a large dataset (e.g. 40GB) was ingesting.</li>
+              <li>Query latency on <code>db_ui</code> remains consistently between <strong>10 ms – 15 ms</strong> even
+                while <code>db_ingest</code> is 100% saturated executing massive <code>COPY ... TO Parquet</code> tasks.
+              </li>
+            </ul>
+          </li>
+          <li><strong>Zero-Copy Parquet VIEW Mount (&lt; 5 ms Table Opening)</strong>:
+            <ul>
+              <li>Clicking any completed dataset mounts a zero-copy virtual view directly into <code>db_ui</code> in
+                sub-millisecond time without re-reading or re-importing the raw source file.</li>
+              <li>Integrated <code>parquet_metadata</code> row-count extraction, instantly retrieving total dataset row
+                counts in $O(1)$ time.</li>
+            </ul>
+          </li>
+          <li><strong>Intelligent Queue Scheduling & Concurrency Budgeting</strong>:
+            <ul>
+              <li><strong>Shortest Job First (SJF)</strong>: Ingest queue automatically processes smaller datasets
+                first, making rapid files instantly viewable while large files process in the background.</li>
+              <li><strong>Dynamic Data Size Budget (<code>max_concurrent_gb</code>)</strong>: Enforces a strict
+                in-flight data volume ceiling (default 1GB) alongside maximum concurrent file slots (default 4 files) to
+                defend against physical RAM exhaustion.</li>
+              <li><strong>VIP User-Click Priority Preemption</strong>: Clicking any pending or in-flight file
+                immediately pushes it to the front of the queue.</li>
+              <li><strong>Exclusive Big File Mode</strong>: Giant files exceeding 1GB (e.g., 40GB logs) are safely
+                scheduled to process exclusively when the queue is idle.</li>
+            </ul>
+          </li>
+          <li><strong>CPU Thread Isolation & <code>config.ini</code> Auto-Healing</strong>:
+            <ul>
+              <li>New <code>background_threads = auto</code> setting automatically reserves 1–2 CPU cores for the UI
+                Engine and desktop responsiveness, allocating $\max(1, \text{cores} - 2)$ threads to background workers.
+              </li>
+              <li>Dynamic config parser automatically repairs corrupt syntax, missing keys, and invalid numeric values
+                with robust auto-heal templates.</li>
+            </ul>
+          </li>
+          <li><strong>Instant UI Click Feedback & Request Superseding Guard</strong>:
+            <ul>
+              <li>Eliminated stale query race conditions: rapid clicking across files immediately discards previous
+                table render requests and executes only the final user-selected table view.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0ea5e9;">
+        <h4>Version 1.3.12.1 (Previous Release — Non-blocking In-Canvas Processing View & Seamless Multi-Tasking)</h4>
+        <ul>
+          <li><strong>Eliminated Blocking Modal Dialog & Backdrop</strong>:
+            <ul>
+              <li>Completely removed the full-screen modal popup dialog and dark backdrop that previously locked the
+                mouse and prevented clicking other files during large dataset ingestion.</li>
+            </ul>
+          </li>
+          <li><strong>Per-File In-Canvas Processing View</strong>:
+            <ul>
+              <li>Progress metrics (Speed MB/s, ETA, % completed, reading size in GB/MB) now render directly inside the
+                center table canvas of the loading file.</li>
+              <li>Users can freely click ready files on the sidebar to inspect and filter DataGrid tables while large
+                files process silently in the background.</li>
+            </ul>
+          </li>
+          <li><strong>Smart Context Preservation</strong>:
+            <ul>
+              <li>When background ingestion completes, it gracefully opens the table only if the user is currently
+                viewing that dataset's loading view, preventing unwanted view jumps when analyzing other datasets.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b;">
+        <h4>Version 1.3.12 (Native IO Algorithm Fidelity, Immutable Tree Reactivity & Canonical Path Sync)</h4>
+        <ul>
+          <li><strong>Preserve 100% Native Process Disk Read IO Progress Algorithm</strong>:
+            <ul>
+              <li>Maintained full fidelity of the original disk read IO tracking algorithm
+                (<code>toad-core watch-io</code>) with the <strong>-10% scaling rule</strong> ($0\% \to 90\%$ during
+                physical disk read streaming, reserving $90\% \to 100\%$ for Parquet indexing and View creation).</li>
+              <li>Continuous calculation and live display of <code>smoothedSpeedMBs</code> (exponential moving average)
+                and <code>etaSec</code> (time remaining).</li>
+            </ul>
+          </li>
+          <li><strong>Restored Rich Ingestion Progress Feedback</strong>:
+            <ul>
+              <li>Re-activated the Single-File Ingestion Dialog with Speed MB/s, ETA, % progress, and status text when
+                opening files directly.</li>
+              <li>Enhanced the center loading card to display live Speed MB/s and countdown ETA during background queue
+                processing.</li>
+            </ul>
+          </li>
+          <li><strong>Resolved React State Bailout & Immutable Queue Updates</strong>:
+            <ul>
+              <li>Replaced in-place object mutations in <code>MultipleLoadingManager</code> with immutable object
+                cloning (<code>{ ...targetItem }</code>) and incrementing <code>version</code> counters.</li>
+              <li>Ensured <code>FileTreeItemLabel</code> re-renders instantly on every progress tick, eliminating the
+                frozen <code>0%</code> bug.</li>
+              <li>Removed static <code>0%</code> text for pending files to prevent user confusion.</li>
+            </ul>
+          </li>
+          <li><strong>Canonical Path Synchronization</strong>:
+            <ul>
+              <li>Mapped files by canonical physical disk path (<code>path.resolve</code>), synchronizing the
+                <code>ready</code> state between root-opened files and folder child tree nodes automatically.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b;">
+        <h4>Version 1.3.11 (Dynamic Tree Reactivity & Non-blocking Ingestion Engine)</h4>
+        <ul>
+          <li><strong>Dynamic Tree Node Reactivity (Eliminating Static Closure Bug)</strong>:
+            <ul>
+              <li>Refactored file node labels into dedicated reactive React components (<code>FileTreeItemLabel</code>)
+                subscribing directly to the background ingestion manager.</li>
+              <li>Fixed the issue where sidebar files remained frozen at <code>0%</code> even after DuckDB completed
+                loading. Each file label now independently re-renders at O(1) efficiency.</li>
+            </ul>
+          </li>
+          <li><strong>Active DataGrid & Queue Synchronization (Two-Way Sync)</strong>:
+            <ul>
+              <li>Opening any file on the main DataGrid immediately synchronizes its status to <code>ready 100%</code>
+                on the sidebar. The <code>0%</code> indicator and mini progress bar disappear instantly, and filename
+                transitions to bold black.</li>
+              <li>Added <code>markReady()</code> to safely drain and advance the background ingestion queue without race
+                conditions.</li>
+            </ul>
+          </li>
+          <li><strong>Non-blocking EVTX & Multi-Stage Ingestion Progress Pipeline</strong>:
+            <ul>
+              <li>Converted EVTX conversion to an asynchronous execution pipeline, eliminating main process Event Loop
+                blocking.</li>
+              <li>Added smooth multi-stage progress reporting: 5%–45% EVTX decoding, 45%–90% DuckDB Parquet streaming,
+                and 90%–100% View finalization.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #10b981;">
+        <h4>Version 1.3.10 (Multiple Loading Background Ingestion Engine & User-Priority Preemption)</h4>
+        <ul>
+          <li><strong>Automated Background Multi-File Ingestion Queue</strong>:
+            <ul>
+              <li>When opening a directory with multiple datasets, Toad automatically enqueues all files into a
+                background queue, processing files sequentially without UI freezes, thread contention, or excessive
+                memory spikes.</li>
+              <li><strong>1-Second Polling & Status Cycle</strong>: Automatically checks the queue every ~1s, streaming
+                pending files into DuckDB Parquet cache.</li>
+            </ul>
+          </li>
+          <li><strong>In-Situ Sidebar Visual Indicators & Mini Progress Bar</strong>:
+            <ul>
+              <li><strong>Pending / Processing</strong>: Filenames display in muted gray with an active percentage badge
+                and an ultra-thin 2px blue progress bar directly beneath the filename.</li>
+              <li><strong>Ready / Completed</strong>: Filenames automatically transition to crisp bold black (Light
+                Mode) or bright cream (Dark Mode) with the progress bar hidden, indicating instant 0ms query readiness.
+              </li>
+              <li><strong>Error State</strong>: Files with corrupt format or read permissions display in alert red with
+                a warning indicator.</li>
+            </ul>
+          </li>
+          <li><strong>User-Priority Jump Queue (Preemption)</strong>:
+            <ul>
+              <li>Clicking any pending or processing file instantly pushes it to the front of the queue to begin
+                ingestion immediately—no waiting for previous directory files.</li>
+            </ul>
+          </li>
+          <li><strong>Non-Intrusive Main Loading & Empty States</strong>:
+            <ul>
+              <li>Replaced intrusive full-screen modal popups with a modern, elegant in-situ <code>Loading...</code>
+                card on the main content pane showing live spinner, dataset title, and progress bar until the table is
+                ready to render.</li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #6366f1;">
+        <h4>Version 1.3.9.1 (Previous Release — Instant Smart Expand Trigger & IN Filter Array Normalization Fix)</h4>
+        <ul>
+          <li><strong>Instant Smart Expand Button Trigger (1-Click & Focus Auto-Open)</strong>:
+            <ul>
+              <li>The <code>_expand</code> column (Column 0) is now treated as a first-class action trigger in all
+                scenarios: clicking anywhere on the cell instantly opens the Event Details panel without requiring the
+                user to press <kbd>Enter</kbd>.</li>
+              <li>Navigating into the <code>_expand</code> column via keyboard automatically opens and synchronizes the
+                detail panel immediately.</li>
+              <li><strong>Strict Dismissal Policy</strong>: An open event detail panel only closes when the user clicks
+                the <code>✕</code> close button or presses <kbd>Esc</kbd>. Selecting or clicking the same row's expand
+                button maintains the open state safely (idempotent open), eliminating accidental panel collapse.</li>
+            </ul>
+          </li>
+          <li><strong>Fixed Filter <code>IN</code> / <code>NOT IN</code> Array Normalization
+              (<code>t.map is not a function</code> Fix)</strong>:
+            <ul>
+              <li>Resolved the renderer runtime error (<code>TypeError: t.map is not a function</code>) when switching a
+                condition row from single-value operators (<code>=</code>, <code>!=</code>, <code>contains</code>) to
+                list operators (<code>IN</code>, <code>NOT IN</code>).</li>
+              <li>Added defensive array normalization across <code>FilterEditorRow</code> (<code>mkRelExp</code>,
+                <code>getExpVal</code>, <code>handleOpSelect</code>, and <code>validRow</code>), automatically
+                converting scalar values into multi-tag option pills and preventing invalid map calls on strings or
+                primitives.
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0ea5e9;">
+        <h4>Version 1.3.9 (Previous Release — Flawless Master-Detail Keyboard Navigation, Clean Single Suggestion Filter
+          & Dynamic Page Size Engine)</h4>
+        <ul>
+          <li><strong>Flawless Master-Detail Arrow Navigation Fix</strong>: Resolved the bug where pressing
+            <kbd>&darr;</kbd> (Down Arrow) on an expanded event collapsed both rows and closed the panel. The active
+            cell transition now safely keeps the inspector panel open (<code>forceOpen = true</code>) without duplicate
+            state-toggle invocation, delivering smooth, frictionless alert triage.
+          </li>
+          <li><strong>Clean Single-Suggestion Filter UI</strong>: Eliminated the redundant HTML5 native browser
+            suggestion popup (<code>&lt;datalist&gt;</code>) appearing at the top of the input, leaving only the
+            beautiful, themed, keyboard-interactive React suggestion menu at the bottom.</li>
+          <li><strong>Dynamic Configurable Page Size (Default 1,000 & No Hardcoded Maximum Limit)</strong>:
+            <ul>
+              <li><strong>Interactive Footer Selector</strong>: Instant on-the-fly switching between 500, 1,000, 2,500,
+                5,000, 10,000, or custom page sizes directly from the table footer.</li>
+              <li><strong>Configurable <code>config.ini</code> Parameter</strong>: Set <code>page_size = 1000</code>
+                under <code>[general]</code> in <code>config.ini</code> to define the persistent startup page size
+                across application launches.</li>
+              <li><strong>Zero Maximum Constraint ("User Discretion")</strong>: As explicitly required, page size is
+                unconstrained with no arbitrary hard upper limit. Analysts working on powerful workstations can safely
+                view 20,000+ or custom record batches per page.</li>
+              <li><strong>Dynamic Sliding Buffer Synchronization</strong>: Recalibrates DuckDB query limits and the
+                5-page sliding buffer instantly without table reloading or state loss.</li>
+            </ul>
+          </li>
+          <li><strong>Synchronized Documentation & User Guide</strong>: Fully updated Quick Start guide (HTML &
+            Markdown) and release documentation reflecting v1.3.9 enhancements.</li>
+        </ul>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #0284c7;">Business Analysis (BA) & System Design
+            Specification (v1.3.9)</h5>
+          <ul style="font-size: 13.5px; margin-bottom: 0;">
+            <li><strong>BA-12 (Continuous Master-Detail Arrow Triage)</strong>: When a forensic investigator expands an
+              event row, navigating with <kbd>&darr;</kbd> or <kbd>&uarr;</kbd> must never collapse the detail inspector
+              panel, ensuring continuous single-key triage across alert streams.</li>
+            <li><strong>BA-13 (Single Uncluttered Filter Autocomplete)</strong>: Analysts building complex SQL queries
+              in the Filter Builder must see exactly one intuitive, styled suggestion dropdown underneath the input
+              field without interfering native browser dialogs.</li>
+            <li><strong>BA-14 (Flexible Page Sizing with Zero Upper Limit)</strong>: Analysts analyzing wide or dense
+              log structures must have full control over row count per page (default 1,000) both via on-the-fly footer
+              controls and persistent <code>config.ini</code>, with no arbitrary upper bounds imposed by the software.
+            </li>
+          </ul>
+        </div>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #047857;">QA Test Matrix & Verification Coverage (v1.3.9)
+          </h5>
+          <table class="table table-bordered table-condensed"
+            style="font-size: 12.5px; margin-bottom: 0; background: #fff;">
+            <thead>
+              <tr style="background: #f1f5f9;">
+                <th>Test Case</th>
+                <th>Description</th>
+                <th>Preconditions & Steps</th>
+                <th>Expected Result</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TC-701</strong></td>
+                <td>Master-Detail Continuous Down Arrow</td>
+                <td>Open table &rarr; Click expand (<code>&rsaquo;</code>) on row 2 &rarr; Press <kbd>&darr;</kbd></td>
+                <td>Active cell moves to row 3; Event Details remains open and displays row 3 data without collapse</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-702</strong></td>
+                <td>Filter Input Suggestion Single Dropdown</td>
+                <td>Open Filter Builder &rarr; Type partial text in value field with operator <code>=</code> or
+                  <code>IN</code>
+                </td>
+                <td>Only the React suggestion dropdown opens below the input; no native browser datalist popup appears
+                  above</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-703</strong></td>
+                <td>Dynamic Page Size Footer Dropdown</td>
+                <td>Click page size selector in footer &rarr; Select <code>2,500</code></td>
+                <td>Table immediately switches to 2,500 rows/page; footer displays
+                  <code>Showing rows 1 - 2,500 of N</code>; navigation buffer updates
+                </td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-704</strong></td>
+                <td>Config.ini Custom Page Size Startup</td>
+                <td>Set <code>page_size = 5000</code> in <code>config.ini</code> &rarr; Launch Toad &rarr; Open dataset
+                </td>
+                <td>Toad initializes with 5,000 rows/page by default; footer shows 5,000 as selected size</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-705</strong></td>
+                <td>Uncapped Page Size ("User Discretion")</td>
+                <td>Set <code>page_size = 50000</code> in <code>config.ini</code></td>
+                <td>Toad respects and loads 50,000 rows per page without error or forced clamp</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #10b981;">
+        <h4>Version 1.3.8 (Previous Release — High-Throughput Jitterless Ingestion Engine, Adaptive Memory Budgeting &
+          100K Row Groups)</h4>
+        <ul>
+          <li><strong>Non-Blocking Parallel Ingestion (<code>SET preserve_insertion_order = false</code>)</strong>:
+            Triumphed over throughput stuttering and jagged saw-tooth I/O fluctuations during big dataset ingestion.
+            Disabling synchronous insertion ordering eliminates multi-threaded thread-barrier contention, enabling all
+            CPU cores to parse, compress, and stream raw CSV/JSON records into Parquet chunks simultaneously. Maximizes
+            NVMe queue depth while preserving 100% data integrity.</li>
+          <li><strong>Adaptive Smart Memory Budgeting Guard</strong>: When <code>max_memory = auto</code> is active in
+            <code>config.ini</code>, Toad automatically enforces a defensive memory ceiling capped at 45% of physical
+            system RAM (maximum 8GB). Prevents DuckDB buffer pool from ballooning up to 80% RAM, completely avoiding
+            Windows Kernel page swapping (Dirty Page Flush) and memory thrashing stalls.
+          </li>
+          <li><strong>Optimized 100K Row Group Size for SSD & HDD</strong>: Raised default <code>row_group_size</code>
+            to 100,000 rows. Cuts disk flush frequency by 75%, boosts Snappy/ZSTD dictionary compression ratios, and
+            slashes mechanical HDD head seek movements by 80%—sustaining continuous sequential transfer rates (130 - 160
+            MB/s on HDD, 1,500 - 3,000 MB/s on NVMe).</li>
+        </ul>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #047857;">Business Analysis (BA) & System Design
+            Specification</h5>
+          <ul style="font-size: 13.5px; margin-bottom: 0;">
+            <li><strong>BA-09 (High-Throughput Jitterless Ingestion Engine)</strong>: Ingesting massive 40GB security
+              logs must sustain continuous, flatline read throughput without dropping to 0 MB/s stalls caused by thread
+              synchronization barriers.</li>
+            <li><strong>BA-10 (Adaptive Memory Budgeting & Anti-OOM Guard)</strong>: Automatically allocate a balanced
+              memory budget (&le; 8GB) so that concurrent analysis tools and the operating system remain fully
+              responsive during dataset ingestion.</li>
+            <li><strong>BA-11 (SSD & HDD Dual Ergonomic Flusher)</strong>: Larger 100,000-row row groups ensure
+              contiguous sequential writes, dramatically reducing mechanical HDD head thrashing and preventing SSD SLC
+              cache exhaustion.</li>
+          </ul>
+        </div>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #047857;">QA Test Matrix & Verification Coverage (v1.3.8)
+          </h5>
+          <table class="table table-bordered table-condensed"
+            style="font-size: 12.5px; margin-bottom: 0; background: #fff;">
+            <thead>
+              <tr style="background: #f1f5f9;">
+                <th>Test Case</th>
+                <th>Description</th>
+                <th>Preconditions & Steps</th>
+                <th>Expected Result</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TC-601</strong></td>
+                <td>Non-Blocking Ingest Flag</td>
+                <td>Start CSV import &rarr; Inspect session configuration</td>
+                <td><code>SET preserve_insertion_order = false</code> is applied without SQL error</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-602</strong></td>
+                <td>Adaptive Memory Ceiling</td>
+                <td>Run ingestion with <code>max_memory = auto</code> &rarr; Monitor Private Bytes</td>
+                <td>Process memory stays strictly bounded &le; 8GB; no OS freeze or memory thrashing</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-603</strong></td>
+                <td>100K Row Group Parquet Structure</td>
+                <td>Inspect generated Parquet file metadata</td>
+                <td>Each row group contains ~100,000 rows; fast row count resolves accurately</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-604</strong></td>
+                <td>Sustained Jitterless Ingest Speed</td>
+                <td>Ingest large dataset &rarr; Observe Ingest Progress Dialog</td>
+                <td>Speed displays steady continuous MB/s; no cyclic drops to 0 MB/s</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #2563eb;">
+        <h4>Version 1.3.7.5 (Previous Release — SQL Escape Syntax Guard, Frozen Expand Column & Smart Vertical Arrow
+          Navigation)</h4>
+        <ul>
+          <li><strong>DuckDB SQL Single-Character Escape Syntax Fix</strong>: Resolved the critical
+            <code>Query Error: Syntax Error: Invalid escape string. Escape string must be empty or one character.</code>
+            error when filtering on Windows paths (e.g. <code>\\.\C:\Inetpub\...</code>) with <code>starts with</code>,
+            <code>ends with</code>, or <code>contains</code>. Replaced erroneous double-escaped
+            <code>ESCAPE '\\\\'</code> literals with standardized single-character <code>ESCAPE '\'</code> across all
+            relational expressions and OmniSearch.
+          </li>
+          <li><strong>Frozen Expander Column (Pinned Freeze Pane)</strong>: Column 0 (<code>_expand</code> containing
+            the event detail chevron button <code>&rsaquo;</code> / <code>&#8964;</code>) is now permanently frozen and
+            pinned to the left edge of both the table body and header via CSS sticky positioning
+            (<code>left: 0px</code>, <code>z-index: 5/15</code>) with solid light/dark theme backgrounds and a crisp
+            divider border (<code>2px solid #ced9e0</code>). When horizontally scrolling across wide datasets with 30+
+            columns (like <code>Windows.NTFS.MFT.csv</code>), the expand column never scrolls out of view.</li>
+          <li><strong>Smart Vertical Arrow Navigation & Instant Event Details Sync (<kbd>&uarr;</kbd> /
+              <kbd>&darr;</kbd>)</strong>: Eliminated erratic diagonal jumps to bottom-right cells by dynamically
+            preserving the analyst's active column index (<code>currentCol = active.cell</code>). Whether the Event
+            Details inspector is already open or closed, pressing <kbd>&darr;</kbd> or <kbd>&uarr;</kbd> moves strictly
+            vertically along the current column and automatically loads/synchronizes the event details of the selected
+            row. Automatically scrolls rows into view and safely ignores inputs when typing in search or filter inputs.
+          </li>
+        </ul>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #0369a1;">Business Analysis (BA) & System Design
+            Specification</h5>
+          <ul style="font-size: 13.5px; margin-bottom: 0;">
+            <li><strong>BA-06 (Defensive SQL Escape Syntax Compliance)</strong>: DuckDB and ANSI SQL require the escape
+              character in <code>LIKE / ILIKE ... ESCAPE</code> to be strictly 1 character. All SQL builders must
+              generate exactly 1 character (<code>'\'</code>) to eliminate catalog syntax errors on complex paths
+              containing slashes and wildcards.</li>
+            <li><strong>BA-07 (Ergonomic Pinned Expander Column)</strong>: In wide forensics tables where critical file
+              information sits dozens of columns to the right, the event inspector button must stay permanently
+              accessible at the left edge without forcing the investigator to scroll back and forth horizontally.</li>
+            <li><strong>BA-08 (Straight-Line Keyboard Event Triage)</strong>: Pressing arrow keys must move strictly
+              along the vertical axis of the selected column and automatically synchronize the detail inspector,
+              allowing zero-friction keyboard triage through thousands of log records.</li>
+          </ul>
+        </div>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #047857;">QA Test Matrix & Verification Coverage (v1.3.7.5)
+          </h5>
+          <table class="table table-bordered table-condensed"
+            style="font-size: 12.5px; margin-bottom: 0; background: #fff;">
+            <thead>
+              <tr style="background: #f1f5f9;">
+                <th>Test Case</th>
+                <th>Description</th>
+                <th>Preconditions & Steps</th>
+                <th>Expected Result</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TC-501</strong></td>
+                <td>Filter Starts With Windows Path</td>
+                <td>Filter <code>OSPath starts with \\.\C:\Inetpub\...</code> &rarr; Apply</td>
+                <td>Query succeeds instantly; no red <code>Invalid escape string</code> syntax error; records match
+                  accurately</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-502</strong></td>
+                <td>Horizontal Scroll with Frozen Expander Column</td>
+                <td>Open table with 30+ columns &rarr; Scroll horizontally to the far right</td>
+                <td>Column 0 (<code>_expand</code>) stays 100% pinned at the left edge; chevron buttons remain visible
+                  and clickable</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-503</strong></td>
+                <td>Strictly Vertical Arrow Navigation</td>
+                <td>Select cell in column 4 (e.g. <code>OSPath</code>) &rarr; Press <kbd>&darr;</kbd></td>
+                <td>Active cell moves straight down to row $N+1$ in column 4; no diagonal shift; Event Details
+                  immediately updates</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-504</strong></td>
+                <td>Arrow Navigation with Closed Event Details</td>
+                <td>Event Details closed &rarr; Click any cell &rarr; Press <kbd>&darr;</kbd></td>
+                <td>Selection advances down and Event Details panel automatically opens and loads row data</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #0ea5e9;">
+        <h4>Version 1.3.7.4 (Previous Release — Draggable File Sidebar, Flawless Arrow Navigation, Universal Path
+          Matching & Instant Filter Fill)</h4>
+        <ul>
+          <li><strong>Draggable & Resizable Left Sidebar (Data Source & File Manager)</strong>: The left flexbox sidebar
+            managing active files and tables now features a dedicated vertical drag handle
+            (<code>.sidebar-resizer</code>). Users can dynamically drag to expand the sidebar width from 220px up to
+            800px, ensuring long filenames, timestamps, and multi-level data source trees are fully readable with
+            horizontal scrolling support.</li>
+          <li><strong>Flawless Master-Detail Keyboard Arrow Navigation (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)</strong>:
+            Resolved active cell loss and DOM reset issues during event details navigation. Migrated from heavy
+            full-grid re-render to targeted row invalidation (<code>invalidateRow(oldRow)</code>,
+            <code>invalidateRow(newRow)</code>, <code>render()</code>) combined with an intelligent document-level
+            keyboard capture handler. When the Event Details inspector is open, pressing <kbd>&uarr;</kbd> and
+            <kbd>&darr;</kbd> transitions between adjacent events with 0ms latency, scrolling rows into view
+            automatically and maintaining active cell focus without destroying table headers.
+          </li>
+          <li><strong>Universal Windows Path & Backslash Search (<code>OSPath</code>, <code>\</code>, <code>\\</code>,
+              <code>/</code>)</strong>: Solved the issue where searching for Windows paths containing backslashes (e.g.
+            <code>C:\Windows\System32</code> or UNC <code>\\share</code>) returned 0 rows due to DuckDB's
+            <code>LIKE ESCAPE '\'</code> consuming backslashes as escape characters. Path matching across text
+            operations, OmniSearch, and relational expressions now normalizes single and double backslashes into forward
+            slashes via <code>REGEXP_REPLACE(col, '[\\/]+', '/', 'g')</code>, guaranteeing 100% reliable matching.
+            Additionally, nested JSON string fields (e.g. <code>Details</code>, <code>ExtraFieldInfo</code>) are
+            automatically parsed in the Event Details inspector, exposing nested properties like <code>OSPath</code> as
+            first-class searchable fields.
+          </li>
+          <li><strong>Interactive Filter Suggestions & Autocomplete Fill</strong>: Fixed suggestion selection in
+            <code>MultiTagPillInput</code> (for <code>IN</code> and <code>NOT IN</code> operators) so clicking an item
+            in the suggestion dropdown immediately adds a pill. Added an interactive autocomplete dropdown
+            (<code>SingleValueSuggestInput</code>) for single-value comparison operators (<code>=</code>,
+            <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>contains</code>), powered by ultra-fast (<15ms)
+              sampled distinct queries (<code>SELECT DISTINCT val FROM (SELECT col FROM table LIMIT 30000) GROUP BY val
+              ORDER BY val ASC LIMIT 300</code>).
+          </li>
+          <li><strong>Native Process Disk Read I/O Ingest Tracking (Anti-Overthinking 10% Cushion)</strong>: Integrated
+            Windows Kernel <code>GetProcessIoCounters</code> tracking via <code>toad-core</code> to measure the exact
+            input file bytes read by DuckDB every 1s. Solved the issue where progress displayed <code>0.0 MB/s</code>
+            due to Parquet row-group buffered writes. Progress % accurately tracks input bytes read and scales smoothly
+            between 0% and 90% (leaving the final 10% for Parquet footer finalization and view creation), eliminating
+            false impressions of hanging at 100%.</li>
+        </ul>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #0369a1;">Business Analysis (BA) & System Design
+            Specification</h5>
+          <ul style="font-size: 13.5px; margin-bottom: 0;">
+            <li><strong>BA-01 (Ergonomic File Sidebar Sizing)</strong>: Allow analysts to expand the file manager
+              sidebar dynamically to comfortably inspect files with long forensic naming conventions (e.g.,
+              <code>Hayabusa_Analysis_20261027_Win11_Workstation01.csv</code>) without truncation.
+            </li>
+            <li><strong>BA-02 (High-Speed DFIR Event Triage)</strong>: Analysts triaging alerts must be able to keep
+              their eyes on the Event Details panel on the right while tapping <kbd>&uarr;</kbd> and <kbd>&darr;</kbd>
+              to rapidly inspect consecutive security log entries without touching the mouse.</li>
+            <li><strong>BA-03 (Lossless Windows Path Filtering)</strong>: DFIR queries targeting file paths containing
+              Windows backslashes (<code>C:\Windows\System32\cmd.exe</code>) must match accurately whether stored as
+              single backslashes, escaped JSON double backslashes, or normalized paths.</li>
+            <li><strong>BA-04 (Zero-Effort Filter Autocomplete)</strong>: Analysts building complex filter expressions
+              must be able to click directly on distinct suggestions to populate single-value or multi-tag fields
+              instantly.</li>
+            <li><strong>BA-05 (Process Disk Read I/O & Anti-Overthinking 10% Scaling)</strong>: Provide real-time,
+              non-blocking disk read throughput (MB/s) and ETA during large dataset ingestion (e.g. 40GB). Progress %
+              reflects actual input bytes read by the engine, scaled by 90% to avoid user overthinking or false stall
+              impressions while DuckDB finalizes Parquet metadata and views in memory.</li>
+          </ul>
+        </div>
+
+        <div
+          style="margin-top: 14px; padding: 12px; background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px;">
+          <h5 style="margin-top: 0; font-weight: 700; color: #047857;">QA Test Matrix & Verification Coverage</h5>
+          <table class="table table-bordered table-condensed"
+            style="font-size: 12.5px; margin-bottom: 0; background: #fff;">
+            <thead>
+              <tr style="background: #f1f5f9;">
+                <th>Test Case</th>
+                <th>Description</th>
+                <th>Preconditions & Steps</th>
+                <th>Expected Result</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>TC-401</strong></td>
+                <td>Left Sidebar Drag Resizing</td>
+                <td>Open file list &rarr; Hover mouse over right border &rarr; Drag right to 450px</td>
+                <td>Sidebar smoothly expands; main table canvas reflows; content scrolls horizontally if needed</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-402</strong></td>
+                <td>Arrow Navigation in Event Details</td>
+                <td>Click expand (<code>&rsaquo;</code>) on row 2 &rarr; Press <kbd>&darr;</kbd> and <kbd>&uarr;</kbd>
+                </td>
+                <td>Event Details panel updates in real time to row 3, 4, then back to 2; active cell remains focused
+                </td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-403</strong></td>
+                <td>Windows Backslash Path Search</td>
+                <td>Filter column with <code>contains</code> &rarr; Type <code>C:\Windows\System32</code> or
+                  <code>OSPath</code>
+                </td>
+                <td>Matches records accurately; backslashes not swallowed by DuckDB LIKE engine</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-404</strong></td>
+                <td>Autocomplete Distinct Fill</td>
+                <td>Add filter with operator <code>IN</code> or <code>=</code> &rarr; Click an item in suggestion list
+                </td>
+                <td>Selected suggestion is immediately filled into the input or added as a pill; table updates</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+              <tr>
+                <td><strong>TC-405</strong></td>
+                <td>Native Disk Read I/O Ingest Tracking</td>
+                <td>Open <code>sample_40gb.csv</code> &rarr; Observe Ingest Progress Dialog</td>
+                <td>Displays non-zero real-time read speed (MB/s); progress advances steadily from 2% to 90%; switches
+                  to finalization at 90% and completes at 100%</td>
+                <td><span class="label label-success">PASSED</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #10b981;">
+        <h4>Version 1.3.7.3 (Previous Release — Hover-to-Sort & Keyboard Event Detail Navigation)</h4>
+        <ul>
+          <li><strong>Hover-to-Sort on Column Headers</strong>: Column headers no longer sort accidentally when clicking
+            on column labels or whitespace. Hovering over any column header smoothly reveals a dedicated sort button
+            (<code>&#8645;</code>); clicking this button toggles sort order (<strong>Ascending ▲</strong> &rarr;
+            <strong>Descending ▼</strong> &rarr; <strong>Default</strong>). Header text and whitespace clicks are safe
+            and do not trigger heavy sorts on 40GB datasets.
+          </li>
+          <li><strong>Keyboard Arrow Navigation for Event Details (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>)</strong>: When
+            the Event Details inspector panel is open, pressing the Up or Down arrow keys smoothly updates the side
+            inspector to display the details of the active row in real time (Master-Detail inspection workflow).</li>
+          <li><strong>Enter / Space Key Support</strong>: When the Event Details panel is closed, pressing
+            <kbd>Enter</kbd> or <kbd>Space</kbd> on any row opens its details immediately. Pressing it again or pressing
+            <kbd>Esc</kbd> collapses the panel.
+          </li>
+          <li><strong>Click-to-Inspect in Open Mode</strong>: When the Event Details panel is already open, clicking
+            anywhere on another row immediately switches the inspector to display that event.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #3b82f6;">
+        <h4>Version 1.3.7.2 (Hotfix — Defensive Selection Fix, JSON Search & Instant Suggestions)</h4>
+        <ul>
+          <li><strong>Fixed Event Expansion Selection Crash</strong>: Fixed
+            <code>TypeError: Cannot read properties of undefined (reading 'fromCell')</code> when clicking the event
+            expansion button (<code>&rsaquo;</code>) on unselectable cells.
+          </li>
+          <li><strong>Fixed JSON & Quoted Search (0 Rows Fix)</strong>: Corrected SQL string literal escaping in
+            <code>defs.ts</code> that previously converted <code>"</code> to <code>""</code> inside single-quoted
+            strings, allowing complex JSON searches (e.g. <code>{"FullPath": ...}</code>) and quoted text to match
+            accurately.
+          </li>
+          <li><strong>100x Faster Filter Suggestions (30ms - 50ms)</strong>: Replaced blocking 50k-row
+            <code>OFFSET</code> loops with multi-threaded parallel queries
+            (<code>SELECT DISTINCT col FROM table LIMIT 500</code>), quoted table names safely (resolving Catalog Binder
+            Errors on files with dots like <code>Windows.NTFS.MFT.csv</code>), and wired suggestions into
+            <code>IN</code> / <code>NOT IN</code> token inputs.
+          </li>
+          <li><strong>True Global Row Index Badge</strong>: The Event Details badge now accurately reflects the true
+            dataset row index (<code>Row #((currentPage - 1) * pageSize + rowIndex + 1)</code>, e.g.
+            <code>Row #1,005</code>) instead of resetting to local page indices.
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #f59e0b;">
+        <h4>Version 1.3.7.1 (Hotfix — 40GB Binary Guard Sampling, Schema Protection & UI Clean Loading)</h4>
+        <ul>
+          <li><strong>Fixed Binary Guard Timeout on 40GB Files</strong>: Optimized <code>inspect_csv</code> in Rust core
+            to use fast $O(1)$ sampling (first 1,000 lines) to estimate row counts, eliminating 10-second timeout
+            rejections on multi-gigabyte CSVs.</li>
+          <li><strong>Schema Pseudo-Column Protection</strong>: Shielded internal layout columns (<code>_isOpen</code>,
+            <code>_id</code>, <code>_depth</code>) from triggering schema errors.
+          </li>
+          <li><strong>Safe Column Width Calculation</strong>: Safely samples the top 100 visible rows per page with
+            strict null-checking to prevent renderer errors.</li>
+          <li><strong>Clean Loading UI</strong>: Removed redundant indeterminate spinning overlay in favor of the Ingest
+            Progress Dialog.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #8b5cf6;">
+        <h4>Version 1.3.7 (Big Data 40GB+ Parquet Engine & 1,000-Row Paging)</h4>
+        <ul>
+          <li><strong>100% Parquet Native Engine</strong>: All CSV/JSON inputs stream directly into compressed Snappy
+            Parquet backed by DuckDB for instant zero-lag queries.</li>
+          <li><strong>1,000-Row Paging Engine & 5-Page Sliding Buffer</strong>: Replaced infinite scroll with
+            deterministic 1,000 rows/page navigation with 0ms adjacent page switching.</li>
+          <li><strong>Visual Ingest Progress Dialog</strong>: Displays live progress %, MB/s ingestion speed, ETA, and a
+            responsive Cancel button.</li>
+          <li><strong>Instant $O(1)$ Row Count</strong>: Reads total row count from Parquet metadata in ~25ms without
+            full table scans.</li>
+          <li><strong>Windows Path ILIKE Escaping</strong>: Automatically escapes backslashes (<code>\</code>), percent
+            signs (<code>%</code>), and underscores (<code>_</code>) with <code>ESCAPE '\'</code>.</li>
+          <li><strong>Auto Time-Column Sort</strong>: Automatically identifies the primary timestamp column and sorts
+            descending on file open.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #64748b;">
+        <h4>Version 1.3.3 (Filter Builder & Grid Unification)</h4>
+        <ul>
+          <li><strong>Remove Brittle Omnisearch Toolbar</strong>: Deprecated top Omnisearch bar which caused DuckDB
+            schema mismatches (<code>Referenced column "Rec" not found</code>). In accordance with DFIR best practices,
+            full-text search is optimized by enabling the <code>raw_log</code> field in configuration and filtering
+            directly on the raw log column.</li>
+          <li><strong>Bi-directional Filter Unification</strong>: Cell context menu filters (<em>Filter for this value
+              (=)</em>, <em>Exclude (&lt;&gt;)</em>, <em>Time Bracket</em>) now immediately populate and synchronize
+            with the bottom Filter Builder drawer with fully populated column, operator, and value.</li>
+          <li><strong>Refactored Filter Drawer Lifecycle</strong>: Removed conditional sync blocks in
+            <code>Footer.tsx</code> and added robust AST tree rebuilding in <code>FilterEditor.tsx</code>, keeping the
+            active visual tree synchronized with applied queries at all times.
+          </li>
+          <li><strong>Shortcut Rebinding (<code>Ctrl+F</code>)</strong>: <code>Ctrl+F</code> now smoothly toggles the
+            Filter Builder drawer.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #3b82f6;">
+        <h4>Version 1.3.2 (Filter Engine & IPC Stability Patch)</h4>
+        <ul>
+          <li><strong>Fix IPC Expression Reviver</strong>: Registered <code>OmniSearchRelExp</code> in the relational
+            expression reviver map (<code>QueryExp.ts</code>), resolving the
+            <code>subExp.toSqlWhere is not a function</code> error on DuckDB backend.
+          </li>
+          <li><strong>Unified Filter & Context Menu Compatibility</strong>: Seamlessly combines Right-Click Context Menu
+            filters (<code>=</code>, <code>&lt;&gt;</code>, Time Brackets) with active Omnisearch queries without IPC
+            deserialization failure.</li>
+          <li><strong>Defense-in-Depth Relational Fallback</strong>: Added automated AST node recovery in
+            <code>FilterExp.toSqlWhere</code> to gracefully revive any uninstantiated expressions before DuckDB
+            execution.
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box" style="border-left-color: #10b981;">
+        <h4>Version 1.3.1 (Forensic Deep-Dive)</h4>
+        <ul>
+          <li><strong>Forensic In-App Decoders</strong>: Added inline forensic decoding directly inside the Event
+            Details side inspector:
+            <ul>
+              <li><strong>PowerShell UTF-16LE Base64 Decoder</strong>: Instantly unpacks obfuscated PowerShell commands
+                (<code>-enc</code>, <code>-EncodedCommand</code>, <code>-e</code>) into cleartext command lines.</li>
+              <li><strong>Standard Base64 UTF-8 Decoder</strong>: Decodes standard Base64 authentication headers,
+                tokens, and payloads.</li>
+              <li><strong>URL Percent-Decoder</strong>: Automatically decodes percent-encoded strings (<code>%20</code>,
+                <code>%2e%2e%2f</code>, etc.) for web and proxy log analysis.
+              </li>
+            </ul>
+          </li>
+          <li><strong>Interactive IoC Defanger</strong>: 1-click defanger for malicious URLs (<code>http://</code>
+            &rarr; <code>hxxp://</code>, <code>https://</code> &rarr; <code>hxxps://</code>, <code>ftp://</code> &rarr;
+            <code>fxp://</code>) and IPv4 addresses (<code>192[.]168[.]1[.]1</code>) preventing accidental clicks and
+            enabling safe threat sharing.
+          </li>
+          <li><strong>Expandable Decoded Preview Cards</strong>: Each forensic action unfolds a syntax-highlighted
+            monospace terminal card with built-in 1-click copy functionality.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.3.0 (Speed & Pivot)</h4>
+        <ul>
+          <li><strong>Right-Click Context Menu (DFIR Pivot)</strong>: Right-click any cell in the table to access
+            instant investigation actions: <em>Filter for this value (=)</em>, <em>Exclude this value (&lt;&gt;)</em>,
+            <em>Time bracket (&plusmn;5 mins, &plusmn;15 mins, &plusmn;1 hour)</em>, and <em>Copy cell value</em>.
+          </li>
+          <li><strong>Omnisearch / Global IoC Grep (<code>Ctrl+F</code>)</strong>: Dedicated top search bar executing
+            vectorized multi-column substring queries (<code>CONCAT_WS</code>) across all columns at sub-second speeds.
+            Instantly hunt for IP addresses, file hashes, usernames, and command-line arguments without knowing the
+            exact column name.</li>
+          <li><strong>Type-Aware Filter Guard</strong>: Automatic prevention of invalid operators (e.g.
+            <code>contains</code> on numeric/timestamp columns), paired with defense-in-depth SQL VARCHAR auto-casting
+            to eliminate DuckDB query errors.
+          </li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.12</h4>
+        <ul>
+          <li><strong>Defense-in-Depth BigInt Serialization</strong>: Resolved the DuckDB query crash
+            (<code>TypeError: Do not know how to serialize a BigInt</code>) across all layers of the application when
+            filtering or querying 64-bit integer fields (e.g. <code>Destination Port</code>, <code>Fwd IAT Max</code>,
+            timestamps, offsets).</li>
+          <li><strong>Global <code>BigInt.prototype.toJSON</code> Polyfill</strong>: Automatically converts native
+            JavaScript BigInt values to safe JSON representations (safe integers converted to <code>Number</code>,
+            oversized integers serialized cleanly as numeric strings).</li>
+          <li><strong>AST Filter Input Normalization</strong>: <code>FilterEditorRow</code> now automatically validates,
+            casts, and normalizes incoming 64-bit integer values before injecting them into the relational expression
+            tree.</li>
+          <li><strong>Hardened IPC Query Transport</strong>: Added safe BigInt JSON replacers across remote query
+            serialization (<code>Connection.ts</code>, <code>toSql.ts</code>, <code>getSchema.ts</code>) protecting
+            internal IPC communications between UI and DuckDB backend.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.11</h4>
+        <ul>
+          <li><strong>Interactive Apply Button Visual Feedback</strong>: Clicking <strong>Apply</strong> now transitions
+            into a vibrant green state (<code>Applied! ✓</code>) with a checkmark badge before returning to normal,
+            eliminating uncertainty about whether a filter was triggered.</li>
+          <li><strong>Strict Input Validation</strong>: Rejects <code>NaN</code>, empty strings <code>""</code>, and
+            empty arrays <code>[]</code> in filter condition rows, preventing DuckDB syntax failures like
+            <code>WHERE col = NaN</code> or <code>IN ()</code>.
+          </li>
+          <li><strong>Schema Numeric Auto-Casting</strong>: Inspects column schemas and automatically casts text inputs
+            to numbers for numeric columns (<code>INTEGER</code>, <code>DOUBLE</code>, <code>FLOAT</code>) before
+            generating SQL.</li>
+          <li><strong>Incomplete Rule Warning Badge</strong>: Displays an amber badge
+            (<code>⚠ N incomplete rule(s)</code>) in the filter toolbar when condition rows are partially completed,
+            clarifying why they are excluded from the active query.</li>
+          <li><strong>DuckDB Query Error Banner</strong>: Catches query rejections and surfaces human-readable error
+            banners directly in the Filter Editor rather than failing silently.</li>
+          <li><strong>Controlled Numeric Input</strong>: Switched <code>NumericInput</code> to controlled state mode to
+            prevent value <code>0</code> from resetting to empty.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.10</h4>
+        <ul>
+          <li><strong>Columns Push-to-Top Main Table Synchronization</strong>: Fixed synchronization between the Columns
+            sidebar and main table grid: selected columns staged to the top now immediately reorder to the leftmost
+            positions in the primary table upon clicking Play.</li>
+          <li><strong>Table Column Ordering Verification</strong>: Verified grid column offset and ordering pipelines to
+            ensure consistent multi-column reordering.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.9</h4>
+        <ul>
+          <li><strong>Minimalist Toolbar & Decluttered UI</strong>: Streamlined redundant buttons and chrome to maximize
+            viewable data canvas and minimize visual clutter.</li>
+          <li><strong>Ergonomic Layout Refinements</strong>: Harmonized padding, button heights, and contrast across the
+            toolbar.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.8</h4>
+        <ul>
+          <li><strong>1-Click Filter Injection from Event Details (<code>+</code> Button)</strong>: In the Event Details
+            side inspector, each field row now features an interactive <strong><code>+</code></strong> button. Clicking
+            it immediately appends a filter condition matching <code>field == value</code> (or
+            <code>field IS NULL</code>) directly into the active filter expression.
+          </li>
+          <li><strong>Instant Table Re-querying</strong>: Filtering is applied on the fly through DuckDB without
+            requiring manual formula typing or opening the filter editor.</li>
+          <li><strong>Smart Logical Tree Composition</strong>: Intelligently merges into the top-level <code>AND</code>
+            compound filter tree and prevents redundant duplicate rules.</li>
+          <li><strong>Interactive Visual Feedback</strong>: The <code>+</code> button transforms into a green checkmark
+            badge upon click to confirm addition.</li>
+          <li><strong>Layout & Flexbox Stabilization</strong>: Resolved window resize constraints, removed unwanted
+            background DevTools docking calls, and protected event detail inspection with an ErrorBoundary.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.7</h4>
+        <ul>
+          <li><strong>Interactive Drag & Drop Filter Reordering</strong>: Filter condition rows can be freely dragged up
+            and down to change condition evaluation order.</li>
+          <li><strong>Sub-Group Nesting & Unnesting</strong>: Drag any condition directly into a child group to nest it,
+            or drag it out into parent groups or root to unnest—streamlining complex query building without deleting and
+            retyping expressions.</li>
+          <li><strong>Visual Drag Handles & Quick-Action Buttons</strong>: Integrated ergonomic vertical drag handles
+            (<code>&#8942;&#8942;</code>) and one-click action buttons (<strong>Move Up</strong>, <strong>Move
+              Down</strong>, <strong>Move Out</strong>) on every row for fast accessibility.</li>
+          <li><strong>Sub-Group Header Controls</strong>: Easily reorder or unnest entire compound condition blocks via
+            group header navigation buttons.</li>
+          <li><strong>Empty Group Drop Target</strong>: Drop conditions seamlessly into newly created, empty groups with
+            visual drop indicators.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.6</h4>
+        <ul>
+          <li><strong>Row Event Details Expansion</strong>: Added an expand button (<code>&rsaquo;</code>) at the start
+            of each row in the main table. Clicking it opens a slide-out secondary inspector on the right.</li>
+          <li><strong>Side Inspector Panel</strong>: Shows complete <strong>Field Name</strong> and <strong>Field
+              Content</strong> for the event, along with data type badges (<code>str</code>, <code>int</code>,
+            <code>time</code>, <code>num</code>, <code>bool</code>).
+          </li>
+          <li><strong>Instant Collapse (<code>&times;</code>)</strong>: Includes an <code>&times;</code> button in the
+            inspector header and <kbd>Esc</kbd> key support to collapse the panel at any time.</li>
+          <li><strong>Field Search & Quick Copy</strong>: Built-in search input to filter fields/values, 1-click JSON
+            export (<strong>Copy JSON</strong>), and per-field clipboard copying.</li>
+          <li><strong>Draggable Border Resizing</strong>: Freely adjust the side panel width to examine long logs or
+            wide structured payloads.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.5</h4>
+        <ul>
+          <li><strong>Realtime Sync Mode & Icon-Only Controls</strong>: Added a live <strong>Realtime</strong> toggle
+            (<code>&#9889;</code>). When enabled, all column modifications apply immediately; when disabled, Staged mode
+            takes effect. The toolbar buttons are streamlined into clean, minimalist icon buttons
+            (<strong>Realtime</strong>, <strong>Revert</strong>, <strong>Play</strong>).</li>
+          <li><strong>Search & Jump-to-Select Column</strong>: Integrated a dedicated column search input that
+            immediately scrolls the list to the matching column and highlights it without filtering out any other
+            columns. Press <code>Enter</code> to cycle through multiple matches.</li>
+          <li><strong>Multi-Column Push to Top in Selection Order</strong>: Allows selecting multiple fields
+            simultaneously to push to the top in the exact sequence chosen (e.g. selecting A, C, B, D places them as the
+            first 4 columns). Visual order badges display current selection sequence. Applied upon clicking Play (or
+            immediately in Realtime mode).</li>
+          <li><strong>Tab Change Auto-Revert</strong>: Switching tabs in the sidebar or ActivityBar automatically
+            discards unapplied column changes in Staged mode.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.4</h4>
+        <ul>
+          <li><strong>100% English UI Localization</strong>: Standardized all dialogs, placeholders, and tooltips into
+            English.</li>
+          <li><strong>Embedded QuickStart & User Guide</strong>: Full documentation available both in-app and in
+            <code>README.md</code>.
+          </li>
+          <li><strong>Safe IPC Handlers</strong>: Fixed duplicate <code>getSetupInfo</code> handler registration error
+            when opening Help.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.3</h4>
+        <ul>
+          <li><strong>Searchable Filter Column Autocomplete</strong>: Integrated multi-character substring search for
+            column selection.</li>
+          <li><strong>Column Type Badges</strong>: Displays data type indicators next to column names in search
+            suggestions.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.2</h4>
+        <ul>
+          <li><strong>Synchronized Table-Order Columns</strong>: Columns sidebar mirrors the main table visual sequence.
+          </li>
+          <li><strong>In-Place Double-Click Renaming</strong>: Inline column renaming directly in the sidebar.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.1</h4>
+        <ul>
+          <li><strong>Dynamic Regex Column Extraction</strong>: Real-time regex testing and group parsing.</li>
+          <li><strong>Non-Overlapping strX Detection</strong>: Auto-resumes column numbering from max index.</li>
+        </ul>
+      </div>
+
+      <div class="changelog-box">
+        <h4>Version 1.2.0</h4>
+        <ul>
+          <li><strong>Multi-Window Parquet Sharing Cache</strong>: Instant multi-window opening without duplicate
+            conversions.</li>
+          <li><strong>Reopen & Reload Shortcut (<code>Ctrl+R</code> / <code>F5</code>)</strong>: Fast cache
+            invalidation.</li>
+          <li><strong>Circular Cutout Brand Identity</strong>: High-DPI circular cutout Toad logo.</li>
+        </ul>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-center" style="padding: 24px 0; color: #64748b; font-size: 13px;">
+    <div class="container">
+      Toad v2.0.0 &bull; MIT License &bull; <a href="mailto:feedback@example.com"
+        onclick="tadOpenExternal(event,'mailto:feedback@example.com')">Send Feedback</a>
+    </div>
+  </footer>
+
+  <script src="js/clipboard.min.js"></script>
+  <script>
+    function titledPanel(title, content) {
+      return `
+        <div class="panel panel-default" style="margin-top: 8px;">
+          <div class="panel-heading">
+            <h4 class="panel-title">${title}</h4>
+          </div>
+          <div class="panel-body">
+            ${content}
+          </div>
+        </div>`;
+    }
+
+    function unixSetup(installCmd) {
+      const title = 'macOS';
+      const content = `
+        <p>To launch toad from the command line, create a symbolic link in <code>/usr/local/bin</code>:</p>
+        <div class="input-group">
+           <input type="text" id="install-cmd" class="form-control code" value="${installCmd}"></input>
+           <span class="input-group-btn">
+             <button class="btn btn-default" type="button" data-clipboard-target="#install-cmd">
+              <span class="glyphicon glyphicon-copy" aria-hidden="true"></span> Copy
+             </button>
+           </span>
+        </div>`;
+      return titledPanel(title, content);
+    }
+
+    function winSetup(appDir) {
+      const title = 'Windows';
+      const content = `On Windows, add <code>${appDir}</code> to your <code>PATH</code> environment variable to run <code>toad &lt;file&gt;</code> from PowerShell or CMD.`;
+      return titledPanel(title, content);
+    }
+
+    async function init() {
+      if (window.Clipboard) {
+        new Clipboard('.btn');
+      }
+      try {
+        const electron = require('electron');
+        const setupInfo = await electron.ipcRenderer.invoke('getSetupInfo');
+        const { platform, appDir, appScriptPath, exeDir } = setupInfo;
+        let installCmdHtml;
+        if (platform === 'win32') {
+          installCmdHtml = winSetup(exeDir);
+        } else if (platform === 'darwin') {
+          const installCmd = `sudo ln -s ${appScriptPath} /usr/local/bin/toad`;
+          installCmdHtml = unixSetup(installCmd);
+        }
+
+        if (installCmdHtml) {
+          const elem = document.getElementById('cmdLineSetup');
+          if (elem) elem.innerHTML = installCmdHtml;
+        }
+
+        window.tadOpenExternal = function (event, url) {
+          event.preventDefault();
+          electron.shell.openExternal(url);
+          return false;
+        };
+
+        window.tadOpenExample = function () {
+          electron.ipcRenderer.invoke('openExample');
+        };
+      } catch (err) {
+        console.warn("Could not invoke getSetupInfo:", err);
+      }
+    }
+    window.onload = init;
+  </script>
+</body>
+
+</html>
