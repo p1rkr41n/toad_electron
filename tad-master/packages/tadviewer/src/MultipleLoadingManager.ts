@@ -488,7 +488,13 @@ export class MultipleLoadingManager {
     for (const k of matchingKeys) {
       const item = this.files.get(k);
       if (!item) {
-        const fileName = dsPath.path[dsPath.path.length - 1] || "dataset";
+        const seg = dsPath.path[dsPath.path.length - 1];
+        const fileName =
+          seg && seg !== "."
+            ? seg
+            : typeof (dsPath.sourceId as any)?.resourceId === "string"
+            ? (dsPath.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
+            : "dataset";
         this.files.set(k, {
           key: k,
           canonicalPath,

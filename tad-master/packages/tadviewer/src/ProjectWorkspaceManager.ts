@@ -49,6 +49,9 @@ export interface ProjectWorkspaceFile {
   rowCount: number;
   status: "READY" | "MODIFIED" | "STARTED" | "ERROR" | "DELETED";
   parquetPath: string;
+  folderRoot?: string;
+  folderName?: string;
+  relPath?: string;
 }
 
 export type WorkspaceChangeListener = () => void;
@@ -180,16 +183,32 @@ export class ProjectWorkspaceManager {
     if (duckdb && duckdb.ToadParquetLedger) {
       const ledger = duckdb.ToadParquetLedger.getInstance();
       const files = ledger.getProjectFiles(projectId);
-      return files.map((f: any) => ({
-        filePath: f.source_path,
-        fileName: path.basename(f.source_path || ""),
-        projectId: f.project_id || projectId,
-        projectName: f.project_name || "Untitled-1",
-        fileSizeBytes: f.source_size,
-        rowCount: f.row_count,
-        status: f.status,
-        parquetPath: f.parquet_path,
-      }));
+      return files.map((f: any) => {
+        let folderRoot: string | undefined;
+        let folderName: string | undefined;
+        let relPath: string | undefined;
+        if (f.extra_json) {
+          try {
+            const ex = JSON.parse(f.extra_json);
+            folderRoot = ex.folderRoot;
+            folderName = ex.folderName;
+            relPath = ex.relPath;
+          } catch {}
+        }
+        return {
+          filePath: f.source_path,
+          fileName: path.basename(f.source_path || "") || "Unnamed File",
+          projectId: f.project_id || projectId,
+          projectName: f.project_name || "Untitled-1",
+          fileSizeBytes: f.source_size,
+          rowCount: f.row_count,
+          status: f.status,
+          parquetPath: f.parquet_path,
+          folderRoot,
+          folderName,
+          relPath,
+        };
+      });
     }
 
     return [];
@@ -366,5 +385,55 @@ export class ProjectWorkspaceManager {
       duckdb.ToadParquetLedger.getInstance().setActiveProjectId(projectId);
     }
     this.notify();
+  }
+
+  public async purgeProjectCache(
+    projectId: string
+  ): Promise<{ purgedFiles: number; freedBytes: number }> {
+    const bridge = getBridge();
+    if (bridge && typeof bridge.invoke === "function") {
+      try {
+        const res = await bridge.invoke("project:purgeCache", { projectId });
+        this.notify();
+        return res;
+      } catch {}
+    }
+
+    const duckdb = getReltabDuckDB();
+    if (duckdb && duckdb.ToadParquetLedger) {
+      const ledger = duckdb.ToadParquetLedger.getInstance();
+      const res = await ledger.purgeProjectCache(projectId);
+      this.notify();
+      return res;
+    }
+    return { purgedFiles: 0, freedBytes: 0 };
+  }
+
+  public async removeFileFromProject(
+    projectId: string,
+    filePath: string
+  ): Promise<{ freedBytes: number }> {
+    try {
+      const { MultipleLoadingManager } = require("./MultipleLoadingManager");
+      MultipleLoadingManager.getInstance().unregisterFile(filePath);
+    } catch {}
+
+    const bridge = getBridge();
+    if (bridge && typeof bridge.invoke === "function") {
+      try {
+        const res = await bridge.invoke("project:removeFile", { projectId, filePath });
+        this.notify();
+        return res;
+      } catch {}
+    }
+
+    const duckdb = getReltabDuckDB();
+    if (duckdb && duckdb.ToadParquetLedger) {
+      const ledger = duckdb.ToadParquetLedger.getInstance();
+      const res = await ledger.removeFileFromProject(projectId, filePath);
+      this.notify();
+      return res;
+    }
+    return { freedBytes: 0 };
   }
 }

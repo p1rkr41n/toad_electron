@@ -528,10 +528,186 @@ export class ToadParquetLedger {
     let formattedSize = "0 MB";
     if (totalBytes >= 1024 * 1024 * 1024) {
       formattedSize = `${(totalBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    } else {
+    } else if (totalBytes >= 1024 * 1024) {
       formattedSize = `${(totalBytes / (1024 * 1024)).toFixed(2)} MB`;
+    } else if (totalBytes >= 1024) {
+      formattedSize = `${(totalBytes / 1024).toFixed(2)} KB`;
+    } else {
+      formattedSize = `${totalBytes} B`;
     }
     return { fileCount: files.length, totalBytes, formattedSize };
+  }
+
+  public async purgeProjectCache(
+    projectId: string
+  ): Promise<{ purgedFiles: number; freedBytes: number }> {
+    const proj = this.projects.get(projectId);
+    const projName = proj ? proj.projectName : projectId;
+    const files = this.getProjectFiles(projectId);
+
+    let purgedFiles = 0;
+    let freedBytes = 0;
+    const updatedEntries: ToadLedgerEntry[] = [];
+
+    for (const f of files) {
+      let pPath = f.parquet_path;
+      if (!pPath && f.source_path) {
+        const cfg = getIngestConfig();
+        const cp = getDeterministicParquetPath(f.source_path, cfg.temp_dir);
+        if (cp) pPath = cp.parquetPath;
+      }
+
+      if (pPath) {
+        if (fs.existsSync(pPath)) {
+          try {
+            const sz = fs.statSync(pPath).size;
+            fs.unlinkSync(pPath);
+            freedBytes += sz;
+            purgedFiles++;
+          } catch {}
+        }
+
+        try {
+          const dir = path.dirname(pPath);
+          const base = path.basename(pPath, ".parquet");
+          if (fs.existsSync(dir)) {
+            for (const ent of fs.readdirSync(dir)) {
+              if (
+                ent.startsWith(base) &&
+                (ent.includes(".tmp") || ent.includes(".tmp_"))
+              ) {
+                const tmpFull = path.join(dir, ent);
+                try {
+                  const sz = fs.statSync(tmpFull).size;
+                  fs.unlinkSync(tmpFull);
+                  freedBytes += sz;
+                  purgedFiles++;
+                } catch {}
+              }
+            }
+          }
+        } catch {}
+      }
+
+      // Close and drop corresponding DuckDB VIEW if existing
+      try {
+        let viewName = "";
+        if (f.extra_json) {
+          try {
+            const extra = JSON.parse(f.extra_json);
+            viewName = extra.view;
+          } catch {}
+        }
+        if (!viewName && f.source_path) {
+          viewName = genTableName(f.source_path);
+        }
+        if (viewName) {
+          const activeDb = this.db || (await this.getOrCreateInternalDb());
+          const dropConn = await activeDb.connect();
+          try {
+            await dropConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
+          } finally {
+            await dropConn.close();
+          }
+
+          try {
+            const dynamicRequire =
+              typeof (globalThis as any).require === "function"
+                ? (globalThis as any).require
+                : eval("require");
+            const reltabFS = dynamicRequire("reltab-fs");
+            if (reltabFS && typeof reltabFS.getUIDuckDBDriver === "function") {
+              const uiDrv = await reltabFS.getUIDuckDBDriver();
+              if (uiDrv && uiDrv.connPool) {
+                const uConn = await uiDrv.connPool.take();
+                try {
+                  await uConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
+                } finally {
+                  uiDrv.connPool.giveBack(uConn);
+                }
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+
+      try {
+        const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
+        if (globalMLM && f.source_path) {
+          if (typeof globalMLM.clearFirstPageCache === "function") {
+            globalMLM.clearFirstPageCache(f.source_path);
+          }
+        }
+      } catch {}
+
+      const updated: ToadLedgerEntry = {
+        ...f,
+        event_id: `purge-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        event_type: "FILE_MODIFIED",
+        timestamp: Date.now(),
+        parquet_path: "",
+        parquet_size: 0,
+        status: "MODIFIED",
+        extra_json: JSON.stringify({ cachePurged: true }),
+      };
+      this.cache.set(this.normalizePath(f.source_path), updated);
+      updatedEntries.push(updated);
+    }
+
+    if (updatedEntries.length > 0) {
+      await this.recordEvents(updatedEntries);
+    }
+
+    this.notifyChange();
+    return { purgedFiles, freedBytes };
+  }
+
+  public async removeFileFromProject(
+    projectId: string,
+    filePath: string
+  ): Promise<{ freedBytes: number }> {
+    const norm = this.normalizePath(filePath);
+    const entry = this.cache.get(norm);
+    let freedBytes = 0;
+    if (entry) {
+      if (entry.parquet_path && fs.existsSync(entry.parquet_path)) {
+        try {
+          freedBytes += fs.statSync(entry.parquet_path).size;
+          fs.unlinkSync(entry.parquet_path);
+        } catch {}
+      }
+      this.cache.delete(norm);
+    }
+
+    try {
+      const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
+      if (globalMLM && typeof globalMLM.unregisterFile === "function") {
+        globalMLM.unregisterFile(filePath);
+      }
+    } catch {}
+
+    const proj = this.projects.get(projectId);
+    const pName = proj ? proj.projectName : this.getProjectName(projectId);
+
+    await this.recordEvent({
+      event_id: `file-rm-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type: "FILE_DELETED",
+      timestamp: Date.now(),
+      project_id: projectId,
+      project_name: pName,
+      source_path: filePath,
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "DELETED",
+      duration_ms: 0,
+      extra_json: JSON.stringify({ userRemoved: true }),
+    });
+
+    this.notifyChange();
+    return { freedBytes };
   }
 
   public async deleteProjectCascade(
@@ -645,7 +821,24 @@ export class ToadParquetLedger {
       } catch {}
     }
 
-    await this.recordEvent({
+    const fileDeleteEntries: ToadLedgerEntry[] = files.map((f) => ({
+      event_id: `file-del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      event_type: "FILE_DELETED",
+      timestamp: Date.now(),
+      project_id: projectId,
+      project_name: projName,
+      source_path: f.source_path,
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "DELETED",
+      duration_ms: 0,
+      extra_json: JSON.stringify({ cascadeDeleted: true }),
+    }));
+
+    const prjDeleteEntry: ToadLedgerEntry = {
       event_id: `prj-del-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       event_type: "PROJECT_DELETE",
       timestamp: Date.now(),
@@ -660,7 +853,9 @@ export class ToadParquetLedger {
       status: "DELETED",
       duration_ms: 0,
       extra_json: JSON.stringify({ freedBytes, deletedFiles }),
-    });
+    };
+
+    await this.recordEvents([...fileDeleteEntries, prjDeleteEntry]);
 
     if (this.projects.has(projectId)) {
       const p = this.projects.get(projectId)!;
@@ -711,7 +906,9 @@ export class ToadParquetLedger {
   public async addFileToProject(
     projectId: string,
     filePath: string,
-    projectName?: string
+    projectName?: string,
+    extraData?: Record<string, any>,
+    autoRecord: boolean = true
   ): Promise<ToadLedgerEntry> {
     let proj = this.projects.get(projectId);
     if (!proj) {
@@ -745,6 +942,7 @@ export class ToadParquetLedger {
       } catch {}
     }
 
+    const extraObj = { addedBy: "user", ...(extraData || {}) };
     const entry: ToadLedgerEntry = {
       event_id: `add-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       event_type:
@@ -764,10 +962,14 @@ export class ToadParquetLedger {
       row_count: 0,
       status,
       duration_ms: 0,
-      extra_json: JSON.stringify({ addedBy: "user" }),
+      extra_json: JSON.stringify(extraObj),
     };
 
-    await this.recordEvent(entry);
+    if (autoRecord) {
+      await this.recordEvent(entry);
+    } else {
+      this.cache.set(this.normalizePath(entry.source_path), entry);
+    }
     return entry;
   }
 
@@ -810,10 +1012,26 @@ export class ToadParquetLedger {
     };
 
     scan(folderPath);
+    const folderName = path.basename(folderPath);
     const results: ToadLedgerEntry[] = [];
     for (const filePath of addedFiles) {
-      const e = await this.addFileToProject(projectId, filePath, projectName);
+      const relPath = path.relative(folderPath, filePath).replace(/\\/g, "/");
+      const e = await this.addFileToProject(
+        projectId,
+        filePath,
+        projectName,
+        {
+          addedBy: "user_folder",
+          folderRoot: folderPath,
+          folderName,
+          relPath,
+        },
+        false
+      );
       results.push(e);
+    }
+    if (results.length > 0) {
+      await this.recordEvents(results);
     }
     return results;
   }
@@ -829,6 +1047,7 @@ export class ToadParquetLedger {
     const proj = this.projects.get(targetId);
     if (!proj) return;
     const orphanFiles = this.getProjectFiles("orphan_prj");
+    const updatedEntries: ToadLedgerEntry[] = [];
     for (const f of orphanFiles) {
       const updated: ToadLedgerEntry = {
         ...f,
@@ -839,7 +1058,11 @@ export class ToadParquetLedger {
         project_name: proj.projectName,
         extra_json: JSON.stringify({ movedFrom: "orphan_prj" }),
       };
-      await this.recordEvent(updated);
+      this.cache.set(this.normalizePath(updated.source_path), updated);
+      updatedEntries.push(updated);
+    }
+    if (updatedEntries.length > 0) {
+      await this.recordEvents(updatedEntries);
     }
     this.notifyChange();
   }
@@ -995,6 +1218,12 @@ export class ToadParquetLedger {
               this.projects.get(projId)!.status = "DELETED";
               this.projects.delete(projId);
             }
+            // Evict any files associated with this project added up to this deletion timestamp
+            for (const [k, e] of this.cache.entries()) {
+              if (e.project_id === projId && e.timestamp <= Number(row.timestamp)) {
+                this.cache.delete(k);
+              }
+            }
             continue;
           }
 
@@ -1070,40 +1299,44 @@ export class ToadParquetLedger {
     return this.db!;
   }
 
-  public async recordEvent(evt: ToadLedgerEntry): Promise<void> {
-    if (!evt.project_id && evt.source_path) {
-      const existing = this.cache.get(this.normalizePath(evt.source_path));
-      if (existing && existing.project_id) {
-        evt.project_id = existing.project_id;
-        evt.project_name =
-          existing.project_name || this.getProjectName(existing.project_id);
-      }
-    }
-    if (!evt.project_id) {
-      evt.project_id = this.activeProjectId || "prj_untitled_1";
-    }
-    if (!evt.project_name) {
-      evt.project_name = this.getProjectName(evt.project_id);
-    }
-    if (!evt.event_type) {
-      evt.event_type =
-        evt.status === "READY"
-          ? "FILE_READY"
-          : evt.status === "MODIFIED"
-          ? "FILE_MODIFIED"
-          : evt.status === "ERROR"
-          ? "FILE_ERROR"
-          : evt.status === "DELETED"
-          ? "FILE_DELETED"
-          : "FILE_STARTED";
-    }
+  public async recordEvents(evts: ToadLedgerEntry[]): Promise<void> {
+    if (!evts || evts.length === 0) return;
 
-    if (evt.source_path) {
-      const norm = this.normalizePath(evt.source_path);
-      if (evt.status === "DELETED") {
-        this.cache.delete(norm);
-      } else {
-        this.cache.set(norm, evt);
+    for (const evt of evts) {
+      if (!evt.project_id && evt.source_path) {
+        const existing = this.cache.get(this.normalizePath(evt.source_path));
+        if (existing && existing.project_id) {
+          evt.project_id = existing.project_id;
+          evt.project_name =
+            existing.project_name || this.getProjectName(existing.project_id);
+        }
+      }
+      if (!evt.project_id) {
+        evt.project_id = this.activeProjectId || "prj_untitled_1";
+      }
+      if (!evt.project_name) {
+        evt.project_name = this.getProjectName(evt.project_id);
+      }
+      if (!evt.event_type) {
+        evt.event_type =
+          evt.status === "READY"
+            ? "FILE_READY"
+            : evt.status === "MODIFIED"
+            ? "FILE_MODIFIED"
+            : evt.status === "ERROR"
+            ? "FILE_ERROR"
+            : evt.status === "DELETED"
+            ? "FILE_DELETED"
+            : "FILE_STARTED";
+      }
+
+      if (evt.source_path) {
+        const norm = this.normalizePath(evt.source_path);
+        if (evt.status === "DELETED") {
+          this.cache.delete(norm);
+        } else {
+          this.cache.set(norm, evt);
+        }
       }
     }
 
@@ -1128,31 +1361,35 @@ export class ToadParquetLedger {
             }
           } catch {}
 
-          const safeSource = escapeSqlPath(evt.source_path || "").replace(/'/g, "''");
-          const safeParquet = escapeSqlPath(evt.parquet_path || "").replace(/'/g, "''");
-          const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
-          const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
-          const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
-          const safeEventType = (evt.event_type || "FILE_READY").replace(/'/g, "''");
-          const safeEventId = (evt.event_id || `evt-${Date.now()}`).replace(/'/g, "''");
-          const safeStatus = (evt.status || "READY").replace(/'/g, "''");
+          const rowSqlParts = evts.map((evt) => {
+            const safeSource = escapeSqlPath(evt.source_path || "").replace(/'/g, "''");
+            const safeParquet = escapeSqlPath(evt.parquet_path || "").replace(/'/g, "''");
+            const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
+            const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
+            const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
+            const safeEventType = (evt.event_type || "FILE_READY").replace(/'/g, "''");
+            const safeEventId = (evt.event_id || `evt-${Date.now()}`).replace(/'/g, "''");
+            const safeStatus = (evt.status || "READY").replace(/'/g, "''");
 
-          const rowSql = `SELECT 
-            '${safeEventId}' as event_id,
-            '${safeEventType}' as event_type,
-            CAST(${Number(evt.timestamp) || Date.now()} AS BIGINT) as timestamp,
-            '${safeProjectId}' as project_id,
-            '${safeProjectName}' as project_name,
-            '${safeSource}' as source_path,
-            CAST(${Number(evt.source_size) || 0} AS BIGINT) as source_size,
-            CAST(${Number(evt.source_mtime) || 0} AS BIGINT) as source_mtime,
-            '${safeParquet}' as parquet_path,
-            CAST(${Number(evt.parquet_size) || 0} AS BIGINT) as parquet_size,
-            CAST(${Number(evt.row_count) || 0} AS BIGINT) as row_count,
-            '${safeStatus}' as status,
-            CAST(${Number(evt.duration_ms) || 0} AS INTEGER) as duration_ms,
-            '${safeExtra}' as extra_json
-          `;
+            return `SELECT 
+              '${safeEventId}' as event_id,
+              '${safeEventType}' as event_type,
+              CAST(${Number(evt.timestamp) || Date.now()} AS BIGINT) as timestamp,
+              '${safeProjectId}' as project_id,
+              '${safeProjectName}' as project_name,
+              '${safeSource}' as source_path,
+              CAST(${Number(evt.source_size) || 0} AS BIGINT) as source_size,
+              CAST(${Number(evt.source_mtime) || 0} AS BIGINT) as source_mtime,
+              '${safeParquet}' as parquet_path,
+              CAST(${Number(evt.parquet_size) || 0} AS BIGINT) as parquet_size,
+              CAST(${Number(evt.row_count) || 0} AS BIGINT) as row_count,
+              '${safeStatus}' as status,
+              CAST(${Number(evt.duration_ms) || 0} AS INTEGER) as duration_ms,
+              '${safeExtra}' as extra_json
+            `;
+          });
+
+          const rowsSql = rowSqlParts.join("\nUNION ALL\n");
 
           let appendSuccess = false;
           if (isExistingNonEmpty) {
@@ -1237,7 +1474,7 @@ export class ToadParquetLedger {
               const appendSql = `COPY (
                 ${readOldSql}
                 UNION ALL
-                ${rowSql}
+                ${rowsSql}
               ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
               await conn.run(appendSql);
               appendSuccess = true;
@@ -1247,7 +1484,7 @@ export class ToadParquetLedger {
           }
 
           if (!appendSuccess) {
-            const createSql = `COPY (${rowSql}) TO '${escapeSqlPath(
+            const createSql = `COPY (${rowsSql}) TO '${escapeSqlPath(
               tmpPath
             )}' (FORMAT PARQUET)`;
             await conn.run(createSql);
@@ -1271,6 +1508,10 @@ export class ToadParquetLedger {
       }
     });
     return this.writeQueue;
+  }
+
+  public async recordEvent(evt: ToadLedgerEntry): Promise<void> {
+    return this.recordEvents([evt]);
   }
 }
 

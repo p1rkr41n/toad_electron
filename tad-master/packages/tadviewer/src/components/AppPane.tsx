@@ -497,8 +497,8 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     }
   }, [dsPath]);
 
-  let centerPane: JSX.Element | null;
-  let pivotSidebar: JSX.Element | null;
+  let centerPane: JSX.Element | null = null;
+  let pivotSidebar: JSX.Element | null = null;
 
   const activeLoading = appState.activeLoadingFile;
 
@@ -612,10 +612,17 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     viewState !== null &&
     viewState.dataView === null
   ) {
-    pivotSidebar = null;
-    const fileName = viewState.dsPath
-      ? viewState.dsPath.path[viewState.dsPath.path.length - 1]
-      : "dataset";
+    let fileName = "dataset";
+    if (viewState.dsPath) {
+      const seg = viewState.dsPath.path[viewState.dsPath.path.length - 1];
+      if (seg && seg !== ".") {
+        fileName = seg;
+      } else if (typeof (viewState.dsPath.sourceId as any)?.resourceId === "string") {
+        fileName =
+          (viewState.dsPath.sourceId as any).resourceId.split(/[/\\]/).pop() ||
+          "dataset";
+      }
+    }
     centerPane = (
       <div className="center-app-pane center-loading-pane">
         <div className="main-loading-card">
