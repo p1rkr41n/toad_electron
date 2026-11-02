@@ -144,7 +144,13 @@ export const replaceCurrentView = async (
   const dbc = await appState.rtc.connect(dsPath.sourceId);
 
   const { path } = dsPath;
-  const baseTableName = path[path.length - 1];
+  const lastSeg = path[path.length - 1];
+  const baseTableName =
+    !lastSeg || lastSeg === "."
+      ? dsPath.sourceId && typeof (dsPath.sourceId as any).resourceId === "string"
+        ? (dsPath.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
+        : "dataset"
+      : lastSeg;
 
   const windowTitle = baseTableName;
 
@@ -320,7 +326,13 @@ export const openDataSourcePath = async (
     const ramCache = manager.getFirstPageCache(canon) || manager.getFirstPageCache(key);
 
     if (!isAlreadyLoading) {
-      const fileName = path.path[path.path.length - 1] || "dataset";
+      const lastSeg = path.path[path.path.length - 1];
+      const fileName =
+        !lastSeg || lastSeg === "."
+          ? path.sourceId && typeof (path.sourceId as any).resourceId === "string"
+            ? (path.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
+            : "dataset"
+          : lastSeg;
       setActiveLoadingFile(
         {
           isLoading: true,
@@ -344,10 +356,17 @@ export const openDataSourcePath = async (
         try {
           const vs = mutableGet(stateRef).viewState;
           if (vs && vs.baseSchema && dv.rawData) {
+            const lastSeg = path.path[path.path.length - 1];
+            const fallbackName =
+              !lastSeg || lastSeg === "."
+                ? path.sourceId && typeof (path.sourceId as any).resourceId === "string"
+                  ? (path.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
+                  : "dataset"
+                : lastSeg;
             manager.setFirstPageCache(canon, {
               tableName:
                 (vs.baseQuery as any).tableName ||
-                path.path[path.path.length - 1],
+                fallbackName,
               schema: vs.baseSchema,
               tableRep: new reltab.TableRep(vs.baseSchema, dv.rawData),
               totalRowCount: dv.totalRowCount,

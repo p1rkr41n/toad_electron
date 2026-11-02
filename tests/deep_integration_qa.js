@@ -3790,6 +3790,13 @@ async function main() {
     const ledgerSize = fs.statSync(ggLedgerPath).size;
     assert(ledgerSize < 30 * 1024, `Ledger size (${ledgerSize} bytes) must be < 30KB`);
 
+    // Add an active file to Untitled-1 so snapshot query tests on active data
+    const ledger = new reltabDuckDB.ToadParquetLedger(ggLedgerPath);
+    await ledger.initLedger();
+    const liveSample = path.join(testSuiteGGDir, "live_sample.csv");
+    fs.writeFileSync(liveSample, "id,status\n1,OK\n", "utf8");
+    await ledger.addFileToProject("prj_untitled_1", liveSample);
+
     // Verify Section 4.2 snapshot query executes in < 5ms
     const memDb = await Database.create(":memory:");
     const memConn = await memDb.connect();
@@ -3805,7 +3812,7 @@ async function main() {
           ORDER BY timestamp DESC
         ) as rn
         FROM read_parquet('${ggLedgerPath.replace(/\\/g, "/")}')
-      ) WHERE rn = 1 AND status != 'DELETED'
+      ) WHERE rn = 1 AND status != 'DELETED' AND source_path != ''
     `;
     const snapshotRows = await memConn.all(snapshotSql);
     const tElapsed = performance.now() - tStart;
@@ -3815,6 +3822,157 @@ async function main() {
 
     assert(snapshotRows.length >= 1, "Snapshot must return active records");
     assert(tElapsed < 25, `Snapshot query latency (${tElapsed.toFixed(2)} ms) must be ultra-fast (< 25ms cold, budget < 5ms warmed)`);
+  });
+
+  await runTest("GG.13 Zombie File Resurrection Prevention & Recreated Project Purity", async () => {
+    const resurrDir = path.join(testSuiteGGDir, "resurrection_test");
+    fs.mkdirSync(resurrDir, { recursive: true });
+    const resurrLedgerPath = path.join(resurrDir, "toad_ledger.parquet");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(resurrLedgerPath);
+    await ledger.initLedger();
+
+    // 1. Add file to Untitled-1
+    const dummyFile = path.join(resurrDir, "secret_data.csv");
+    fs.writeFileSync(dummyFile, "a,b\n1,2\n", "utf8");
+    await ledger.addFileToProject("prj_untitled_1", dummyFile);
+
+    assert.strictEqual(ledger.getProjectFiles("prj_untitled_1").length, 1);
+
+    // 2. Cascade delete Untitled-1
+    await ledger.deleteProjectCascade("prj_untitled_1");
+    assert.strictEqual(ledger.getProjectFiles("prj_untitled_1").length, 0);
+
+    // 3. Recreate Untitled-1
+    await ledger.ensureDefaultProject();
+    assert.strictEqual(ledger.getProjectFiles("prj_untitled_1").length, 0, "Recreated Untitled-1 must be empty in memory");
+
+    // 4. Cold restart - reload ledger from disk
+    const reloaded = new reltabDuckDB.ToadParquetLedger(resurrLedgerPath);
+    await reloaded.initLedger();
+
+    const reloadedFiles = reloaded.getProjectFiles("prj_untitled_1");
+    assert.strictEqual(reloadedFiles.length, 0, "Deleted project files must NEVER resurrect on cold restart");
+  });
+
+  await runTest("GG.14 DuckDB Snapshot View v_active_workspace Consistency", async () => {
+    const snapDir = path.join(testSuiteGGDir, "snapshot_view_test");
+    fs.mkdirSync(snapDir, { recursive: true });
+    const snapLedgerPath = path.join(snapDir, "toad_ledger.parquet");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(snapLedgerPath);
+    await ledger.initLedger();
+
+    const prjId = "prj_snap_target";
+    await ledger.createProject("Snapshot Target", prjId);
+
+    const f1 = path.join(snapDir, "file1.csv");
+    const f2 = path.join(snapDir, "file2.csv");
+    fs.writeFileSync(f1, "x\n1\n", "utf8");
+    fs.writeFileSync(f2, "y\n2\n", "utf8");
+
+    await ledger.addFileToProject(prjId, f1);
+    await ledger.addFileToProject(prjId, f2);
+
+    assert.strictEqual(ledger.getProjectFiles(prjId).length, 2);
+
+    // Delete project with cascade cleanup
+    await ledger.deleteProjectCascade(prjId);
+
+    // Query DuckDB Section 4.2 snapshot SQL
+    const memDb = await Database.create(":memory:");
+    const memConn = await memDb.connect();
+    const snapshotRows = await memConn.all(`
+      SELECT * FROM (
+        SELECT *, ROW_NUMBER() OVER (
+          PARTITION BY source_path 
+          ORDER BY timestamp DESC
+        ) as rn
+        FROM read_parquet('${snapLedgerPath.replace(/\\/g, "/")}')
+      ) WHERE rn = 1 AND status != 'DELETED' AND source_path != ''
+    `);
+    await memConn.close();
+    await memDb.close();
+
+    assert.strictEqual(
+      snapshotRows.length,
+      0,
+      "DuckDB snapshot query v_active_workspace must return 0 active rows for cascade-deleted project files"
+    );
+  });
+
+  await runTest("GG.15 Atomic Batch Ledger Operations (recordEvents) & Folder Structure Tracking", async () => {
+    const batchDir = path.join(testSuiteGGDir, "batch_test");
+    fs.mkdirSync(batchDir, { recursive: true });
+    const batchLedgerPath = path.join(batchDir, "toad_ledger.parquet");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(batchLedgerPath);
+    await ledger.initLedger();
+
+    const folderDir = path.join(batchDir, "network_logs");
+    fs.mkdirSync(folderDir, { recursive: true });
+    for (let i = 1; i <= 5; i++) {
+      fs.writeFileSync(path.join(folderDir, `log_${i}.csv`), `id\n${i}\n`, "utf8");
+    }
+
+    const prjId = "prj_batch_test";
+    await ledger.createProject("Batch Test Project", prjId);
+
+    const added = await ledger.addFolderToProject(prjId, folderDir);
+    assert.strictEqual(added.length, 5, "Must add all 5 files in folder");
+
+    for (const ent of added) {
+      assert(ent.extra_json, "Must store extra_json metadata");
+      const meta = JSON.parse(ent.extra_json);
+      assert.strictEqual(meta.folderName, "network_logs");
+      assert.strictEqual(meta.addedBy, "user_folder");
+    }
+
+    // Verify DuckDB reads all 5 files from ledger
+    const memDb = await Database.create(":memory:");
+    const memConn = await memDb.connect();
+    const rows = await memConn.all(`SELECT * FROM read_parquet('${batchLedgerPath.replace(/\\/g, "/")}') WHERE project_id = '${prjId}' AND source_path != ''`);
+    await memConn.close();
+    await memDb.close();
+
+    assert.strictEqual(rows.length, 5, "DuckDB must query all 5 batch-recorded files");
+  });
+
+  await runTest("GG.16 Project Cache Purge (purgeProjectCache) & File Removal (removeFileFromProject)", async () => {
+    const purgeDir = path.join(testSuiteGGDir, "purge_test");
+    fs.mkdirSync(purgeDir, { recursive: true });
+    const purgeLedgerPath = path.join(purgeDir, "toad_ledger.parquet");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(purgeLedgerPath);
+    await ledger.initLedger();
+
+    const prjId = "prj_purge_test";
+    await ledger.createProject("Purge Test", prjId);
+
+    const testFile = path.join(purgeDir, "sample.csv");
+    fs.writeFileSync(testFile, "col1\nval1\n", "utf8");
+
+    const entry = await ledger.addFileToProject(prjId, testFile);
+
+    // Simulate physical cache file
+    const fakeParquet = path.join(purgeDir, "sample_cached_123.parquet");
+    fs.writeFileSync(fakeParquet, "fake_parquet_content_bytes", "utf8");
+    entry.parquet_path = fakeParquet;
+    entry.parquet_size = 25;
+
+    // Purge project cache
+    const purgeResult = await ledger.purgeProjectCache(prjId);
+    assert(purgeResult.purgedFiles >= 1, "Must purge at least 1 file");
+    assert(purgeResult.freedBytes > 0, "Must free positive bytes");
+    assert(!fs.existsSync(fakeParquet), "Physical parquet cache must be deleted");
+
+    const pFiles = ledger.getProjectFiles(prjId);
+    assert.strictEqual(pFiles[0].status, "MODIFIED", "Status must be reset to MODIFIED after purge");
+
+    // Remove file from project
+    const rmResult = await ledger.removeFileFromProject(prjId, testFile);
+    assert.strictEqual(ledger.getProjectFiles(prjId).length, 0, "File must be removed from project");
+    assert.strictEqual(ledger.getAllEntries().filter(e => e.source_path === testFile).length, 0, "Removed file must not exist in active cache");
   });
 
   // Cleanup temporary directory

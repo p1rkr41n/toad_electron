@@ -290,16 +290,32 @@ const appInit = (options: any) => {
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     const files = ledger.getProjectFiles(req?.projectId);
-    return files.map((f: any) => ({
-      filePath: f.source_path,
-      fileName: path.basename(f.source_path || ""),
-      projectId: f.project_id || req?.projectId,
-      projectName: f.project_name || "Untitled-1",
-      fileSizeBytes: f.source_size,
-      rowCount: f.row_count,
-      status: f.status,
-      parquetPath: f.parquet_path,
-    }));
+    return files.map((f: any) => {
+      let folderRoot: string | undefined;
+      let folderName: string | undefined;
+      let relPath: string | undefined;
+      if (f.extra_json) {
+        try {
+          const ex = JSON.parse(f.extra_json);
+          folderRoot = ex.folderRoot;
+          folderName = ex.folderName;
+          relPath = ex.relPath;
+        } catch {}
+      }
+      return {
+        filePath: f.source_path,
+        fileName: path.basename(f.source_path || "") || "Unnamed File",
+        projectId: f.project_id || req?.projectId,
+        projectName: f.project_name || "Untitled-1",
+        fileSizeBytes: f.source_size,
+        rowCount: f.row_count,
+        status: f.status,
+        parquetPath: f.parquet_path,
+        folderRoot,
+        folderName,
+        relPath,
+      };
+    });
   });
 
   ipcMain.handle("project:create", async (event, req) => {
@@ -318,6 +334,18 @@ const appInit = (options: any) => {
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return ledger.getProjectCacheSize(req?.projectId);
+  });
+
+  ipcMain.handle("project:purgeCache", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.purgeProjectCache(req?.projectId);
+  });
+
+  ipcMain.handle("project:removeFile", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.removeFileFromProject(req?.projectId, req?.filePath);
   });
 
   ipcMain.handle("project:addFiles", async (event, req) => {

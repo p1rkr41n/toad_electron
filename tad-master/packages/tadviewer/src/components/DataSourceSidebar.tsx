@@ -321,6 +321,11 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     projectName: string;
     formattedSize: string;
   } | null>(null);
+  const [purgeTarget, setPurgeTarget] = useState<{
+    projectId: string;
+    projectName: string;
+  } | null>(null);
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const clickSeqRef = useRef(0);
@@ -338,6 +343,15 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     };
   }, [stateRef]);
 
+  const normPath = (p: string) => {
+    try {
+      const pathModule = require("path");
+      return pathModule.resolve(p).replace(/\\/g, "/").toLowerCase();
+    } catch {
+      return (p || "").replace(/\\/g, "/").toLowerCase();
+    }
+  };
+
   const throttledRefresh = useRef(
     throttle(async function refreshDataSources(): Promise<void> {
       const appState = mutableGet(stateRef);
@@ -354,11 +368,11 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           const isExpanded = pwManager.isProjectExpanded(proj.projectId);
 
           const fileItemsForMLM: any[] = [];
-          const childFileNodes: DSTreeNodeInfo[] = [];
+          const fileDscMap = new Map<string, any>();
 
           for (const f of files) {
             if (f.filePath) {
-              allProjectFilePaths.add(f.filePath.replace(/\\/g, "/").toLowerCase());
+              allProjectFilePaths.add(normPath(f.filePath));
             }
 
             let fileDsc: any = null;
@@ -380,6 +394,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     : "UNPROCESSED",
               };
             }
+            fileDscMap.set(f.filePath, fileDsc);
 
             const dsPath: DataSourcePath = {
               sourceId: { providerName: "localfs", resourceId: f.filePath },
@@ -392,25 +407,83 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
               fileName: f.fileName,
               fileSizeBytes: f.fileSizeBytes,
             });
-
-            if (!searchQuery || f.fileName.toLowerCase().includes(searchQuery.toLowerCase())) {
-              const dsNode: DataSourceNode = {
-                id: f.fileName,
-                kind: "File",
-                displayName: f.fileName,
-                isContainer: false,
-                fileSizeBytes: f.fileSizeBytes,
-                description: f.rowCount
-                  ? formatRowCount(Number(f.rowCount))
-                  : undefined,
-              };
-              (dsNode as any).initialStatus = f.status;
-              childFileNodes.push(dsNodeTreeNode(fileDsc, dsPath, dsNode, stateRef));
-            }
           }
 
           if (fileItemsForMLM.length > 0) {
             MultipleLoadingManager.getInstance().registerFiles(fileItemsForMLM, stateRef);
+          }
+
+          const childFileNodes: DSTreeNodeInfo[] = [];
+          const topLevelFiles: ProjectWorkspaceFile[] = [];
+          const folderGroups: Map<string, ProjectWorkspaceFile[]> = new Map();
+
+          for (const f of files) {
+            if (f.folderName) {
+              const list = folderGroups.get(f.folderName) || [];
+              list.push(f);
+              folderGroups.set(f.folderName, list);
+            } else {
+              topLevelFiles.push(f);
+            }
+          }
+
+          const renderFileNode = (f: ProjectWorkspaceFile): DSTreeNodeInfo | null => {
+            if (searchQuery && !f.fileName.toLowerCase().includes(searchQuery.toLowerCase())) {
+              return null;
+            }
+            const fileDsc = fileDscMap.get(f.filePath);
+            const dsPath: DataSourcePath = {
+              sourceId: { providerName: "localfs", resourceId: f.filePath },
+              path: ["."],
+            };
+            const dsNode: DataSourceNode = {
+              id: f.fileName,
+              kind: "File",
+              displayName: f.fileName,
+              isContainer: false,
+              fileSizeBytes: f.fileSizeBytes,
+              description: f.rowCount ? formatRowCount(Number(f.rowCount)) : undefined,
+            };
+            (dsNode as any).initialStatus = f.status;
+            return dsNodeTreeNode(fileDsc, dsPath, dsNode, stateRef);
+          };
+
+          for (const f of topLevelFiles) {
+            const node = renderFileNode(f);
+            if (node) childFileNodes.push(node);
+          }
+
+          for (const [fName, fList] of folderGroups.entries()) {
+            const folderChildNodes: DSTreeNodeInfo[] = [];
+            for (const f of fList) {
+              const node = renderFileNode(f);
+              if (node) folderChildNodes.push(node);
+            }
+            if (folderChildNodes.length > 0) {
+              const folderKey = `proj_${proj.projectId}_folder_${fName}`;
+              const isFolderExp = expandedFolders.has(folderKey);
+              childFileNodes.push({
+                id: folderKey,
+                icon: isFolderExp ? "folder-open" : "folder-close",
+                hasCaret: true,
+                isExpanded: isFolderExp,
+                label: (
+                  <span style={{ fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                    {fName}/
+                    <span style={{ fontSize: "10px", color: "#64748b", fontWeight: 400 }}>
+                      ({fList.length} files)
+                    </span>
+                  </span>
+                ),
+                childNodes: folderChildNodes,
+                nodeData: {
+                  isProject: false,
+                  dsc: null as any,
+                  dsPath: { sourceId: { providerName: "localfs", resourceId: "" }, path: [] },
+                  dsNode: { id: fName, kind: "Directory", displayName: fName, isContainer: true },
+                },
+              });
+            }
           }
 
           const projNode: DSTreeNodeInfo = {
@@ -489,9 +562,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const rootSources = await rtc.getDataSources();
         const legacyRootNodes: DSTreeNodeInfo[] = [];
         for (const sourceId of rootSources) {
-          const resId = String((sourceId as any).resourceId || "")
-            .replace(/\\/g, "/")
-            .toLowerCase();
+          const resId = normPath(String((sourceId as any).resourceId || ""));
           if (resId && allProjectFilePaths.has(resId)) {
             continue;
           }
@@ -532,6 +603,12 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   const handleNodeCollapse = (treeNode: DSTreeNodeInfo) => {
     if (treeNode.nodeData && (treeNode.nodeData as any).isProject) {
       pwManager.setProjectExpanded((treeNode.nodeData as any).projectId, false);
+    } else if (treeNode.nodeData?.dsNode?.kind === "Directory") {
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        next.delete(String(treeNode.id));
+        return next;
+      });
     }
     treeNode.isExpanded = false;
     forceUpdate();
@@ -540,6 +617,17 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   const handleNodeExpand = async (treeNode: DSTreeNodeInfo) => {
     if (treeNode.nodeData && (treeNode.nodeData as any).isProject) {
       pwManager.setProjectExpanded((treeNode.nodeData as any).projectId, true);
+      treeNode.isExpanded = true;
+      forceUpdate();
+      return;
+    }
+
+    if (treeNode.nodeData?.dsNode?.kind === "Directory" && !treeNode.nodeData.dsc) {
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        next.add(String(treeNode.id));
+        return next;
+      });
       treeNode.isExpanded = true;
       forceUpdate();
       return;
@@ -580,6 +668,20 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       pwManager.toggleProjectExpanded(projId);
       pwManager.setActiveProject(projId);
       forceUpdate();
+      return;
+    }
+
+    if (treeNode.nodeData?.dsNode?.kind === "Directory" && !treeNode.nodeData.dsc) {
+      const folderKey = String(treeNode.id);
+      setExpandedFolders((prev) => {
+        const next = new Set(prev);
+        if (next.has(folderKey)) {
+          next.delete(folderKey);
+        } else {
+          next.add(folderKey);
+        }
+        return next;
+      });
       return;
     }
 
@@ -651,11 +753,34 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   const handleExecuteDeleteProject = async () => {
     if (!deleteTarget) return;
     try {
+      const curState = mutableGet(stateRef);
+      if (curState.viewState?.dsPath) {
+        const curCanon = getCanonicalPathFromDSPath(curState.viewState.dsPath);
+        const deletedFiles = await pwManager.getProjectFiles(deleteTarget.projectId);
+        const isCurFileDeleted = deletedFiles.some(
+          (f) => f.filePath && normPath(f.filePath) === normPath(curCanon)
+        );
+        if (isCurFileDeleted) {
+          const { awaitableUpdate_ } = require("oneref");
+          await awaitableUpdate_(stateRef, (st: AppState) => st.set("viewState", null) as AppState);
+        }
+      }
       await pwManager.deleteProject(deleteTarget.projectId);
       setDeleteTarget(null);
       throttledRefresh.current();
     } catch (err) {
       console.error("Error deleting project:", err);
+    }
+  };
+
+  const handleExecutePurgeCache = async () => {
+    if (!purgeTarget) return;
+    try {
+      await pwManager.purgeProjectCache(purgeTarget.projectId);
+      setPurgeTarget(null);
+      throttledRefresh.current();
+    } catch (err) {
+      console.error("Error purging project cache:", err);
     }
   };
 
@@ -670,6 +795,68 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
             text="New Project"
             small={true}
             onClick={() => setNewProjectOpen(true)}
+          />
+          <Button
+            icon="document"
+            minimal={true}
+            small={true}
+            title="Add Files to Active Project"
+            onClick={async () => {
+              try {
+                const { getHostBridge } = require("host-bridge");
+                const bridge = getHostBridge();
+                const chosen = await bridge.showOpenDialog({
+                  title: "Add Files to Active Project",
+                  multiple: true,
+                });
+                if (chosen && chosen.length > 0) {
+                  const ws = await pwManager.getWorkspace();
+                  await pwManager.addFilesToProject(ws.activeProjectId, chosen);
+                  throttledRefresh.current();
+                }
+              } catch (err) {
+                console.error("Error adding files:", err);
+              }
+            }}
+          />
+          <Button
+            icon="folder-open"
+            minimal={true}
+            small={true}
+            title="Add Folder to Active Project"
+            onClick={async () => {
+              try {
+                const { getHostBridge } = require("host-bridge");
+                const bridge = getHostBridge();
+                const chosen = await bridge.showOpenDialog({
+                  title: "Add Folder to Active Project",
+                  directory: true,
+                });
+                if (chosen && chosen.length > 0) {
+                  const ws = await pwManager.getWorkspace();
+                  await pwManager.addFolderToProject(ws.activeProjectId, chosen[0]);
+                  throttledRefresh.current();
+                }
+              } catch (err) {
+                console.error("Error adding folder:", err);
+              }
+            }}
+          />
+          <Button
+            icon="clean"
+            minimal={true}
+            small={true}
+            title="Purge Active Project Cache"
+            onClick={async () => {
+              const ws = await pwManager.getWorkspace();
+              const activeProj = ws.projects.find((p) => p.projectId === ws.activeProjectId);
+              if (activeProj) {
+                setPurgeTarget({
+                  projectId: activeProj.projectId,
+                  projectName: activeProj.projectName,
+                });
+              }
+            }}
           />
           <Button
             icon="refresh"
@@ -769,6 +956,32 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
             <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
             <Button intent={Intent.DANGER} onClick={handleExecuteDeleteProject}>
               Delete Project
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Confirm Purge Cache Dialog */}
+      <Dialog
+        isOpen={purgeTarget !== null}
+        onClose={() => setPurgeTarget(null)}
+        title="Purge Project Parquet Cache"
+        icon="clean"
+        style={{ width: "420px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
+            Bạn có chắc chắn muốn giải phóng toàn bộ cache Parquet cho project <strong>{purgeTarget?.projectName}</strong>?
+          </p>
+          <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>
+            Hành động này sẽ xóa các file đệm trong thư mục temp và đặt lại trạng thái nạp. Dữ liệu gốc trên đĩa không bị thay đổi.
+          </p>
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setPurgeTarget(null)}>Cancel</Button>
+            <Button intent={Intent.WARNING} onClick={handleExecutePurgeCache}>
+              Purge Cache
             </Button>
           </div>
         </div>
