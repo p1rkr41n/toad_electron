@@ -1,0 +1,19 @@
+{
+  "name": "host-bridge",
+  "version": "2.3.0",
+  "description": "Ring 2 Host Bridge abstraction layer for Toad Dual-Engine Architecture",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "reltab": "^0.14.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.3"
+  }
+}

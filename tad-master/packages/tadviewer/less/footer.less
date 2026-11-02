@@ -1,0 +1,228 @@
+@footer-collapsed-height: 32px;
+
+.footer {
+  background-color: #f6f7f9;
+  border-top: 1px solid #d2d8df;
+  padding: 0;
+  font-size: var(--tad-footer-font-size, 13px);
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-start;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+  transition: height 0.15s ease-out;
+}
+
+.bp4-dark .footer,
+.toad-dark .footer {
+  background-color: var(--md-sys-color-surface-container, #25262c);
+  border-top-color: var(--md-sys-color-outline-variant, #3c3e47);
+}
+
+.footer.is-resizing {
+  transition: none !important;
+  user-select: none !important;
+}
+
+.footer-collapsed {
+  height: @footer-collapsed-height !important;
+}
+
+.footer-expanded {
+  /* Dynamic height managed by inline style */
+  min-height: 140px;
+}
+
+/* Drag to resize handle bar at the top of footer */
+.footer-resizer-bar {
+  height: 7px;
+  width: 100%;
+  cursor: row-resize;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex: 0 0 7px;
+  transition: background-color 0.15s;
+  z-index: 10;
+}
+
+.footer-resizer-bar:hover,
+.footer-resizer-bar:active,
+.footer.is-resizing .footer-resizer-bar {
+  background-color: #2b95d6 !important;
+}
+
+.footer-resizer-pill {
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background-color: #a7b6c2;
+}
+
+.footer-resizer-bar:hover .footer-resizer-pill,
+.footer.is-resizing .footer-resizer-pill {
+  background-color: #ffffff;
+}
+
+.footer-top-row {
+  height: 32px;
+  min-height: 32px;
+  flex: 0 0 32px;
+  display: flex;
+  flex-direction: row;
+  padding-left: 12px;
+  padding-right: 12px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.bp4-dark .footer-top-row {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.footer-filter-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-toggle-btn {
+  font-weight: 600;
+}
+
+.regex-toggle-btn {
+  font-weight: 600;
+  color: #106ba3;
+}
+
+.bp4-dark .regex-toggle-btn {
+  color: #48aff0;
+}
+
+.filter-size-toggle-btn {
+  color: #5c7080;
+}
+
+.footer-right-block {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+.filter-summary {
+  margin-left: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #106ba3;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.bp4-dark .filter-summary {
+  color: #48aff0;
+}
+
+.footer-pagination-block {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 3px;
+  margin-right: 8px;
+  padding-right: 8px;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.bp4-dark .footer-pagination-block {
+  border-right-color: rgba(255, 255, 255, 0.1);
+}
+
+.pager-btn {
+  padding: 0 4px !important;
+  min-width: 22px !important;
+  height: 22px !important;
+  font-size: 11px !important;
+}
+
+.pager-input {
+  width: 50px !important;
+  height: 22px !important;
+  padding: 0 4px !important;
+  text-align: center !important;
+  font-size: 11px !important;
+  border-radius: 3px !important;
+}
+
+.pager-label {
+  font-size: 11px;
+  color: #5c7080;
+  user-select: none;
+  margin: 0 2px;
+}
+
+.bp4-dark .pager-label {
+  color: #a7b6c2;
+}
+
+.footer-row-count-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-pagesize-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.footer-pagesize-label {
+  font-size: 11px;
+  color: #5c7080;
+  margin: 0;
+  user-select: none;
+}
+
+.bp4-dark .footer-pagesize-label {
+  color: #a7b6c2;
+}
+
+.footer-pagesize-select {
+  height: 20px;
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid #c5d1db;
+  background: #ffffff;
+  color: #182026;
+  outline: none;
+  cursor: pointer;
+
+  &:hover {
+    border-color: #106ba3;
+  }
+}
+
+.bp4-dark .footer-pagesize-select {
+  background: #30404d;
+  color: #f5f8fa;
+  border-color: #5c7080;
+
+  &:hover {
+    border-color: #48aff0;
+  }
+}

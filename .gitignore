@@ -34,3 +34,10 @@ tools/jj/jj.exe
 
 tmp_qa_test*/
 tmp_test*/
+
+.git_tadmaster_bak/
+**/.git_tadmaster_bak/
+
+
+ponytail/
+
