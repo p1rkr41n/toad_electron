@@ -159,13 +159,13 @@ export const createMenu = () => {
       },
     },
     {
-      label: "Send Feedback / Bug Reports",
+      label: "Send Feedback / Bug Reports (GitHub)",
       click: (
         item: MenuItem,
         focusedWindow: BrowserWindow | undefined,
         event: KeyboardEvent
       ) => {
-        electron.shell.openExternal("mailto:feedback@example.com");
+        electron.shell.openExternal("https://github.com/p1rkr41n/toad_electron/issues");
       },
     },
   ];

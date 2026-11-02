@@ -807,3 +807,213 @@
   background-color: #1a232c;
   user-select: text;
 }
+
+/* ==========================================================================
+   Google Material 3 Dark Theme for Event Details Sidebar (Toad v2.3.2)
+   ========================================================================== */
+.bp4-dark, .toad-dark {
+  .event-detail-sidebar {
+    background-color: var(--md-sys-color-surface-container-low, #1b1c21);
+    border-left: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+    box-shadow: -3px 0 12px rgba(0, 0, 0, 0.4);
+    color: var(--md-sys-color-on-surface, #e3e3e8);
+  }
+
+  .event-detail-header {
+    background: var(--md-sys-color-surface-container, #25262c);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+
+    .event-detail-title {
+      color: var(--md-sys-color-on-surface, #e3e3e8);
+    }
+  }
+
+  .event-detail-badge {
+    background-color: var(--md-sys-color-surface-container-high, #2d2f36);
+    color: var(--md-sys-color-on-surface-variant, #9da1b0);
+    border-color: var(--md-sys-color-outline-variant, #3c3e47);
+  }
+
+  .event-detail-btn-action {
+    background-color: var(--md-sys-color-surface-container-high, #2d2f36);
+    color: var(--md-sys-color-primary, #8ab4f8);
+    border-color: var(--md-sys-color-outline-variant, #3c3e47);
+
+    &:hover {
+      background-color: var(--md-sys-color-surface-container, #25262c);
+      color: #ffffff;
+      border-color: var(--md-sys-color-primary, #8ab4f8);
+    }
+  }
+
+  .event-detail-btn-close {
+    color: var(--md-sys-color-on-surface-variant, #9da1b0);
+
+    &:hover {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: #f28b82;
+    }
+  }
+
+  .event-detail-search-bar {
+    background-color: var(--md-sys-color-surface-container, #25262c);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+
+    .event-detail-search-input .bp4-input {
+      background-color: var(--md-sys-color-surface-container-low, #141518);
+      border-color: var(--md-sys-color-outline-variant, #3c3e47);
+      color: var(--md-sys-color-on-surface, #e3e3e8);
+
+      &:focus {
+        border-color: var(--md-sys-color-primary, #8ab4f8);
+        box-shadow: 0 0 0 1px var(--md-sys-color-primary, #8ab4f8);
+      }
+    }
+
+    .event-detail-count-badge {
+      color: var(--md-sys-color-on-surface-variant, #9da1b0);
+    }
+  }
+
+  .event-detail-body {
+    background-color: var(--md-sys-color-surface-dim, #18181c);
+  }
+
+  .event-detail-empty {
+    color: var(--md-sys-color-on-surface-variant, #9da1b0);
+  }
+
+  .event-detail-table {
+    thead th {
+      background-color: var(--md-sys-color-surface-container, #25262c);
+      border-bottom: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+      color: var(--md-sys-color-on-surface-variant, #9da1b0);
+    }
+
+    .th-field-name {
+      border-right: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+    }
+
+    tbody tr.event-detail-row {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
+      &:nth-child(even) {
+        background-color: var(--toad-grid-row-odd, #23252b);
+      }
+
+      &:hover {
+        background-color: rgba(138, 180, 248, 0.12);
+      }
+    }
+  }
+
+  .event-col-name {
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .event-name-text {
+    color: var(--md-sys-color-on-surface, #e3e3e8);
+  }
+
+  .event-type-tag {
+    color: var(--md-sys-color-on-surface-variant, #9da1b0);
+    background-color: var(--md-sys-color-surface-container-high, #2d2f36);
+  }
+
+  .event-cid-subtext {
+    color: var(--md-sys-color-outline, #8e9099);
+  }
+
+  .event-val-content {
+    color: var(--md-sys-color-on-surface, #e3e3e8);
+  }
+
+  .event-val-string {
+    color: var(--md-sys-color-on-surface, #e3e3e8);
+  }
+
+  .event-val-number {
+    color: var(--md-sys-color-primary, #8ab4f8);
+  }
+
+  .event-val-null {
+    color: var(--md-sys-color-outline, #8e9099);
+  }
+
+  .event-val-code {
+    background-color: var(--md-sys-color-surface-container-high, #2d2f36);
+    border-color: var(--md-sys-color-outline-variant, #3c3e47);
+    color: #a7f3d0;
+  }
+
+  .event-btn-add-filter {
+    background-color: rgba(15, 153, 96, 0.15);
+    color: #48bb78;
+
+    &:hover {
+      background-color: #0f9960;
+      color: #ffffff;
+    }
+  }
+
+  .event-btn-copy-val {
+    background-color: rgba(138, 180, 248, 0.15);
+    color: var(--md-sys-color-primary, #8ab4f8);
+
+    &:hover {
+      background-color: var(--md-sys-color-primary, #8ab4f8);
+      color: #041e49;
+    }
+  }
+
+  .event-detail-footer {
+    background-color: var(--md-sys-color-surface-container, #25262c);
+    border-top: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+    color: var(--md-sys-color-on-surface-variant, #9da1b0);
+
+    .event-footer-hint strong {
+      color: var(--md-sys-color-on-surface, #e3e3e8);
+    }
+  }
+
+  .event-forensic-bar {
+    border-top-color: var(--md-sys-color-outline-variant, #3c3e47);
+  }
+
+  .event-forensic-label {
+    color: var(--md-sys-color-outline, #8e9099);
+  }
+
+  .event-btn-forensic {
+    background-color: var(--md-sys-color-surface-container-high, #2d2f36);
+    border-color: var(--md-sys-color-outline-variant, #3c3e47);
+    color: var(--md-sys-color-primary, #8ab4f8);
+
+    &:hover {
+      background-color: var(--md-sys-color-primary, #8ab4f8);
+      color: #041e49;
+    }
+
+    &.btn-ps-b64 {
+      background-color: rgba(138, 180, 248, 0.15);
+      border-color: rgba(138, 180, 248, 0.3);
+      color: var(--md-sys-color-primary, #8ab4f8);
+
+      &:hover {
+        background-color: var(--md-sys-color-primary, #8ab4f8);
+        color: #041e49;
+      }
+    }
+
+    &.btn-defang {
+      background-color: rgba(253, 214, 99, 0.15);
+      border-color: rgba(253, 214, 99, 0.3);
+      color: var(--md-sys-color-tertiary, #fdd663);
+
+      &:hover {
+        background-color: var(--md-sys-color-tertiary, #fdd663);
+        color: #2e1d00;
+      }
+    }
+  }
+}

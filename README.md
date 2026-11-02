@@ -1,8 +1,8 @@
-# Toad (v2.3.0) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.3.2) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.3.0-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.2-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Tests](https://img.shields.io/badge/QA%20Tests-138%2F138%20PASS-success.svg)](tests/run_tests.js)
 
@@ -20,7 +20,9 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.3.0 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.0)** | ~75 MB | Standalone portable executable with Host-Bridge modularization & DuckDB 1.0.0 |
+| **[`Toad 2.3.2 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Enterprise release: Complete Dark Mode Contrast Fix & Ergonomic ActivityBar |
+| **[`Toad 2.3.1 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.1)** | ~72 MB | DuckDB assertion fix (`vector.cpp:1859`), Smart Bounded Ingestion Queue |
+| **[`Toad 2.3.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.0)** | ~75 MB | Standalone portable executable with Host-Bridge modularization & DuckDB 1.0.0 |
 | **[`Toad 2.1.6 (Optimized Build)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.1.6)** | ~75 MB | Fully footprint-optimized production build with pruned dead dependencies |
 | **[`All GitHub Releases`](https://github.com/p1rkr41n/toad_electron/releases)** | - | Full catalogue of versioned portable binaries and release packages |
 | **[`releases/RELEASE_NOTES.md`](releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
@@ -33,7 +35,30 @@ Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configu
 
 ## 2. Key Capabilities & Architectural Innovations
 
-### 2.1 Decoupled Host-Bridge Architecture (v2.3.0)
+### 2.1 What's New in v2.3.2 (Dark Mode Parity & UI Standardization)
+* **Complete Dark Mode Contrast Resolution across All Panes**:
+  - **Sidebar File Tree**: Fixed invisible black-on-black file names (`.ds-status-ready`) by introducing first-class Material 3 Dark tokens (`var(--md-sys-color-on-surface, #e3e3e8)`), boosting contrast to > 11:1.
+  - **Full Status Color Spectrum**: Distinct and accessible colors for all ingestion states in both Light and Dark mode (`ready`, `processing`, `pending`, `idle`, `error`).
+  - **Tree Node Selection & Hover**: Harmonized selected rows with M3 Primary Container (`#1f385c`) and bright white title text (`#ffffff`).
+  - **Event Details Sidebar (`eventDetailSidebar.less`)**: Built comprehensive Material 3 Dark support across headers, badges, search bar, table rows, forensic decoders, and code preview containers—eliminating the previous solid-white panel glare.
+  - **Center Loading & Empty Workspace Cards**: Styled center loading progress cards, empty workspaces, and error cards with gentle ergonomic slate containers (`#25262c`).
+  - **Column Selector Badges & Grid Borders**: Adapted column search match badges and SlickGrid divider lines to dark mode.
+* **Ergonomic ActivityBar Streamlining**:
+  - Removed the standalone bottom feedback icon button to keep the ActivityBar uncluttered and focused purely on data navigation and the theme toggle.
+  - Preserved the Defender-safe GitHub feedback feature within the native application menu under `Help -> Send Feedback / Bug Reports (GitHub)`.
+
+### 2.2 What's New in v2.3.1 (Reliability & Usability Release)
+* **DuckDB C++ Assertion Resolution (`vector.cpp:1859`)**:
+  - Eliminated the native crash bug caused by DuckDB 1.0.0's CSV scanner attempting to unescape string quotes (`RemoveEscape`) into non-VARCHAR physical vectors.
+  - Enforced RFC-4180 strict dialect (`quote = '"', escape = '"'`) across all streaming and in-memory queries, null-padding resilience, and automatic 3-tier fallback to `all_varchar = true` and Raw Event mode for malformed datasets.
+* **Smart Bounded Queue & Lazy Pre-loading**:
+  - Re-engineered `MultipleLoadingManager` to pre-warm the initial 8 files concurrently upon opening a directory, gracefully keeping larger batches in `idle` on-demand state to prevent disk thrashing and memory exhaustion.
+  - Instant VIP Jump Queue: clicking any file immediately elevates it to the highest priority for instant loading.
+* **Integrated "Send Feedback & Bug Reports"**:
+  - One-click GitHub Issue Reporter added directly to the Activity Bar and Help Menu.
+  - Skilfully engineered using native Windows Shell integration (`shell.openExternal`) via `host-bridge`—opening the default web browser seamlessly without spawning `cmd.exe` or `powershell.exe`, guaranteeing zero false-positive alerts from Windows Defender or heuristic endpoint protection agents.
+
+### 2.2 Decoupled Host-Bridge Architecture (v2.3.0)
 Toad v2.3.0 introduces a modularized runtime boundary between the presentation layer and the native host runtime:
 - **Zero-Electron UI Layer**: The entire [`tadviewer`](packages/tadviewer/) package contains zero direct references to Electron APIs, isolating view logic completely.
 - **`host-bridge` Interface Abstraction**: [`packages/host-bridge`](packages/host-bridge/) defines `IHostBridge` and `V8HostAdapter`, allowing the user interface to communicate cleanly across desktop backends (Electron, future Web / Tauri / Native).
