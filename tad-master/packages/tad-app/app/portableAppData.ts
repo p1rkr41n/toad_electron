@@ -49,6 +49,7 @@ export interface PortableEnvironment {
   tempDir: string;
   electronDataDir: string;
   logsDir: string;
+  ledgerPath: string;
   config: ToadConfig;
 }
 
@@ -651,27 +652,15 @@ export function cleanTempDir(tempDir: string): void {
   try {
     if (!fs.existsSync(tempDir)) return;
 
-    // 1. Ưu tiên sử dụng Rust Core Binary nếu có
-    const toadCore = findToadCoreBinary();
-    if (toadCore) {
-      try {
-        child_process.execFileSync(toadCore, ["clean-temp", tempDir], {
-          windowsHide: true,
-          timeout: 10000,
-        });
-        log.info("[TempCleaner] Da don dep temp bang TOAD Rust Core thanh cong.");
-        return;
-      } catch (rustErr) {
-        log.warn("[TempCleaner] Rust clean-temp gap loi, fallback ve TS cleaner:", rustErr);
-      }
-    }
-
-    // 2. Fallback: TypeScript cleaner với Windows retry loop
+    // TypeScript cleaner với Windows retry loop, bảo vệ tuyệt đối state ledger
     const items = fs.readdirSync(tempDir);
     let cleanedCount = 0;
     let failedCount = 0;
 
     for (const item of items) {
+      if (item === "toad_ledger.parquet" || item.endsWith("_ledger.parquet")) {
+        continue; // Bảo tồn state ledger
+      }
       const fullPath = path.join(tempDir, item);
       let deleted = false;
 
@@ -718,7 +707,7 @@ export function cleanTempDir(tempDir: string): void {
 
 /**
  * Hàm chính: Khởi tạo hoàn chỉnh Portable AppData Environment
- * Ưu tiên gọi toad-core.exe init-portable (Rust Engine)
+ * Đảm bảo đọc config.ini TRƯỚC TIÊN để quyết định có dọn dẹp temp hay không
  */
 export function initPortableEnvironment(): PortableEnvironment {
   log.info("=== [PortableAppData] Bat dau khoi tao Portable Environment ===");
@@ -727,59 +716,40 @@ export function initPortableEnvironment(): PortableEnvironment {
   const exeDir = getExecutableDir();
   log.info(`[PortableAppData] Thu muc exe: ${exeDir}`);
 
-  // 2. Ưu tiên khởi tạo qua Rust Core Engine (Model A)
-  const toadCore = findToadCoreBinary();
-  if (toadCore) {
-    try {
-      log.info(`[PortableAppData] Khoi tao qua TOAD Rust Core: ${toadCore}`);
-      const output = child_process.execFileSync(toadCore, ["init-portable", exeDir], {
-        windowsHide: true,
-        encoding: "utf8",
-        timeout: 15000,
-      });
-      const parsed = JSON.parse(output.trim());
-      if (parsed.app_data_dir && parsed.config) {
-        log.info(`[PortableAppData] Khoi tao thanh cong bang Rust Core: ${parsed.app_data_dir}`);
-        return {
-          exeDir: parsed.exe_dir,
-          appDataDir: parsed.app_data_dir,
-          tempDir: parsed.temp_dir,
-          electronDataDir: parsed.electron_data_dir,
-          logsDir: parsed.logs_dir,
-          config: parsed.config,
-        };
-      }
-    } catch (rustErr) {
-      log.warn("[PortableAppData] Rust Core init-portable gap loi, fallback sang TS:", rustErr);
-    }
-  }
-
-  // 3. Fallback sang pure TypeScript engine
+  // 2. Khởi tạo AppData directory
   const appDataDir = ensurePortableAppDataDir(exeDir);
-  log.info(`[PortableAppData] AppData dir (TS fallback): ${appDataDir}`);
+  log.info(`[PortableAppData] AppData dir: ${appDataDir}`);
 
   const tempDir = path.join(appDataDir, "temp");
   const electronDataDir = path.join(appDataDir, "electron_data");
   const logsDir = path.join(appDataDir, "logs");
+  const ledgerPath = path.join(appDataDir, "toad_ledger.parquet");
 
   fs.mkdirSync(tempDir, { recursive: true });
   fs.mkdirSync(electronDataDir, { recursive: true });
   fs.mkdirSync(logsDir, { recursive: true });
 
-  log.info("[PortableAppData] Dang don dep file temp ton dong (Orphan Clean)...");
-  cleanTempDir(tempDir);
-
   const configPath = path.join(appDataDir, "config.ini");
   const presetsPath = path.join(appDataDir, "filters_preset.json");
 
+  // ĐỌC VÀ VALIDATE CONFIG TRƯỚC TIÊN
   const config = validateAndEnsureConfig(configPath);
   validateAndEnsurePresets(presetsPath);
+
+  // Chỉ dọn dẹp file temp tồn đọng nếu temp_cleanup = true trong config.ini
+  if (config.system.temp_cleanup) {
+    log.info("[PortableAppData] temp_cleanup = true -> Dang don dep file temp ton dong (Orphan Clean)...");
+    cleanTempDir(tempDir);
+  } else {
+    log.info("[PortableAppData] temp_cleanup = false -> Bao luu toan bo cache Parquet trong temp/");
+  }
 
   log.info("=== [PortableAppData] Khoi tao hoan tat ===");
   log.info(`    AppData    : ${appDataDir}`);
   log.info(`    Temp       : ${tempDir}`);
   log.info(`    Config     : ${configPath}`);
   log.info(`    Presets    : ${presetsPath}`);
+  log.info(`    Ledger     : ${ledgerPath}`);
   log.info(`    Electron   : ${electronDataDir}`);
   log.info(`    Logs       : ${logsDir}`);
   log.info(`    Libuv Pool : ${process.env.UV_THREADPOOL_SIZE}`);
@@ -790,6 +760,7 @@ export function initPortableEnvironment(): PortableEnvironment {
     tempDir,
     electronDataDir,
     logsDir,
+    ledgerPath,
     config,
   };
 }

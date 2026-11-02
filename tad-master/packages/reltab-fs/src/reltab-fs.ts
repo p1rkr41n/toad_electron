@@ -215,6 +215,23 @@ export class FSDriver implements DbDriver {
     return childNodes;
   }
 
+  /**
+   * Double-Valid Parquet Ledger check (kiểm tra nhanh đồng bộ trạng thái cache)
+   */
+  isCacheReady(dsPath: DataSourcePath): boolean {
+    try {
+      const targetPath = this.getTargetPath(dsPath);
+      const cfg = reltabDuckDB.getIngestConfig();
+      const cachedPaths = reltabDuckDB.getDeterministicParquetPath(
+        targetPath,
+        cfg.temp_dir
+      );
+      return reltabDuckDB.checkDoubleValidCache(targetPath, cachedPaths);
+    } catch {
+      return false;
+    }
+  }
+
   // Get a table name that can be used in queries:
   async getTableName(
     dsPath: DataSourcePath,
