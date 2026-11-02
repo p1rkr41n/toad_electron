@@ -1,0 +1,20 @@
+﻿# Created using Antigravity Skill: releases (HelloKittyXamKinLung Standard)
+PackageIdentifier: HelloKittyXamKinLung.Toad
+PackageVersion: 2.3.2
+PackageName: Toad
+Publisher: HelloKittyXamKinLung
+License: MIT
+ShortDescription: High-Performance Tabular Data & Security Log Analyzer
+Tags:
+  - csv
+  - parquet
+  - duckdb
+  - security
+  - forensic
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.3.2/Toad 2.3.2.exe
+    InstallerSha256: 8E923DBF60F49DEA57988AD035A63E8A7718867D66904F5942A147A06508AAB8
+ManifestType: singleton
+ManifestVersion: 1.6.0

@@ -26,13 +26,13 @@ export const ActivityBar: React.FC<ActivityBarProps> = ({
   const [theme, toggleTheme] = useToadTheme();
   const handleActivityClick =
     (buttonActivity: Activity) =>
-    (e: React.MouseEvent<HTMLElement, MouseEvent>) => {
-      if (activity === buttonActivity) {
-        actions.setActivity("None", stateRef);
-      } else {
-        actions.setActivity(buttonActivity, stateRef);
-      }
-    };
+      (e: React.MouseEvent<HTMLElement, MouseEvent>) => {
+        if (activity === buttonActivity) {
+          actions.setActivity("None", stateRef);
+        } else {
+          actions.setActivity(buttonActivity, stateRef);
+        }
+      };
 
   const activityButton = (
     target: Activity,
