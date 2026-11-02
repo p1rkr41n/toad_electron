@@ -1,10 +1,10 @@
-# Toad (v2.3.3) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.3.4) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.3.3-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.4-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
-[![Tests](https://img.shields.io/badge/QA%20Tests-142%2F142%20PASS-success.svg)](tests/run_tests.js)
+[![Tests](https://img.shields.io/badge/QA%20Tests-144%2F144%20PASS-success.svg)](tests/run_tests.js)
 
 > [!NOTE]
 > **Project Origin & Attribution**:
@@ -20,7 +20,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.3.3 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Enterprise release: Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |
+| **[`Toad 2.3.4 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.4)** | ~72 MB | Enterprise release: ASAR Sealing & Zero-Crash Resilience (eliminates ENOENT crash loops) |
+| **[`Toad 2.3.3 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |
 | **[`Toad 2.3.2 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Dark Mode Contrast Fix across all panes & Ergonomic ActivityBar |
 | **[`Toad 2.3.1 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.1)** | ~72 MB | DuckDB assertion fix (`vector.cpp:1859`), Smart Bounded Ingestion Queue |
 | **[`Toad 2.3.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.0)** | ~75 MB | Standalone portable executable with Host-Bridge modularization & DuckDB 1.0.0 |
@@ -35,7 +36,15 @@ Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configu
 
 ## 2. Key Capabilities & Architectural Innovations
 
-### 2.1 What's New in v2.3.3 (Double-Valid Parquet State Ledger & Persistent Cache)
+### 2.1 What's New in v2.3.4 (ASAR Sealing & Zero-Crash Resilience)
+* **ASAR Sealing (`asarUnpack` Isolation)**:
+  - Pruned `**/*reltab*` from `asarUnpack`. All core JavaScript application files (`reltab`, `reltab-duckdb`, `reltab-fs`) are now safely sealed 100% inside `app.asar`.
+  - Completely eliminates the `ENOENT: no such file or directory... reltab-duckdb.js` crash loop caused by NSIS partial temp deletions or Windows sharing violations.
+  - Strictly unpacks only native C++ binary addons (`**/*.node` for `duckdb.node`).
+* **Shutdown File Handle Buffer**:
+  - Extended graceful shutdown release window to 150ms in `before-quit` to ensure Windows kernel memory mappings and active DuckDB streams fully detach before portable NSIS wrapper triggers directory cleanup.
+
+### 2.2 What's New in v2.3.3 (Double-Valid Parquet State Ledger & Persistent Cache)
 * **Double-Valid Parquet State Ledger (`toad_ledger.parquet`)**:
   - Implements an **Append-Only Write-Ahead Log (WAL)** in Apache Parquet format inside `toadAppData`.
   - Never deletes or rewrites history; each event (`STARTED`, `READY`, `ERROR`, `STALE`) is an immutable appended transaction row.

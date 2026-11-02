@@ -1,6 +1,6 @@
 {
   "name": "toad",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "homepage": "https://example.com",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -92,8 +92,7 @@
     "appId": "org.example.toad",
     "compression": "maximum",
     "asarUnpack": [
-      "**/*.node",
-      "**/*reltab*"
+      "**/*.node"
     ],
     "afterPack": "./tools/afterPack.js",
     "afterSign": "./tools/notarize.js",
@@ -106,7 +105,10 @@
       "icon": "dmgIcon.icns",
       "sign": false
     },
-    "electronLanguages": ["en-US", "vi"],
+    "electronLanguages": [
+      "en-US",
+      "vi"
+    ],
     "extraResources": [
       "tad.sh",
       "bin"
