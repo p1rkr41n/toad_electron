@@ -99,8 +99,12 @@ export const FileTreeItemLabel: React.FC<{
     return activeCanonical === canonicalPath;
   }, [appState.viewState?.dsPath, key, canonicalPath]);
 
-  const isReady = isCurrentActiveView || (item ? item.status === "ready" : false);
-  const isModified = !isReady && (item ? item.status === "modified" : false);
+  const nodeStatus = (dsNode as any).initialStatus;
+  const isReady =
+    isCurrentActiveView ||
+    (item ? item.status === "ready" : nodeStatus === "READY");
+  const isModified =
+    !isReady && (item ? item.status === "modified" : nodeStatus === "MODIFIED");
   const isProcessing = !isReady && !isModified && (item ? item.status === "processing" : false);
   const isError = !isReady && !isModified && (item ? item.status === "error" : false);
   const isPending = !isReady && !isModified && !isProcessing && !isError && (item ? item.status === "pending" : false);
@@ -289,6 +293,12 @@ const dsNodeTreeNode = (
   return ret;
 };
 
+const formatRowCount = (count: number): string => {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M rows`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K rows`;
+  return `${count} rows`;
+};
+
 const extendDSPath = (basePath: DataSourcePath, item: string) => ({
   ...basePath,
   path: basePath.path.concat([item]),
@@ -347,7 +357,9 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           const childFileNodes: DSTreeNodeInfo[] = [];
 
           for (const f of files) {
-            allProjectFilePaths.add(f.filePath.toLowerCase());
+            if (f.filePath) {
+              allProjectFilePaths.add(f.filePath.replace(/\\/g, "/").toLowerCase());
+            }
 
             let fileDsc: any = null;
             if (rtc) {
@@ -388,8 +400,11 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 displayName: f.fileName,
                 isContainer: false,
                 fileSizeBytes: f.fileSizeBytes,
-                description: f.rowCount ? `${Number(f.rowCount).toLocaleString()} rows` : undefined,
+                description: f.rowCount
+                  ? formatRowCount(Number(f.rowCount))
+                  : undefined,
               };
+              (dsNode as any).initialStatus = f.status;
               childFileNodes.push(dsNodeTreeNode(fileDsc, dsPath, dsNode, stateRef));
             }
           }
@@ -474,7 +489,9 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const rootSources = await rtc.getDataSources();
         const legacyRootNodes: DSTreeNodeInfo[] = [];
         for (const sourceId of rootSources) {
-          const resId = String((sourceId as any).resourceId || "").toLowerCase();
+          const resId = String((sourceId as any).resourceId || "")
+            .replace(/\\/g, "/")
+            .toLowerCase();
           if (resId && allProjectFilePaths.has(resId)) {
             continue;
           }

@@ -345,11 +345,12 @@ export class ToadParquetLedger {
     return this.ledgerPath;
   }
 
-  public normalizePath(p: string): string {
+  public normalizePath(p?: string): string {
+    if (!p) return "";
     try {
       return path.resolve(p).replace(/\\/g, "/").toLowerCase();
     } catch {
-      return p.replace(/\\/g, "/").toLowerCase();
+      return (p || "").replace(/\\/g, "/").toLowerCase();
     }
   }
 
@@ -551,14 +552,16 @@ export class ToadParquetLedger {
         if (cp) pPath = cp.parquetPath;
       }
 
-      if (pPath && fs.existsSync(pPath)) {
-        try {
-          const sz = fs.statSync(pPath).size;
-          fs.unlinkSync(pPath);
-          freedBytes += sz;
-          deletedFiles++;
-        } catch (err) {
-          log.warn(`[CascadeCleanup] Error deleting parquet cache: ${pPath}`, err);
+      if (pPath) {
+        if (fs.existsSync(pPath)) {
+          try {
+            const sz = fs.statSync(pPath).size;
+            fs.unlinkSync(pPath);
+            freedBytes += sz;
+            deletedFiles++;
+          } catch (err) {
+            log.warn(`[CascadeCleanup] Error deleting parquet cache: ${pPath}`, err);
+          }
         }
 
         try {
@@ -573,7 +576,10 @@ export class ToadParquetLedger {
               ) {
                 const tmpFull = path.join(dir, ent);
                 try {
+                  const sz = fs.statSync(tmpFull).size;
                   fs.unlinkSync(tmpFull);
+                  freedBytes += sz;
+                  deletedFiles++;
                 } catch {}
               }
             }
@@ -601,15 +607,40 @@ export class ToadParquetLedger {
           } finally {
             await dropConn.close();
           }
+
+          try {
+            const dynamicRequire =
+              typeof (globalThis as any).require === "function"
+                ? (globalThis as any).require
+                : eval("require");
+            const reltabFS = dynamicRequire("reltab-fs");
+            if (reltabFS && typeof reltabFS.getUIDuckDBDriver === "function") {
+              const uiDrv = await reltabFS.getUIDuckDBDriver();
+              if (uiDrv && uiDrv.connPool) {
+                const uConn = await uiDrv.connPool.take();
+                try {
+                  await uConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
+                } finally {
+                  uiDrv.connPool.giveBack(uConn);
+                }
+              }
+            }
+          } catch {}
         }
       } catch {}
 
-      this.cache.delete(this.normalizePath(f.source_path));
+      if (f.source_path) {
+        this.cache.delete(this.normalizePath(f.source_path));
+      }
 
       try {
         const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
-        if (globalMLM && typeof globalMLM.clearFirstPageCache === "function") {
-          globalMLM.clearFirstPageCache(f.source_path);
+        if (globalMLM && f.source_path) {
+          if (typeof globalMLM.unregisterFile === "function") {
+            globalMLM.unregisterFile(f.source_path);
+          } else if (typeof globalMLM.clearFirstPageCache === "function") {
+            globalMLM.clearFirstPageCache(f.source_path);
+          }
         }
       } catch {}
     }
@@ -825,7 +856,19 @@ export class ToadParquetLedger {
     }
     if (db) this.db = db;
     const lPath = this.getLedgerPath();
-    if (!fs.existsSync(lPath)) {
+    let isNonEmpty = false;
+    try {
+      if (fs.existsSync(lPath) && fs.statSync(lPath).size > 0) {
+        isNonEmpty = true;
+      }
+    } catch {}
+
+    if (!isNonEmpty) {
+      try {
+        if (fs.existsSync(lPath) && fs.statSync(lPath).size === 0) {
+          fs.unlinkSync(lPath);
+        }
+      } catch {}
       await this.ensureDefaultProject();
       this.isLoaded = true;
       return;
@@ -1078,115 +1121,132 @@ export class ToadParquetLedger {
           const tmpPath = `${lPath}.tmp_${Date.now()}_${Math.random()
             .toString(36)
             .slice(2, 7)}`;
+          let isExistingNonEmpty = false;
+          try {
+            if (fs.existsSync(lPath) && fs.statSync(lPath).size > 0) {
+              isExistingNonEmpty = true;
+            }
+          } catch {}
+
           const safeSource = escapeSqlPath(evt.source_path || "").replace(/'/g, "''");
           const safeParquet = escapeSqlPath(evt.parquet_path || "").replace(/'/g, "''");
           const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
           const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
           const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
           const safeEventType = (evt.event_type || "FILE_READY").replace(/'/g, "''");
+          const safeEventId = (evt.event_id || `evt-${Date.now()}`).replace(/'/g, "''");
+          const safeStatus = (evt.status || "READY").replace(/'/g, "''");
 
           const rowSql = `SELECT 
-            '${evt.event_id}' as event_id,
+            '${safeEventId}' as event_id,
             '${safeEventType}' as event_type,
-            CAST(${evt.timestamp} AS BIGINT) as timestamp,
+            CAST(${Number(evt.timestamp) || Date.now()} AS BIGINT) as timestamp,
             '${safeProjectId}' as project_id,
             '${safeProjectName}' as project_name,
             '${safeSource}' as source_path,
-            CAST(${evt.source_size || 0} AS BIGINT) as source_size,
-            CAST(${evt.source_mtime || 0} AS BIGINT) as source_mtime,
+            CAST(${Number(evt.source_size) || 0} AS BIGINT) as source_size,
+            CAST(${Number(evt.source_mtime) || 0} AS BIGINT) as source_mtime,
             '${safeParquet}' as parquet_path,
-            CAST(${evt.parquet_size || 0} AS BIGINT) as parquet_size,
-            CAST(${evt.row_count || 0} AS BIGINT) as row_count,
-            '${evt.status}' as status,
-            CAST(${evt.duration_ms || 0} AS INTEGER) as duration_ms,
+            CAST(${Number(evt.parquet_size) || 0} AS BIGINT) as parquet_size,
+            CAST(${Number(evt.row_count) || 0} AS BIGINT) as row_count,
+            '${safeStatus}' as status,
+            CAST(${Number(evt.duration_ms) || 0} AS INTEGER) as duration_ms,
             '${safeExtra}' as extra_json
           `;
 
-          if (fs.existsSync(lPath)) {
-            const descRows = await conn.all(
-              `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
-            );
-            const colNames = new Set(
-              descRows.map((r: any) => String(r.column_name).toLowerCase())
-            );
+          let appendSuccess = false;
+          if (isExistingNonEmpty) {
+            try {
+              const descRows = await conn.all(
+                `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
+              );
+              const colNames = new Set(
+                descRows.map((r: any) => String(r.column_name).toLowerCase())
+              );
 
-            let readOldSql = "";
-            if (!colNames.has("project_id") || !colNames.has("event_type")) {
-              const eventIdCol = colNames.has("event_id")
-                ? "event_id"
-                : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
-              const timestampCol = colNames.has("timestamp")
-                ? "CAST(timestamp AS BIGINT) as timestamp"
-                : colNames.has("cached_at")
-                ? "CAST(cached_at AS BIGINT) as timestamp"
-                : "1700000000000::BIGINT as timestamp";
-              const sourcePathCol = colNames.has("source_path")
-                ? "source_path"
-                : colNames.has("file_name")
-                ? "file_name as source_path"
-                : "'' as source_path";
-              const sourceSizeCol = colNames.has("source_size")
-                ? "CAST(source_size AS BIGINT) as source_size"
-                : colNames.has("file_size_bytes")
-                ? "CAST(file_size_bytes AS BIGINT) as source_size"
-                : "0::BIGINT as source_size";
-              const sourceMtimeCol = colNames.has("source_mtime")
-                ? "CAST(source_mtime AS BIGINT) as source_mtime"
-                : colNames.has("file_mtime_ms")
-                ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
-                : "0::BIGINT as source_mtime";
-              const parquetPathCol = colNames.has("parquet_path")
-                ? "parquet_path"
-                : "'' as parquet_path";
-              const parquetSizeCol = colNames.has("parquet_size")
-                ? "CAST(parquet_size AS BIGINT) as parquet_size"
-                : colNames.has("parquet_size_bytes")
-                ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
-                : "0::BIGINT as parquet_size";
-              const rowCountCol = colNames.has("row_count")
-                ? "CAST(row_count AS BIGINT) as row_count"
-                : "0::BIGINT as row_count";
-              const statusCol = colNames.has("status")
-                ? "status"
-                : "'READY' as status";
-              const durationCol = colNames.has("duration_ms")
-                ? "CAST(duration_ms AS INTEGER) as duration_ms"
-                : colNames.has("ingestion_duration_ms")
-                ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
-                : "0::INTEGER as duration_ms";
-              const extraJsonCol = colNames.has("extra_json")
-                ? "extra_json"
-                : "'{}' as extra_json";
+              let readOldSql = "";
+              if (!colNames.has("project_id") || !colNames.has("event_type")) {
+                const eventIdCol = colNames.has("event_id")
+                  ? "event_id"
+                  : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
+                const timestampCol = colNames.has("timestamp")
+                  ? "CAST(timestamp AS BIGINT) as timestamp"
+                  : colNames.has("cached_at")
+                  ? "CAST(cached_at AS BIGINT) as timestamp"
+                  : "1700000000000::BIGINT as timestamp";
+                const sourcePathCol = colNames.has("source_path")
+                  ? "source_path"
+                  : colNames.has("file_name")
+                  ? "file_name as source_path"
+                  : "'' as source_path";
+                const sourceSizeCol = colNames.has("source_size")
+                  ? "CAST(source_size AS BIGINT) as source_size"
+                  : colNames.has("file_size_bytes")
+                  ? "CAST(file_size_bytes AS BIGINT) as source_size"
+                  : "0::BIGINT as source_size";
+                const sourceMtimeCol = colNames.has("source_mtime")
+                  ? "CAST(source_mtime AS BIGINT) as source_mtime"
+                  : colNames.has("file_mtime_ms")
+                  ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
+                  : "0::BIGINT as source_mtime";
+                const parquetPathCol = colNames.has("parquet_path")
+                  ? "parquet_path"
+                  : "'' as parquet_path";
+                const parquetSizeCol = colNames.has("parquet_size")
+                  ? "CAST(parquet_size AS BIGINT) as parquet_size"
+                  : colNames.has("parquet_size_bytes")
+                  ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
+                  : "0::BIGINT as parquet_size";
+                const rowCountCol = colNames.has("row_count")
+                  ? "CAST(row_count AS BIGINT) as row_count"
+                  : "0::BIGINT as row_count";
+                const statusCol = colNames.has("status")
+                  ? "status"
+                  : "'READY' as status";
+                const durationCol = colNames.has("duration_ms")
+                  ? "CAST(duration_ms AS INTEGER) as duration_ms"
+                  : colNames.has("ingestion_duration_ms")
+                  ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
+                  : "0::INTEGER as duration_ms";
+                const extraJsonCol = colNames.has("extra_json")
+                  ? "extra_json"
+                  : "'{}' as extra_json";
 
-              readOldSql = `
-                SELECT
-                  ${eventIdCol},
-                  ${colNames.has("event_type") ? "event_type" : "'FILE_READY' as event_type"},
-                  ${timestampCol},
-                  ${colNames.has("project_id") ? "project_id" : "'orphan_prj' as project_id"},
-                  ${colNames.has("project_name") ? "project_name" : "'orphan_prj' as project_name"},
-                  ${sourcePathCol},
-                  ${sourceSizeCol},
-                  ${sourceMtimeCol},
-                  ${parquetPathCol},
-                  ${parquetSizeCol},
-                  ${rowCountCol},
-                  ${statusCol},
-                  ${durationCol},
-                  ${extraJsonCol}
-                FROM read_parquet('${escapeSqlPath(lPath)}')
-              `;
-            } else {
-              readOldSql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`;
+                readOldSql = `
+                  SELECT
+                    ${eventIdCol},
+                    ${colNames.has("event_type") ? "event_type" : "'FILE_READY' as event_type"},
+                    ${timestampCol},
+                    ${colNames.has("project_id") ? "project_id" : "'orphan_prj' as project_id"},
+                    ${colNames.has("project_name") ? "project_name" : "'orphan_prj' as project_name"},
+                    ${sourcePathCol},
+                    ${sourceSizeCol},
+                    ${sourceMtimeCol},
+                    ${parquetPathCol},
+                    ${parquetSizeCol},
+                    ${rowCountCol},
+                    ${statusCol},
+                    ${durationCol},
+                    ${extraJsonCol}
+                  FROM read_parquet('${escapeSqlPath(lPath)}')
+                `;
+              } else {
+                readOldSql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`;
+              }
+
+              const appendSql = `COPY (
+                ${readOldSql}
+                UNION ALL
+                ${rowSql}
+              ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
+              await conn.run(appendSql);
+              appendSuccess = true;
+            } catch (appendErr) {
+              log.warn("[ToadLedger] Error appending to existing ledger, will write clean file:", appendErr);
             }
+          }
 
-            const appendSql = `COPY (
-              ${readOldSql}
-              UNION ALL
-              ${rowSql}
-            ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
-            await conn.run(appendSql);
-          } else {
+          if (!appendSuccess) {
             const createSql = `COPY (${rowSql}) TO '${escapeSqlPath(
               tmpPath
             )}' (FORMAT PARQUET)`;
@@ -1194,7 +1254,14 @@ export class ToadParquetLedger {
           }
 
           if (fs.existsSync(tmpPath)) {
-            fs.renameSync(tmpPath, lPath);
+            try {
+              fs.renameSync(tmpPath, lPath);
+            } catch {
+              fs.copyFileSync(tmpPath, lPath);
+              try {
+                fs.unlinkSync(tmpPath);
+              } catch {}
+            }
           }
         } finally {
           await conn.close();

@@ -292,7 +292,7 @@ const appInit = (options: any) => {
     const files = ledger.getProjectFiles(req?.projectId);
     return files.map((f: any) => ({
       filePath: f.source_path,
-      fileName: path.basename(f.source_path),
+      fileName: path.basename(f.source_path || ""),
       projectId: f.project_id || req?.projectId,
       projectName: f.project_name || "Untitled-1",
       fileSizeBytes: f.source_size,
