@@ -179,7 +179,7 @@
 }
 
 /* ==========================================================================
-   Multiple Loading: File Tree Node Item & Ingest Progress (v1.3.10)
+   Multiple Loading: File Tree Node Item & Ingest Progress (v1.3.10 / v2.4.1)
    ========================================================================== */
 
 .ds-file-node-wrapper {
@@ -208,7 +208,7 @@
   // Light Mode Baseline
   &.ds-status-ready {
     color: #111827 !important;
-    font-weight: 600;
+    font-weight: 500;
   }
 
   &.ds-status-modified {
@@ -243,7 +243,7 @@
   .ds-file-node-title {
     &.ds-status-ready {
       color: var(--md-sys-color-on-surface, #e3e3e8) !important;
-      font-weight: 600;
+      font-weight: 500;
     }
 
     &.ds-status-modified {
@@ -286,7 +286,8 @@
       background-color: var(--md-sys-color-primary-container, #1f385c) !important;
       color: #ffffff !important;
 
-      .ds-file-node-title {
+      .ds-file-node-title,
+      .file-node-title {
         color: #ffffff !important;
       }
     }
@@ -361,116 +362,472 @@
 }
 
 /* ==========================================================================
-   Project Workspace Navigator (v2.4.0)
+   Blueprint Tree Layout Constraints (Zero Collision Single-Row v2.4.1)
+   ========================================================================== */
+
+.sidebar {
+  .bp4-tree {
+    width: 100%;
+  }
+
+  .bp4-tree-node-content {
+    height: 30px !important;
+    min-height: 30px !important;
+    max-height: 30px !important;
+    line-height: 30px !important;
+    display: flex !important;
+    align-items: center !important;
+    padding-right: 4px;
+    box-sizing: border-box;
+
+    .bp4-tree-node-label {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+    }
+  }
+}
+
+/* ==========================================================================
+   Project Workspace Navigator: Data-Dense Dashboard (v2.4.1)
    ========================================================================== */
 
 .project-workspace-header {
-  padding: 8px 10px;
+  padding: 8px 10px 6px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
   gap: 6px;
   background: rgba(0, 0, 0, 0.02);
 
-  .project-workspace-toolbar {
+  .project-header-top-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    width: 100%;
 
-    .new-project-btn {
+    .project-header-title {
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+      user-select: none;
+    }
+
+    .project-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+
+      .project-toolbar-btn {
+        padding: 2px 4px;
+        min-width: 22px;
+        height: 22px;
+        color: #64748b;
+
+        &:hover {
+          color: #0f172a;
+          background: rgba(0, 0, 0, 0.06);
+        }
+      }
     }
   }
 
   .project-search-input {
     width: 100%;
+
     .bp4-input {
       font-size: 11px;
       height: 26px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.03);
+
+      &:focus {
+        background: #ffffff;
+      }
     }
   }
 }
 
-.project-node-label-wrapper {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  padding-right: 4px;
-}
-
-.project-node-header {
+/* Project Node Row: Single-Row with Sleek Hover Actions */
+.project-node-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
+  height: 28px;
+  line-height: 28px;
+  position: relative;
+  overflow: hidden;
 
-  .project-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #1e293b;
-
-    &.is-active {
+  &.is-active {
+    .project-title-text {
       color: #0284c7;
+      font-weight: 700;
     }
   }
 
-  .project-meta-badge {
-    font-size: 10px;
-    font-weight: 400;
-    color: #64748b;
+  &.is-orphan {
+    .project-title-text {
+      color: #d97706;
+    }
+  }
+
+  .project-node-title-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+
+    .project-title-text {
+      font-size: 12px;
+      font-weight: 600;
+      color: #1e293b;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-active-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(2, 132, 199, 0.12);
+      color: #0284c7;
+      border: 1px solid rgba(2, 132, 199, 0.3);
+      border-radius: 3px;
+      padding: 0 4px;
+      line-height: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .orphan-badge {
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(245, 158, 11, 0.15);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      border-radius: 3px;
+      padding: 0 4px;
+      line-height: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+  }
+
+  .project-node-right {
+    display: flex;
+    align-items: center;
+    position: relative;
+    flex: 0 0 auto;
+    margin-left: 6px;
+
+    .project-meta-pill {
+      font-size: 10px;
+      color: #64748b;
+      white-space: nowrap;
+      transition: opacity 0.15s ease;
+    }
+
+    .project-hover-actions {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+
+      .project-hover-btn {
+        padding: 1px 3px;
+        min-width: 18px;
+        height: 20px;
+        line-height: 20px;
+
+        .bp4-icon {
+          font-size: 12px;
+        }
+      }
+
+      .project-orphan-move-btn {
+        padding: 1px 6px;
+        height: 20px;
+        line-height: 20px;
+        font-size: 10px;
+        font-weight: 600;
+        opacity: 0.95;
+      }
+    }
   }
 }
 
-.project-actions-row {
+// Hover trigger: Reveal action icons, fade meta text
+.bp4-tree-node-content:hover {
+  .project-node-row {
+    .project-meta-pill {
+      opacity: 0;
+    }
+    .project-hover-actions {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+  }
+}
+
+/* ==========================================================================
+   File Node Row: 75% Width Recovery & Compact Status Dots (v2.4.1)
+   ========================================================================== */
+
+.file-node-tooltip-wrapper {
+  display: block;
+  width: 100%;
+}
+
+.file-node-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 2px;
-  margin-bottom: 2px;
-  padding-left: 2px;
+  justify-content: space-between;
+  width: 100%;
+  height: 28px;
+  line-height: 28px;
+  position: relative;
+  min-width: 0;
 
-  .project-action-btn {
-    font-size: 10px;
-    padding: 1px 6px;
-    height: 20px;
-    min-height: 20px;
-    border-radius: 3px;
+  .file-node-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+    color: #334155;
+    transition: color 0.15s ease;
+
+    &.status-ready {
+      color: #0f172a;
+      font-weight: 500;
+    }
+
+    &.status-modified {
+      color: #ef4444;
+      font-weight: 600;
+    }
+
+    &.status-processing {
+      color: #0284c7;
+      font-weight: 600;
+    }
+
+    &.status-pending {
+      color: #94a3b8;
+    }
+
+    &.status-error {
+      color: #ef4444;
+      font-weight: 600;
+    }
+  }
+
+  .file-node-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    margin-left: 6px;
+
+    .file-node-rowcount {
+      font-size: 10px;
+      font-variant-numeric: tabular-nums;
+      color: #94a3b8;
+      font-weight: 400;
+    }
+
+    .status-dot {
+      font-size: 9px;
+      line-height: 1;
+
+      &.status-dot-ready {
+        color: #10b981;
+        text-shadow: 0 0 6px rgba(16, 185, 129, 0.4);
+      }
+
+      &.status-dot-pending {
+        color: #94a3b8;
+      }
+
+      &.status-dot-error {
+        color: #ef4444;
+        font-weight: 800;
+        font-size: 11px;
+      }
+    }
+
+    .status-badge-modified {
+      font-size: 9px;
+      font-weight: 700;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.12);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      border-radius: 3px;
+      padding: 0 3px;
+      line-height: 14px;
+      height: 14px;
+    }
+
+    .status-spinner-wrapper {
+      display: inline-flex;
+      align-items: center;
+    }
   }
 }
 
-.orphan-badge {
-  background: rgba(245, 158, 11, 0.15);
-  color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-  font-size: 9px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 3px;
-  margin-left: 6px;
+/* Rich Hover Card Tooltip */
+.file-node-tooltip-popover {
+  .bp4-popover-content {
+    padding: 0 !important;
+    background: transparent !important;
+  }
 }
 
-// Dark Mode Overrides
+.file-hover-card {
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+  max-width: 320px;
+  background: #1e293b;
+  border-radius: 4px;
+  color: #f1f5f9;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+
+  .file-hover-name {
+    font-weight: 700;
+    color: #f8fafc;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding-bottom: 4px;
+    margin-bottom: 5px;
+    word-break: break-all;
+  }
+
+  .file-hover-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 2px;
+
+    .file-hover-label {
+      color: #94a3b8;
+      flex-shrink: 0;
+    }
+
+    .file-hover-val {
+      color: #e2e8f0;
+      font-weight: 500;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &.text-success {
+        color: #34d399;
+      }
+      &.text-danger {
+        color: #f87171;
+      }
+    }
+  }
+}
+
+/* Right-Click Context Menu */
+.toad-project-context-menu {
+  .bp4-menu {
+    border-radius: 6px;
+    padding: 4px 0;
+  }
+  .bp4-menu-item {
+    font-size: 12px;
+    line-height: 24px;
+    padding: 2px 12px;
+  }
+}
+
+// Dark Mode Overrides (v2.4.1)
 .bp4-dark,
 .toad-dark {
   .project-workspace-header {
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.02);
-  }
 
-  .project-node-header {
-    .project-title {
-      color: #f1f5f9;
-      &.is-active {
-        color: #38bdf8;
+    .project-header-top-row {
+      .project-header-title {
+        color: #94a3b8;
+      }
+
+      .project-header-actions .project-toolbar-btn {
+        color: #94a3b8;
+        &:hover {
+          color: #f8fafc;
+          background: rgba(255, 255, 255, 0.08);
+        }
       }
     }
-    .project-meta-badge {
-      color: #94a3b8;
+
+    .project-search-input .bp4-input {
+      background: rgba(255, 255, 255, 0.05);
+      color: #e2e8f0;
+
+      &:focus {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+
+  .project-node-row {
+    .project-node-title-group .project-title-text {
+      color: #f1f5f9;
+    }
+
+    &.is-active .project-node-title-group .project-title-text {
+      color: #38bdf8;
+    }
+
+    &.is-orphan .project-node-title-group .project-title-text {
+      color: #fbbf24;
+    }
+
+    .project-node-right {
+      .project-meta-pill {
+        color: #94a3b8;
+      }
+
+      .project-hover-actions .project-hover-btn {
+        color: #cbd5e1;
+        &:hover {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.12);
+        }
+      }
+    }
+  }
+
+  .file-node-row {
+    .file-node-title {
+      color: #cbd5e1;
+
+      &.status-ready {
+        color: #f8fafc;
+      }
+    }
+
+    .file-node-meta {
+      .file-node-rowcount {
+        color: #64748b;
+      }
     }
   }
 }

@@ -1,8 +1,8 @@
-# Toad (v2.4.0) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.4.1) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.4.0-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.4.1-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Tests](https://img.shields.io/badge/QA%20Tests-PASS-success.svg)](tests/run_tests.js)
 
@@ -20,7 +20,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.4.0 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.0)** | ~72 MB | Enterprise release: Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2 |
+| **[`Toad 2.4.1 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.1)** | ~72 MB | Enterprise release: Data-Dense Dashboard Sidebar, Zero Collision Tree, Hover Actions & Rich Tooltips |
+| **[`Toad 2.4.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.0)** | ~72 MB | Enterprise release: Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2 |
 | **[`Toad 2.3.5 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.5)** | ~72 MB | Enterprise release: Session Auto-Restore, Modified Red Status & Orphan Temp Purge |
 | **[`Toad 2.3.4 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.4)** | ~72 MB | Enterprise release: ASAR Sealing & Zero-Crash Resilience (eliminates ENOENT crash loops) |
 | **[`Toad 2.3.3 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |

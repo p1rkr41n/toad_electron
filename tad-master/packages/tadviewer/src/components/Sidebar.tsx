@@ -4,7 +4,7 @@ import * as actions from "../actions";
 
 export interface SidebarProps {
   expanded: boolean;
-  children: JSX.Element[] | JSX.Element;
+  children: React.ReactNode;
   initialWidth?: number;
 }
 
