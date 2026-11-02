@@ -17,6 +17,10 @@ Write-Output "--- Building reltab-duckdb ---"
 Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-duckdb"
 & npm.cmd run build
 
+Write-Output "--- Building reltab-fs ---"
+Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-fs"
+& npm.cmd run build
+
 Write-Output "--- Building tadviewer ---"
 Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
 & npm.cmd run build-prod

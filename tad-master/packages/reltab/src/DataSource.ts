@@ -82,6 +82,9 @@ export interface DbDriver {
 
   // display name for this connection
   getDisplayName(): Promise<string>;
+
+  // Double-Valid Parquet Ledger check (fast synchronous check)
+  isCacheReady?(path: DataSourcePath): boolean;
 }
 
 /**
@@ -113,6 +116,9 @@ export interface DataSourceConnection {
 
   // Direct SQL execution for views and custom transformations
   runSqlQuery(sqlQuery: string): Promise<Row[]>;
+
+  // Double-Valid Parquet Ledger check (fast synchronous check)
+  isCacheReady?(path: DataSourcePath): boolean;
 }
 
 /**
@@ -285,6 +291,13 @@ export class DbDataSource implements DataSourceConnection {
 
   runSqlQuery(sqlQuery: string): Promise<Row[]> {
     return this.db.runSqlQuery(sqlQuery);
+  }
+
+  isCacheReady(path: DataSourcePath): boolean {
+    if (typeof (this.db as any).isCacheReady === "function") {
+      return (this.db as any).isCacheReady(path);
+    }
+    return false;
   }
 }
 

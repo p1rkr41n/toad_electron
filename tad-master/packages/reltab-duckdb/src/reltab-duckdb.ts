@@ -22,6 +22,7 @@ import {
   TextSummaryStats,
 } from "reltab"; // eslint-disable-line
 import { initS3 } from "./s3utils";
+import { initToadLedger } from "./csvimport";
 
 export * from "./csvimport";
 
@@ -283,6 +284,12 @@ const duckdbDataSourceProvider: DataSourceProvider = {
     const dbfile = rawFile && rawFile.startsWith(":memory:") ? ":memory:" : rawFile;
     const db = await Database.create(dbfile);
     await loadExtensions(db);
+    // Khởi tạo và nạp snapshot Parquet State Ledger toàn hệ thống
+    try {
+      await initToadLedger(db);
+    } catch (e) {
+      log.warn("[ToadLedger] Khoi tao ledger gap loi nhe:", e);
+    }
     // turn on fast parallel CSV loading:
     // await db.exec("SET experimental_parallel_csv=true;");
     const dbConn = await db.connect();

@@ -191,6 +191,8 @@ export interface IngestConfig {
   row_group_size: number;
   binary_guard: boolean;
   temp_dir: string | null;
+  ledger_path: string;
+  temp_cleanup: boolean;
 }
 
 export function getIngestConfig(): IngestConfig {
@@ -205,6 +207,12 @@ export function getIngestConfig(): IngestConfig {
       row_group_size: env.config.parquet.row_group_size,
       binary_guard: env.config.system.binary_guard,
       temp_dir: env.tempDir || null,
+      ledger_path:
+        env.ledgerPath ||
+        (env.appDataDir
+          ? path.join(env.appDataDir, "toad_ledger.parquet")
+          : path.join(env.tempDir || os.tmpdir(), "toad_ledger.parquet")),
+      temp_cleanup: env.config.system.temp_cleanup ?? false,
     };
   }
 
@@ -225,12 +233,201 @@ export function getIngestConfig(): IngestConfig {
     row_group_size: 100000,
     binary_guard: false,
     temp_dir: fallbackTempDir,
+    ledger_path: path.join(fallbackTempDir, "toad_ledger.parquet"),
+    temp_cleanup: false,
   };
 }
 
 // =============================================================================
-// GIAI ĐOẠN 3: Parquet Cache Engine & Deterministic Path Resolution
+// GIAI ĐOẠN 3: Parquet State Ledger (WAL) & Double Validation Engine
 // =============================================================================
+
+export interface ToadLedgerEntry {
+  event_id: string;
+  timestamp: number;
+  source_path: string;
+  source_size: number;
+  source_mtime: number;
+  parquet_path: string;
+  parquet_size: number;
+  row_count: number;
+  status: "STARTED" | "READY" | "ERROR" | "STALE";
+  duration_ms: number;
+  extra_json: string;
+}
+
+/**
+ * Quản lý State Ledger toàn hệ thống TOAD bằng Parquet
+ * Hoạt động theo mô hình Append-Only Transaction Journal (WAL):
+ * - File `toad_ledger.parquet` chỉ thêm bản ghi, không bao giờ ghi đè lịch sử.
+ * - Khi ứng dụng khởi động, nạp snapshot trạng thái mới nhất per source_path.
+ * - Hỗ trợ Double Validation (Freshness nguồn & Tính toàn vẹn Parquet vật lý).
+ */
+export class ToadParquetLedger {
+  private static instance: ToadParquetLedger | null = null;
+  private ledgerPath: string | null = null;
+  private cache: Map<string, ToadLedgerEntry> = new Map();
+  private writeQueue: Promise<void> = Promise.resolve();
+  private isLoaded: boolean = false;
+  private db: Database | null = null;
+
+  public static getInstance(): ToadParquetLedger {
+    if (!ToadParquetLedger.instance) {
+      ToadParquetLedger.instance = new ToadParquetLedger();
+    }
+    return ToadParquetLedger.instance;
+  }
+
+  public getLedgerPath(): string {
+    if (this.ledgerPath) return this.ledgerPath;
+    const cfg = getIngestConfig();
+    this.ledgerPath =
+      cfg.ledger_path ||
+      (cfg.temp_dir
+        ? path.join(cfg.temp_dir, "toad_ledger.parquet")
+        : path.join(os.tmpdir(), "toad_ledger.parquet"));
+    return this.ledgerPath;
+  }
+
+  public normalizePath(p: string): string {
+    try {
+      return path.resolve(p).replace(/\\/g, "/").toLowerCase();
+    } catch {
+      return p.replace(/\\/g, "/").toLowerCase();
+    }
+  }
+
+  public getEntry(sourcePath: string): ToadLedgerEntry | undefined {
+    return this.cache.get(this.normalizePath(sourcePath));
+  }
+
+  public getAllEntries(): ToadLedgerEntry[] {
+    return Array.from(this.cache.values());
+  }
+
+  public async initLedger(db?: Database): Promise<void> {
+    if (this.isLoaded) return;
+    if (db) this.db = db;
+    const lPath = this.getLedgerPath();
+    if (!fs.existsSync(lPath)) {
+      this.isLoaded = true;
+      return;
+    }
+
+    try {
+      const activeDb = this.db || (await this.getOrCreateInternalDb());
+      const conn = await activeDb.connect();
+      try {
+        const sql = `
+          SELECT * EXCLUDE (rn) FROM (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY source_path ORDER BY timestamp DESC) as rn
+            FROM read_parquet('${escapeSqlPath(lPath)}')
+          ) WHERE rn = 1
+        `;
+        const rows = await conn.all(sql);
+        for (const row of rows) {
+          const entry: ToadLedgerEntry = {
+            event_id: String(row.event_id),
+            timestamp: Number(row.timestamp),
+            source_path: String(row.source_path),
+            source_size: Number(row.source_size),
+            source_mtime: Number(row.source_mtime),
+            parquet_path: String(row.parquet_path),
+            parquet_size: Number(row.parquet_size),
+            row_count: Number(row.row_count || 0),
+            status: row.status as any,
+            duration_ms: Number(row.duration_ms || 0),
+            extra_json: String(row.extra_json || "{}"),
+          };
+          this.cache.set(this.normalizePath(entry.source_path), entry);
+        }
+        this.isLoaded = true;
+        log.info(
+          `[ToadLedger] Da nap thanh cong ${this.cache.size} ban ghi trang thai tu Parquet Ledger: ${lPath}`
+        );
+      } finally {
+        await conn.close();
+      }
+    } catch (err) {
+      log.warn("[ToadLedger] Khong the nap ledger snapshot tu file Parquet:", err);
+      this.isLoaded = true;
+    }
+  }
+
+  private async getOrCreateInternalDb(): Promise<Database> {
+    if (this.db) return this.db;
+    const { Database: DuckDbAsync } = require("duckdb-async");
+    this.db = await DuckDbAsync.create(":memory:");
+    return this.db!;
+  }
+
+  public async recordEvent(evt: ToadLedgerEntry): Promise<void> {
+    const norm = this.normalizePath(evt.source_path);
+    this.cache.set(norm, evt);
+
+    this.writeQueue = this.writeQueue.then(async () => {
+      try {
+        const lPath = this.getLedgerPath();
+        const lDir = path.dirname(lPath);
+        if (!fs.existsSync(lDir)) {
+          fs.mkdirSync(lDir, { recursive: true });
+        }
+
+        const activeDb = this.db || (await this.getOrCreateInternalDb());
+        const conn = await activeDb.connect();
+        try {
+          const tmpPath = `${lPath}.tmp_${Date.now()}_${Math.random()
+            .toString(36)
+            .slice(2, 7)}`;
+          const safeSource = escapeSqlPath(evt.source_path).replace(/'/g, "''");
+          const safeParquet = escapeSqlPath(evt.parquet_path).replace(/'/g, "''");
+          const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
+
+          const rowSql = `SELECT 
+            '${evt.event_id}' as event_id,
+            CAST(${evt.timestamp} AS BIGINT) as timestamp,
+            '${safeSource}' as source_path,
+            CAST(${evt.source_size} AS BIGINT) as source_size,
+            CAST(${evt.source_mtime} AS BIGINT) as source_mtime,
+            '${safeParquet}' as parquet_path,
+            CAST(${evt.parquet_size} AS BIGINT) as parquet_size,
+            CAST(${evt.row_count} AS BIGINT) as row_count,
+            '${evt.status}' as status,
+            CAST(${evt.duration_ms} AS INTEGER) as duration_ms,
+            '${safeExtra}' as extra_json
+          `;
+
+          if (fs.existsSync(lPath)) {
+            const appendSql = `COPY (
+              SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')
+              UNION ALL
+              ${rowSql}
+            ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
+            await conn.run(appendSql);
+          } else {
+            const createSql = `COPY (${rowSql}) TO '${escapeSqlPath(
+              tmpPath
+            )}' (FORMAT PARQUET)`;
+            await conn.run(createSql);
+          }
+
+          if (fs.existsSync(tmpPath)) {
+            fs.renameSync(tmpPath, lPath);
+          }
+        } finally {
+          await conn.close();
+        }
+      } catch (writeErr) {
+        log.warn("[ToadLedger] Loi khi ghi Parquet Ledger:", writeErr);
+      }
+    });
+    return this.writeQueue;
+  }
+}
+
+export function initToadLedger(db?: Database): Promise<void> {
+  return ToadParquetLedger.getInstance().initLedger(db);
+}
 
 export interface NativeCSVImportOptions {
   forceReopen?: boolean;
@@ -277,14 +474,13 @@ export function getDeterministicParquetPath(
 }
 
 /**
- * Thẩm định file Parquet đã có trong cache:
- * - File parquet phải tồn tại và size > 0
- * - Nếu forceReopen=true -> cache không hợp lệ
- * - Nếu file nguồn có mtime mới hơn file parquet -> cache đã cũ, không hợp lệ
+ * Double Validation Engine: Thẩm định Parquet cache 2 tầng:
+ * - Level 1 (Source Freshness): Kiểm tra mtime và size của file nguồn đối chiếu với Ledger.
+ * - Level 2 (Physical Cache Integrity): Kiểm tra file Parquet tồn tại và size khớp với Ledger.
  */
-export function checkParquetCache(
+export function checkDoubleValidCache(
   filePath: string,
-  cachedInfo: ParquetCachePaths,
+  cachedInfo?: ParquetCachePaths | null,
   forceReopen?: boolean
 ): boolean {
   if (forceReopen) {
@@ -294,32 +490,91 @@ export function checkParquetCache(
     return false;
   }
 
-  const { parquetPath } = cachedInfo;
-  if (!fs.existsSync(parquetPath)) {
+  const ledger = ToadParquetLedger.getInstance();
+  const entry = ledger.getEntry(filePath);
+
+  const targetParquetPath = cachedInfo?.parquetPath || entry?.parquet_path;
+  if (!targetParquetPath || !fs.existsSync(targetParquetPath)) {
     return false;
   }
 
   try {
-    const parquetStat = fs.statSync(parquetPath);
+    const parquetStat = fs.statSync(targetParquetPath);
     if (parquetStat.size === 0) return false;
 
-    // Kiểm tra mtime của file nguồn
-    if (fs.existsSync(filePath)) {
-      const srcStat = fs.statSync(filePath);
-      if (srcStat.mtimeMs > parquetStat.mtimeMs) {
+    if (!fs.existsSync(filePath)) return false;
+    const srcStat = fs.statSync(filePath);
+
+    // LEVEL 1 & 2: Double Validation khi có bản ghi trong Ledger
+    if (entry && entry.status === "READY") {
+      // 1.1 Source size
+      if (srcStat.size !== entry.source_size) {
         log.info(
-          `[TOAD Parquet Cache] File nguon "${path.basename(
-            filePath
-          )}" co thay doi tren dia (mtime moi hon parquet). Sinh lai Parquet.`
+          `[DoubleValid] Level 1 Fail: Kich thuoc nguon thay doi (${srcStat.size} vs ${entry.source_size}) cho ${filePath}`
         );
         return false;
       }
+      // 1.2 Source mtime (dung sai 1000ms do filesystem timestamp precision)
+      if (Math.abs(srcStat.mtimeMs - entry.source_mtime) > 1000) {
+        log.info(
+          `[DoubleValid] Level 1 Fail: Thoi gian sua doi nguon thay doi (${srcStat.mtimeMs} vs ${entry.source_mtime}) cho ${filePath}`
+        );
+        return false;
+      }
+      // 2.1 Parquet physical size
+      if (parquetStat.size !== entry.parquet_size) {
+        log.info(
+          `[DoubleValid] Level 2 Fail: Kich thuoc Parquet thay doi (${parquetStat.size} vs ${entry.parquet_size}) cho ${filePath}`
+        );
+        return false;
+      }
+      return true;
     }
+
+    // Fallback: Legacy Parquet Cache (so sánh mtime nguồn vs parquet)
+    if (srcStat.mtimeMs > parquetStat.mtimeMs) {
+      log.info(
+        `[TOAD Parquet Cache] File nguon "${path.basename(
+          filePath
+        )}" co thay doi tren dia (mtime moi hon parquet). Sinh lai Parquet.`
+      );
+      return false;
+    }
+
+    // Tự động lập chỉ mục file cache cũ này vào Ledger
+    ledger
+      .recordEvent({
+        event_id: `legacy-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 7)}`,
+        timestamp: Date.now(),
+        source_path: filePath,
+        source_size: srcStat.size,
+        source_mtime: Math.round(srcStat.mtimeMs),
+        parquet_path: targetParquetPath,
+        parquet_size: parquetStat.size,
+        row_count: 0,
+        status: "READY",
+        duration_ms: 0,
+        extra_json: JSON.stringify({ legacyMigrated: true }),
+      })
+      .catch(() => {});
 
     return true;
   } catch (err) {
     return false;
   }
+}
+
+/**
+ * Thẩm định file Parquet đã có trong cache (tương thích ngược hoàn toàn qua checkDoubleValidCache)
+ */
+export function checkParquetCache(
+  filePath: string,
+  cachedInfo: ParquetCachePaths,
+  forceReopen?: boolean
+): boolean {
+  return checkDoubleValidCache(filePath, cachedInfo, forceReopen);
 }
 
 // =============================================================================
@@ -702,22 +957,43 @@ export const nativeCSVImport = async (
       const targetParquetPath = tmpPath;
       let progressTimer: any = null;
       let ioWatcherProc: child_process.ChildProcess | null = null;
+      let srcBytes = 1024 * 1024;
+      let srcMtime = Date.now();
+      try {
+        if (fs.existsSync(filePath)) {
+          const st = fs.statSync(filePath);
+          srcBytes = st.size;
+          srcMtime = st.mtimeMs;
+        }
+      } catch { }
+
       try {
         const ext = path.extname(filePath).toLowerCase();
 
         // Start progress monitoring
-        let srcBytes = 1024 * 1024;
-        try {
-          if (fs.existsSync(filePath)) {
-            srcBytes = fs.statSync(filePath).size;
-          }
-        } catch { }
         const fileName = path.basename(filePath);
         const startTime = Date.now();
         let lastBytes = 0;
         let lastTime = startTime;
         let smoothedSpeedMBs = 0;
         let initialReadBytes: number | null = null;
+
+        // Ghi nhận sự kiện STARTED vào Parquet State Ledger
+        ToadParquetLedger.getInstance()
+          .recordEvent({
+            event_id: `start-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            timestamp: Date.now(),
+            source_path: filePath,
+            source_size: srcBytes,
+            source_mtime: Math.round(srcMtime),
+            parquet_path: parquetPath,
+            parquet_size: 0,
+            row_count: 0,
+            status: "STARTED",
+            duration_ms: 0,
+            extra_json: JSON.stringify({ ext }),
+          })
+          .catch(() => {});
 
         const formatSize = (bytes: number): string => {
           if (bytes >= 1024 * 1024 * 1024) {
@@ -983,6 +1259,42 @@ export const nativeCSVImport = async (
         } catch { }
         fs.renameSync(targetParquetPath, parquetPath);
 
+        // Lấy số lượng dòng thực tế từ file Parquet vừa tạo
+        let finalRowCount = 0;
+        try {
+          const countRes = await dbConn.all(
+            `SELECT count(*) as cnt FROM '${escapeSqlPath(parquetPath)}'`
+          );
+          finalRowCount = Number(countRes[0]?.cnt || 0);
+        } catch { }
+
+        let pSize = 0;
+        try {
+          pSize = fs.statSync(parquetPath).size;
+        } catch { }
+
+        const importElapsedMs = process.hrtime(importStart);
+        const durationMs = Math.round(
+          importElapsedMs[0] * 1000 + importElapsedMs[1] / 1e6
+        );
+
+        // Ghi nhận trạng thái READY vào State Ledger (Append-Only)
+        await ToadParquetLedger.getInstance().recordEvent({
+          event_id: `ready-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 7)}`,
+          timestamp: Date.now(),
+          source_path: filePath,
+          source_size: srcBytes,
+          source_mtime: Math.round(srcMtime),
+          parquet_path: parquetPath,
+          parquet_size: pSize,
+          row_count: finalRowCount,
+          status: "READY",
+          duration_ms: durationMs,
+          extra_json: JSON.stringify({ ext, view: tableName }),
+        });
+
         // Giai đoạn 5: Tạo VIEW
         broadcastIngestProgress({
           isOpen: true,
@@ -1005,7 +1317,9 @@ export const nativeCSVImport = async (
 
         const importTime = process.hrtime(importStart);
         log.info(
-          `[TOAD Ingest] Import streaming hoan tat trong ${prettyHRTime(importTime)} -> VIEW: ${tableName}`
+          `[TOAD Ingest] Import streaming hoan tat trong ${prettyHRTime(
+            importTime
+          )} -> VIEW: ${tableName}`
         );
         return tableName;
       } catch (streamErr) {
@@ -1013,6 +1327,24 @@ export const nativeCSVImport = async (
           "[TOAD Ingest] Streaming pipeline that bai, fallback ve in-memory import:",
           streamErr
         );
+        // Ghi nhận sự kiện ERROR vào Parquet State Ledger
+        ToadParquetLedger.getInstance()
+          .recordEvent({
+            event_id: `err-${Date.now()}-${Math.random()
+              .toString(36)
+              .slice(2, 7)}`,
+            timestamp: Date.now(),
+            source_path: filePath,
+            source_size: srcBytes,
+            source_mtime: Math.round(srcMtime),
+            parquet_path: parquetPath,
+            parquet_size: 0,
+            row_count: 0,
+            status: "ERROR",
+            duration_ms: 0,
+            extra_json: JSON.stringify({ error: String(streamErr) }),
+          })
+          .catch(() => {});
         // Xóa file Parquet tạm lỗi nếu có
         try {
           if (fs.existsSync(targetParquetPath)) {

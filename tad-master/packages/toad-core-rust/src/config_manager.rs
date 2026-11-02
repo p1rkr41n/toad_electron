@@ -458,6 +458,12 @@ pub fn clean_temp_dir(temp_dir: &Path) -> IoResult<usize> {
     if let Ok(entries) = fs::read_dir(temp_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
+            let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+            // Tuyệt đối không xóa state ledger
+            if file_name == "toad_ledger.parquet" || file_name.ends_with("_ledger.parquet") {
+                continue;
+            }
+
             let mut deleted = false;
             // Retry tối đa 3 lần
             for attempt in 0..3 {
@@ -496,14 +502,16 @@ pub fn init_portable_environment(custom_exe_dir: Option<PathBuf>) -> IoResult<Po
     fs::create_dir_all(&electron_data_dir)?;
     fs::create_dir_all(&logs_dir)?;
 
-    // Dọn rác mồ côi (Startup Orphan Cleaner)
-    let _ = clean_temp_dir(&temp_dir);
-
     let config_path = app_data_dir.join("config.ini");
     let presets_path = app_data_dir.join("filters_preset.json");
 
     let config = validate_and_ensure_config(&config_path)?;
     let _ = validate_and_ensure_presets(&presets_path);
+
+    // Dọn rác mồ côi (Chỉ dọn khi temp_cleanup = true trong config.ini)
+    if config.system.temp_cleanup {
+        let _ = clean_temp_dir(&temp_dir);
+    }
 
     Ok(PortableEnvironment {
         exe_dir,

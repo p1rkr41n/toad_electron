@@ -305,6 +305,14 @@ export class MultipleLoadingManager {
           }
         }
 
+        // DOUBLE-VALID PARQUET LEDGER CHECK:
+        // Kiểm tra tức thì xem file này đã có Parquet cache hợp lệ trên đĩa chưa
+        if (!isAlreadyReady && item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
+          try {
+            isAlreadyReady = (item.dsc as any).isCacheReady(item.dsPath);
+          } catch { }
+        }
+
         // Bounded Pre-load: Nếu thư mục quá nhiều tệp, chỉ nạp ngầm trước MAX_IMMEDIATE_PRELOAD tệp đầu,
         // các tệp còn lại gắn trạng thái "idle" (On-Demand: nhấp để mở tức thì)
         let initialStatus: FileIngestStatus = "idle";
@@ -353,6 +361,16 @@ export class MultipleLoadingManager {
     // Nếu đã ready rồi thì không cần xếp hàng
     if (item.status === "ready") {
       return;
+    }
+
+    // Double-Valid Parquet Ledger check: nếu cache đã hợp lệ thì mark ready tức thì
+    if (item.dsc && typeof (item.dsc as any).isCacheReady === "function") {
+      try {
+        if ((item.dsc as any).isCacheReady(item.dsPath)) {
+          this.markReady(item.dsPath);
+          return;
+        }
+      } catch { }
     }
 
     // Đẩy priority lên cao nhất với bản sao bất biến, đảm bảo status là "pending"

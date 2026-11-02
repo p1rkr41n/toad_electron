@@ -1,14 +1,14 @@
-# Toad (v2.3.2) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.3.3) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.3.2-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.3-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
-[![Tests](https://img.shields.io/badge/QA%20Tests-138%2F138%20PASS-success.svg)](tests/run_tests.js)
+[![Tests](https://img.shields.io/badge/QA%20Tests-142%2F142%20PASS-success.svg)](tests/run_tests.js)
 
 > [!NOTE]
 > **Project Origin & Attribution**:
-> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, and Ergonomic Slate Dark Mode.
+> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, Double-Valid Parquet State Ledger (`toad_ledger.parquet`), and Ergonomic Slate Dark Mode.
 
 > **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Ergonomic Slate dark theme, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 
@@ -20,22 +20,39 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.3.2 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Enterprise release: Complete Dark Mode Contrast Fix & Ergonomic ActivityBar |
+| **[`Toad 2.3.3 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Enterprise release: Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |
+| **[`Toad 2.3.2 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Dark Mode Contrast Fix across all panes & Ergonomic ActivityBar |
 | **[`Toad 2.3.1 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.1)** | ~72 MB | DuckDB assertion fix (`vector.cpp:1859`), Smart Bounded Ingestion Queue |
 | **[`Toad 2.3.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.0)** | ~75 MB | Standalone portable executable with Host-Bridge modularization & DuckDB 1.0.0 |
-| **[`Toad 2.1.6 (Optimized Build)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.1.6)** | ~75 MB | Fully footprint-optimized production build with pruned dead dependencies |
 | **[`All GitHub Releases`](https://github.com/p1rkr41n/toad_electron/releases)** | - | Full catalogue of versioned portable binaries and release packages |
 | **[`releases/RELEASE_NOTES.md`](releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
 | **[`QUICK_START.md`](QUICK_START.md)** | - | Complete Quick Start & Feature Guide |
 
 ### Non-Polluting Portable Architecture
-Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configuration (`config.ini`), query filters (`filters_preset.json`), logs, and transient Parquet caches are encapsulated within a local folder named `toadAppData_[id]` created right alongside the executable.
+Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configuration (`config.ini`), query filters (`filters_preset.json`), state ledger (`toad_ledger.parquet`), logs, and transient Parquet caches are encapsulated within a local folder named `toadAppData_[id]` created right alongside the executable.
 
 ---
 
 ## 2. Key Capabilities & Architectural Innovations
 
-### 2.1 What's New in v2.3.2 (Dark Mode Parity & UI Standardization)
+### 2.1 What's New in v2.3.3 (Double-Valid Parquet State Ledger & Persistent Cache)
+* **Double-Valid Parquet State Ledger (`toad_ledger.parquet`)**:
+  - Implements an **Append-Only Write-Ahead Log (WAL)** in Apache Parquet format inside `toadAppData`.
+  - Never deletes or rewrites history; each event (`STARTED`, `READY`, `ERROR`, `STALE`) is an immutable appended transaction row.
+  - Acts as the bootstrap source of truth for the entire system upon startup via DuckDB vectorized window queries:
+    $$\text{Latest Snapshot} = \text{ROW\_NUMBER}() \text{ OVER } (\text{PARTITION BY } \text{source\_path} \text{ ORDER BY } \text{timestamp DESC}) = 1$$
+* **Two-Tier Double Validation Engine**:
+  - **Level 1 (Source Freshness)**: Compares physical file size and filesystem `mtimeMs` against recorded values. If the source file was edited or touched, Level 1 triggers a re-conversion.
+  - **Level 2 (Physical Cache Integrity)**: Verifies that the `.parquet` cache exists on disk, matches `parquet_size`, and is structurally sound.
+  - Files passing Double Validation are immediately marked `status: "ready"` (100% loaded) upon directory scan, completely bypassing background worker queues and progress bars (e.g., 40GB CSV files open in $< 1\text{ ms}$ on subsequent sessions!).
+* **Fix Startup Cache Wiping (`temp_cleanup = false` Persistence)**:
+  - Fixed an issue where `cleanTempDir` was invoked unconditionally at startup before `config.ini` was evaluated.
+  - `config.ini` is now parsed first; when `temp_cleanup = false`, all cached Parquet files in `temp/` are preserved indefinitely across sessions.
+  - Safety guard: `cleanTempDir` never removes `toad_ledger.parquet`.
+* **Zero-Cost Indie Developer Release Pipeline (HelloKittyXamKinLung Standard)**:
+  - Formatted PE metadata branding, portable `.exe` and `.zip` packaging, SHA-256 checksums, and SmartScreen frictionless distribution guidelines.
+
+### 2.2 What's New in v2.3.2 (Dark Mode Parity & UI Standardization)
 * **Complete Dark Mode Contrast Resolution across All Panes**:
   - **Sidebar File Tree**: Fixed invisible black-on-black file names (`.ds-status-ready`) by introducing first-class Material 3 Dark tokens (`var(--md-sys-color-on-surface, #e3e3e8)`), boosting contrast to > 11:1.
   - **Full Status Color Spectrum**: Distinct and accessible colors for all ingestion states in both Light and Dark mode (`ready`, `processing`, `pending`, `idle`, `error`).

@@ -169,3 +169,4 @@ Trong phần `README.md` hoặc trang download của bạn, luôn đính kèm h�
 - [ ] Đã tạo file mã băm `SHA256SUMS.txt`.
 - [ ] File `.gitignore` đã loại trừ toàn bộ thư mục tạm, thư mục build, file nhị phân trung gian.
 - [ ] Release đã được publish lên GitHub và kiểm tra link download trực tiếp thành công.
+
