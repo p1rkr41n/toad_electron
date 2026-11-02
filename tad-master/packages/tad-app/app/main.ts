@@ -495,10 +495,23 @@ const initApp =
               appWindow.createFromFile(openFilePath); // dialog.showMessageBox({ message: openMsg })
             } else {
               if (noSrcFile && !awaitingOpenEvent) {
-                app.focus();
-                // Toad v2.0.5: Open clean MainWindow without blocking main thread with modal Windows Shell File Dialog.
-                // MainWindow is immediately ready for Drag & Drop or user-initiated Open (Ctrl+O).
-                await appWindow.newWindow();
+                const env = (global as any).toadPortableEnv as PortableEnvironment | undefined;
+                const cfg = env?.config;
+                if (
+                  cfg?.general.auto_restore_last_directory &&
+                  cfg.general.last_directory &&
+                  fs.existsSync(cfg.general.last_directory)
+                ) {
+                  log.info(
+                    `[SessionRestore] Tu dong phuc hoi thu muc: ${cfg.general.last_directory}`
+                  );
+                  await appWindow.createFromFile(cfg.general.last_directory);
+                } else {
+                  app.focus();
+                  // Toad v2.0.5: Open clean MainWindow without blocking main thread with modal Windows Shell File Dialog.
+                  // MainWindow is immediately ready for Drag & Drop or user-initiated Open (Ctrl+O).
+                  await appWindow.newWindow();
+                }
               }
             }
 

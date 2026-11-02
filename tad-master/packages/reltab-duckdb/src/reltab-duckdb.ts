@@ -25,6 +25,7 @@ import { initS3 } from "./s3utils";
 import { initToadLedger } from "./csvimport";
 
 export * from "./csvimport";
+export { CacheValidityStatus, getCacheValidityStatus, DeterministicParquetPaths } from "./csvimport";
 
 const columnTypes = DuckDBDialect.columnTypes;
 

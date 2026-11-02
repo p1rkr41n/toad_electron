@@ -211,6 +211,11 @@
     font-weight: 600;
   }
 
+  &.ds-status-modified {
+    color: #ef4444 !important;
+    font-weight: 600;
+  }
+
   &.ds-status-processing {
     color: #0284c7 !important;
     font-weight: 600;
@@ -238,6 +243,11 @@
   .ds-file-node-title {
     &.ds-status-ready {
       color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+      font-weight: 600;
+    }
+
+    &.ds-status-modified {
+      color: #ef4444 !important;
       font-weight: 600;
     }
 
@@ -294,6 +304,18 @@
     color: #94a3b8;
     font-weight: 400;
   }
+}
+
+.ds-file-node-modified-badge {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  margin-left: 6px;
+  font-weight: 700;
+  flex: 0 0 auto;
 }
 
 .ds-file-node-error-badge {
