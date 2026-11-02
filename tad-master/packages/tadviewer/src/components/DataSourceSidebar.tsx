@@ -14,7 +14,11 @@ import {
   IconName,
   InputGroup,
   Intent,
+  Menu,
+  MenuItem,
+  MenuDivider,
   Position,
+  Spinner,
   Tooltip,
   Tree,
   TreeNodeInfo,
@@ -71,6 +75,39 @@ type DSTreeNodeData = {
 
 type DSTreeNodeInfo = TreeNodeInfo<DSTreeNodeData>;
 
+const getFileFormatIcon = (fileName: string): React.ReactElement => {
+  const ext = (fileName.split(".").pop() || "").toLowerCase();
+  let color = "#94a3b8";
+  let iconName: IconName = "document";
+  if (ext === "csv" || ext === "tsv") {
+    color = "#22c55e"; // Emerald green
+    iconName = "th";
+  } else if (ext === "json" || ext === "jsonl" || ext === "ndjson") {
+    color = "#f59e0b"; // Amber orange
+    iconName = "code";
+  } else if (ext === "parquet") {
+    color = "#06b6d4"; // Cyan blue
+    iconName = "database";
+  } else if (ext === "evtx" || ext === "log") {
+    color = "#a855f7"; // Purple
+    iconName = "history";
+  }
+  return <Icon icon={iconName} size={13} style={{ color, marginRight: 5, flexShrink: 0 }} />;
+};
+
+const formatRowCountCompact = (count: number): string => {
+  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+  return `${count}`;
+};
+
+const formatFileBytes = (b: number): string => {
+  if (b >= 1024 * 1024 * 1024) return (b / (1024 * 1024 * 1024)).toFixed(2) + " GB";
+  if (b >= 1024 * 1024) return (b / (1024 * 1024)).toFixed(2) + " MB";
+  if (b >= 1024) return (b / 1024).toFixed(1) + " KB";
+  return b + " B";
+};
+
 export const FileTreeItemLabel: React.FC<{
   dsNode: DataSourceNode;
   dsPath: DataSourcePath;
@@ -108,69 +145,133 @@ export const FileTreeItemLabel: React.FC<{
   const isProcessing = !isReady && !isModified && (item ? item.status === "processing" : false);
   const isError = !isReady && !isModified && (item ? item.status === "error" : false);
   const isPending = !isReady && !isModified && !isProcessing && !isError && (item ? item.status === "pending" : false);
-  const isIdle = !isReady && !isModified && !isProcessing && !isError && (!item || item.status === "idle");
   const percent = item ? item.percent : 0;
 
-  return (
-    <div className="ds-file-node-wrapper">
-      <div className="ds-file-node-header">
+  const rawRowCount = (dsNode as any).rawRowCount;
+  const rowCountText = rawRowCount != null ? formatRowCountCompact(Number(rawRowCount)) : undefined;
+  const fileSizeBytes = dsNode.fileSizeBytes;
+
+  const statusTitle = isModified
+    ? "File nguồn đã bị sửa đổi! Nhấp để nạp lại bản mới nhất"
+    : isError
+    ? `Lỗi: ${item?.error || "Không thể nạp tệp"}`
+    : isReady
+    ? `${dsNode.displayName} (Sẵn sàng • Parquet Cache Hit)`
+    : isProcessing
+    ? `${dsNode.displayName} - Đang nạp ${Math.round(percent)}%`
+    : isPending
+    ? `${dsNode.displayName} - Đang chờ nạp ngầm`
+    : `${dsNode.displayName} (Nhấp để mở tức thì)`;
+
+  const hoverCard = (
+    <div className="file-hover-card">
+      <div className="file-hover-name">{dsNode.displayName}</div>
+      <div className="file-hover-row">
+        <span className="file-hover-label">Đường dẫn:</span>
+        <span className="file-hover-val" title={canonicalPath}>
+          {canonicalPath}
+        </span>
+      </div>
+      {fileSizeBytes != null && fileSizeBytes > 0 && (
+        <div className="file-hover-row">
+          <span className="file-hover-label">Kích thước gốc:</span>
+          <span className="file-hover-val">{formatFileBytes(fileSizeBytes)}</span>
+        </div>
+      )}
+      {rawRowCount != null && (
+        <div className="file-hover-row">
+          <span className="file-hover-label">Tổng số dòng:</span>
+          <span className="file-hover-val">{Number(rawRowCount).toLocaleString()} dòng</span>
+        </div>
+      )}
+      <div className="file-hover-row">
+        <span className="file-hover-label">Trạng thái:</span>
         <span
-          className={`ds-file-node-title ${
-            isReady
-              ? "ds-status-ready"
-              : isModified
-              ? "ds-status-modified"
-              : isProcessing
-              ? "ds-status-processing"
-              : isError
-              ? "ds-status-error"
-              : isPending
-              ? "ds-status-pending"
-              : "ds-status-idle"
+          className={`file-hover-val ${
+            isReady ? "text-success" : isModified ? "text-danger" : ""
           }`}
-          title={
-            isModified
-              ? "File nguồn đã bị sửa đổi! Nhấp để nạp lại bản mới nhất"
-              : isError
-              ? `Lỗi: ${item?.error || "Không thể nạp tệp"}`
-              : isReady
-              ? `${dsNode.displayName} (Sẵn sàng)`
+        >
+          {isReady
+            ? "VALID (Parquet Cache Ready)"
+            : isModified
+            ? "MODIFIED (Nguồn thay đổi)"
+            : isProcessing
+            ? `PROCESSING (${Math.round(percent)}%)`
+            : "IDLE"}
+        </span>
+      </div>
+    </div>
+  );
+
+  return (
+    <Tooltip
+      content={hoverCard}
+      position={Position.RIGHT}
+      boundary="window"
+      hoverOpenDelay={350}
+      popoverClassName="file-node-tooltip-popover"
+      className="file-node-tooltip-wrapper"
+    >
+      <div className="file-node-row">
+        <span
+          className={`file-node-title ds-file-node-title ${
+            isReady
+              ? "status-ready ds-status-ready"
+              : isModified
+              ? "status-modified ds-status-modified"
               : isProcessing
-              ? `${dsNode.displayName} - Đang nạp ${Math.round(percent)}%`
+              ? "status-processing ds-status-processing"
+              : isError
+              ? "status-error ds-status-error"
               : isPending
-              ? `${dsNode.displayName} - Đang chờ nạp ngầm`
-              : `${dsNode.displayName} (Nhấp để mở tức thì)`
-          }
+              ? "status-pending ds-status-pending"
+              : "status-idle ds-status-idle"
+          }`}
+          title={statusTitle}
         >
           {dsNode.displayName}
         </span>
-        {isReady && (
-          <span className="ds-file-node-ready-badge">[READY]</span>
-        )}
-        {isModified && (
-          <span className="ds-file-node-modified-badge">[MODIFIED]</span>
-        )}
-        {isProcessing && (
-          <span className="ds-file-node-percent">{Math.round(percent)}%</span>
-        )}
-        {isError && (
-          <span
-            className="ds-file-node-error-badge"
-            title={item?.error || "Lỗi khi nạp file"}
-          >
-            !
-          </span>
-        )}
-      </div>
-      {isProcessing && (
-        <div className="ds-file-progress-track">
-          <div
-            className="ds-file-progress-fill"
-            style={{ width: `${Math.max(5, Math.min(100, percent))}%` }}
-          />
+
+        <div className="file-node-meta" onClick={(e) => e.stopPropagation()}>
+          {rowCountText && <span className="file-node-rowcount">{rowCountText}</span>}
+
+          {isReady && (
+            <span className="status-dot status-dot-ready" title="Ready (Cache hit)">
+              ●
+            </span>
+          )}
+          {isModified && (
+            <span
+              className="status-badge-modified ds-file-node-modified-badge"
+              title="File nguồn đã bị sửa đổi! Nhấp để reload"
+            >
+              MODIFIED
+            </span>
+          )}
+          {isProcessing && (
+            <span
+              className="status-spinner-wrapper ds-file-node-percent"
+              title={`Đang nạp ${Math.round(percent)}%`}
+            >
+              <Spinner size={11} intent={Intent.PRIMARY} />
+            </span>
+          )}
+          {isPending && (
+            <span className="status-dot status-dot-pending" title="Đang chờ nạp ngầm">
+              ◌
+            </span>
+          )}
+          {isError && (
+            <span
+              className="status-dot status-dot-error ds-file-node-error-badge"
+              title={item?.error || "Lỗi khi nạp file"}
+            >
+              !
+            </span>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </Tooltip>
   );
 };
 
@@ -179,84 +280,106 @@ export const ProjectNodeLabel: React.FC<{
   isActive: boolean;
   onAddFile: (e: React.MouseEvent) => void;
   onAddFolder: (e: React.MouseEvent) => void;
+  onPurge: (e: React.MouseEvent) => void;
   onDelete: (e: React.MouseEvent) => void;
   onMoveOrphan?: (e: React.MouseEvent) => void;
-}> = ({ project, isActive, onAddFile, onAddFolder, onDelete, onMoveOrphan }) => {
+  onContextMenu?: (e: React.MouseEvent) => void;
+}> = ({
+  project,
+  isActive,
+  onAddFile,
+  onAddFolder,
+  onPurge,
+  onDelete,
+  onMoveOrphan,
+  onContextMenu,
+}) => {
   const isOrphan = project.isOrphan === true;
   const formattedSize = useMemo(() => {
     const b = Number(project.totalBytes) || 0;
     if (b >= 1024 * 1024 * 1024) return (b / (1024 * 1024 * 1024)).toFixed(1) + " GB";
-    return (b / (1024 * 1024)).toFixed(1) + " MB";
+    if (b >= 1024 * 1024) return (b / (1024 * 1024)).toFixed(1) + " MB";
+    if (b >= 1024) return (b / 1024).toFixed(0) + " KB";
+    return b + " B";
   }, [project.totalBytes]);
 
   return (
-    <div className="project-node-label-wrapper" onClick={(e) => e.stopPropagation()}>
-      <div className="project-node-header">
-        <span className={`project-title ${isActive ? "is-active" : ""}`}>
-          <Icon icon={isOrphan ? "archive" : "projects"} size={13} style={{ marginRight: 4 }} />
+    <div
+      className={`project-node-row ${isActive ? "is-active" : ""} ${isOrphan ? "is-orphan" : ""}`}
+      onContextMenu={onContextMenu}
+    >
+      <div className="project-node-title-group">
+        <span className="project-title-text" title={project.projectName}>
           {project.projectName}
-          {isOrphan && <span className="orphan-badge">Legacy Migrated Files</span>}
-          {isActive && !isOrphan && (
-            <span
-              style={{
-                fontSize: "9px",
-                background: "rgba(2, 132, 199, 0.12)",
-                color: "#0284c7",
-                border: "1px solid rgba(2, 132, 199, 0.3)",
-                borderRadius: "3px",
-                padding: "0 4px",
-                fontWeight: 700,
-                marginLeft: 4,
-              }}
-            >
-              ACTIVE
-            </span>
-          )}
         </span>
-        <span className="project-meta-badge">
-          {project.fileCount} {project.fileCount === 1 ? "file" : "files"} | {formattedSize}
-        </span>
-      </div>
-      <div className="project-actions-row">
-        {!isOrphan ? (
-          <>
-            <Button
-              className="project-action-btn"
-              icon="document"
-              small={true}
-              minimal={true}
-              text="Add File"
-              onClick={onAddFile}
-            />
-            <Button
-              className="project-action-btn"
-              icon="folder-open"
-              small={true}
-              minimal={true}
-              text="Add Folder"
-              onClick={onAddFolder}
-            />
-            <Button
-              className="project-action-btn"
-              icon="trash"
-              intent={Intent.DANGER}
-              small={true}
-              minimal={true}
-              title="Delete Project & Cascade Cache Cleanup"
-              onClick={onDelete}
-            />
-          </>
-        ) : (
-          <Button
-            className="project-action-btn"
-            icon="inheritance"
-            intent={Intent.WARNING}
-            small={true}
-            minimal={true}
-            text="Move all to Untitled-1"
-            onClick={onMoveOrphan}
-          />
+        {isActive && !isOrphan && (
+          <span className="project-active-badge" title="Active Project">
+            ACTIVE
+          </span>
         )}
+        {isOrphan && (
+          <span className="orphan-badge" title="Legacy Migrated Files">
+            Legacy
+          </span>
+        )}
+      </div>
+
+      <div className="project-node-right">
+        <span className="project-meta-pill">
+          {project.fileCount} {project.fileCount === 1 ? "file" : "files"}
+          {project.totalBytes > 0 && ` • ${formattedSize}`}
+        </span>
+
+        <div className="project-hover-actions" onClick={(e) => e.stopPropagation()}>
+          {!isOrphan ? (
+            <>
+              <Button
+                className="project-hover-btn"
+                icon="plus"
+                minimal={true}
+                small={true}
+                title="Add Files to Project"
+                onClick={onAddFile}
+              />
+              <Button
+                className="project-hover-btn"
+                icon="folder-open"
+                minimal={true}
+                small={true}
+                title="Add Folder to Project"
+                onClick={onAddFolder}
+              />
+              <Button
+                className="project-hover-btn"
+                icon="clean"
+                minimal={true}
+                small={true}
+                title="Purge Parquet Cache"
+                onClick={onPurge}
+              />
+              <Button
+                className="project-hover-btn"
+                icon="trash"
+                intent={Intent.DANGER}
+                minimal={true}
+                small={true}
+                title="Delete Project & Cascade Cache"
+                onClick={onDelete}
+              />
+            </>
+          ) : (
+            <Button
+              className="project-orphan-move-btn"
+              icon="inheritance"
+              intent={Intent.WARNING}
+              minimal={true}
+              small={true}
+              text="Move all"
+              title="Move all legacy files to Untitled-1"
+              onClick={onMoveOrphan}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -271,7 +394,7 @@ const dsNodeTreeNode = (
   const isFile = dsNode.kind === "File";
 
   const ret: DSTreeNodeInfo = {
-    icon: dataKindIcon(dsNode.kind),
+    icon: isFile ? getFileFormatIcon(dsNode.displayName) : dataKindIcon(dsNode.kind),
     id: JSON.stringify(dsPath),
     label: isFile ? (
       <FileTreeItemLabel dsNode={dsNode} dsPath={dsPath} stateRef={stateRef} />
@@ -281,15 +404,6 @@ const dsNodeTreeNode = (
     nodeData: { dsc, dsPath, dsNode },
     hasCaret: dsNode.isContainer,
   };
-  if (dsNode.description) {
-    ret.secondaryLabel = (
-      <Tooltip usePortal={true} boundary="window" content={dsNode.description}>
-        <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "4px" }}>
-          ({dsNode.description})
-        </span>
-      </Tooltip>
-    );
-  }
   return ret;
 };
 
@@ -325,6 +439,12 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     projectId: string;
     projectName: string;
   } | null>(null);
+  const [purgeAllOpen, setPurgeAllOpen] = useState(false);
+  const [projectContextMenu, setProjectContextMenu] = useState<{
+    x: number;
+    y: number;
+    project: ProjectWorkspaceProject;
+  } | null>(null);
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
@@ -342,6 +462,37 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       unPWM();
     };
   }, [stateRef]);
+
+  // Context menu dismissal listeners
+  useEffect(() => {
+    const handleCloseMenu = () => setProjectContextMenu(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProjectContextMenu(null);
+    };
+    if (projectContextMenu) {
+      window.addEventListener("click", handleCloseMenu);
+      window.addEventListener("contextmenu", handleCloseMenu);
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        window.removeEventListener("click", handleCloseMenu);
+        window.removeEventListener("contextmenu", handleCloseMenu);
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [projectContextMenu]);
+
+  const handleProjectContextMenu = (
+    project: ProjectWorkspaceProject,
+    e: React.MouseEvent
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setProjectContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      project,
+    });
+  };
 
   const normPath = (p: string) => {
     try {
@@ -362,10 +513,12 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         const projectTreeNodes: DSTreeNodeInfo[] = [];
 
         const allProjectFilePaths = new Set<string>();
+        const q = searchQuery.toLowerCase().trim();
 
         for (const proj of ws.projects) {
           const files = await pwManager.getProjectFiles(proj.projectId);
           const isExpanded = pwManager.isProjectExpanded(proj.projectId);
+          const projMatches = q ? proj.projectName.toLowerCase().includes(q) : false;
 
           const fileItemsForMLM: any[] = [];
           const fileDscMap = new Map<string, any>();
@@ -428,7 +581,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           }
 
           const renderFileNode = (f: ProjectWorkspaceFile): DSTreeNodeInfo | null => {
-            if (searchQuery && !f.fileName.toLowerCase().includes(searchQuery.toLowerCase())) {
+            if (q && !projMatches && !f.fileName.toLowerCase().includes(q)) {
               return null;
             }
             const fileDsc = fileDscMap.get(f.filePath);
@@ -442,9 +595,9 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
               displayName: f.fileName,
               isContainer: false,
               fileSizeBytes: f.fileSizeBytes,
-              description: f.rowCount ? formatRowCount(Number(f.rowCount)) : undefined,
             };
             (dsNode as any).initialStatus = f.status;
+            (dsNode as any).rawRowCount = f.rowCount;
             return dsNodeTreeNode(fileDsc, dsPath, dsNode, stateRef);
           };
 
@@ -484,6 +637,10 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 },
               });
             }
+          }
+
+          if (q && !projMatches && childFileNodes.length === 0) {
+            continue;
           }
 
           const projNode: DSTreeNodeInfo = {
@@ -529,6 +686,13 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     console.error("Error adding folder:", err);
                   }
                 }}
+                onPurge={(e) => {
+                  e.stopPropagation();
+                  setPurgeTarget({
+                    projectId: proj.projectId,
+                    projectName: proj.projectName,
+                  });
+                }}
                 onDelete={async (e) => {
                   e.stopPropagation();
                   const cacheInfo = await pwManager.getCacheSize(proj.projectId);
@@ -543,6 +707,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                   await pwManager.moveOrphanFilesToProject("prj_untitled_1");
                   throttledRefresh.current();
                 }}
+                onContextMenu={(e) => handleProjectContextMenu(proj, e)}
               />
             ),
             childNodes: childFileNodes,
@@ -558,38 +723,8 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           projectTreeNodes.push(projNode);
         }
 
-        const nextNodeMap = Object.assign({}, rootNodeMap) as RootNodeMap;
-        const rootSources = await rtc.getDataSources();
-        const legacyRootNodes: DSTreeNodeInfo[] = [];
-        for (const sourceId of rootSources) {
-          const resId = normPath(String((sourceId as any).resourceId || ""));
-          if (resId && allProjectFilePaths.has(resId)) {
-            continue;
-          }
-          const sourceIdStr = JSON.stringify(sourceId);
-          let rootTreeNode = nextNodeMap[sourceIdStr];
-          if (!rootTreeNode) {
-            try {
-              const dsc = await rtc.connect(sourceId);
-              const rootNode = await dsc.getRootNode();
-              const rootPath: DataSourcePath = {
-                sourceId,
-                path: ["."],
-              };
-              rootTreeNode = dsNodeTreeNode(dsc, rootPath, rootNode, stateRef);
-              nextNodeMap[sourceIdStr] = rootTreeNode;
-              if (rootNode.isContainer) {
-                handleNodeExpand(rootTreeNode);
-              }
-            } catch {}
-          }
-          if (rootTreeNode) {
-            legacyRootNodes.push(rootTreeNode);
-          }
-        }
-        setRootNodeMap(nextNodeMap);
-
-        setTreeState(projectTreeNodes.concat(legacyRootNodes));
+        // Eliminate Legacy Root Redundancy: All files strictly belong to projects
+        setTreeState(projectTreeNodes);
       } catch (err) {
         console.error("error refreshing data sources: ", err);
       }
@@ -784,95 +919,70 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     }
   };
 
+  const handleExecutePurgeAllCache = async () => {
+    try {
+      const ws = await pwManager.getWorkspace();
+      for (const proj of ws.projects) {
+        await pwManager.purgeProjectCache(proj.projectId);
+      }
+      setPurgeAllOpen(false);
+      throttledRefresh.current();
+    } catch (err) {
+      console.error("Error purging all project caches:", err);
+    }
+  };
+
   return (
     <Sidebar expanded={expanded}>
       <div className="project-workspace-header">
-        <div className="project-workspace-toolbar">
-          <Button
-            className="new-project-btn"
-            icon="plus"
-            intent={Intent.PRIMARY}
-            text="New Project"
-            small={true}
-            onClick={() => setNewProjectOpen(true)}
-          />
-          <Button
-            icon="document"
-            minimal={true}
-            small={true}
-            title="Add Files to Active Project"
-            onClick={async () => {
-              try {
-                const { getHostBridge } = require("host-bridge");
-                const bridge = getHostBridge();
-                const chosen = await bridge.showOpenDialog({
-                  title: "Add Files to Active Project",
-                  multiple: true,
-                });
-                if (chosen && chosen.length > 0) {
-                  const ws = await pwManager.getWorkspace();
-                  await pwManager.addFilesToProject(ws.activeProjectId, chosen);
-                  throttledRefresh.current();
-                }
-              } catch (err) {
-                console.error("Error adding files:", err);
-              }
-            }}
-          />
-          <Button
-            icon="folder-open"
-            minimal={true}
-            small={true}
-            title="Add Folder to Active Project"
-            onClick={async () => {
-              try {
-                const { getHostBridge } = require("host-bridge");
-                const bridge = getHostBridge();
-                const chosen = await bridge.showOpenDialog({
-                  title: "Add Folder to Active Project",
-                  directory: true,
-                });
-                if (chosen && chosen.length > 0) {
-                  const ws = await pwManager.getWorkspace();
-                  await pwManager.addFolderToProject(ws.activeProjectId, chosen[0]);
-                  throttledRefresh.current();
-                }
-              } catch (err) {
-                console.error("Error adding folder:", err);
-              }
-            }}
-          />
-          <Button
-            icon="clean"
-            minimal={true}
-            small={true}
-            title="Purge Active Project Cache"
-            onClick={async () => {
-              const ws = await pwManager.getWorkspace();
-              const activeProj = ws.projects.find((p) => p.projectId === ws.activeProjectId);
-              if (activeProj) {
-                setPurgeTarget({
-                  projectId: activeProj.projectId,
-                  projectName: activeProj.projectName,
-                });
-              }
-            }}
-          />
-          <Button
-            icon="refresh"
-            minimal={true}
-            small={true}
-            title="Refresh Workspace"
-            onClick={() => throttledRefresh.current()}
-          />
+        <div className="project-header-top-row">
+          <span className="project-header-title">Projects</span>
+          <div className="project-header-actions">
+            <Button
+              className="project-toolbar-btn"
+              icon="plus"
+              minimal={true}
+              small={true}
+              title="New Project (Create new analysis project)"
+              onClick={() => setNewProjectOpen(true)}
+            />
+            <Button
+              className="project-toolbar-btn"
+              icon="refresh"
+              minimal={true}
+              small={true}
+              title="Refresh Workspace (Sync Ledger state)"
+              onClick={() => throttledRefresh.current()}
+            />
+            <Button
+              className="project-toolbar-btn"
+              icon="clean"
+              minimal={true}
+              small={true}
+              title="Clear All Cache (Purge parquet caches across all projects)"
+              onClick={() => setPurgeAllOpen(true)}
+            />
+          </div>
         </div>
+
         <InputGroup
           className="project-search-input"
           leftIcon="search"
           small={true}
-          placeholder="Filter Files..."
+          placeholder="Filter files or projects..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
+          rightElement={
+            searchQuery ? (
+              <Button
+                icon="cross"
+                minimal={true}
+                small={true}
+                title="Clear search"
+                onClick={() => setSearchQuery("")}
+              />
+            ) : undefined
+          }
         />
       </div>
 
@@ -882,6 +992,185 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         onNodeExpand={handleNodeExpand}
         onNodeClick={handleNodeClick}
       />
+
+      {/* Right-click Project Context Menu */}
+      {projectContextMenu && (
+        <div
+          className="toad-project-context-menu"
+          style={{
+            position: "fixed",
+            left: Math.min(projectContextMenu.x, window.innerWidth - 220),
+            top: Math.min(projectContextMenu.y, window.innerHeight - 240),
+            zIndex: 99999,
+            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+            borderRadius: "6px",
+            overflow: "hidden",
+            background: "var(--md-sys-color-surface-container, #222329)",
+            border: "1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.12))",
+            minWidth: "210px",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Menu className="bp4-elevation-3" style={{ background: "transparent" }}>
+            <li
+              className="bp4-menu-header"
+              style={{
+                padding: "6px 12px",
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "var(--md-sys-color-on-surface-variant, #94a3b8)",
+                borderBottom: "1px solid var(--md-sys-color-outline-variant, rgba(255, 255, 255, 0.08))",
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+              }}
+            >
+              {projectContextMenu.project.projectName}
+            </li>
+            {!projectContextMenu.project.isOrphan ? (
+              <>
+                <MenuItem
+                  icon="plus"
+                  text="Add Files to Project..."
+                  onClick={async () => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    try {
+                      const { getHostBridge } = require("host-bridge");
+                      const bridge = getHostBridge();
+                      const chosen = await bridge.showOpenDialog({
+                        title: `Add Files to ${proj.projectName}`,
+                        multiple: true,
+                      });
+                      if (chosen && chosen.length > 0) {
+                        await pwManager.addFilesToProject(proj.projectId, chosen);
+                        throttledRefresh.current();
+                      }
+                    } catch (err) {
+                      console.error("Error adding files:", err);
+                    }
+                  }}
+                />
+                <MenuItem
+                  icon="folder-open"
+                  text="Add Folder to Project..."
+                  onClick={async () => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    try {
+                      const { getHostBridge } = require("host-bridge");
+                      const bridge = getHostBridge();
+                      const chosen = await bridge.showOpenDialog({
+                        title: `Add Folder to ${proj.projectName}`,
+                        directory: true,
+                      });
+                      if (chosen && chosen.length > 0) {
+                        await pwManager.addFolderToProject(proj.projectId, chosen[0]);
+                        throttledRefresh.current();
+                      }
+                    } catch (err) {
+                      console.error("Error adding folder:", err);
+                    }
+                  }}
+                />
+                <MenuItem
+                  icon="clean"
+                  text="Purge Parquet Cache"
+                  onClick={() => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    setPurgeTarget({
+                      projectId: proj.projectId,
+                      projectName: proj.projectName,
+                    });
+                  }}
+                />
+                <MenuDivider />
+                <MenuItem
+                  icon="trash"
+                  intent={Intent.DANGER}
+                  text="Delete Project & Cache"
+                  onClick={async () => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    const cacheInfo = await pwManager.getCacheSize(proj.projectId);
+                    setDeleteTarget({
+                      projectId: proj.projectId,
+                      projectName: proj.projectName,
+                      formattedSize: cacheInfo.formattedSize,
+                    });
+                  }}
+                />
+              </>
+            ) : (
+              <>
+                <MenuItem
+                  icon="inheritance"
+                  intent={Intent.WARNING}
+                  text="Move all to Untitled-1"
+                  onClick={async () => {
+                    setProjectContextMenu(null);
+                    await pwManager.moveOrphanFilesToProject("prj_untitled_1");
+                    throttledRefresh.current();
+                  }}
+                />
+                <MenuItem
+                  icon="clean"
+                  text="Purge Parquet Cache"
+                  onClick={() => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    setPurgeTarget({
+                      projectId: proj.projectId,
+                      projectName: proj.projectName,
+                    });
+                  }}
+                />
+                <MenuDivider />
+                <MenuItem
+                  icon="trash"
+                  intent={Intent.DANGER}
+                  text="Delete Orphan Project"
+                  onClick={() => {
+                    const proj = projectContextMenu.project;
+                    setProjectContextMenu(null);
+                    setDeleteTarget({
+                      projectId: proj.projectId,
+                      projectName: proj.projectName,
+                      formattedSize: "0 MB",
+                    });
+                  }}
+                />
+              </>
+            )}
+          </Menu>
+        </div>
+      )}
+
+      {/* Confirm Purge All Cache Dialog */}
+      <Dialog
+        isOpen={purgeAllOpen}
+        onClose={() => setPurgeAllOpen(false)}
+        title="Clear All Parquet Cache"
+        icon="clean"
+        style={{ width: "420px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
+            Bạn có chắc chắn muốn giải phóng toàn bộ cache Parquet cho <strong>tất cả các project</strong>?
+          </p>
+          <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>
+            Hành động này sẽ dọn sạch các file đệm trong thư mục temp và đặt lại trạng thái nạp. File dữ liệu gốc không bị thay đổi.
+          </p>
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setPurgeAllOpen(false)}>Cancel</Button>
+            <Button intent={Intent.WARNING} onClick={handleExecutePurgeAllCache}>
+              Clear All Cache
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       {/* New Project Dialog */}
       <Dialog
