@@ -1,6 +1,6 @@
 ﻿# Created using Antigravity Skill: releases (HelloKittyXamKinLung Standard)
 PackageIdentifier: HelloKittyXamKinLung.Toad
-PackageVersion: 2.3.5
+PackageVersion: 2.4.0
 PackageName: Toad
 Publisher: HelloKittyXamKinLung
 License: MIT
@@ -14,7 +14,7 @@ Tags:
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.3.5/Toad 2.3.5.exe
-    InstallerSha256: 6D9E81758FD45EDA4BEF4C2F18BD8EEBC0870EB4F1B800A756F61153F0068A67
+    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.4.0/Toad-2.4.0-x64-portable.exe
+    InstallerSha256: CF5E02E7AF29F321B76E0E12D393D5215C19DE6521F3B968A9E4EF00CBB199B0
 ManifestType: singleton
 ManifestVersion: 1.6.0

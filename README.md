@@ -1,14 +1,14 @@
-# Toad (v2.3.5) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.4.0) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.3.5-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.4.0-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
-[![Tests](https://img.shields.io/badge/QA%20Tests-149%2F149%20PASS-success.svg)](tests/run_tests.js)
+[![Tests](https://img.shields.io/badge/QA%20Tests-PASS-success.svg)](tests/run_tests.js)
 
 > [!NOTE]
 > **Project Origin & Attribution**:
-> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, Double-Valid Parquet State Ledger (`toad_ledger.parquet`), and Ergonomic Slate Dark Mode.
+> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, Double-Valid Parquet State Ledger (`toad_ledger.parquet`), Multi-Project Workspace Navigator, and Ergonomic Slate Dark Mode.
 
 > **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Ergonomic Slate dark theme, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 
@@ -20,7 +20,8 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.3.5 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.5)** | ~72 MB | Enterprise release: Session Auto-Restore, Modified Red Status & Orphan Temp Purge |
+| **[`Toad 2.4.0 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.0)** | ~72 MB | Enterprise release: Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2 |
+| **[`Toad 2.3.5 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.5)** | ~72 MB | Enterprise release: Session Auto-Restore, Modified Red Status & Orphan Temp Purge |
 | **[`Toad 2.3.4 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.4)** | ~72 MB | Enterprise release: ASAR Sealing & Zero-Crash Resilience (eliminates ENOENT crash loops) |
 | **[`Toad 2.3.3 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |
 | **[`Toad 2.3.2 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Dark Mode Contrast Fix across all panes & Ergonomic ActivityBar |
@@ -37,7 +38,20 @@ Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configu
 
 ## 2. Key Capabilities & Architectural Innovations
 
-### 2.1 What's New in v2.3.5 (Session Auto-Restore, Modified Red Status & Orphan Purge)
+### 2.1 What's New in v2.4.0 (Multi-Project Workspace Navigator & Cascade Cleanup)
+* **Multi-Project Workspace Navigator (2-Tier Hierarchy)**:
+  - Organizes tabular data into distinct projects (`Untitled-1`, user-defined projects, and `orphan_prj` for legacy logs).
+  - Add individual files or entire directory trees directly to a target project.
+  - Active project indicator, expand/collapse toggles, and live file counters.
+* **Double-Valid Parquet State Ledger v2**:
+  - Compact Apache Parquet schema storing project metadata, event stream (`PROJECT_CREATE`, `FILE_READY`, `PROJECT_DELETE`), file timestamps, and cached Parquet mappings.
+  - Dictionary encoded, remaining ultra-lightweight (< 30KB) with instant DuckDB snapshot queries (< 5ms).
+* **Automatic `Untitled-1` Auto-Recovery**:
+  - When all projects are deleted, a 500ms debounce timer automatically re-initializes a fresh `Untitled-1` project to guarantee a frictionless workflow.
+* **Cascade Cache Cleanup**:
+  - Deleting a project triggers cascading disk cleanup, removing all transient Parquet cache files and unlinked temporary files while safely preserving source data.
+
+### 2.2 What's New in v2.3.5 (Session Auto-Restore, Modified Red Status & Orphan Purge)
 * **Session Auto-Restore**:
   - Automatically remembers and re-opens the last active workspace directory (`last_directory` in `config.ini [general]`) on application launch, completely preventing empty black sidebars.
   - Controlled by configurable flag `auto_restore_last_directory = true`.

@@ -7,24 +7,37 @@ import * as log from "loglevel";
 import _, { throttle } from "lodash";
 
 import {
+  Button,
   Classes,
+  Dialog,
   Icon,
+  IconName,
+  InputGroup,
   Intent,
-  TreeNodeInfo,
   Position,
   Tooltip,
   Tree,
-  IconName,
+  TreeNodeInfo,
 } from "@blueprintjs/core";
-import { useState, useReducer, useRef, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
+  DataSourceConnection,
+  DataSourceId,
   DataSourceKind,
   DataSourceNode,
   DataSourcePath,
-  DataSourceId,
-  DataSourceConnection,
 } from "reltab";
 import { actions } from "../tadviewer";
+import {
+  FileIngestStatus,
+  MultipleLoadingManager,
+  getCanonicalPathFromDSPath,
+} from "../MultipleLoadingManager";
+import {
+  ProjectWorkspaceFile,
+  ProjectWorkspaceManager,
+  ProjectWorkspaceProject,
+} from "../ProjectWorkspaceManager";
 
 export interface DataSourceSidebarProps {
   expanded: boolean;
@@ -48,16 +61,12 @@ const dataKindIcon = (dsKind: DataSourceKind): IconName => {
   }
 };
 
-import {
-  MultipleLoadingManager,
-  FileIngestStatus,
-  getCanonicalPathFromDSPath,
-} from "../MultipleLoadingManager";
-
 type DSTreeNodeData = {
   dsc: DataSourceConnection;
   dsPath: DataSourcePath;
   dsNode: DataSourceNode;
+  isProject?: boolean;
+  projectId?: string;
 };
 
 type DSTreeNodeInfo = TreeNodeInfo<DSTreeNodeData>;
@@ -158,6 +167,94 @@ export const FileTreeItemLabel: React.FC<{
   );
 };
 
+export const ProjectNodeLabel: React.FC<{
+  project: ProjectWorkspaceProject;
+  isActive: boolean;
+  onAddFile: (e: React.MouseEvent) => void;
+  onAddFolder: (e: React.MouseEvent) => void;
+  onDelete: (e: React.MouseEvent) => void;
+  onMoveOrphan?: (e: React.MouseEvent) => void;
+}> = ({ project, isActive, onAddFile, onAddFolder, onDelete, onMoveOrphan }) => {
+  const isOrphan = project.isOrphan === true;
+  const formattedSize = useMemo(() => {
+    const b = Number(project.totalBytes) || 0;
+    if (b >= 1024 * 1024 * 1024) return (b / (1024 * 1024 * 1024)).toFixed(1) + " GB";
+    return (b / (1024 * 1024)).toFixed(1) + " MB";
+  }, [project.totalBytes]);
+
+  return (
+    <div className="project-node-label-wrapper" onClick={(e) => e.stopPropagation()}>
+      <div className="project-node-header">
+        <span className={`project-title ${isActive ? "is-active" : ""}`}>
+          <Icon icon={isOrphan ? "archive" : "projects"} size={13} style={{ marginRight: 4 }} />
+          {project.projectName}
+          {isOrphan && <span className="orphan-badge">Legacy Migrated Files</span>}
+          {isActive && !isOrphan && (
+            <span
+              style={{
+                fontSize: "9px",
+                background: "rgba(2, 132, 199, 0.12)",
+                color: "#0284c7",
+                border: "1px solid rgba(2, 132, 199, 0.3)",
+                borderRadius: "3px",
+                padding: "0 4px",
+                fontWeight: 700,
+                marginLeft: 4,
+              }}
+            >
+              ACTIVE
+            </span>
+          )}
+        </span>
+        <span className="project-meta-badge">
+          {project.fileCount} {project.fileCount === 1 ? "file" : "files"} | {formattedSize}
+        </span>
+      </div>
+      <div className="project-actions-row">
+        {!isOrphan ? (
+          <>
+            <Button
+              className="project-action-btn"
+              icon="document"
+              small={true}
+              minimal={true}
+              text="Add File"
+              onClick={onAddFile}
+            />
+            <Button
+              className="project-action-btn"
+              icon="folder-open"
+              small={true}
+              minimal={true}
+              text="Add Folder"
+              onClick={onAddFolder}
+            />
+            <Button
+              className="project-action-btn"
+              icon="trash"
+              intent={Intent.DANGER}
+              small={true}
+              minimal={true}
+              title="Delete Project & Cascade Cache Cleanup"
+              onClick={onDelete}
+            />
+          </>
+        ) : (
+          <Button
+            className="project-action-btn"
+            icon="inheritance"
+            intent={Intent.WARNING}
+            small={true}
+            minimal={true}
+            text="Move all to Untitled-1"
+            onClick={onMoveOrphan}
+          />
+        )}
+      </div>
+    </div>
+  );
+};
+
 const dsNodeTreeNode = (
   dsc: DataSourceConnection,
   dsPath: DataSourcePath,
@@ -198,35 +295,170 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   expanded,
   stateRef,
 }) => {
-  const [initialized, setInitialized] = useState(false);
   const [treeState, setTreeState] = useState<DSTreeNodeInfo[]>([]);
   const [rootNodeMap, setRootNodeMap] = useState<RootNodeMap>({});
   const [selectedNode, setSelectedNode] = useState<DSTreeNodeInfo | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{
+    projectId: string;
+    projectName: string;
+    formattedSize: string;
+  } | null>(null);
+
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const clickSeqRef = useRef(0);
+  const pwManager = ProjectWorkspaceManager.getInstance();
 
   useEffect(() => {
     MultipleLoadingManager.getInstance().setStateRef(stateRef);
-    const unsubscribe = MultipleLoadingManager.getInstance().subscribe(() => {
-      forceUpdate();
+    const unMLM = MultipleLoadingManager.getInstance().subscribe(() => forceUpdate());
+    const unPWM = pwManager.subscribe(() => {
+      throttledRefresh.current();
     });
-    return unsubscribe;
+    return () => {
+      unMLM();
+      unPWM();
+    };
   }, [stateRef]);
 
   const throttledRefresh = useRef(
     throttle(async function refreshDataSources(): Promise<void> {
       const appState = mutableGet(stateRef);
       const rtc = appState.rtc;
-      let dirty = false;
-      let newContainers: DSTreeNodeInfo[] = [];
       try {
-        const nextNodeMap = Object.assign(rootNodeMap) as RootNodeMap;
+        const ws = await pwManager.getWorkspace();
+        const activeProjectId = ws.activeProjectId || "prj_untitled_1";
+        const projectTreeNodes: DSTreeNodeInfo[] = [];
+
+        for (const proj of ws.projects) {
+          const files = await pwManager.getProjectFiles(proj.projectId);
+          const isExpanded = pwManager.isProjectExpanded(proj.projectId);
+
+          const dscPlaceholder: any = {
+            getChildren: async () => [],
+            getTableName: async (dsPath: DataSourcePath) => {
+              return getCanonicalPathFromDSPath(dsPath);
+            },
+            isCacheReady: () => false,
+            getCacheStatus: () => "UNPROCESSED",
+          };
+
+          const fileItemsForMLM = files.map((f) => ({
+            dsPath: {
+              sourceId: { providerName: "localfs" as const, resourceId: f.filePath },
+              path: ["."],
+            },
+            dsc: dscPlaceholder,
+            fileName: f.fileName,
+            fileSizeBytes: f.fileSizeBytes,
+          }));
+          if (fileItemsForMLM.length > 0) {
+            MultipleLoadingManager.getInstance().registerFiles(fileItemsForMLM, stateRef);
+          }
+
+          const filteredFiles = files.filter(
+            (f) =>
+              !searchQuery ||
+              f.fileName.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+
+          const childFileNodes: DSTreeNodeInfo[] = filteredFiles.map((f) => {
+            const dsPath: DataSourcePath = {
+              sourceId: { providerName: "localfs", resourceId: f.filePath },
+              path: ["."],
+            };
+            const dsNode: DataSourceNode = {
+              id: f.fileName,
+              kind: "File",
+              displayName: f.fileName,
+              isContainer: false,
+              fileSizeBytes: f.fileSizeBytes,
+            };
+            return dsNodeTreeNode(dscPlaceholder, dsPath, dsNode, stateRef);
+          });
+
+          const projNode: DSTreeNodeInfo = {
+            id: `project_${proj.projectId}`,
+            icon: proj.isOrphan ? "archive" : "projects",
+            hasCaret: true,
+            isExpanded,
+            label: (
+              <ProjectNodeLabel
+                project={proj}
+                isActive={proj.projectId === activeProjectId}
+                onAddFile={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const { getHostBridge } = require("host-bridge");
+                    const bridge = getHostBridge();
+                    const chosen = await bridge.showOpenDialog({
+                      title: `Add Files to ${proj.projectName}`,
+                      multiple: true,
+                    });
+                    if (chosen && chosen.length > 0) {
+                      await pwManager.addFilesToProject(proj.projectId, chosen);
+                      throttledRefresh.current();
+                    }
+                  } catch (err) {
+                    console.error("Error adding files:", err);
+                  }
+                }}
+                onAddFolder={async (e) => {
+                  e.stopPropagation();
+                  try {
+                    const { getHostBridge } = require("host-bridge");
+                    const bridge = getHostBridge();
+                    const chosen = await bridge.showOpenDialog({
+                      title: `Add Folder to ${proj.projectName}`,
+                      directory: true,
+                    });
+                    if (chosen && chosen.length > 0) {
+                      await pwManager.addFolderToProject(proj.projectId, chosen[0]);
+                      throttledRefresh.current();
+                    }
+                  } catch (err) {
+                    console.error("Error adding folder:", err);
+                  }
+                }}
+                onDelete={async (e) => {
+                  e.stopPropagation();
+                  const cacheInfo = await pwManager.getCacheSize(proj.projectId);
+                  setDeleteTarget({
+                    projectId: proj.projectId,
+                    projectName: proj.projectName,
+                    formattedSize: cacheInfo.formattedSize,
+                  });
+                }}
+                onMoveOrphan={async (e) => {
+                  e.stopPropagation();
+                  await pwManager.moveOrphanFilesToProject(activeProjectId);
+                  throttledRefresh.current();
+                }}
+              />
+            ),
+            childNodes: childFileNodes,
+            nodeData: {
+              isProject: true,
+              projectId: proj.projectId,
+              dsc: dscPlaceholder,
+              dsPath: { sourceId: { providerName: "localfs", resourceId: "" }, path: [] },
+              dsNode: { id: proj.projectId, kind: "Dataset", displayName: proj.projectName, isContainer: true },
+            },
+          };
+
+          projectTreeNodes.push(projNode);
+        }
+
+        const nextNodeMap = Object.assign({}, rootNodeMap) as RootNodeMap;
         const rootSources = await rtc.getDataSources();
-        const rootNodes = await Promise.all(
-          rootSources.map(async (sourceId) => {
-            const sourceIdStr = JSON.stringify(sourceId);
-            let rootTreeNode = nextNodeMap[sourceIdStr];
-            if (!rootTreeNode) {
+        const legacyRootNodes: DSTreeNodeInfo[] = [];
+        for (const sourceId of rootSources) {
+          const sourceIdStr = JSON.stringify(sourceId);
+          let rootTreeNode = nextNodeMap[sourceIdStr];
+          if (!rootTreeNode) {
+            try {
               const dsc = await rtc.connect(sourceId);
               const rootNode = await dsc.getRootNode();
               const rootPath: DataSourcePath = {
@@ -236,20 +468,17 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
               rootTreeNode = dsNodeTreeNode(dsc, rootPath, rootNode, stateRef);
               nextNodeMap[sourceIdStr] = rootTreeNode;
               if (rootNode.isContainer) {
-                newContainers.push(rootTreeNode);
+                handleNodeExpand(rootTreeNode);
               }
-              dirty = true;
-            }
-            return rootTreeNode;
-          })
-        );
-        if (dirty) {
-          setTreeState(rootNodes);
-          setRootNodeMap(nextNodeMap);
-          for (const cNode of newContainers) {
-            handleNodeExpand(cNode);
+            } catch {}
+          }
+          if (rootTreeNode) {
+            legacyRootNodes.push(rootTreeNode);
           }
         }
+        setRootNodeMap(nextNodeMap);
+
+        setTreeState(projectTreeNodes.concat(legacyRootNodes));
       } catch (err) {
         console.error("error refreshing data sources: ", err);
       }
@@ -261,16 +490,26 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   });
 
   const handleNodeCollapse = (treeNode: DSTreeNodeInfo) => {
+    if (treeNode.nodeData && (treeNode.nodeData as any).isProject) {
+      pwManager.setProjectExpanded((treeNode.nodeData as any).projectId, false);
+    }
     treeNode.isExpanded = false;
     forceUpdate();
   };
 
   const handleNodeExpand = async (treeNode: DSTreeNodeInfo) => {
+    if (treeNode.nodeData && (treeNode.nodeData as any).isProject) {
+      pwManager.setProjectExpanded((treeNode.nodeData as any).projectId, true);
+      treeNode.isExpanded = true;
+      forceUpdate();
+      return;
+    }
+
     const { dsPath, dsc, dsNode } = treeNode.nodeData!;
-    const appState = mutableGet(stateRef);
+    if (!dsc || typeof dsc.getChildren !== "function") return;
+
     const childNodes = await dsc.getChildren(dsPath);
 
-    // Register all child files into MultipleLoadingManager for background processing
     const fileItems = childNodes
       .filter((n) => n.kind === "File")
       .map((n) => ({
@@ -296,9 +535,16 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     _nodePath: any[],
     e: React.MouseEvent<HTMLElement>
   ) => {
+    if (treeNode.nodeData && (treeNode.nodeData as any).isProject) {
+      const projId = (treeNode.nodeData as any).projectId;
+      pwManager.toggleProjectExpanded(projId);
+      pwManager.setActiveProject(projId);
+      forceUpdate();
+      return;
+    }
+
     const { dsPath, dsNode } = treeNode.nodeData!;
 
-    // Phản hồi giao diện tức thì: đánh dấu chọn dòng ngay lập tức
     if (selectedNode != null) {
       selectedNode.isSelected = false;
     }
@@ -314,7 +560,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       const item = manager.getItem(key) || manager.getItemByCanonical(canonicalPath);
 
       if (item && item.status === "ready") {
-        // File đã nạp xong: lập tức hiển thị trạng thái mở bảng dữ liệu
         manager.clearPendingActiveOpen();
         actions.setActiveLoadingFile(
           {
@@ -334,7 +579,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           }
         }
       } else {
-        // File chưa nạp hoặc đang nạp: Cướp quyền ưu tiên lên đầu hàng đợi và chuyển màn hình sang Loading
         manager.prioritize(key, stateRef);
         actions.setActiveLoadingFile(
           {
@@ -352,14 +596,143 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     }
   };
 
+  const handleCreateProjectSubmit = async () => {
+    if (!newProjectName.trim()) return;
+    try {
+      await pwManager.createProject(newProjectName.trim());
+      setNewProjectOpen(false);
+      setNewProjectName("");
+      throttledRefresh.current();
+    } catch (err) {
+      console.error("Error creating project:", err);
+    }
+  };
+
+  const handleExecuteDeleteProject = async () => {
+    if (!deleteTarget) return;
+    try {
+      await pwManager.deleteProject(deleteTarget.projectId);
+      setDeleteTarget(null);
+      throttledRefresh.current();
+    } catch (err) {
+      console.error("Error deleting project:", err);
+    }
+  };
+
   return (
     <Sidebar expanded={expanded}>
+      <div className="project-workspace-header">
+        <div className="project-workspace-toolbar">
+          <Button
+            className="new-project-btn"
+            icon="plus"
+            intent={Intent.PRIMARY}
+            text="New Project"
+            small={true}
+            onClick={() => setNewProjectOpen(true)}
+          />
+          <Button
+            icon="refresh"
+            minimal={true}
+            small={true}
+            title="Refresh Workspace"
+            onClick={() => throttledRefresh.current()}
+          />
+        </div>
+        <InputGroup
+          className="project-search-input"
+          leftIcon="search"
+          small={true}
+          placeholder="Filter Files..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+
       <Tree
         contents={treeState}
         onNodeCollapse={handleNodeCollapse}
         onNodeExpand={handleNodeExpand}
         onNodeClick={handleNodeClick}
       />
+
+      {/* New Project Dialog */}
+      <Dialog
+        isOpen={newProjectOpen}
+        onClose={() => setNewProjectOpen(false)}
+        title="Create New Project"
+        icon="projects"
+        style={{ width: "380px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)", marginBottom: "8px" }}>
+            Enter a name for the new analysis project:
+          </p>
+          <InputGroup
+            autoFocus={true}
+            placeholder="e.g. Incident-2026, Threat-Hunting"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newProjectName.trim()) {
+                handleCreateProjectSubmit();
+              }
+            }}
+          />
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setNewProjectOpen(false)}>Cancel</Button>
+            <Button
+              intent={Intent.PRIMARY}
+              disabled={!newProjectName.trim()}
+              onClick={handleCreateProjectSubmit}
+            >
+              Create Project
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Confirm Delete Project Dialog */}
+      <Dialog
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Project & Cascade Cache Cleanup"
+        icon="trash"
+        style={{ width: "420px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
+            Bạn có chắc chắn muốn xóa project <strong>{deleteTarget?.projectName}</strong>?
+          </p>
+          <div
+            style={{
+              background: "rgba(239, 68, 68, 0.08)",
+              border: "1px solid rgba(239, 68, 68, 0.25)",
+              borderRadius: "6px",
+              padding: "10px",
+              marginTop: "10px",
+            }}
+          >
+            <p style={{ margin: 0, color: "#ef4444", fontWeight: 600, fontSize: "12px" }}>
+              ⚠️ Cascade Cache Cleanup:
+            </p>
+            <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b" }}>
+              Xóa project này sẽ giải phóng toàn bộ cache Parquet liên quan (ước tính:{" "}
+              <strong>{deleteTarget?.formattedSize || "0 MB"}</strong>). Các file nguồn gốc trên đĩa không bị ảnh hưởng.
+            </p>
+          </div>
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button intent={Intent.DANGER} onClick={handleExecuteDeleteProject}>
+              Delete Project
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </Sidebar>
   );
 };

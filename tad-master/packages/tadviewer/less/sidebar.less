@@ -347,3 +347,118 @@
   border-radius: 1px;
   transition: width 0.25s ease-out;
 }
+
+/* ==========================================================================
+   Project Workspace Navigator (v2.4.0)
+   ========================================================================== */
+
+.project-workspace-header {
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.02);
+
+  .project-workspace-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .new-project-btn {
+      font-size: 11px;
+      font-weight: 600;
+    }
+  }
+
+  .project-search-input {
+    width: 100%;
+    .bp4-input {
+      font-size: 11px;
+      height: 26px;
+    }
+  }
+}
+
+.project-node-label-wrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-right: 4px;
+}
+
+.project-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+
+  .project-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #1e293b;
+
+    &.is-active {
+      color: #0284c7;
+    }
+  }
+
+  .project-meta-badge {
+    font-size: 10px;
+    font-weight: 400;
+    color: #64748b;
+  }
+}
+
+.project-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+  padding-left: 2px;
+
+  .project-action-btn {
+    font-size: 10px;
+    padding: 1px 6px;
+    height: 20px;
+    min-height: 20px;
+    border-radius: 3px;
+  }
+}
+
+.orphan-badge {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+
+// Dark Mode Overrides
+.bp4-dark,
+.toad-dark {
+  .project-workspace-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .project-node-header {
+    .project-title {
+      color: #f1f5f9;
+      &.is-active {
+        color: #38bdf8;
+      }
+    }
+    .project-meta-badge {
+      color: #94a3b8;
+    }
+  }
+}

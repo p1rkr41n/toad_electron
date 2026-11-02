@@ -199,6 +199,144 @@ const appInit = (options: any) => {
   ipcMain.handle("getToadConfig", async () => {
     return (global as any).toadPortableEnv?.config || null;
   });
+
+  ipcMain.handle("dialog:showOpenDialog", async (event, options) => {
+    const win =
+      BrowserWindow.fromWebContents(event.sender) ||
+      BrowserWindow.getFocusedWindow();
+    const properties: any[] = [];
+    if (options?.directory) {
+      properties.push("openDirectory");
+    } else {
+      properties.push("openFile");
+      if (options?.multiple) {
+        properties.push("multiSelections");
+      }
+    }
+    const res = await dialog.showOpenDialog(win!, {
+      title:
+        options?.title ||
+        (options?.directory
+          ? "Select Folder to Add to Project"
+          : "Select Data Files to Add to Project"),
+      defaultPath: options?.defaultPath,
+      filters: options?.filters || [
+        {
+          name: "All Supported Data Files",
+          extensions: reltabFS.dataFileExtensions.concat([
+            "tad",
+            "sqlite",
+            "duckdb",
+          ]),
+        },
+        {
+          name: "CSV / TSV / Log Files (*.csv, *.tsv, *.log, *.txt)",
+          extensions: ["csv", "tsv", "log", "txt", "csv.gz", "tsv.gz"],
+        },
+        {
+          name: "JSON / JSONL Files (*.json, *.jsonl, *.ndjson)",
+          extensions: ["json", "jsonl", "ndjson"],
+        },
+        {
+          name: "Windows Event Logs (*.evtx)",
+          extensions: ["evtx"],
+        },
+        {
+          name: "Parquet Files (*.parquet)",
+          extensions: ["parquet"],
+        },
+        {
+          name: "Database Files (*.duckdb, *.sqlite)",
+          extensions: ["duckdb", "sqlite"],
+        },
+        {
+          name: "All Files (*.*)",
+          extensions: ["*"],
+        },
+      ],
+      properties,
+    });
+    if (res.canceled || !res.filePaths) {
+      return null;
+    }
+    return res.filePaths;
+  });
+
+  ipcMain.handle("dialog:showSaveDialog", async (event, options) => {
+    const win =
+      BrowserWindow.fromWebContents(event.sender) ||
+      BrowserWindow.getFocusedWindow();
+    const res = await dialog.showSaveDialog(win!, {
+      title: options?.title,
+      defaultPath: options?.defaultPath,
+      filters: options?.filters,
+    });
+    if (res.canceled || !res.filePath) {
+      return null;
+    }
+    return res.filePath;
+  });
+
+  ipcMain.handle("project:getWorkspace", async () => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return {
+      projects: ledger.getProjects(),
+      activeProjectId: ledger.getActiveProjectId(),
+    };
+  });
+
+  ipcMain.handle("project:create", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.createProject(req?.projectName || "Untitled Project", req?.projectId);
+  });
+
+  ipcMain.handle("project:delete", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.deleteProjectCascade(req?.projectId);
+  });
+
+  ipcMain.handle("project:getCacheSize", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return ledger.getProjectCacheSize(req?.projectId);
+  });
+
+  ipcMain.handle("project:addFiles", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    const results = [];
+    if (req?.filePaths && Array.isArray(req.filePaths)) {
+      for (const f of req.filePaths) {
+        const e = await ledger.addFileToProject(req.projectId, f);
+        results.push(e);
+      }
+    }
+    return results;
+  });
+
+  ipcMain.handle("project:addFolder", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    const entries = await ledger.addFolderToProject(req?.projectId, req?.folderPath);
+    return entries.map((e) => e.source_path);
+  });
+
+  ipcMain.handle("project:moveOrphanFiles", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    await ledger.moveOrphanFilesToProject(req?.targetProjectId);
+    return { success: true };
+  });
+
+  ipcMain.handle("project:setActive", async (event, req) => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    ledger.setActiveProjectId(req?.projectId);
+    return { success: true };
+  });
+
   appMenu.createMenu(); // log.log('appInit: done')
 };
 
@@ -480,6 +618,11 @@ const initApp =
             // log.log(startMsg)
             // dialog.showMessageBox({ message: startMsg })
             appInit(options);
+            try {
+              await reltabDuckDB.initToadLedger();
+            } catch (err) {
+              log.warn("Error initializing ToadLedger in main process:", err);
+            }
 
             if (!noSrcFile) {
               openSrcFiles(options);

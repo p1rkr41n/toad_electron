@@ -38,8 +38,8 @@ if (-not (Test-Path $bundlePath)) {
     throw "ERROR: Cannot find tadapp.bundle.js!"
 }
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not ($bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
-    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.3.5 or earlier versions!"
+if (-not ($bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
+    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.4.0 or earlier versions!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
     throw "ASSERTION ERROR: tadapp.bundle.js does not contain padStart(3 for str001!"
