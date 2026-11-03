@@ -1,41 +1,30 @@
-# Sentinel Handoff Report
+# Handoff Report — Project Sentinel
 
-## Observation
-- The user requested fixes for DuckDB CSV sniffer delimiter misparsing on `sample_40gb.csv`, resolving architectural cache hit flaws where corrupted Parquet files bypassed eviction logic, cleaning up stale temporary files, adding non-blocking ingestion error handling with exclamation circle icon badges (`!`) in the UI, building via `fastbuild.ps1`, and QA verifying that `sample_40gb.csv` parses cleanly with all 11 proper columns.
-- An independent swarm orchestrated by `teamwork_orchestrator` completed the engineering across backend (`reltab-fs`, `csvimport`, `ingestWorker`), frontend (`ProjectFilesTable`, `DataSourceSidebar`, `actions`, `main`), and build scripts.
-- The project completed with full gate reviews (2 Reviewers, 2 Challengers, 1 Auditor) and an independent post-victory audit by `teamwork_victory_auditor` which tested the build, runtime queries, and verified all acceptance criteria with a `VICTORY CONFIRMED` verdict.
+## 1. Observation
+- Orchestrator (`afba7d24-e2ed-4eb2-89cc-f35d592f6de8`) executed the approved task prompt for the full rebrand of TAD to TOAD at version `v2.4.8`.
+- Parallel subagent swarms carried out Phase 0 (survey), Phase 1 (parallel implementation across Workers M1, M2, M3), Phase 2 (review, challenge, audit with adversarial remediation loop), and Phase 3 (build, test, and portable release packaging via Worker M5).
+- Following victory claim by the orchestrator, independent `teamwork_victory_auditor` (`cb89da14-8be6-4a1b-86cc-7c29aaa114c5`) conducted a post-victory audit across Timeline, Integrity/Anti-Cheating, and Independent Execution.
+- The Victory Auditor issued a clean `VICTORY CONFIRMED` verdict matching 100% of acceptance criteria.
 
-## Logic Chain
-1. **Interview & Routing**:
-   - Initial user requirements were processed through the Task Interview protocol with caller `489b863f-84dc-4fd6-bbfb-142488ba4d23`.
-   - The approved task prompt was recorded verbatim into `.agents/teamwork/ORIGINAL_REQUEST.md`.
-   - The task was routed to `teamwork_orchestrator` (General execution path).
-2. **Execution & Supervision**:
-   - Background monitoring crons (Progress Reporting `*/8 * * * *`, Liveness Check `*/10 * * * *`) monitored progress continuously.
-   - Milestone 1: Backend CSV parser enforcement (`delim=','`, removing `escape=''`, maintaining `all_varchar=true`), Parquet cache validation gateway before `createViewFromParquet`, and cleanup of orphan `.tmp_` files.
-   - Milestone 2: Non-blocking ingestion error handling, suppression of intrusive modal alerts in `main.ts`, full trace logging to `toad.log`, and Blueprint `<Icon icon="error" />` status badges in the sidebar/table.
-   - Milestone 3: E2E QA integration tests (`tests/deep_integration_qa.js`) with 222/222 passing tests, and `fastbuild.ps1 -Dev` producing `build\Toad-2.4.6\Toad.exe`.
-3. **Verification Gate & Independent Victory Audit**:
-   - Swarm internal verification gate passed unanimously.
-   - `teamwork_victory_auditor` independently performed Phase A (Timeline), Phase B (Cheating / Facade Forensics), and Phase C (Independent Test Execution), verifying:
-     - 222/222 deep integration tests passing.
-     - Direct query of `sample_40gb.csv` producing exactly 11 valid columns with clean ISO 8601 timestamps in Column 0.
-     - Corrupted Parquet files properly evicted.
-     - `fastbuild.ps1 -Dev` generated 180MB `Toad.exe`.
-     - Zero-duplicate binary storage policy respected under Jujutsu VCS.
-   - Independent Victory Auditor returned `VICTORY CONFIRMED`.
+## 2. Logic Chain
+1. **Task Interview & Routing**: Received user approval from caller; routed to General Project Orchestrator (`teamwork_orchestrator`) per Routing Decision Table. Recorded verbatim intent in `ORIGINAL_REQUEST.md`.
+2. **Sentinel Governance**: Maintained dual-cron monitoring (`Cron 1: Progress Reporting` every 8 min, `Cron 2: Liveness Check` every 10 min) while orchestrator drove swarm execution.
+3. **Quality & Remediation Loop**: Challenger and Auditor caught edge-case path mismatches in legacy test suites; orchestrator looped back to remediation worker, successfully reaching 100% test pass rate.
+4. **Independent Post-Victory Verification**: Dispatched `teamwork_victory_auditor` with zero shared context. All 222+ tests passed independently, portable binary validity verified, asar limit compliance verified (< 45 MB), and Zero-Duplicate Binary Storage policy enforced.
+5. **Teardown**: Killed all active cron tasks and retired subagent swarm.
 
-## Caveats
-- `fastbuild.ps1 -Dev` builds the development bundle. Production distribution releases can be packaged using the existing packaging scripts (`package_release.ps1`) when a full release build is desired.
-- When ingesting files with severe CSV syntax malformations, the system will record the error to `toad.log` and display the exclamation mark circle icon (`!`) rather than crashing or popping up blocking dialogs.
+## 3. Caveats
+- Windows desktop file association `.toad` will register natively upon running the newly built application or installer; legacy `.tad` files open seamlessly via transparent format version 1 to 2 schema migration.
+- `app.asar` size is 25.46 MB, comfortably below the 45.0 MB threshold.
 
-## Conclusion
-All requirements (R1–R5) are successfully implemented, verified, and audited. The application is compiled and runnable at `build\Toad-2.4.6\Toad.exe`.
+## 4. Conclusion
+- TOAD v2.4.8 rebrand, monorepo restructuring, webpack bundling, backward compatibility, QA testing, and portable packaging are 100% complete and certified with `VICTORY CONFIRMED`.
 
-## Verification Method
-- E2E Test Suite: `node tests\deep_integration_qa.js` (222/222 PASS)
-- UI Error Test: `node tests\test_milestone2_ui_error.js` (8/8 PASS)
-- Empirical Challenger Test: `node tests\test_csv_empirical_challenger.js` (12/12 PASS)
-- Direct DuckDB 11-column verification on `sample_40gb.csv` (11 columns, 0 synthetic columns, column 0 isolated timestamps)
-- Fastbuild Build Output: `build\Toad-2.4.6\Toad.exe` (180,267,520 bytes)
-- Independent Victory Auditor Verdict: `VICTORY CONFIRMED` (see `.agents/teamwork/victory_auditor_2/handoff.md`)
+## 5. Verification Method
+- Independent Victory Auditor executed:
+  - `node run_tests.js --all` -> PASS (0 failures, 29.55s)
+  - `node tests/deep_integration_qa.js` -> PASS (222/222 passed, 16.25s)
+  - `node tests/smoke_test.js` -> 100% HEALTHY (exit code 0)
+  - `node tests/test_pipeline_challenge.js` -> 46/46 PASSED (exit code 0)
+  - Binary header validation: `releases/Toad-2.4.8-x64-portable.exe` (72.10 MB, valid MZ/PE executable, SHA-256 confirmed in `releases/SHA256SUMS.txt`).
+  - Jujutsu VCS status: clean commit `klqlvyzy d4a6c743` ("release: TOAD v2.4.8 full rebrand and portable packaging").

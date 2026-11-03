@@ -97,6 +97,7 @@ function findToadCoreBinary(): string | null {
     (process as any).resourcesPath
       ? path.join((process as any).resourcesPath, "bin", "toad-core.exe")
       : null,
+    path.join(__dirname, "../../../toad-app/bin/toad-core.exe"),
     path.join(__dirname, "../../../tad-app/bin/toad-core.exe"),
     path.join(__dirname, "../../../toad-core-rust/target/release/toad-core.exe"),
     path.join(__dirname, "../../../../packages/toad-core-rust/target/release/toad-core.exe"),

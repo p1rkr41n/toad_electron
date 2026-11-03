@@ -26,3 +26,35 @@ Review tasks:
    & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
 3. Determine verdict: APPROVE or REQUEST_CHANGES.
 4. Write handoff report with your explicit verdict to d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md and send message to orchestrator.
+
+## 2026-11-03T12:27:55Z
+You are Reviewer 2 (Logic, File Formats & Branding Reviewer).
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2
+
+MANDATORY INSTRUCTIONS:
+1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+3. You MUST read Worker M1's handoff report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md` and changes report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\changes.md`
+
+YOUR REVIEW SCOPE (R3 & R4):
+- File formats and backward compatibility:
+  - Check `toad-app/src/openParams.ts`: `OpenToad` interface, `OpenType`, `OpenParams`.
+  - Check `toad-app/app/appWindow.ts`: `.toad` and `.tad` support, default window title `"TOAD"`, `--toadOpenParams=` / `--tadOpenParams=`, openDialog and saveAsDialog filters (`.toad` default), workspace serialization `toadFileFormatVersion: 2`.
+  - Check `toad-app/app/preload.js`: parses `--toadOpenParams=` with fallback to `--tadOpenParams=`.
+  - Check `toad-app/src/electronRenderMain.tsx`: handles `"toad"` and `"tad"`, transparent migration of legacy v1 `targetPath` to `DataSourcePath`, error dialog string.
+- SQL Internal Views & Plugins:
+  - Check `reltab-duckdb/src/reltab-duckdb.ts` & `reltab-sqlite/src/reltab-sqlite.ts`: `toad_tmpView_${viewCounter++}` view prefix.
+  - Check `reltab-duckdb/src/csvimport.ts`: `toad-app/bin/toad-core.exe` candidate.
+- UI Classes, Events & Branding:
+  - Check `toadviewer/src/components/AppPane.tsx`: container class `.toad-app-pane`, title `${node.displayName} - TOAD`, exported `toadReact`.
+  - Check `toadviewer/less/tadviewer.less`: `.toad-app-pane` styling.
+  - Check `PivotRequester.ts` & `FilterEditor.tsx`: `toad-query-error` event.
+  - Check `appMenu.ts` & `main.ts`: About TOAD dialog handler and `app.setAboutPanelOptions` with `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)`.
+- Run verification command: compile/typecheck `toad-app` (`tsc --noEmit`), `reltab-duckdb`, and `toadviewer`.
+
+DELIVERABLES:
+Write a thorough review report in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\analysis.md`
+and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md`.
+Update `progress.md` before finishing.
+When done, send a message back to the orchestrator with your verdict.

@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "declaration": true,
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "noEmit": false,
+    "sourceMap": true,
+    "jsx": "react",
+    "downlevelIteration": true,
+    "rootDirs": ["src/ts", "app"],
+    "baseUrl": ".",
+    "paths": {
+      "host-bridge": ["../host-bridge"],
+      "toadviewer": ["../toadviewer"],
+      "toadviewer/*": ["../toadviewer/*"],
+      "tadviewer": ["../toadviewer"],
+      "tadviewer/*": ["../toadviewer/*"]
+    }
+  },
+  "include": ["./src/*", "./app/*"]
+}

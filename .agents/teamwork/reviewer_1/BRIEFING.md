@@ -1,66 +1,68 @@
-# BRIEFING — 2026-11-03T03:40:40Z
+# BRIEFING — 2026-11-03T12:35:50Z
 
 ## Mission
-Review and adversarial stress-testing of M1/M2 implementation and integration QA tests against R1-R5 acceptance criteria.
+Perform adversarial review and quality verification for Packages, Webpack & HTML migration from Tad to Toad (Worker M2).
 
 ## 🔒 My Identity
-- Archetype: reviewer
+- Archetype: reviewer / critic
 - Roles: reviewer, critic
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1
-- Original parent: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Milestone: Review and Adversarial Stress Testing
+- Original parent: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
+- Milestone: Reviewer 1 (M2 Review)
 - Instance: 1 of 1
 
 ## 🔒 Key Constraints
 - Review-only — do NOT modify implementation code
-- Check for integrity violations (hardcoded test values, facade implementations, shortcutting)
-- Explicit verdict: APPROVE or REQUEST_CHANGES
-- Send message to parent agent on completion
+- Check for integrity violations: hardcoding, facades, shortcuts, fake verifications
+- Must issue clear verdict: APPROVE or REQUEST_CHANGES
+- Write only to .agents/teamwork/reviewer_1/
 
 ## Current Parent
-- Conversation ID: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Updated: 2026-11-03T03:40:40Z
+- Conversation ID: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
+- Updated: 2026-11-03T12:28:30Z
 
 ## Review Scope
 - **Files to review**:
-  - tad-master/packages/tad-app/app/appMenu.ts
-  - tad-master/packages/tad-app/src/electronRenderMain.tsx
-  - tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx
-  - tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx
-  - tad-master/packages/tadviewer/less/sidebar.less
-  - tests/deep_integration_qa.js
-- **Interface contracts**: ORIGINAL_REQUEST.md, PROJECT.md
-- **Review criteria**: Correctness (R1-R5), Adversarial testing, Edge cases, Integrity violations, Test suite execution
+  - `tad-master/packages/toad-app/` directory & old `tad-app` removal
+  - `tad-master/packages/toadviewer/` directory & old `tadviewer` removal
+  - `toad-app/package.json`
+  - `toadviewer/package.json`
+  - `tad-master/lerna.json`
+  - `toad-app` source files for lingering `tadviewer` imports
+  - `toad-app/webpack.config.js`
+  - `toadviewer/webpack.config.js`
+  - `toad-app/html/index.html`
+  - NTFS junctions in `node_modules` for `toadviewer` and `tadviewer`
+- **Interface contracts**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`, `ORIGINAL_REQUEST.md`, `worker_m2/handoff.md`, `worker_m2/changes.md`
+- **Review criteria**: Correctness, Completeness, Webpack bundle naming alignment, HTML script tag match, NTFS junction integrity, Typecheck verification (`tsc --noEmit`), Zero-regression, No integrity violations.
 
 ## Review Checklist
 - **Items reviewed**:
-  - Menu Cleanup & IPC Actions (`appMenu.ts`, `electronRenderMain.tsx`)
-  - Double-click Project Rename (`DataSourceSidebar.tsx`)
-  - Fast 100% File Search & Auto-expansion (`DataSourceSidebar.tsx`)
-  - Interactive 4-Column Table & Sorting/Filtering (`ProjectFilesTable.tsx`)
-  - Data-dense & Theme Stylesheet (`sidebar.less`)
-  - Integration QA Suite JJ (`tests/deep_integration_qa.js`)
+  - Directories `toad-app` and `toadviewer` on disk
+  - Manifests: `toad-app/package.json`, `toadviewer/package.json`, `lerna.json`, `tools/buildAll.js`
+  - Imports across `toad-app` and `tad-master`
+  - Webpack configs for `toad-app` and `toadviewer`
+  - HTML index files (`html/index.html` and `dist/index.html`)
+  - NTFS junctions in `node_modules`
+  - `tsc --noEmit` and production Webpack builds
 - **Verdict**: APPROVE
-- **Unverified claims**: none; all independently verified with live test runs and builds.
+- **Unverified claims**: None remaining.
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Arbitrary casing, mixed slashes, and trailing slashes in `getRelativeParentDir`
-  - Zero project collision in search (verified `projMatches` completely removed)
-  - Blank or whitespace-only rename attempts (gracefully reverted without ledger corruption)
-  - Enter and Blur event overlap handling
-  - Numeric sorting on file size vs lexicographic sorting on name/dir/status
-  - Compound column filtering logic
-  - Dark mode and light mode class selectors
-- **Vulnerabilities found**: 0 critical/major; 1 minor edge-case observation noted regarding memo dependency.
-- **Untested angles**: physical display rendering (headless execution environment verified via DOM/code structural assertions).
+  - Blank screen DOM failure via script mismatch: Tested and disproven (aligned to `toadapp.bundle.js`).
+  - Missing NTFS junction breakage: Tested and disproven (fallback Webpack resolve aliases & tsconfig path mappings present).
+  - Asar size explosion: Tested and disproven (asar exclusion rules active for both `toadviewer` and `tadviewer`).
+  - Legacy harness breakages: Tested and disproven (dual entry in toadviewer, dual bundle in toad-app).
+- **Vulnerabilities found**: None.
+- **Untested angles**: None within R1 & R2 scope.
 
 ## Key Decisions Made
-- Confirmed zero integrity violations: genuine implementations across all components.
-- Verified TypeScript compilation and Webpack builds for both `tadviewer` and `tad-app`.
-- Verified 200/200 integration test cases pass in 12.19s.
-- Issued APPROVE verdict.
+- Confirmed all claims independently through command execution and file analysis.
+- Issued verdict APPROVE with comprehensive 5-component handoff report.
 
 ## Artifact Index
-- handoff.md — Final review report
-- progress.md — Liveness heartbeat
+- `analysis.md` — Detailed review and adversarial challenge report
+- `handoff.md` — 5-component handoff report with explicit verdict APPROVE
+- `progress.md` — Liveness heartbeat and progress log
+- `DISPATCH.md` — Incoming dispatch messages

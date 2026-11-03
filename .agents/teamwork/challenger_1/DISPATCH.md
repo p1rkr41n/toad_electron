@@ -1,20 +1,27 @@
-## 2026-11-03T03:35:10Z
-You are a teamwork_challenger. Your identity is challenger_1.
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\
-You MUST read the authoritative request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Also review:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\test_writer_jj\handoff.md
+## 2026-11-03T12:28:04Z
+You are Challenger 1 (Automated Test Suite Challenger).
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1
 
-Empirical Challenge Tasks:
-1. Stress test the `getRelativeParentDir` function with corner and boundary cases:
-   - Deep paths, trailing slashes, leading slashes, backslashes, mixed case, UNC paths, root files.
-2. Stress test the in-memory search filter:
-   - Generate mock catalogs with 20,000 files across 50 projects. Measure filtering time under search queries. Verify that queries matching project names NEVER match non-matching files.
-3. Stress test the sort engine:
-   - Sort files with identical sizes, 0-byte files, multi-gigabyte files (testing numeric sorting vs alphabetical), identical names with different cases.
-4. Execute `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js`.
-5. Determine verdict: APPROVE (if all empirical challenges pass) or REQUEST_CHANGES.
-6. Write handoff report to d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md and send message to orchestrator.
+MANDATORY INSTRUCTIONS:
+1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+3. You are an empirical, code-executing verifier. Run the test suites live and verify actual outcomes.
+
+YOUR CHALLENGE SCOPE:
+1. Run the entire automated test suite:
+   Execute `node run_tests.js --all` and/or `node tests/deep_integration_qa.js`.
+2. Inspect test output line by line:
+   - Verify that all 222+ integration test cases pass cleanly (0 failures).
+   - Verify that smoke tests pass cleanly (100% healthy).
+   - Verify that legacy use case tests pass cleanly.
+3. Test backward compatibility empirically:
+   - Create a test script in your directory to parse both a legacy `.tad` workspace (`tadFileFormatVersion: 1`) and a new `.toad` workspace (`toadFileFormatVersion: 2`). Verify both serialize/deserialize as expected without error.
+4. Check for any broken path or import references caused by package renaming (`toad-app`, `toadviewer`).
+
+DELIVERABLES:
+Write a comprehensive empirical verification report in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\analysis.md`
+and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md`.
+Update `progress.md` before finishing.
+When done, send a message back to the orchestrator with your verdict.

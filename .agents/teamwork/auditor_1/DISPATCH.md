@@ -45,3 +45,35 @@ If any cheating, dummy facades, or hardcoded shortcuts are found: report INTEGRI
 If all implementations are genuine, authentic, and verified: report CLEAN.
 
 Write your forensic audit report to d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md and send message to orchestrator.
+
+## 2026-11-03T12:28:22Z
+You are Auditor 1 (Forensic Integrity Auditor).
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1
+
+MANDATORY INSTRUCTIONS:
+1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+3. You are a FORENSIC INTEGRITY AUDITOR. Your job is adversarial verification of code authenticity, genuine implementation, and zero cheating.
+
+FORENSIC AUDIT CHECKS:
+1. **No Hardcoded Test Bypasses / Cheating**:
+   - Inspect git / jujutsu diffs across all modified files (`git diff` or `jj diff`).
+   - Check if any tests were modified to trivially return true, skip real checks, or bypass required functionality.
+   - Verify that test assertions in `tests/deep_integration_qa.js` test the genuine system behavior.
+2. **Authentic Implementation**:
+   - Verify that `packages/toad-app` and `packages/toadviewer` are genuine directories with actual source code, not dummy facades or empty stubs.
+   - Verify that `.toad` and `.tad` backward compatibility in `openParams.ts`, `appWindow.ts`, and `electronRenderMain.tsx` has genuine deserialization and migration logic.
+   - Verify that `reltab-duckdb.ts` genuinely produces `toad_tmpView_${viewCounter++}` views.
+   - Verify that `toadapp.bundle.js` is a genuine compiled webpack bundle from the TypeScript source.
+3. **Packaging & Policy Forensics**:
+   - Check compliance with the Zero-Duplicate Binary Storage policy in `AGENTS.md`.
+   - Verify that no duplicate historical binaries were created in the root or scripts.
+   - Check Jujutsu (`jj`) status for clean version control tracking.
+
+DELIVERABLES:
+Write a comprehensive forensic evidence report in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\analysis.md`
+and a self-contained handoff with an unambiguous binary verdict (**CLEAN** or **INTEGRITY VIOLATION**) in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md`.
+Update `progress.md` before finishing.
+When done, send a message back to the orchestrator with your verdict.

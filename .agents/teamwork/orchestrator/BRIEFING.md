@@ -1,89 +1,76 @@
-# BRIEFING — 2026-11-03T10:47:30Z
+# BRIEFING — 2026-11-03T11:40:00Z
 
 ## Mission
-Fix DuckDB CSV sniffer delimiter misparsing and cache hit flaw in Tad, implement non-blocking ingestion error handling with file status badging, clean up corrupted parquet caches, rebuild via fastbuild, and verify schema and build.
+Execute the full rebrand of TAD to TOAD at version v2.4.8 with monorepo renaming, webpack/HTML updates, .tad backward compatibility, build script synchronization, QA regression testing, and portable packaging using parallel subagents.
 
 ## 🔒 My Identity
-- Archetype: teamwork_orchestrator
+- Archetype: orchestrator
 - Roles: orchestrator, user_liaison, human_reporter, successor
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator
-- Original parent: parent
-- Original parent conversation ID: 76cbfd86-3daa-4f27-84a5-dd77868a2d18
+- Original parent: parent (ID: e8915d9d-8bf1-480e-bd00-a4d5227a9e37)
+- Original parent conversation ID: e8915d9d-8bf1-480e-bd00-a4d5227a9e37
 
 ## 🔒 My Workflow
 - **Pattern**: Project
 - **Scope document**: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-1. **Decompose**: Survey authoritative codebase and reference report, decompose R1-R5 into architectural milestones.
+1. **Decompose**: Survey full codebase using 3 parallel Explorers, build feature inventory in PROJECT.md, decompose into independent milestone tracks.
 2. **Dispatch & Execute**:
-   - Phase 0: Survey (spec_miner_csv, explorer_csv_backend, explorer_error_ui) [COMPLETED]
-   - Milestone 1: Backend CSV Parser, Gateway Cache Validation & Stale Cleanup (worker_backend_m1) [COMPLETED]
-   - Milestone 2: Non-blocking Ingestion Error Handling & UI Status Badging (worker_ui_error_m2) [COMPLETED]
-   - Milestone 3: E2E Integration QA & Fastbuild Verification (worker_qa_build_m3) [COMPLETED]
-   - Phase 4: Verification Gate (Reviewers (2), Challengers (2), Forensic Auditor (1)) [COMPLETED: PASS]
-   - Phase 5: Final Human Reporting to Parent [COMPLETED]
-3. **On failure**: Retry -> Replace -> Skip -> Redistribute -> Redesign -> Escalate
-4. **Succession**: at 16 spawns
+   - Direct / parallel worker tracks for R1 (monorepo & package renaming), R2 (webpack & HTML), R3 (file format & backward compatibility), R4 (branding & SQL views), R5 (build scripts & packaging).
+   - Reviewer, Challenger, and Forensic Auditor verification per gate.
+3. **On failure**: Retry -> Replace -> Redistribute -> Redesign.
+4. **Succession**: Threshold 16 spawns.
 - **Work items**:
-  1. Phase 0: Survey & Scope Mapping [done]
-  2. Phase 1: PROJECT.md Architecture & Milestone Decomposition [done]
-  3. Milestone 1: Backend CSV & Gateway Cache Engine (R1, R2, R3) [done]
-  4. Milestone 2: Non-blocking Ingestion Error Handling & Status Badging (R4) [done]
-  5. Milestone 3: E2E Integration QA & Fastbuild Verification (R5) [done]
-  6. Phase 4: Verification Gate (Reviewers, Challengers, Auditor) [done: PASS]
-  7. Phase 5: Final Human Reporting [in-progress]
-- **Current phase**: Complete
-- **Current focus**: Final Human Reporting to Parent Agent
+  1. Survey and architecture mapping [in-progress]
+  2. Milestone 1: Backward Compatibility & SQL Views & CSS Branding (R3, R4) [pending]
+  3. Milestone 2: Monorepo Package Renaming & Webpack Bundle Assets (R1, R2) [pending]
+  4. Milestone 3: Build Scripts & Packaging Updates (R5) [pending]
+  5. Milestone 4: Comprehensive QA Regression Testing [pending]
+  6. Milestone 5: Fastbuild & Portable Packaging Verification [pending]
+- **Current phase**: 0 (Survey)
+- **Current focus**: Parallel Survey across packages and build system
 
 ## 🔒 Key Constraints
-- NEVER write, modify, or create source code files directly.
-- NEVER run build/test commands yourself — require workers to do so.
-- NEVER investigate or explore the problem at the code level — dispatch Explorers for technical investigation.
-- Audit Enforcement: If a Forensic Auditor reports INTEGRITY VIOLATION, the milestone FAILS UNCONDITIONALLY.
-- Never reuse a subagent after it has delivered its handoff — always spawn fresh.
-- Always include path to ORIGINAL_REQUEST.md in every subagent dispatch.
-- Zero-Duplicate Binary Storage policy.
-- Auto 4th-Digit Patch Increment if existing tag exists.
+- NEVER write source code directly.
+- NEVER run build/test commands yourself.
+- Follow Jujutsu (jj) VCS guidelines and Zero-Duplicate Binary Storage policy.
+- All 222+ tests must pass.
+- Version must be v2.4.8.
+- Never reuse a subagent after handoff.
 
 ## Current Parent
-- Conversation ID: 76cbfd86-3daa-4f27-84a5-dd77868a2d18
-- Updated: 2026-11-03T09:22:57Z
+- Conversation ID: e8915d9d-8bf1-480e-bd00-a4d5227a9e37
+- Updated: not yet
 
 ## Key Decisions Made
-- All 3 implementation milestones and verification gate passed 100%.
-- Gateway cache validation now detects corrupted schemas and evicts them immediately.
-- Ingestion errors are non-blocking with center canvas card and Blueprint circular exclamation icon.
-- Full E2E suite passes 222/222 tests; fastbuild produces runnable binary at build\Toad-2.4.6\Toad.exe.
+- Use parallel subagents as requested by user.
+- Target version v2.4.8.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| spec_miner_csv | teamwork_spec_miner | Survey reference report & requirements | completed | f5a46eb9-ef52-4cd4-b4d1-447455a67e31 |
-| explorer_csv_backend | teamwork_explorer | Investigate reltab-fs, csvimport, ingestWorker, parquet cache | completed | 4c666623-7c57-42ef-8175-fdea1c05f3c3 |
-| explorer_error_ui | teamwork_explorer | Investigate error handling, sidebar badging, fastbuild | completed | 6c29f2da-3a1f-444a-b65f-2bacfc7b3e11 |
-| worker_backend_m1 | teamwork_worker | Implement M1 Backend CSV & Gateway Cache (R1, R2, R3) | completed | 0b17ab61-a571-4eef-b3ec-a4f177273bcf |
-| worker_ui_error_m2 | teamwork_worker | Implement M2 Non-blocking Error Handling & UI Badging (R4) | completed | 349dd7ad-773b-4397-98b6-20f0880c566f |
-| worker_qa_build_m3 | teamwork_worker | Implement M3 E2E QA & Fastbuild (R5) | completed | 5205f9d0-5add-4f76-bcb2-befa93368c20 |
-| reviewer_csv_1 | teamwork_reviewer | Functional & Schema Review | completed (APPROVE) | a71fd053-c94b-4b67-9f55-9c132f049371 |
-| reviewer_csv_2 | teamwork_reviewer | Architecture & Robustness Review | completed (APPROVE) | cc989780-d7d6-4c59-8777-14843c07b60c |
-| challenger_csv_1 | teamwork_challenger | CSV Parser & Cache Eviction Challenger | completed (APPROVE) | f8d8c39b-6b31-40d3-b7ac-124e2f846349 |
-| challenger_csv_2 | teamwork_challenger | Error Handling & UI Badging Challenger | completed (APPROVE) | 8aa01336-9fd8-4379-bb51-ef74984dd3f5 |
-| auditor_csv_1 | teamwork_auditor | Forensic Integrity Auditor | completed (CLEAN) | e55e7f0c-6e39-457d-ac0e-b89f1a2ec095 |
+| explorer_1 | teamwork_explorer | Packages & Webpack Survey (R1, R2) | completed | b454fbc8-8954-4c45-a55e-31155d736412 |
+| explorer_2 | teamwork_explorer | Logic & Branding Survey (R3, R4) | completed | 60d7e30d-46a2-44ae-b8d3-d54ed804c2de |
+| explorer_3 | teamwork_explorer | Build & Test Survey (R5, QA) | completed | c3229d01-11a1-4ac7-a61d-81ec555ea9f5 |
+| worker_m1 | teamwork_worker | M1: Logic, File Formats & Branding (R3, R4) | completed | ba507705-80bb-4fac-8020-7cf206f8bbcc |
+| worker_m3 | teamwork_worker | M3: Build Scripts & Test Sync (R5) | completed | 2bd29429-2dcb-43c9-9488-563fb7dc6b2b |
+| worker_m2 | teamwork_worker | M2: Package Renaming & Webpack Asset Sync (R1, R2) | completed | 6d95ae6b-5b15-45d6-886b-dc79f23048d5 |
+| explorer_remediation | teamwork_explorer | Audit Remediation Exploration (Path resolvers & Tests) | completed | 615bb311-6623-4558-a97c-a4d5fa963afc |
+| worker_remediation | teamwork_worker | Test Resolution & Audit Fixes | completed | 576bd1c1-2b31-4e1d-8820-4183e673f929 |
+| auditor_2 | teamwork_auditor | Forensic Integrity Re-Audit | completed | 9b4db00e-f54c-47df-95f3-dd7eea076bc6 |
+| worker_m5 | teamwork_worker | FastBuild & Release Packaging (v2.4.8) | completed | d0e15723-f2d3-48ec-82e1-7cef30fd4620 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 11 / 16
+- Spawn count: 15 / 16
 - Pending subagents: none
 - Predecessor: none
-- Successor: not required (task completed)
+- Successor: not required (all milestones complete)
 
 ## Active Timers
-- Heartbeat cron: killed
-- Safety timer: killed
+- Heartbeat cron: killed (task-18 cancelled)
+- Safety timer: none
 
 ## Artifact Index
-- ORIGINAL_REQUEST.md — Authoritative request record
-- DISPATCH.md — Initial dispatch log
-- PROJECT.md — Master decomposition and architecture
-- TEST_INFRA.md — E2E test infra index
-- GATE_STATUS.md — Gate verdict tracking (PASSED)
-- handoff.md — Orchestrator final handoff report
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Original user request
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\DISPATCH.md — Dispatch instructions
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md — Master project and milestone plan

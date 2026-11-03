@@ -1,0 +1,271 @@
+import * as updater from "./updater";
+import * as appWindow from "./appWindow";
+import * as quickStart from "./quickStart";
+import electron, {
+  MenuItem,
+  BrowserWindow,
+  KeyboardEvent,
+  MenuItemConstructorOptions,
+} from "electron";
+
+const Menu = electron.Menu;
+const dialog = electron.dialog;
+const isDarwin = process.platform === "darwin";
+let appMenu: electron.Menu | null = null;
+const separatorMenuItem: MenuItemConstructorOptions = {
+  type: "separator",
+};
+
+const showAboutDialog = (win?: BrowserWindow) => {
+  const focusedWin = win || BrowserWindow.getFocusedWindow();
+  const title = "About TOAD";
+  const message = "TOAD - Tabular OLAP Analytics Desktop (v2.4.8)";
+  const detail = [
+    "TOAD - Tabular OLAP Analytics Desktop",
+    "Version: v2.4.8",
+    `Electron: ${process.versions.electron}`,
+    `Chrome: ${process.versions.chrome}`,
+    `Node.js: ${process.versions.node}`,
+    `V8: ${process.versions.v8}`,
+    "",
+    "High-performance local OLAP & tabular data analysis engine.",
+    "Copyright (c) 2016-2024 Tad authors, 2024-2026 TOAD authors.",
+  ].join("\n");
+
+  if (focusedWin) {
+    dialog.showMessageBox(focusedWin, {
+      type: "info",
+      title,
+      message,
+      detail,
+      buttons: ["OK"],
+    });
+  } else {
+    dialog.showMessageBox({
+      type: "info",
+      title,
+      message,
+      detail,
+      buttons: ["OK"],
+    });
+  }
+};
+
+const aboutToadMenuItem = () => {
+  return {
+    label: "About TOAD",
+    role: "about" as const,
+    click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+      showAboutDialog(focusedWindow);
+    },
+  };
+};
+
+const checkForUpdateMenuItem = () => {
+  return {
+    label: "Check for Updates",
+    click: updater.checkForUpdates,
+  };
+};
+
+export const createMenu = () => {
+  const fileSubmenu: MenuItemConstructorOptions[] = [
+    {
+      label: "New Toad Window",
+      accelerator: "CmdOrCtrl+N",
+      click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+        appWindow.newWindow(focusedWindow);
+      },
+    },
+
+    {
+      label: "Add Files to Active Project...",
+      accelerator: "CmdOrCtrl+O",
+      click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+        if (focusedWindow) {
+          focusedWindow.webContents.send("project-add-files");
+        }
+      },
+    },
+    {
+      label: "Add Folder to Active Project...",
+      accelerator: "CmdOrCtrl+Shift+O",
+      click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+        if (focusedWindow) {
+          focusedWindow.webContents.send("project-add-folder");
+        }
+      },
+    },
+    {
+      label: "Reopen / Reload Current File",
+      accelerator: "CmdOrCtrl+R",
+      click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+        if (focusedWindow) {
+          focusedWindow.webContents.send("reopen-current-file");
+        }
+      },
+    },
+    {
+      label: "Reload (F5)",
+      accelerator: "F5",
+      click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+        if (focusedWindow) {
+          focusedWindow.webContents.send("reopen-current-file");
+        }
+      },
+    },
+
+    separatorMenuItem,
+    {
+      label: "Save As...",
+      accelerator: "Shift+CmdOrCtrl+S",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        appWindow.saveAsDialog();
+      },
+    },
+    {
+      label: "Export...",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        if (focusedWindow) {
+          appWindow.beginExport(focusedWindow);
+        }
+      },
+    },
+
+    /*
+    {
+      label: "Export Filtered CSV...",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        if (focusedWindow) {
+          appWindow.exportFiltered(focusedWindow);
+        }
+      },
+    },
+*/
+  ];
+
+  if (!isDarwin) {
+    fileSubmenu.push(separatorMenuItem);
+    fileSubmenu.push({
+      role: "quit",
+    });
+  }
+
+  const editSubmenu: MenuItemConstructorOptions[] = [
+    { label: "Cut", accelerator: "CmdOrCtrl+X", role: "cut" },
+    { label: "Copy", accelerator: "CmdOrCtrl+C", role: "copy" },
+    { label: "Paste", accelerator: "CmdOrCtrl+V", role: "paste" },
+  ];
+  const viewSubmenu: MenuItemConstructorOptions[] = [
+    { label: "Zoom Reset", accelerator: "CmdOrCtrl+0", role: "resetZoom" },
+    { label: "Zoom In", accelerator: "CmdOrCtrl+Plus", role: "zoomIn" },
+    { label: "Zoom Out", accelerator: "CmdOrCtrl+-", role: "zoomOut" },
+  ];
+  const debugSubmenu: MenuItemConstructorOptions[] = [
+    {
+      role: "toggleDevTools",
+    },
+    {
+      label: "Show Hidden Columns",
+      type: "checkbox",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        console.log("show hidden...: ", item);
+        focusedWindow?.webContents.send("set-show-hidden-cols", item.checked);
+      },
+    },
+  ];
+  let helpSubmenu: MenuItemConstructorOptions[] = [
+    {
+      label: "Quick Start Guide",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        quickStart.showQuickStart();
+      },
+    },
+    {
+      label: "Send Feedback / Bug Reports (GitHub)",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined,
+        event: KeyboardEvent
+      ) => {
+        electron.shell.openExternal("https://github.com/p1rkr41n/toad_electron/issues");
+      },
+    },
+    separatorMenuItem,
+    {
+      label: "About TOAD",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined
+      ) => {
+        showAboutDialog(focusedWindow);
+      },
+    },
+  ];
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: "File",
+      submenu: fileSubmenu,
+    },
+    {
+      label: "Edit",
+      submenu: editSubmenu,
+    },
+    {
+      label: "View",
+      submenu: viewSubmenu,
+    },
+  ];
+
+  if (process.env.NODE_ENV === "development") {
+    template.push({
+      label: "Debug",
+      submenu: debugSubmenu as any,
+    });
+  }
+
+  template.push({
+    label: "Help",
+    submenu: helpSubmenu,
+  });
+
+  if (isDarwin) {
+    template.unshift({
+      label: "Toad",
+      // ignored on Mac OS; comes from plist
+      submenu: [
+        aboutToadMenuItem(),
+        separatorMenuItem,
+        checkForUpdateMenuItem(),
+        separatorMenuItem,
+        {
+          role: "quit",
+        },
+      ] as any,
+    });
+  }
+
+  let oldMenu = appMenu;
+  appMenu = Menu.buildFromTemplate(template as any);
+  Menu.setApplicationMenu(appMenu);
+};

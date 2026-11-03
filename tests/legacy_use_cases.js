@@ -74,10 +74,83 @@ async function testCaseAsync(name, fn) {
   }
 }
 
+// Dynamic path resolution helper for toad-* / tad-* compatibility
+const Module = require("module");
+const origExistsSync = fs.existsSync.bind(fs);
+const origReadFileSync = fs.readFileSync.bind(fs);
+const origStatSync = fs.statSync.bind(fs);
+const origReaddirSync = fs.readdirSync.bind(fs);
+
+function pathOrModuleExists(p) {
+  if (!p || typeof p !== "string") return false;
+  try {
+    return origExistsSync(p) ||
+           origExistsSync(p + ".js") ||
+           origExistsSync(p + ".ts") ||
+           origExistsSync(p + ".json") ||
+           origExistsSync(p + ".node") ||
+           origExistsSync(path.join(p, "index.js")) ||
+           origExistsSync(path.join(p, "index.ts"));
+  } catch (e) {
+    return false;
+  }
+}
+
+function mapLegacyPath(targetPath) {
+  if (typeof targetPath !== "string") return targetPath;
+  if (pathOrModuleExists(targetPath)) return targetPath;
+  let redirected = targetPath
+    .replace(/tad-master[/\\]packages[/\\]tad-app\b/, "tad-master/packages/toad-app")
+    .replace(/tad-master[/\\]packages[/\\]tadviewer\b/, "tad-master/packages/toadviewer")
+    .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js");
+  if (pathOrModuleExists(redirected)) return redirected;
+  redirected = targetPath
+    .replace(/tad-master[/\\]packages[/\\]toad-app\b/, "tad-master/packages/tad-app")
+    .replace(/tad-master[/\\]packages[/\\]toadviewer\b/, "tad-master/packages/tadviewer")
+    .replace(/toadapp\.bundle\.js\b/, "tadapp.bundle.js");
+  if (pathOrModuleExists(redirected)) return redirected;
+  return targetPath;
+}
+
+fs.existsSync = function(p) {
+  return origExistsSync(mapLegacyPath(p));
+};
+
+fs.readFileSync = function(p, options) {
+  return origReadFileSync(mapLegacyPath(p), options);
+};
+
+fs.statSync = function(p, options) {
+  return origStatSync(mapLegacyPath(p), options);
+};
+
+fs.readdirSync = function(p, options) {
+  return origReaddirSync(mapLegacyPath(p), options);
+};
+
+const origResolveFilename = Module._resolveFilename;
+Module._resolveFilename = function(request, parent, isMain, options) {
+  try {
+    return origResolveFilename.call(this, request, parent, isMain, options);
+  } catch (err) {
+    if (typeof request === "string") {
+      const redirected = mapLegacyPath(request);
+      if (redirected !== request) {
+        return origResolveFilename.call(this, redirected, parent, isMain, options);
+      }
+    }
+    throw err;
+  }
+};
+
 // Global mocks for renderer/browser modules
 global.window = global;
-const tvPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/tadviewer.js");
-require.cache[tvPath] = {
+const appPkgDir = fs.existsSync(path.resolve(ROOT_DIR, "tad-master/packages/toad-app")) ? "toad-app" : "tad-app";
+const viewerPkgDir = fs.existsSync(path.resolve(ROOT_DIR, "tad-master/packages/toadviewer")) ? "toadviewer" : "tadviewer";
+
+const tvPath = path.resolve(ROOT_DIR, `tad-master/packages/${viewerPkgDir}/dist/${viewerPkgDir}.js`);
+const legacyTvPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/tadviewer.js");
+const mockTvExports = {
   id: tvPath,
   filename: tvPath,
   loaded: true,
@@ -88,17 +161,19 @@ require.cache[tvPath] = {
     },
   },
 };
+require.cache[tvPath] = mockTvExports;
+require.cache[legacyTvPath] = mockTvExports;
 
 // Import modules
 const {
   validateAndEnsureConfig,
   DEFAULT_CONFIG,
-} = require(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/app_dist/portableAppData"));
+} = require(path.resolve(ROOT_DIR, `tad-master/packages/${appPkgDir}/app_dist/portableAppData`));
 
 const {
   MultipleLoadingManager,
   getCanonicalPathFromDSPath,
-} = require(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/MultipleLoadingManager"));
+} = require(path.resolve(ROOT_DIR, `tad-master/packages/${viewerPkgDir}/dist/MultipleLoadingManager`));
 
 const { FSDriver } = require(path.resolve(ROOT_DIR, "tad-master/packages/reltab-fs/dist/reltab-fs"));
 const { Database } = require(path.resolve(ROOT_DIR, "tad-master/node_modules/duckdb-async"));

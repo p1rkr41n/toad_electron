@@ -3,11 +3,11 @@
  * 
  * Version Bumper & Synchronizer for Toad
  * Updates version strings across all project files:
- * - tad-master/packages/tad-app/package.json
+ * - tad-master/packages/toad-app/package.json (or tad-app)
  * - tad-master/packages/host-bridge/package.json
  * - tad-master/packages/reltab-duckdb/package.json
- * - tad-master/packages/tadviewer/package.json
- * - tad-master/packages/tadviewer/src/components/RegexDialog.tsx
+ * - tad-master/packages/toadviewer/package.json (or tadviewer)
+ * - tad-master/packages/toadviewer/src/components/RegexDialog.tsx (or tadviewer)
  * - dist_package.ps1
  * - package_release.ps1
  * - README.md
@@ -30,7 +30,10 @@ function getTargetVersion() {
     process.exit(1);
   }
 
-  const pkgAppPath = path.join(ROOT_DIR, "tad-master/packages/tad-app/package.json");
+  let pkgAppPath = path.join(ROOT_DIR, "tad-master/packages/toad-app/package.json");
+  if (!fs.existsSync(pkgAppPath)) {
+    pkgAppPath = path.join(ROOT_DIR, "tad-master/packages/tad-app/package.json");
+  }
   const currentVersion = JSON.parse(fs.readFileSync(pkgAppPath, "utf8")).version;
 
   if (arg === "patch") {
@@ -74,17 +77,26 @@ function main() {
   console.log(`Bumping Toad version to: ${targetVersion}`);
 
   // 1. package.json files
-  updatePackageJson("tad-master/packages/tad-app/package.json", targetVersion);
+  const appRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toad-app/package.json"))
+    ? "tad-master/packages/toad-app/package.json"
+    : "tad-master/packages/tad-app/package.json";
+  updatePackageJson(appRel, targetVersion);
   updatePackageJson("tad-master/packages/host-bridge/package.json", targetVersion);
   if (fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/reltab-duckdb/package.json"))) {
     updatePackageJson("tad-master/packages/reltab-duckdb/package.json", targetVersion);
   }
-  if (fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/tadviewer/package.json"))) {
-    updatePackageJson("tad-master/packages/tadviewer/package.json", targetVersion);
+  const viewerRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toadviewer/package.json"))
+    ? "tad-master/packages/toadviewer/package.json"
+    : "tad-master/packages/tadviewer/package.json";
+  if (fs.existsSync(path.join(ROOT_DIR, viewerRel))) {
+    updatePackageJson(viewerRel, targetVersion);
   }
 
   // 2. RegexDialog.tsx
-  updateFile("tad-master/packages/tadviewer/src/components/RegexDialog.tsx", (content) => {
+  const regexDialogRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"))
+    ? "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"
+    : "tad-master/packages/tadviewer/src/components/RegexDialog.tsx";
+  updateFile(regexDialogRel, (content) => {
     return content.replace(/v\d+\.\d+\.\d+(?:\.\d+)?/g, `v${targetVersion}`);
   });
 

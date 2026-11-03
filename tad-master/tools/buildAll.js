@@ -15,8 +15,8 @@ const driverPackages = [
   "reltab-bigquery",
   "reltab-snowflake",
 ];
-const componentPackages = ["tadviewer"];
-const appPackages = ["tadweb-app", "tadweb-server", "tad-app"];
+const componentPackages = ["toadviewer"];
+const appPackages = ["tadweb-app", "tadweb-server", "toad-app"];
 const allPackages = basePackages.concat(
   driverPackages,
   componentPackages,

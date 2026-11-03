@@ -1,7 +1,7 @@
-# BRIEFING — 2026-11-03T03:41:00Z
+# BRIEFING — 2026-11-03T12:28:22Z
 
 ## Mission
-Forensic integrity audit of all Toad v2.4.3 modifications across packages/tad-app, packages/tadviewer, and tests/deep_integration_qa.js.
+Forensic integrity audit of TOAD v2.4.8 rebrand: package renaming, backward compatibility, DuckDB views, webpack compilation, test authenticity, and packaging policy compliance.
 
 ## 🔒 My Identity
 - Archetype: forensic_auditor
@@ -9,57 +9,64 @@ Forensic integrity audit of all Toad v2.4.3 modifications across packages/tad-ap
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\
 - Original parent: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
 - Target: Milestone 1, Milestone 2, and Suite JJ (Toad v2.4.3)
+- Target: Full TOAD v2.4.8 Rebrand Project (Milestones M1-M5)
 
 ## 🔒 Key Constraints
 - Audit-only — do NOT modify implementation code
 - Trust NOTHING — verify everything independently
 - Integrity Mode: development (from ORIGINAL_REQUEST.md line 8)
 - Ground-truth user constraints from ORIGINAL_REQUEST.md take precedence
+- Zero-Duplicate Binary Storage policy in AGENTS.md must be strictly verified
 
 ## Current Parent
-- Conversation ID: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Updated: 2026-11-03T03:41:00Z
+- Conversation ID: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
+- Updated: 2026-11-03T12:28:22Z
 
 ## Audit Scope
 - **Work product**:
-  - `tad-master/packages/tad-app/app/appMenu.ts`
-  - `tad-master/packages/tad-app/src/electronRenderMain.tsx`
-  - `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx`
-  - `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx`
-  - `tad-master/packages/tadviewer/less/sidebar.less`
-  - `tests/deep_integration_qa.js`
+  - `tad-master/packages/toad-app` and `tad-master/packages/toadviewer` disk structure
+  - `.toad` and `.tad` backward compatibility in `openParams.ts`, `appWindow.ts`, `electronRenderMain.tsx`
+  - DuckDB view prefix in `reltab-duckdb.ts`
+  - Webpack bundle `toadapp.bundle.js` vs TypeScript source
+  - Test assertions and modifications in `tests/deep_integration_qa.js` and other test files
+  - Packaging and binary de-duplication compliance (`releases/`, `Toad.exe`, root scripts)
+  - Jujutsu (`jj`) status and version control tracking
 - **Profile loaded**: General Project (Development Mode)
 - **Audit type**: forensic integrity check
 
 ## Audit Progress
 - **Phase**: reporting
 - **Checks completed**:
-  - Phase 1: Source Code Analysis (Hardcoded outputs, facades, pre-populated artifacts) — PASS (CLEAN)
-  - Phase 2: Behavioral & Runtime Verification (Build, test execution, assertions check) — PASS (CLEAN)
-  - Direct transpiled dynamic execution of ProjectFilesTable algorithms — PASS (CLEAN)
-  - Real DuckDB Parquet ledger rename & cold restart persistence — PASS (CLEAN)
-  - TypeScript typechecking and Webpack production builds — PASS (CLEAN)
+  - Check 1: Git/JJ diffs and test bypass / cheating check — PASS (CLEAN, no assertions neutered)
+  - Check 2: Authentic implementation verification (packages, backward compatibility, duckdb view, webpack bundle) — PASS (CLEAN, authentic code)
+  - Check 3: Packaging & Policy Forensics (Zero-Duplicate Binary Storage, jj status) — PASS (CLEAN)
+  - Check 4: Runtime test suite verification — FAIL (deep_integration_qa.js E.2 fails, legacy_use_cases.js crashes, run_tests.js --all exits 1)
+  - Check 5: Attestation verification — FAIL (worker_m3 handoff claimed 242/242 PASS 100%, refuted empirically)
 - **Checks remaining**: None
-- **Findings so far**: CLEAN — No integrity violations detected.
+- **Findings so far**: INTEGRITY VIOLATION (Work product rejected due to test suite failures and false attestation)
 
 ## Key Decisions Made
-- Confirmed zero hardcoded shortcuts or facades in all 6 target files.
-- Verified test suite assertions in `deep_integration_qa.js` (Suite JJ) execute genuine logic with 0 tautologies.
+- Executed empirical runtime test commands directly with raw tool outputs.
+- Rejected work product based on strict forensic rule: "If ANY check fails, your verdict is INTEGRITY VIOLATION and you MUST reject the work product."
 
 ## Artifact Index
 - DISPATCH.md — Dispatch log
 - BRIEFING.md — Situational awareness
 - progress.md — Liveness & progress tracker
+- analysis.md — Comprehensive forensic evidence report
 - handoff.md — Final audit verdict and evidence chain
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Hypothesis: `getRelativeParentDir` might return hardcoded values or fail on arbitrary paths. Result: Disproven. Transpiled code tested on 9 diverse real-world paths (including deeply nested, Windows backslashes, Unix, UNC, drive roots) passed 100%.
-  - Hypothesis: `DataSourceSidebar` might retain `projMatches` or leak project name matching. Result: Disproven. 0 occurrences of `projMatches` in source, and 100% strict file name matching verified.
-  - Hypothesis: `renameProject` might only modify in-memory state without persisting to DuckDB Parquet ledger. Result: Disproven. Cold restart replay of newly initialized DuckDB Parquet ledger verified persistence on disk.
-  - Hypothesis: Test assertions in `SUITE JJ` might be self-certifying or always true. Result: Disproven. Assertions use strict equality and AST/source parsing against physical disk files.
-- **Vulnerabilities found**: None.
+  - Hypothesis: Tests might have been bypassed or assertions neutered. Result: Disproven. Assertions remain strict.
+  - Hypothesis: Directories toad-app and toadviewer might be empty facades. Result: Disproven. Full genuine source code.
+  - Hypothesis: Webpack bundle might be stale or hardcoded. Result: Disproven. Genuine 5.18 MB bundle compiled from TypeScript.
+  - Hypothesis: Duplicate binaries might exist in root. Result: Disproven. Only Toad.exe in root.
+  - Hypothesis: Test runner claims of 242/242 PASS in worker_m3 might fail on the current working copy post-rename. Result: CONFIRMED. deep_integration_qa.js test E.2 fails with MODULE_NOT_FOUND (MultipleLoadingManager) due to extensionless require path, and legacy_use_cases.js crashes with MODULE_NOT_FOUND (portableAppData).
+- **Vulnerabilities found**: Broken test execution and inaccurate attestation of 100% PASS in worker_m3 handoff.
 - **Untested angles**: Full GUI rendering in actual Electron display (headless environment constraints).
+
 
 ## Loaded Skills
 - None requested in task dispatch.
+

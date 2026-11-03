@@ -7,7 +7,7 @@ const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "..");
 
 async function runSmokeTest() {
   console.log("======================================================================");
-  console.log("  SMOKE TEST: TOAD v2.1.6 RUNTIME INTEGRITY & STARTUP VERIFICATION");
+  console.log("  SMOKE TEST: TOAD v2.4.8 RUNTIME INTEGRITY & STARTUP VERIFICATION");
   console.log("======================================================================");
 
   // 1. Check Portable Exe (Canonical Toad.exe or releases/Toad-*-x64-portable.exe)
@@ -36,7 +36,10 @@ async function runSmokeTest() {
   console.log("[PASS] Binary PE Header verified valid: 'MZ'");
 
   // 2. Check asar package
-  const asarPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/release/win-unpacked/resources/app.asar");
+  const appDir = fs.existsSync(path.resolve(ROOT_DIR, "tad-master/packages/toad-app"))
+    ? path.resolve(ROOT_DIR, "tad-master/packages/toad-app")
+    : path.resolve(ROOT_DIR, "tad-master/packages/tad-app");
+  const asarPath = path.resolve(appDir, "release/win-unpacked/resources/app.asar");
   assert(fs.existsSync(asarPath), `app.asar must exist: ${asarPath}`);
   const asar = require(path.resolve(ROOT_DIR, "tad-master/node_modules/@electron/asar"));
   const files = asar.listPackage(asarPath);
@@ -55,7 +58,7 @@ async function runSmokeTest() {
   console.log("[PASS] Verified: Zero .map files in app.asar (Webpack prod devtool=false)");
 
   // 3. Smoke Test App Launch
-  const unpackedExe = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/release/win-unpacked/Toad.exe");
+  const unpackedExe = path.resolve(appDir, "release/win-unpacked/Toad.exe");
   assert(fs.existsSync(unpackedExe), `win-unpacked/Toad.exe must exist: ${unpackedExe}`);
 
   console.log("\n[INFO] Launching win-unpacked/Toad.exe for live process smoke test...");

@@ -1,201 +1,137 @@
-# Forensic Audit Handoff Report: Toad v2.4.3 Work Products
+# Forensic Integrity Audit Handoff Report — TOAD v2.4.8 Rebrand
 
-**Auditor Identity**: `auditor_1`  
-**Role**: Forensic Integrity Auditor  
-**Date**: 2026-11-03  
-**Integrity Mode**: development (Authoritative: `ORIGINAL_REQUEST.md`)  
-**Verdict**: **CLEAN**
-
----
-
-## Forensic Audit Report
-
-**Work Product**: Toad v2.4.3 Multi-Project Workspace & Interactive File Table Implementation  
-**Audited Targets**:
-- `tad-master/packages/tad-app/app/appMenu.ts`
-- `tad-master/packages/tad-app/src/electronRenderMain.tsx`
-- `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx`
-- `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx`
-- `tad-master/packages/tadviewer/less/sidebar.less`
-- `tests/deep_integration_qa.js`
-
-**Profile**: General Project (Development Mode)  
-**Verdict**: **CLEAN**
-
-### Phase Results
-
-1. **Hardcoded Test Results Check**: **PASS**
-   - Zero hardcoded test return strings, pre-baked outputs, or tautological assertions found in project code or test suite.
-2. **Facade Implementation Check**: **PASS**
-   - No dummy stubs, empty returns (`return <constant>`), or `NotImplementedError` placeholders. All functions compute real results dynamically.
-3. **Pre-Populated Artifact Detection**: **PASS**
-   - Workspace search for pre-existing test results, attestation files, or fabricated logs returned 0 unauthorized artifacts.
-4. **Repetition & Leakage Check (`projMatches`)**: **PASS**
-   - Zero occurrences of `projMatches` in `DataSourceSidebar.tsx`. Search filter strictly matches 100% against `f.fileName.toLowerCase().includes(q)`.
-5. **Relative Parent Directory Engine (`getRelativeParentDir`)**: **PASS**
-   - Transpiled and tested against 9 arbitrary dynamic path structures (including nested Unix/Windows directories, drive roots, folder roots, UNC paths, and consecutive backslashes). Computes deterministic relative paths with 0 hardcoding.
-6. **Project Rename & DuckDB Parquet Ledger Persistence (`renameProject`)**: **PASS**
-   - Verified real DuckDB Parquet ledger persistence. `renameProject` commits a `PROJECT_CREATE` metadata event, preserves physical cache files (0 disk I/O bytes moved), and survives cold restarts across new ledger instances.
-7. **Runtime Test Suite Execution**: **PASS**
-   - Direct execution of `tests/deep_integration_qa.js` ran 200 total test cases across suites A through JJ. Result: 200 passed, 0 failed, duration 11.77s.
-8. **Build & Typecheck Validation**: **PASS**
-   - `tad-app`: `tsc --noEmit` exited code 0 (0 type errors).
-   - `tadviewer`: `npm run tsc` exited code 0 (0 type errors).
-   - `tadviewer`: `npm run build` compiled production bundle `dist/tadviewer.js` (2.75 MiB) with code 0.
+**Auditor:** Auditor 1 (Forensic Integrity Auditor)  
+**Recipient:** Orchestrator (Conversation ID: `afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
+**Date:** 2026-11-03T12:38:00Z  
+**Verdict:** **INTEGRITY VIOLATION**  
+**Detailed Analysis:** `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\analysis.md`
 
 ---
 
 ## 1. Observation
 
-Direct empirical observations and raw tool outputs from the forensic audit:
-
-### 1.1 Jujutsu Working Copy State
-```text
-Working copy changes:
-M tad-master\packages\tad-app\app\appMenu.ts
-M tad-master\packages\tad-app\src\electronRenderMain.tsx
-M tad-master\packages\tadviewer\less\sidebar.less
-M tad-master\packages\tadviewer\src\components\DataSourceSidebar.tsx
-A tad-master\packages\tadviewer\src\components\ProjectFilesTable.tsx
-M tests\deep_integration_qa.js
-```
-Strict boundary compliance: only the assigned files were modified.
-
-### 1.2 Static Analysis & Diff Review
-1. **`appMenu.ts`**:
-   - `Open File...` and `Open Directory...` completely removed (0 occurrences).
-   - Added `Add Files to Active Project...` (`CmdOrCtrl+O`) dispatching `focusedWindow.webContents.send("project-add-files")`.
-   - Added `Add Folder to Active Project...` (`CmdOrCtrl+Shift+O`) dispatching `focusedWindow.webContents.send("project-add-folder")`.
-2. **`electronRenderMain.tsx`**:
-   - Registered IPC listeners for `project-add-files` and `project-add-folder`.
-   - Connected directly to `bridge.showOpenDialog(...)` and `ProjectWorkspaceManager.getInstance().addFilesToProject(...)` / `addFolderToProject(...)`.
-3. **`ProjectFilesTable.tsx`**:
-   - 449 lines of genuine, modular code implementing `getRelativeParentDir`, `formatFileBytes`, `getFileFormatIcon`, `sortFiles`, `filterFiles`, and `ProjectFilesTable`.
-   - Zero hardcoded mock arrays or dummy returns.
-4. **`DataSourceSidebar.tsx`**:
-   - Lines 597–622:
-     ```typescript
-     const q = searchQuery.toLowerCase().trim();
-     const filteredProjects = useMemo(() => {
-       return projects
-         .map((proj) => {
-           const pFiles = projectFilesMap.get(proj.projectId) || [];
-           const matchingFiles = q
-             ? pFiles.filter((f) => f.fileName.toLowerCase().includes(q))
-             : pFiles;
-           const hasMatches = matchingFiles.length > 0;
-           const shouldShow = !q || hasMatches;
-           const isExpanded = pwManager.isProjectExpanded(proj.projectId);
-           return {
-             project: proj,
-             files: matchingFiles,
-             totalFileCount: pFiles.length,
-             shouldShow,
-             isExpanded: q ? true : isExpanded,
-           };
-         })
-         .filter((p) => p.shouldShow);
-     }, [projects, projectFilesMap, searchQuery]);
+1. **Test Suite Execution Results**:
+   - Running `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js`:
      ```
-   - Double-click inline rename in `ProjectNodeLabel` renders `<input className="project-title-inline-input" />`, commits on `Enter` or `onBlur` via `pwManager.renameProject(...)`, reverts on `Escape`, and invokes `e.stopPropagation()`.
-5. **`sidebar.less`**:
-   - Styled `.project-title-inline-input`, `.project-files-table`, `.col-filter-input`, `.sort-btn`, row heights (25px), and full dark theme support under `.bp4-dark, .toad-dark`.
-6. **`tests/deep_integration_qa.js`**:
-   - Sub-suites `JJ.1` through `JJ.8` contain 100% genuine assertions verifying physical file contents, dynamic algorithm evaluation, in-memory latency (<15ms on 10,000 files), 4-column sorting, compound filtering, real DuckDB ledger operations, and version gate checks.
+       SUITE E: Toad v2.0.1 Dual Engine IPC & RAM First-Page Micro-Cache
+       ✓ [PASS] E.1 RemoteConnection correctly serializes isBackground flag across IPC (1.31 ms)
+       ✗ [FAIL] E.2 RAM First-Page Micro-Cache returns 1000 rows in < 2ms with 0 Disk I/O
+         Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer\dist\MultipleLoadingManager'
+       Require stack:
+       - D:\Shared_UserData\Downloads\tad\tests\deep_integration_qa.js
+       ...
+       Total Test Cases : 222
+       Passed           : 221
+       Failed           : 1
+     ```
+     Command exited with code 1.
+   - Running `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\legacy_use_cases.js`:
+     ```
+     Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\app_dist\portableAppData'
+     Require stack:
+     - D:\Shared_UserData\Downloads\tad\tests\legacy_use_cases.js
+     ```
+     Command exited with code 1.
+   - Running `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all`:
+     ```
+     ======================================================================
+                         OVERALL TEST EXECUTION SUMMARY                    
+     ======================================================================
+       ✔ [PASS] - Smoke Test (v2.1.6) (tests/smoke_test.js)
+       ✖ [FAIL (code 1)] - Deep Integration QA (133 Tests) (tests/deep_integration_qa.js)
+       ✖ [FAIL (code 1)] - Legacy Use Cases (19 Tests) (tests/legacy_use_cases.js)
+       Total Duration : 22.98s
+     ======================================================================
+       RESULT: ONE OR MORE TEST SUITES FAILED!
+     ```
+     Command exited with code 1.
 
-### 1.3 Behavioral & Runtime Execution Results
-1. **Full Integration Test Suite**:
-   ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-   ```
-   *Verbatim Output*:
-   ```text
-   ======================================================================
-     SUITE JJ: Toad v2.4.3 Interactive File Table, Fast Search & Double-Click Rename
-   ======================================================================
-     ✓ [PASS] JJ.1 Native Menu Cleanup & Workspace Action Integration (1.09 ms)
-     ✓ [PASS] JJ.2 getRelativeParentDir Deterministic Calculation Engine (3.23 ms)
-     ✓ [PASS] JJ.3 Strict File-Name Search Filter (Zero Proj Collision & 0ms In-Memory Latency) (6.98 ms)
-     ✓ [PASS] JJ.4 Multi-Project Search Auto-Expansion & Non-Matching Project Suppression (0.48 ms)
-     ✓ [PASS] JJ.5 Interactive Table 4-Column Sorting Engine (3.44 ms)
-     ✓ [PASS] JJ.6 Interactive Table Column Filter & Compound Filtering (0.64 ms)
-     ✓ [PASS] JJ.7 In-Place Double-Click Project Rename: Ledger Integrity & Zero Disk I/O (100.17 ms)
-       [GATE NOTE] System currently at v2.4.2; v2.4.3 packaging gate ready for tools/bump_version.js 2.4.3
-     ✓ [PASS] JJ.8 Version 2.4.3 System-Wide Synchronization Gate (1.34 ms)
+2. **Source Code and Path Mapping Observations**:
+   - In `tests/deep_integration_qa.js` line 393:
+     `const { MultipleLoadingManager } = require(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/MultipleLoadingManager"));`
+   - In `tests/deep_integration_qa.js` lines 26–40:
+     `mapLegacyPath` uses `origExistsSync(targetPath)` and `origExistsSync(redirected)`. For path `.../tadviewer/dist/MultipleLoadingManager` without extension, both return `false` because the physical file is `MultipleLoadingManager.js`. Therefore `mapLegacyPath` fails to redirect the path, returning the unmapped `tadviewer` path which does not exist on disk.
+   - In `tests/legacy_use_cases.js` lines 96 and 101:
+     Paths are hardcoded to `tad-master/packages/tad-app/app_dist/portableAppData` and `tad-master/packages/tadviewer/dist/MultipleLoadingManager` without any dynamic resolution or hook.
 
-   ======================================================================
-     DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.2 Dual Engine, RAM Cache & Multi-Format Extractor)
-   ======================================================================
-     Total Test Cases : 200
-     Passed           : 200
-     Failed           : 0
-     Total Duration   : 11.77s
-   ======================================================================
-   ```
+3. **Handoff Discrepancy Observation**:
+   - In `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\handoff.md` lines 28–30:
+     > "Executing node tests/deep_integration_qa.js: Total Test Cases : 222 | Passed : 222 | Failed : 0 (16.67s)."
+     > "Executing node run_tests.js --all: Smoke Test: PASS | Deep Integration QA: 222/222 PASS | Legacy Use Cases: 19/19 PASS | Total: 242/242 PASS (100% HEALTHY)."
+   - Timestamp in `worker_m3/progress.md`: `2026-11-03T12:14:00Z` (prior to Worker M2's disk rename at `12:26:55Z`).
 
-2. **Empirical Transpiled Engine Stress Test**:
-   Direct execution of transpiled TypeScript code from `ProjectFilesTable.tsx`:
-   - `getRelativeParentDir`: 9 complex test paths passed with exact expected outputs.
-   - `sortFiles`: Name, dir, numeric size, and status passed ascending/descending sorts.
-   - `filterFiles`: Name, dir, size, status, and compound filtering verified.
-   - `formatFileBytes`: Verified byte thresholds (500 B, 1.0 KB, 1.00 MB, 1.00 GB).
-
-3. **Compiler & Bundler Checks**:
-   - `tad-app`: `tsc --noEmit` $\rightarrow$ Exit Code `0`.
-   - `tadviewer`: `npm run tsc` $\rightarrow$ Exit Code `0`.
-   - `tadviewer`: `npm run build` $\rightarrow$ Exit Code `0` (`dist/tadviewer.js` 2.75 MiB).
+4. **Authenticity Observations (Passed Checks)**:
+   - `tad-master/packages/toad-app` and `toadviewer` are genuine directories with full implementation code (not empty stubs or dummy facades).
+   - `openParams.ts`, `appWindow.ts`, and `electronRenderMain.tsx` contain genuine `.toad` serialization (`toadFileFormatVersion: 2`) and `.tad` backward-compatible migration.
+   - `reltab-duckdb.ts` line 35 produces `toad_tmpView_${viewCounter++}`.
+   - `toadapp.bundle.js` (5.18 MB) is a genuine compiled webpack bundle containing `getToadConfig`, `toad-app-pane`, and `toad-query-error`.
+   - `Toad.exe` in root is the only `.exe` (strictly complies with the Zero-Duplicate Binary Storage policy in `AGENTS.md`).
+   - Jujutsu (`jj`) cleanly tracks all working copy modifications.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Integrity Baseline**: Under Development Mode, the primary objectives are detecting hardcoded test results, dummy/facade implementations, or fabricated test logs.
-2. **From Observation 1.1 & 1.2**: All modified files match the assigned boundary. Inspection of lines in `appMenu.ts`, `electronRenderMain.tsx`, `ProjectFilesTable.tsx`, `DataSourceSidebar.tsx`, and `sidebar.less` proves that genuine UI components and IPC event wiring were implemented rather than superficial mocks.
-3. **From Observation 1.3.2**: Direct programmatic evaluation of the transpiled AST of `ProjectFilesTable.tsx` proves that `getRelativeParentDir`, `sortFiles`, and `filterFiles` do not rely on pre-baked lookup tables or hardcoded strings, but rather execute genuine mathematical, lexical, and string normalization algorithms.
-4. **From Observation 1.3.1**: The integration test suite `tests/deep_integration_qa.js` executed directly against the live Node runtime, compiling and executing real DuckDB Parquet ledger operations on physical files. All 200 test cases passed deterministically without bypasses or false assertions.
-5. **Conclusion from Evidence**: The implementation satisfies all criteria for authentic engineering. No cheating, facade, or integrity violation exists.
+1. **Test Failure Invalidates Delivery (Observations 1 & 2)**:
+   - `ORIGINAL_REQUEST.md` requirement R5 mandates: *"Run all automated regression tests (ensure all 222+ tests pass)."*
+   - Phase 2 Behavioral Verification requires that the project builds and its test suite executes cleanly without failure.
+   - Empirical execution of `tests/deep_integration_qa.js` fails on test E.2 (221 passed, 1 failed), `tests/legacy_use_cases.js` crashes on startup, and `run_tests.js --all` exits with code 1.
+   - Therefore, the test execution requirement is NOT met.
+
+2. **False Attestation / Prohibited Pattern (Observations 1 & 3)**:
+   - Worker M3 attested in `worker_m3/handoff.md` that 242/242 tests passed with 100% healthy status.
+   - However, Worker M3 executed before Worker M2 renamed packages to `toad-app` and `toadviewer`.
+   - When Worker M2 performed the disk rename, the incomplete path resolver in `deep_integration_qa.js` and unmigrated paths in `legacy_use_cases.js` caused test failures.
+   - Under Integrity Forensics principles, a work product cannot be certified CLEAN when the current working copy fails automated regression tests and contains false passing attestations.
+
+3. **Mandatory Failure Gate**:
+   - The Integrity Forensics system prompt states: *"If ANY check fails, your verdict is INTEGRITY VIOLATION and you MUST reject the work product."*
+   - Because the test execution check failed, the verdict must strictly be INTEGRITY VIOLATION.
 
 ---
 
 ## 3. Caveats
 
-- **Headless Environment**: Graphical Electron windows cannot be rendered interactively in this headless Windows terminal session. Visual validation of the Blueprint/LESS styling is verified via unit style rules, AST inspection, and webpack build success.
-- **Pre-Bump Gate**: As observed in JJ.8, the system manifests are currently at `v2.4.2` prior to the execution of `tools/bump_version.js 2.4.3` and final packaging. JJ.8 is specifically designed to tolerate `2.4.2` during development and will enforce the strict release gate once `bump_version.js 2.4.3` is run.
+- **Authenticity of Implementation**: The core rebrand implementation code (packages, webpack bundle, DuckDB view naming, backward compatibility, HTML script tag) is completely genuine and well-engineered. Zero facade implementations or intentional test cheating were found.
+- **Root Cause of Violation**: The violation is an integration sequencing breakdown between parallel subagents (Worker M3 testing before Worker M2's disk rename, leaving extensionless require calls unmapped and `legacy_use_cases.js` unmigrated).
 
 ---
 
 ## 4. Conclusion
 
-- **Verdict**: **CLEAN**
-- All 6 target files implement genuine, authentic logic fulfilling requirements R1, R2, R3, R4, and R5.
-- Zero facades, zero hardcoded test outputs, zero fabricated logs.
-- The project is in a clean, robust, and verified state, ready for final version bumping (`tools/bump_version.js 2.4.3`) and release artifact packaging.
+**Verdict: INTEGRITY VIOLATION (REJECTED)**
+
+The work product cannot be certified as clean because:
+1. `tests/deep_integration_qa.js` fails on test E.2 with `Cannot find module ... MultipleLoadingManager`.
+2. `tests/legacy_use_cases.js` crashes on startup with `Cannot find module ... portableAppData`.
+3. `run_tests.js --all` exits with code 1.
+4. `worker_m3/handoff.md` contains an inaccurate attestation claiming 242/242 tests pass 100% cleanly on the delivered codebase.
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce this forensic audit:
+To independently reproduce this finding:
 
-1. **Run Full Integration QA Suite (200 Test Cases)**:
+1. **Execute Deep Integration QA**:
    ```powershell
    & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
+   # Observed: Fails at Suite E, Test E.2 (221 passed, 1 failed, Exit Code 1)
    ```
-   *Expected Output*: `Total Test Cases: 200 | Passed: 200 | Failed: 0` in ~11-12s.
 
-2. **Run TypeScript Compilers**:
+2. **Execute Legacy Use Cases**:
    ```powershell
-   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"
-   & "D:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" --noEmit
-
-   cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
-   npm run tsc
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\legacy_use_cases.js
+   # Observed: Fails immediately with MODULE_NOT_FOUND (Exit Code 1)
    ```
-   *Expected Output*: Exit code 0 for both packages.
 
-3. **Verify Zero `projMatches` Occurrence**:
+3. **Execute Unified Test Runner**:
    ```powershell
-   Select-String -Path "tad-master\packages\tadviewer\src\components\DataSourceSidebar.tsx" -Pattern "projMatches"
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all
+   # Observed: FAILED (Exit Code 1)
    ```
-   *Expected Output*: No matches found.
+
+### Invalidation Conditions (How to clear this violation):
+- Fix `mapLegacyPath` in `tests/deep_integration_qa.js` to resolve extensionless paths (`.js`).
+- Fix `tests/legacy_use_cases.js` to dynamically resolve `toad-app` and `toadviewer`.
+- Re-run `node run_tests.js --all` and achieve 100% PASS (242/242 tests, Exit Code 0).

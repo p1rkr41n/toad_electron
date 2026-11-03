@@ -1,6 +1,6 @@
 {
   "name": "reltab-duckdb",
-  "version": "2.4.7",
+  "version": "2.4.8",
   "description": "sqlite driver for reltab",
   "main": "dist/reltab-duckdb.js",
   "types": "dist/reltab-duckdb.d.ts",

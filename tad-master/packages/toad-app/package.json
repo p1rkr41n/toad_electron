@@ -1,0 +1,252 @@
+{
+  "name": "toad-app",
+  "version": "2.4.8",
+  "homepage": "https://example.com",
+  "description": "Tabular data viewer desktop app (Toad)",
+  "main": "dist/main.bundle.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/toad.git"
+  },
+  "scripts": {
+    "clean": "rimraf dist",
+    "build:dir": "mkdirp dist",
+    "build:toadviewer-assets": "recursive-copy -w node_modules/toadviewer/dist/public dist/public",
+    "build:html": "recursive-copy -w html dist",
+    "build:preload": "recursive-copy -w app/preload.js dist/preload.js",
+    "build:icon": "mkdirp buildRes && recursive-copy -w res/icon.ico buildRes/icon.ico && recursive-copy -w res/icon.png dist/icon.png",
+    "build-assets": "npm run build:dir && npm run build:html && npm run build:icon && npm run build:preload",
+    "build-dev": "npm run build-assets && webpack --mode development",
+    "build-prod": "npm run build-assets && webpack --env prod --mode production",
+    "build": "npm run build-prod && npm run electron-builder-postinstall",
+    "watch": "webpack --mode development --watch",
+    "watch-prod": "webpack --env prod --mode production --watch",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder --publish=never",
+    "dist-arm64": "electron-builder --arm64 --publish=never",
+    "prepublish": "npm run build",
+    "publish": "electron-builder",
+    "electron-builder-postinstall": "electron-builder install-app-deps",
+    "start": "electron ."
+  },
+  "keywords": [
+    "relational",
+    "sql",
+    "database"
+  ],
+  "author": "HelloKittyXamKinLung <dev@example.com>",
+  "license": "MIT",
+  "dependencies": {
+    "host-bridge": "^2.3.1",
+    "aggtree": "^0.12.0",
+    "command-line-args": "^5.2.0",
+    "command-line-usage": "^6.1.1",
+    "console.table": "^0.10.0",
+    "electron-log": "^4.4.4",
+    "electron-updater": "^4.6.1",
+    "fast-csv": "^4.3.6",
+    "loglevel": "^1.8.0",
+    "oneref": "^0.9.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "reltab": "^0.12.0",
+    "reltab-duckdb": "^0.12.0",
+    "reltab-fs": "^0.12.0",
+    "source-map-support": "^0.5.21",
+    "toadviewer": "^0.12.0"
+  },
+  "devDependencies": {
+    "@blueprintjs/icons": "^4.10.1",
+    "@electron/notarize": "^2.3.2",
+    "@types/command-line-args": "^5.2.0",
+    "@types/command-line-usage": "^5.0.2",
+    "@types/react": "^18.0.15",
+    "@types/react-dom": "^18.2.4",
+    "@types/react-select": "^5.0.0",
+    "@types/slickgrid": "^2.1.31",
+    "ajv": "^6.9.1",
+    "babel-cli": "^6.26.0",
+    "babel-plugin-flow-to-typescript": "^0.6.0",
+    "css-loader": "^6.5.1",
+    "duplicate-package-checker-webpack-plugin": "^3.0.0",
+    "electron": "31.0.1",
+    "electron-builder": "^24.13.3",
+    "file-loader": "^6.2.0",
+    "image-webpack-loader": "^8.0.1",
+    "less": "^3.13.1",
+    "less-loader": "^10.2.0",
+    "mkdirp": "^1.0.4",
+    "recursive-copy-cli": "^1.0.20",
+    "resolve-url-loader": "^4.0.0",
+    "rimraf": "^5.0.5",
+    "sass": "^1.80.6",
+    "sass-loader": "^14.2.1",
+    "source-map-loader": "^3.0.1",
+    "style-loader": "^3.3.1",
+    "ts-loader": "^9.2.6",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1",
+    "webpack-node-externals": "^3.0.0"
+  },
+  "build": {
+    "appId": "org.example.toad",
+    "compression": "maximum",
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "afterPack": "./tools/afterPack.js",
+    "afterSign": "./tools/notarize.js",
+    "buildNumber": "1",
+    "directories": {
+      "buildResources": "buildRes",
+      "output": "release"
+    },
+    "dmg": {
+      "icon": "dmgIcon.icns",
+      "sign": false
+    },
+    "electronLanguages": [
+      "en-US",
+      "vi"
+    ],
+    "extraResources": [
+      "tad.sh",
+      "bin"
+    ],
+    "files": [
+      "dist/**/*",
+      "!dist/*.exe",
+      "!dist/win-unpacked/**",
+      "!dist/*.7z",
+      "!dist/*.blockmap",
+      "!dist/**/*.map",
+      "!dist/html/**",
+      "!dist/builder-debug.yml",
+      "node_modules",
+      "!**/node_modules/duckdb/src/**",
+      "!**/node_modules/duckdb/node_modules/**",
+      "!**/node_modules/duckdb/test/**",
+      "!**/node_modules/duckdb/examples/**",
+      "!**/node_modules/@babel/**",
+      "!**/node_modules/babel-*/**",
+      "!**/node_modules/victory*/**",
+      "!**/node_modules/@blueprintjs/**",
+      "!**/node_modules/react/**",
+      "!**/node_modules/react-dom/**",
+      "!**/node_modules/slickgrid-es6/**",
+      "!**/node_modules/jquery/**",
+      "!**/node_modules/popper.js/**",
+      "!**/node_modules/@popperjs/**",
+      "!**/node_modules/toadviewer/**",
+      "!**/node_modules/tadviewer/**",
+      "!**/*.map",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/*.flow",
+      "!**/*.py",
+      "!**/*.md",
+      "!**/*.markdown",
+      "!**/README*",
+      "!**/CHANGELOG*"
+    ],
+    "fileAssociations": [
+      {
+        "ext": "csv",
+        "name": "Comma Separated Values",
+        "role": "Viewer"
+      },
+      {
+        "ext": "tsv",
+        "name": "Tab Separated Values",
+        "role": "Viewer"
+      },
+      {
+        "ext": "toad",
+        "name": "Toad Saved Workspace",
+        "role": "Editor"
+      },
+      {
+        "ext": "tad",
+        "name": "Toad Saved Workspace",
+        "role": "Editor"
+      },
+      {
+        "ext": "parquet",
+        "name": "Parquet files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "sqlite",
+        "name": "Sqlite files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "duckdb",
+        "name": "DuckDb files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "json",
+        "name": "JSON Data files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "jsonl",
+        "name": "JSON Lines Data files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "ndjson",
+        "name": "Newline Delimited JSON files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "log",
+        "name": "Log files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "csv.gz",
+        "name": "Compressed CSV files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "evtx",
+        "name": "Windows Event Log files",
+        "role": "Viewer"
+      }
+    ],
+    "linux": {
+      "target": [
+        "deb",
+        "rpm",
+        "tar.bz2"
+      ]
+    },
+    "mac": {
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "category": "public.app-category.developer-tools",
+      "entitlements": "res/entitlements.mac.plist",
+      "entitlementsInherit": "res/entitlements.mac.plist",
+      "target": [
+        "zip",
+        "dmg"
+      ]
+    },
+    "win": {
+      "icon": "buildRes/icon.ico",
+      "target": [
+        "portable"
+      ]
+    },
+    "portable": {
+      "artifactName": "Toad ${version}.${ext}"
+    },
+    "nodeGypRebuild": false,
+    "nsis": {
+      "oneClick": false
+    },
+    "productName": "Toad"
+  }
+}

@@ -1,215 +1,135 @@
-# Handoff Report: Reviewer & Adversarial Critic (Toad v2.4.3)
+# Handoff Report: Reviewer 1 (Packages, Webpack & HTML Reviewer)
 
-**Agent Identity**: `reviewer_1`  
-**Roles**: `reviewer`, `critic`  
-**Date**: 2026-11-03  
-**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\`  
-**Target Milestone**: Milestone 1, 2, and 3 (R1, R2, R3, R4, R5)  
-**Parent Orchestrator**: `9ac5654e-b2b9-4aed-bbc4-dcd613ccea09`  
-**Integrity Mode**: development  
-
----
-
-## Review Summary
-
-**Verdict**: **APPROVE**  
-**Overall Risk Assessment**: **LOW**  
-**Integrity Violations**: **NONE (0 detected)**  
-
-All five core functional requirements (R1 through R5) have been completely and correctly implemented, tested, and verified with zero regressions.
+**Reviewer:** Reviewer 1 (Archetype: reviewer / critic)  
+**Recipient:** Orchestrator (Conversation ID: `afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
+**Date:** 2026-11-03  
+**Verdict: APPROVE**  
+**Detailed Report:** `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\analysis.md`  
 
 ---
 
 ## 1. Observation
 
-Direct inspection of files and command executions produced the following verified observations:
-
-### 1.1 Integrity Audit
-- **Source Code Realism**: No hardcoded test fixtures, mock stubs, or bypass facades were placed in production source code (`tad-master/packages/tad-app/app/appMenu.ts`, `tad-master/packages/tad-app/src/electronRenderMain.tsx`, `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx`, `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx`, `tad-master/packages/tadviewer/less/sidebar.less`).
-- **Algorithm Authenticity**: `getRelativeParentDir`, `sortFiles`, `filterFiles`, and `formatFileBytes` implement real algorithmic logic handling string normalization, path splitting, numeric sorting, and unit formatting.
-- **Ledger Verification**: Direct execution of real DuckDB Parquet ledger operations in `JJ.7` proves physical cache file immutability and metadata-only mutation on project rename.
-
-### 1.2 Verification Commands & Verbatim Outputs
-1. **Full Deep Integration QA Test Suite (Suite A through JJ)**:
-   - Command:
-     ```powershell
-     & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-     ```
-   - Verbatim Output:
-     ```text
-     ======================================================================
-       SUITE JJ: Toad v2.4.3 Interactive File Table, Fast Search & Double-Click Rename
-     ======================================================================
-       ✓ [PASS] JJ.1 Native Menu Cleanup & Workspace Action Integration (0.87 ms)
-       ✓ [PASS] JJ.2 getRelativeParentDir Deterministic Calculation Engine (1.99 ms)
-       ✓ [PASS] JJ.3 Strict File-Name Search Filter (Zero Proj Collision & 0ms In-Memory Latency) (6.92 ms)
-       ✓ [PASS] JJ.4 Multi-Project Search Auto-Expansion & Non-Matching Project Suppression (0.50 ms)
-       ✓ [PASS] JJ.5 Interactive Table 4-Column Sorting Engine (3.20 ms)
-       ✓ [PASS] JJ.6 Interactive Table Column Filter & Compound Filtering (0.71 ms)
-       ✓ [PASS] JJ.7 In-Place Double-Click Project Rename: Ledger Integrity & Zero Disk I/O (130.22 ms)
-         [GATE NOTE] System currently at v2.4.2; v2.4.3 packaging gate ready for tools/bump_version.js 2.4.3
-       ✓ [PASS] JJ.8 Version 2.4.3 System-Wide Synchronization Gate (2.41 ms)
-
-     ======================================================================
-       DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.2 Dual Engine, RAM Cache & Multi-Format Extractor)
-     ======================================================================
-       Total Test Cases : 200
-       Passed           : 200
-       Failed           : 0
-       Total Duration   : 12.19s
-     ======================================================================
-     ```
-   - Exit code: `0`.
-
-2. **TypeScript Compilation Check (`tadviewer`)**:
-   - Command:
-     ```powershell
-     cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"; npm run tsc
-     ```
-   - Verbatim Output:
-     ```text
-     > tadviewer@2.4.2 tsc
-     > tsc
-     Command exited with code 0.
-     ```
-
-3. **TypeScript Compilation Check (`tad-app`)**:
-   - Command:
-     ```powershell
-     cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"; & "D:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" --noEmit
-     ```
-   - Verbatim Output: Exited with code `0`, no compilation errors.
-
-4. **Webpack Production Build (`tadviewer`)**:
-   - Command:
-     ```powershell
-     cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"; npm run build
-     ```
-   - Verbatim Output:
-     ```text
-     webpack 5.112.0 compiled with 17 warnings in 28302 ms
-     Command exited with code 0.
-     ```
-   - Emitted bundle: `dist/tadviewer.js` (2.75 MiB) and corresponding declaration files.
-
-5. **Webpack Development Build (`tad-app`)**:
-   - Command:
-     ```powershell
-     cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"; npm.cmd run build-dev
-     ```
-   - Verbatim Output:
-     ```text
-     webpack 5.112.0 compiled with 14 warnings in 21346 ms
-     Command exited with code 0.
-     ```
-
-### 1.3 Inspection of Code Changes
-1. **Menu Cleanup (R1)**:
-   - `tad-master/packages/tad-app/app/appMenu.ts:42-59`: Legacy `"Open File..."` and `"Open Directory..."` entries completely removed.
-   - Added `"Add Files to Active Project..."` (`CmdOrCtrl+O`) emitting IPC `"project-add-files"`.
-   - Added `"Add Folder to Active Project..."` (`CmdOrCtrl+Shift+O`) emitting IPC `"project-add-folder"`.
-   - `tad-master/packages/tad-app/src/electronRenderMain.tsx:282-324`: Handlers open native dialog via `getHostBridge().showOpenDialog` and call `pwManager.addFilesToProject` / `pwManager.addFolderToProject`.
-
-2. **Inline Project Rename (R2)**:
-   - `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx:260-343`:
-     - Double-clicking `.project-title-text` activates `.project-title-inline-input`.
-     - `e.stopPropagation()` stops event bubbling to prevent project collapse/expand.
-     - Commits on `Enter` or `onBlur` via `pwManager.renameProject`.
-     - Reverts on `Escape` without ledger mutation.
-     - Empty/whitespace names gracefully fallback to original name without corrupting ledger.
-     - Orphan project (`isOrphan === true`) protected from renaming.
-
-3. **Strict 100% File Search (R3)**:
-   - `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx:598-622`:
-     - `projMatches` completely eradicated (0 project matches).
-     - Filtering strictly evaluates `pFiles.filter((f) => f.fileName.toLowerCase().includes(q))`.
-     - In-memory `useMemo` executes in 0ms (benchmarked < 10ms over 10,000 files in JJ.3).
-     - Auto-expands matching projects (`isExpanded: true`) and hides non-matching projects (`shouldShow: false`).
-     - Restores persisted states `pwManager.isProjectExpanded(proj.projectId)` when query is cleared.
-
-4. **Interactive 4-Column Table (R4)**:
-   - `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx`:
-     - Implements 4-column layout: Name (icon + tooltip + ellipsis), Dir (`getRelativeParentDir`), Size (`formatFileBytes`), Status (🟢 READY/VALID, 🔴 MODIFIED, ! ERROR, ◌ PENDING).
-     - Column header filter inputs `.col-filter-input` toggle on click, auto-focus, handle compound multi-column filtering, and close on `Escape`.
-     - Column sort buttons (`▲`/`▼`/`⇅`) toggle ascending/descending order: Name (string), Dir (string), Size (strictly numeric bytes), Status (string).
-     - Row clicking opens file via `onOpenFile` (`handleOpenFile` with `MultipleLoadingManager` and `actions.openDataSourcePath`).
-     - Row height is constrained to `25px` (satisfies 24-26px data-dense requirement).
-   - `tad-master/packages/tadviewer/less/sidebar.less:1007-1252`:
-     - Complete styling for table, inputs, headers, and rows.
-     - Full dark mode support under `.bp4-dark, .toad-dark`.
-
-5. **Test Suite & Integration QA (R5)**:
-   - `tests/deep_integration_qa.js:4668-5190`: SUITE JJ (JJ.1 to JJ.8) implemented.
-   - All 200 tests pass without failures.
+1. **Monorepo Directory Layout on Disk**:
+   - `tad-master/packages/toad-app` exists and contains the desktop application.
+   - `tad-master/packages/toadviewer` exists and contains the viewer UI grid library.
+   - `tad-master/packages/tad-app` and `tad-master/packages/tadviewer` no longer exist on disk.
+2. **Package Manifests & Monorepo Configs**:
+   - `tad-master/packages/toad-app/package.json`:
+     - Line 2: `"name": "toad-app"`
+     - Line 14: `"build:toadviewer-assets": "recursive-copy -w node_modules/toadviewer/dist/public dist/public"`
+     - Line 56: `"toadviewer": "^0.12.0"`
+     - Lines 140–141: `"!**/node_modules/toadviewer/**"` and `"!**/node_modules/tadviewer/**"`
+   - `tad-master/packages/toadviewer/package.json`:
+     - Line 2: `"name": "toadviewer"`
+     - Line 5: `"main": "dist/toadviewer.js"`
+     - Line 6: `"types": "dist/toadviewer.d.ts"`
+   - `tad-master/lerna.json`:
+     - Line 6: `"ignore": ["reltab-sqlite", "toad-app"]`
+   - `tad-master/tools/buildAll.js`:
+     - Lines 18–19: `const componentPackages = ["toadviewer"];` and `const appPackages = ["tadweb-app", "tadweb-server", "toad-app"];`
+3. **TypeScript Source Imports**:
+   - `toad-app/src/electronRenderMain.tsx`: Lines 30–41 import from `"toadviewer"`.
+   - `toad-app/app/fileExport.ts`: Line 6 imports `ExportFormat, ParquetExportOptions` from `"toadviewer"`.
+   - `toadviewer/src/components/DataSourceSidebar.tsx`: Line 32 imports from `"../toadviewer"`.
+   - `toadviewer/src/components/TadViewerPane.tsx`: Line 23 imports from `"../toadviewer"`, and lines 201–202 export `ToadViewerPane` and `ToadViewerPaneProps`.
+   - Ripgrep for verbatim `from "tadviewer"` and `require("tadviewer")` in source files across `toad-app` returned 0 matches.
+4. **Webpack Configurations & Output Bundles**:
+   - `toad-app/webpack.config.js`:
+     - Lines 16–20: Webpack resolve aliases `"toadviewer"` and `"tadviewer"` pointing to `../toadviewer/dist/toadviewer.js`.
+     - Lines 118–120: Entry `toadapp: "./src/electronRenderMain.tsx"`.
+     - Output bundle emitted at `dist/toadapp.bundle.js` (4.95 MiB production bundle).
+   - `toadviewer/webpack.config.js`:
+     - Lines 13–16: Dual entry:
+       ```javascript
+       entry: {
+         toadviewer: "./src/toadviewer.ts",
+         tadviewer: "./src/toadviewer.ts",
+       }
+       ```
+     - Emits both `dist/toadviewer.js` (2.76 MiB) and `dist/tadviewer.js` (2.76 MiB).
+5. **HTML Script Tag Alignment**:
+   - `toad-app/html/index.html` Line 11: `<script src="toadapp.bundle.js"></script>`.
+   - `toad-app/dist/index.html` Line 11: `<script src="toadapp.bundle.js"></script>`.
+   - `toad-app/dist/` contains both `toadapp.bundle.js` and companion fallback `tadapp.bundle.js`.
+6. **NTFS Junctions & Node Module Resolution**:
+   - `toad-app\node_modules\toadviewer` is an active NTFS Junction targeting `tad-master\packages\toadviewer`.
+   - `toad-app\node_modules\tadviewer` is an active NTFS Junction targeting `tad-master\packages\toadviewer`.
+   - `tadweb-app\node_modules\toadviewer` and `tadviewer` are active NTFS Junctions targeting `tad-master\packages\toadviewer`.
+   - `require.resolve("toadviewer", {paths: ["tad-master/packages/toad-app"]})` successfully resolves to `toadviewer\dist\toadviewer.js`.
+7. **Compiler & Webpack Verification Commands (Independently Executed)**:
+   - `tsc --noEmit` on `tad-master/packages/toad-app` exited with code 0 (0 errors).
+   - `tsc --noEmit` on `tad-master/packages/toadviewer` exited with code 0 (0 errors).
+   - Webpack production build on `toadviewer` exited with code 0 (`webpack 5.112.0 compiled successfully`).
+   - Webpack production build on `toad-app` exited with code 0 (`webpack 5.112.0 compiled successfully in 47116 ms`).
 
 ---
 
 ## 2. Logic Chain
 
-1. **R1 (Menu Actions)**: By replacing the obsolete `openDialog` single-file entrypoints in `appMenu.ts` with IPC messages routed to `ProjectWorkspaceManager` in `electronRenderMain.tsx`, native menu accelerators `CmdOrCtrl+O` and `CmdOrCtrl+Shift+O` consistently direct files/folders into the active DuckDB workspace ledger.
-2. **R2 (Double-Click Rename)**: Double-click event detection with `stopPropagation()` enables seamless inline editing while preserving accordion mechanics. Relegating the commit to `pwManager.renameProject` appends a `PROJECT_CREATE` metadata event in the DuckDB Parquet ledger while keeping the physical `projectId` and parquet file caches untouched, fulfilling the zero disk I/O invariant.
-3. **R3 (Strict File Search)**: Removing `projMatches` guarantees that searching for a project name will never match non-matching files within that project (0% false positive collision). In-memory `useMemo` filtering executes synchronously in < 1ms across all projects. Setting `shouldShow: false` on projects with 0 matches and `isExpanded: true` on matching projects dynamically focuses the sidebar during search, and reverting to `pwManager.isProjectExpanded` when query is empty restores the user's prior layout.
-4. **R4 (Table Layout & Interactions)**: Moving away from constrained Blueprint Tree nodes to a custom table inside accordion sections enables clean tabular display of relative directory paths (`getRelativeParentDir`), human-readable byte sizes, format icons, and live status dots. Implementing pure sorting and filtering helper functions ensures predictable, testable UI state transitions.
-5. **R5 (Test Coverage & Gates)**: Sub-suites JJ.1 through JJ.8 provide opaque-box and algorithmic assertions covering all acceptance criteria, while JJ.8 enforces the version gate for release packaging.
+1. **Disk Renaming & Manifest Alignment (Observations 1, 2)**:
+   - Renaming `tad-app` ➔ `toad-app` and `tadviewer` ➔ `toadviewer` satisfies requirement R1.1.
+   - Synchronizing `package.json` names, dependencies, and `lerna.json` ignore list prevents monorepo tooling errors and aligns package discovery across the build system.
+2. **Elimination of Blank Screen DOM Failure (Observations 4, 5)**:
+   - Electron's `appWindow.ts` loads `index.html` from `dist/index.html`.
+   - `dist/index.html` requests `<script src="toadapp.bundle.js"></script>`.
+   - The Webpack build compiles `src/electronRenderMain.tsx` into `dist/toadapp.bundle.js`.
+   - Because the script src matches the exact bundle name and location, the Electron DOM loads the renderer script without error, eliminating the blank screen startup hazard (satisfying R2.1 and R2.2).
+3. **Resilience Against Missing Junctions & Legacy Tests (Observations 3, 4, 6)**:
+   - If NTFS junctions are missing (e.g. clean git checkout), Webpack resolve aliases and TypeScript path mappings resolve `toadviewer` directly to relative folder paths.
+   - Dual entries in `toadviewer/webpack.config.js` and dual files in `dist/` ensure zero breakages for legacy scripts or QA harnesses requesting `tadviewer`.
+4. **Asar Archive Footprint Safeguard (Observation 2)**:
+   - The inclusion of `"!**/node_modules/toadviewer/**"` and `"!**/node_modules/tadviewer/**"` in `toad-app/package.json` prevents duplicate component files from being bundled into `app.asar`, guaranteeing compliance with the < 45 MB footprint ceiling.
+5. **Authenticity & Integrity (Observation 7)**:
+   - Both packages pass genuine TypeScript typechecking (`tsc --noEmit`) and Webpack bundling without facades, stubs, or hardcoded test bypasses.
 
 ---
 
 ## 3. Caveats
 
-- **No Caveats**: All changes strictly adhere to assigned file boundaries.
-- No production source files outside of assigned ownership were modified.
-- Full compatibility with existing Suites A through II (192 tests) is preserved.
+- **No Caveats**: The implementation of Requirements R1 and R2 by Worker M2 is complete, correct, and independently confirmed.
 
 ---
 
-## 4. Conclusion & Verdict
+## 4. Conclusion
 
-**Verdict**: **APPROVE**
+**Verdict: APPROVE**
 
-The work product demonstrates excellent engineering rigor, adheres strictly to the architectural specifications and acceptance criteria in `ORIGINAL_REQUEST.md`, contains zero integrity violations, and is ready for Milestone 3 final packaging.
-
----
-
-## 5. Adversarial Review & Stress Test Results
-
-| Challenge / Scenario | Expected Behavior | Actual Behavior | Result |
-|---|---|---|---|
-| Windows mixed slashes (`C:\DATA\sub\file.csv` with `c:/data/`) | Normalizes to `sub/` | Correctly normalized to `sub/` | **PASS** |
-| Root drive standalone file (`C:/sample.csv`) | Normalizes to `./` | Correctly evaluated to `./` | **PASS** |
-| Empty / null path inputs | Graceful fallback to `./` | Returned `./` without exception | **PASS** |
-| Search query matching project title but 0 files | Project suppressed, 0 files displayed | `projMatches` absent; project hidden | **PASS** |
-| 10,000 files in-memory filter stress test | Latency < 15ms | Measured 6.92ms | **PASS** |
-| Double-click rename with empty/whitespace input | Revert to original name, no ledger mutation | Trimmed, reverted safely | **PASS** |
-| Numeric size sorting (`512 B` vs `1024 B` vs `2 MB` vs `1 GB`) | Numeric ordering | Strictly numeric on `fileSizeBytes` | **PASS** |
-| Compound column filtering (Name="auth" AND Dir="logs") | Strict intersection set | Matches single target file | **PASS** |
-| TypeScript compilation & Webpack builds | 0 errors | 0 errors across both packages | **PASS** |
-
-### Minor Advisory Note for Future Maintenance
-- In `ProjectFilesTable.tsx:236`, `tableItems` is memoized against `[files]`. If `MultipleLoadingManager` status changes occur purely in memory before workspace ledger refresh is triggered, passing the force-update tick into the dependency array would ensure instantaneous re-computation of `effectiveStatus`. Currently, ledger operations trigger `refreshWorkspaceData()` which creates new file object references, so UI consistency is maintained.
+Milestone 2 (Requirements R1.1–R1.4, R2.1–R2.3) meets all acceptance criteria with high quality, rigorous backward-compatibility fallbacks, and zero integrity violations. Downstream tasks (Milestones M3, M4, and M5) are unblocked to proceed.
 
 ---
 
-## 6. Verification Method
+## 5. Verification Method
 
-To independently verify the complete build and test suite:
+To reproduce and verify these findings independently:
 
-```powershell
-# 1. Run complete integration QA suite (200 test cases)
-& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
+1. **Verify TypeScript typechecking**:
+   ```powershell
+   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
+   Set-Location "tad-master\packages\toad-app"
+   & "..\..\node_modules\.bin\tsc.cmd" --noEmit
+   # Must exit with code 0
+   Set-Location "..\toadviewer"
+   & "..\..\node_modules\.bin\tsc.cmd" --noEmit
+   # Must exit with code 0
+   ```
 
-# 2. Verify TypeScript typecheck on tadviewer
-$env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
-cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
-npm run tsc
+2. **Verify Webpack builds**:
+   ```powershell
+   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
+   Set-Location "tad-master\packages\toad-app"
+   & "..\..\node_modules\.bin\webpack.cmd" --mode production
+   # Emits dist\toadapp.bundle.js
+   ```
 
-# 3. Verify TypeScript typecheck on tad-app
-cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"
-& "D:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" --noEmit
+3. **Verify HTML script reference**:
+   ```powershell
+   Select-String -Path "tad-master\packages\toad-app\html\index.html" -Pattern "toadapp.bundle.js"
+   Select-String -Path "tad-master\packages\toad-app\dist\index.html" -Pattern "toadapp.bundle.js"
+   ```
 
-# 4. Verify Webpack builds
-cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
-npm run build
-
-cd "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app"
-npm.cmd run build-dev
-```
+4. **Verify zero lingering imports in toad-app source files**:
+   ```powershell
+   # Search for: from "tadviewer" in toad-app\src and toad-app\app
+   # Expected: 0 matches
+   ```

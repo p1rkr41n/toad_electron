@@ -39,7 +39,7 @@ const typeLookup = (tnm: string): ColumnType => {
 
 let viewCounter = 0;
 
-const genViewName = (): string => `tad_tmpView_${viewCounter++}`;
+const genViewName = (): string => `toad_tmpView_${viewCounter++}`;
 
 const dbAll = tp.promisify(
   (db: sqlite3.Database, query: string, cb: (err: any, res: any) => void) =>

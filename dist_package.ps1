@@ -6,7 +6,11 @@ $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
 $rootDir = "D:\Shared_UserData\Downloads\tad"
-$appDir = "$rootDir\tad-master\packages\tad-app"
+$appDir = "$rootDir\tad-master\packages\toad-app"
+if (-not (Test-Path $appDir)) {
+    $appDir = "$rootDir\tad-master\packages\tad-app"
+}
+$appName = Split-Path $appDir -Leaf
 
 Write-Output "=== PRE-BUILD: Cleaning stale build artifacts ==="
 if (Test-Path "$appDir\dist") {
@@ -27,30 +31,37 @@ Write-Output "=== STEP 0.2: Building reltab-duckdb ==="
 Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-duckdb"
 & npm.cmd run build
 
-Write-Output "=== STEP 1: Building tadviewer ==="
-Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer"
+$viewerDir = "$rootDir\tad-master\packages\toadviewer"
+if (-not (Test-Path $viewerDir)) {
+    $viewerDir = "$rootDir\tad-master\packages\tadviewer"
+}
+$viewerName = Split-Path $viewerDir -Leaf
+
+Write-Output "=== STEP 1: Building $viewerName ==="
+Set-Location $viewerDir
 & npm.cmd run build
 
-Write-Output "=== STEP 2: Building Webpack Production for tad-app ==="
+Write-Output "=== STEP 2: Building Webpack Production for $appName ==="
 Set-Location "$appDir"
 & npm.cmd run build-prod
 
-Write-Output "=== STEP 3: Verifying integrity of tadapp.bundle.js ==="
-$bundlePath = "$appDir\dist\tadapp.bundle.js"
+$bundleFile = if (Test-Path "$appDir\dist\toadapp.bundle.js") { "toadapp.bundle.js" } else { "tadapp.bundle.js" }
+$bundlePath = "$appDir\dist\$bundleFile"
+Write-Output "=== STEP 3: Verifying integrity of $bundleFile ==="
 if (-not (Test-Path $bundlePath)) {
-    throw "ERROR: Cannot find tadapp.bundle.js!"
+    throw "ERROR: Cannot find $bundleFile!"
 }
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not ($bundleContent.Contains("v2.4.7") -or $bundleContent.Contains("v2.4.6.1") -or $bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
-    throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.4.1 or earlier versions!"
+if (-not ($bundleContent.Contains("v2.4.8") -or $bundleContent.Contains("v2.4.7") -or $bundleContent.Contains("v2.4.6.1") -or $bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
+    throw "ASSERTION ERROR: $bundleFile does not contain v2.4.8 or earlier versions!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
-    throw "ASSERTION ERROR: tadapp.bundle.js does not contain padStart(3 for str001!"
+    throw "ASSERTION ERROR: $bundleFile does not contain padStart(3 for str001!"
 }
-if (Test-Path "$appDir\dist\tadapp.bundle.js.map") {
-    throw "ASSERTION ERROR: tadapp.bundle.js.map exists in production dist! Expected devtool=false."
+if ((Test-Path "$appDir\dist\toadapp.bundle.js.map") -or (Test-Path "$appDir\dist\tadapp.bundle.js.map")) {
+    throw "ASSERTION ERROR: Production bundle .map exists in production dist! Expected devtool=false."
 }
-Write-Output ">>> Bundle Verification SUCCESS: contains v2.1.6, str001, and sourcemap absent."
+Write-Output ">>> Bundle Verification SUCCESS: contains v2.4.8/v2.1.6, str001, and sourcemap absent."
 
 Write-Output "=== STEP 4: Packaging Electron App with electron-builder (Maximum Compression) ==="
 & npm.cmd run dist
@@ -97,7 +108,7 @@ if ($latestExe) {
     # toad_v2.0.14_portable.exe toad_v2.1.0_portable.exe toad_v2.1.2_portable.exe toad_v2.1.3_portable.exe
     # toad_v2.1.4_portable.exe toad_v2.1.5_portable.exe toad_v2.1.6_portable.exe toad_v2.3.0_portable.exe
     # toad_v2.3.1_portable.exe toad_v2.3.2_portable.exe toad_v2.3.3_portable.exe toad_v2.3.4_portable.exe
-    # toad_v2.3.5_portable.exe Toad-2.4.7-x64-portable.exe Toad-2.4.7-x64-portable.exe Toad-2.4.7-x64-portable.exe
+    # toad_v2.3.5_portable.exe Toad-2.4.8-x64-portable.exe Toad-2.4.8-x64-portable.exe
 
     # Single canonical output binaries (Strictly avoids duplicate copies):
     $canonicalReleaseExe = "$releaseDir\Toad-$version-x64-portable.exe"

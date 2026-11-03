@@ -1,27 +1,31 @@
-# BRIEFING — 2026-11-03T10:58:30Z
+# BRIEFING — 2026-11-03T13:25:00Z
 
 ## Mission
-Monitor execution of the CSV delimiter misparsing & cache hit flaw fix, non-blocking ingestion error handling, cache cleanup, fastbuild, and QA verification.
+Coordinate, monitor, and victory-audit the full rebrand of TAD to TOAD v2.4.8.
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork
-- Orchestrator: 463c7962-7642-4e36-b3b9-9f66c7c8f52c
-- Victory Auditor: 06cb6740-9343-4f71-860b-849e29304487
+- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\
+- Orchestrator: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
+- Victory Auditor: cb89da14-8be6-4a1b-86cc-7c29aaa114c5
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- R1: Detect and evict misparsed parquet files (`column01..columnN` or comma in col 0) at cache check gateway before `createViewFromParquet`
-- R2: Enforce `delim = ','` without `escape = ''` and retain `all_varchar = true`
-- R3: Clean up stale `.tmp_` and corrupted parquet cache files for `sample_40gb.csv`
-- R4: Catch ingestion exceptions, write trace to `toad.log`, mark file with status 'ERROR' / circle `!` icon in sidebar/ledger without intrusive pop-ups
-- R5: Execute `fastbuild.ps1`, respect Jujutsu (`jj`), Zero-Duplicate Binary Storage policy
+- SemVer compliant v2.4.8
+- Zero-Duplicate Binary Storage policy in AGENTS.md
+- Use Jujutsu (jj) VCS
+- Monorepo package renaming: toad-app, toadviewer
+- toadapp.bundle.js in webpack and html/index.html
+- Asar exclusion: !**/node_modules/toadviewer/** (<45MB)
+- Transparent backward compatibility for .tad files (toadFileFormatVersion: 2, legacy v1)
+- DuckDB view prefix: toad_tmpView_${viewCounter++}
+- All 222+ tests must PASS
 
 ## User Context
-- **Last user request**: Approved task prompt received and routed to teamwork_orchestrator
+- **Last user request**: Approved task prompt: Execute full rebrand of TAD to TOAD v2.4.8
 - **Pending clarifications**: none
-- **Delivered results**: Work verified with VICTORY CONFIRMED verdict by independent Victory Auditor.
+- **Delivered results**: TOAD v2.4.8 portable release and full rebrand verified by independent Victory Auditor (VICTORY CONFIRMED)
 
 ## Project Status
 - **Phase**: complete
@@ -32,7 +36,10 @@ Monitor execution of the CSV delimiter misparsing & cache hit flaw fix, non-bloc
 - **Retry count**: 0
 
 ## Artifact Index
-- .agents/teamwork/ORIGINAL_REQUEST.md — Authoritative user request
-- .agents/teamwork/orchestrator/ — Orchestrator workspace
-- .agents/teamwork/victory_auditor_2/ — Victory Auditor workspace
-- .agents/teamwork/handoff.md — Sentinel handoff report
+- ORIGINAL_REQUEST.md — Original verbatim user request
+- handoff.md — Sentinel completion and handoff report
+- releases/Toad-2.4.8-x64-portable.exe — Verified portable binary (72.10 MB)
+- releases/Toad-2.4.8-x64-portable.zip — Verified portable archive (72.10 MB)
+- releases/SHA256SUMS.txt — Checksums manifest
+- releases/v2.4.8_NOTES.md — Release notes
+- releases/HelloKittyXamKinLung.Toad.yaml — Winget package manifest

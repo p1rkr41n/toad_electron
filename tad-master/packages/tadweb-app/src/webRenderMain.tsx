@@ -19,9 +19,9 @@ import {
   tadReact,
   AppPaneProps,
   actions,
-} from "tadviewer";
-import { ViewParams } from "tadviewer";
-import { initAppState } from "tadviewer";
+} from "toadviewer";
+import { ViewParams } from "toadviewer";
+import { initAppState } from "toadviewer";
 import * as reltab from "reltab";
 import log from "loglevel";
 import { WebTransportClient } from "./reltabWebClient";

@@ -1,131 +1,118 @@
-# Handoff Report: Empirical Challenge & Pre-Flight Release Gate Review
+# Handoff Report — Challenger 2 (Build Scripts & Packaging Stress Challenger)
 
-**Agent Identity**: `challenger_2` (EMPIRICAL CHALLENGER; roles: critic, specialist)  
-**Target**: Milestone 2 Sidebar Workspace Overhaul & Milestone 3 Release Pre-Flight  
+**Recipient**: Orchestrator (`afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
+**Role**: Empirical Challenger (critic, specialist)  
 **Date**: 2026-11-03  
-**Verdict**: **APPROVE** (with critical pre-flight release packaging advisory)  
-**Parent Orchestrator**: `9ac5654e-b2b9-4aed-bbc4-dcd613ccea09`  
+**Verdict**: **REQUEST_CHANGES**  
+**Detailed Analysis**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\analysis.md`  
 
 ---
 
 ## 1. Observation
 
-### 1.1 Empirical Test Suite Execution (`tests/deep_integration_qa.js`)
-Executed the full integration QA suite across multiple consecutive iterations using Node.js v18.20.4:
-- **Baseline execution**:
-  ```powershell
-  & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-  ```
-  Result: Total Test Cases: 200, Passed: 200, Failed: 0, Total Duration: 11.42s.
-- **Sequential Multi-Run Determinism Harness (3 consecutive full runs)**:
-  - Iteration #1: 200/200 passed (11.74s)
-  - Iteration #2: 200/200 passed (11.86s)
-  - Iteration #3: 200/200 passed (12.05s)
-  No flakiness, no unhandled promise rejections, zero DuckDB connection pool leaks, and zero Windows file locking errors across all runs.
+Direct empirical observations from test executions, file audits, and script evaluations:
 
-### 1.2 Inspection of SUITE JJ (JJ.1 to JJ.8)
-1. **JJ.1 (Menu Cleanup & Workspace Action Integration)**: Verifies `appMenu.ts` eradicates `Open File...` and `Open Directory...`, integrates `Add Files to Active Project...` (`CmdOrCtrl+O`), `Add Folder to Active Project...` (`CmdOrCtrl+Shift+O`), and routes to `electronRenderMain.tsx` handlers and `pwManager.addFilesToProject` / `addFolderToProject`.
-2. **JJ.2 (Parent Dir Engine)**: Verifies `ProjectFilesTable.tsx` and `DataSourceSidebar.tsx` export `getRelativeParentDir` and tests 5 scenarios plus boundary conditions.
-3. **JJ.3 (Strict File-Name Search)**: Strips comments and asserts no `projMatches` in `DataSourceSidebar.tsx`; benchmarks 10,000 files across 20 projects with filter latency < 8ms.
-4. **JJ.4 (Auto-Expansion & Suppression)**: Validates reactive workspace search auto-expansion and suppression of non-matching projects, and state recovery on query clear.
-5. **JJ.5 (4-Column Sorting)**: Tests Name, Dir, Size (strictly numeric byte sorting), and Status sorting.
-6. **JJ.6 (Column Filter & Compound Filtering)**: Tests single and compound column filtering (`name` AND `dir`).
-7. **JJ.7 (Double-Click Project Rename)**: Executes real `reltabDuckDB.ToadParquetLedger` operations with physical cache files in `temp/<prjId>/`, verifying `prjId` and physical cache files remain intact (0 disk bytes moved).
-8. **JJ.8 (Version Synchronization Gate)**: Validates package.json version alignment across all packages, bump script availability, and LESS style selectors. Operates in two modes: pre-bump development mode (tollerates `2.4.2`) and post-bump release mode (enforces `2.4.3` across all 9 artifacts).
+1. **PowerShell Script Syntax & Path Resolution**:
+   - `fastbuild.ps1`, `dist_package.ps1`, `package_release.ps1`, and `.agents/skills/releases/scripts/package_release.ps1` all compile cleanly with `[scriptblock]::Create` with 0 syntax errors.
+   - `fastbuild.ps1` lines 45–48 and `dist_package.ps1` lines 9–12 prioritize `toad-app` over `tad-app`.
+   - `fastbuild.ps1` lines 79–82 and `dist_package.ps1` lines 34–37 prioritize `toadviewer` over `tadviewer`.
+   - `fastbuild.ps1` lines 115–118 and `dist_package.ps1` lines 48–53 prioritize `toadapp.bundle.js` over `tadapp.bundle.js`.
+   - `dist_package.ps1` line 55 whitelist checks for `v2.4.8`, `v2.4.7`, ..., `v2.1.0`.
+   - `package_release.ps1` sets default parameter `$Version = "2.4.8"`.
 
-### 1.3 Adversarial Challenge: Inline Mocking vs Compiled Component Execution
-- *Observation*: In `tests/deep_integration_qa.js`, sub-suites JJ.2, JJ.3, JJ.5, and JJ.6 define duplicate inline functions (`getRelativeParentDir` at lines 4710-4736, `filterCatalog` at lines 4809-4822, `sortFiles` at lines 4949-4966, `filterFiles` at lines 5043-5062) rather than invoking the compiled code from `tadviewer/dist/components/ProjectFilesTable`.
-- *Empirical Challenge Verification*: To prove that the underlying compiled code is not hiding bugs masked by the test mocks, we executed an independent challenge harness requiring `tad-master/packages/tadviewer/dist/components/ProjectFilesTable` directly. We evaluated 23 stress scenarios:
-  - Windows backslashes (`C:\data\SubDir\file.csv`), mixed slashes, multiple consecutive slashes, case-insensitive root matching (`c:\data` vs `C:/DATA/`), trailing slash variations.
-  - Cross-drive files (file on `D:`, folderRoot on `C:`).
-  - Standalone files at drive root (`C:/data.csv`, `D:\data.csv`).
-  - Empty, null, and undefined path inputs.
-  - Numeric size sorting with 0, undefined, or missing `fileSizeBytes`.
-  - Immutability check confirming `sortFiles` does not mutate input array.
-  - Compound filter with leading/trailing whitespace (`"  auth  "`, `"  logs  "`).
-  - Byte formatting boundary values (0 B, negative, KB, MB, GB).
-- *Result*: All 23 challenge cases on the actual compiled code passed with 100% fidelity.
+2. **`tools/bump_version.js` Execution & Target Resolution**:
+   - Running `tools/bump_version.js` without arguments safely exits with code 1 and usage help.
+   - All 9 target files resolve and exist on disk:
+     - `tad-master/packages/toad-app/package.json` (version: `2.4.7`)
+     - `tad-master/packages/host-bridge/package.json` (version: `2.4.7`)
+     - `tad-master/packages/reltab-duckdb/package.json` (version: `2.4.7`)
+     - `tad-master/packages/toadviewer/package.json` (version: `2.4.7`)
+     - `tad-master/packages/toadviewer/src/components/RegexDialog.tsx` (matches `/v\d+\.\d+\.\d+(?:\.\d+)?/`)
+     - `dist_package.ps1` (matches `/Toad-\d+\.\d+\.\d+(?:\.\d+)?-x64-portable\.exe/`)
+     - `package_release.ps1` (matches `/\[string\]\$Version = "[^"]+"/`)
+     - `README.md` (matches title and badge regexes)
+     - `releases/HelloKittyXamKinLung.Toad.yaml` (matches `/PackageVersion: [\d\.]+/`)
 
-### 1.4 Package & Release Pre-Flight Verification
-1. **`tools/bump_version.js` Syntax and Regex Compatibility**:
-   - `tad-master/packages/tad-app/package.json` -> version string regex verified.
-   - `tad-master/packages/host-bridge/package.json` -> verified.
-   - `tad-master/packages/reltab-duckdb/package.json` -> verified.
-   - `tad-master/packages/tadviewer/package.json` -> verified.
-   - `tad-master/packages/tadviewer/src/components/RegexDialog.tsx` -> `/v\d+\.\d+\.\d+(?:\.\d+)?/g` matched.
-   - `dist_package.ps1` -> `/Toad-\d+\.\d+\.\d+(?:\.\d+)?-x64-portable\.exe/g` and bundleContent match.
-   - `package_release.ps1` -> `/\[string\]\$Version = "[^"]+"/` matched.
-   - `README.md` -> `/Toad \(v\d+\.\d+\.\d+(?:\.\d+)?\)/g` and `/badge\/Version-[\d\.]+-/g` matched.
-   - `releases/HelloKittyXamKinLung.Toad.yaml` -> `/PackageVersion: [\d\.]+/g` matched.
-2. **Zero-Duplicate Binary Storage Policy**:
-   - Examined `dist_package.ps1` lines 99-104: Copies solely to canonical outputs `$releaseDir\Toad-$version-x64-portable.exe` and root `$rootDir\Toad.exe`. No historical aliases or duplicate version copies are created.
-   - Examined `package_release.ps1`: Packages solely to `releases\Toad-$Version-x64-portable.zip` and writes SHA256SUMS.txt.
-   - Adheres strictly to the workspace packaging policy.
-3. **Critical Pre-Flight Release Gate Finding**:
-   - In `JJ.8` (lines 5185-5186):
-     ```javascript
-     if (is243) {
-       ...
-       const releaseNotes = fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.3_NOTES.md"), "utf8");
-       assert(releaseNotes.includes("Toad v2.4.3"), "releases/v2.4.3_NOTES.md must exist and document v2.4.3");
-     }
-     ```
-   - `releases/v2.4.3_NOTES.md` does not currently exist.
-   - `tools/bump_version.js` only updates version strings in existing files; it does not author new release notes files.
-   - Once the version is bumped to `2.4.3`, `JJ.8` will throw `ENOENT` on `releases/v2.4.3_NOTES.md` unless authored prior to or during the release packaging milestone.
+3. **Webpack Bundles & HTML Assets**:
+   - `tad-master/packages/toad-app/dist/toadapp.bundle.js` exists (5,186,273 bytes, ~4.95 MiB), contains valid JavaScript (`new vm.Script(code)` passed), and contains `padStart(3` for `str001`.
+   - `tad-master/packages/toad-app/html/index.html` line 11 and `dist/index.html` line 11 load `<script src="toadapp.bundle.js"></script>`.
+   - `tad-master/packages/toadviewer/dist/toadviewer.js` (2,891,952 bytes) and `dist/tadviewer.js` (2,891,951 bytes) both exist and contain valid JavaScript.
+
+4. **Asar Footprint & Zero-Duplicate Binary Policies**:
+   - `toad-app/package.json` lines 140–141 specify `"!**/node_modules/toadviewer/**"` and `"!**/node_modules/tadviewer/**"`.
+   - Current unpacked asar at `tad-master/packages/toad-app/release/win-unpacked/resources/app.asar` is **25.45 MB**, well below the 45.0 MB ceiling.
+   - Root contains only single executable `Toad.exe`.
+   - `releases/` contains exactly 9 canonical portable executables (`Toad-2.3.5-x64-portable.exe` to `Toad-2.4.7-x64-portable.exe`); zero duplicate aliases exist.
+   - Dedicated challenge harness `tests/test_pipeline_challenge.js` passed **46/46 tests** (exit code 0).
+
+5. **Empirical Regression Failure in `node run_tests.js --all`**:
+   - Executing `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all` exited with code 1:
+     - `tests/deep_integration_qa.js`: 221 passed, 1 failed:
+       `✗ [FAIL] E.2 RAM First-Page Micro-Cache returns 1000 rows in < 2ms with 0 Disk I/O`
+       `Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer\dist\MultipleLoadingManager'`
+     - `tests/legacy_use_cases.js`: Crashed on startup:
+       `Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\app_dist\portableAppData'`
+   - In `tests/deep_integration_qa.js:33`, `origExistsSync(redirected)` returns `false` when `targetPath` lacks an explicit extension (like `.js`), failing to redirect `require(".../tadviewer/dist/MultipleLoadingManager")`.
+   - In `toad-app/package.json:164`, `fileAssociations` lists `"ext": "tad"`, but is missing `"ext": "toad"`.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Test Suite Determinism**:
-   - Executing `tests/deep_integration_qa.js` across 3 complete runs yielded identical 200/200 pass counts with duration between 11.42s and 12.05s.
-   - DuckDB parquet ledger initialization, rename, and cleanup in JJ.7 reliably executed without file lock collisions or orphan leaks.
-2. **Implementation Quality & Edge Case Resilience**:
-   - While the QA suite used inline simulation functions in JJ.2, JJ.3, JJ.5, and JJ.6, empirical execution of the actual compiled `dist/components/ProjectFilesTable.js` proved that the actual implementation adheres to all contract specifications and edge conditions.
-3. **Pre-Flight Release Readiness**:
-   - `tools/bump_version.js` regex patterns match all 9 target files without syntax or parsing issues.
-   - Packaging scripts comply with Zero-Duplicate Binary storage rules.
-   - Surfacing the `releases/v2.4.3_NOTES.md` gate requirement allows the release packaging agent (M3) to author the release notes concurrently with running `bump_version.js 2.4.3`, preventing pipeline blockage.
+1. **Validation of Build & Packaging Scripts (Observation 1, 2, 3, 4)**:
+   The core build pipeline (`fastbuild.ps1`), release packaging script (`dist_package.ps1`), version bumper (`bump_version.js`), and asset references (`toadapp.bundle.js`, `toadviewer.js`, `index.html`) are structurally synchronized to the renamed `toad-app` and `toadviewer` packages, honoring all footprint and zero-duplicate policies.
+
+2. **Test Suite Resolution Regression (Observation 5)**:
+   - When packages were renamed from `tad-*` to `toad-*`, Worker M3 added `mapLegacyPath` in `deep_integration_qa.js` to redirect legacy path references.
+   - However, because `mapLegacyPath` tests `origExistsSync(redirected)` against paths without file extensions, Node requires to modules without explicit `.js` extensions fail to redirect.
+   - Furthermore, `tests/legacy_use_cases.js` does not have this hook and directly requires `tad-app/app_dist/portableAppData`.
+   - Because no NTFS junctions were placed at `tad-master/packages/tad-app` and `tad-master/packages/tadviewer`, both suites fail under `run_tests.js --all`.
+   - Acceptance Criterion R5.4 ("All 222+ test suite cases pass cleanly") is therefore violated.
 
 ---
 
 ## 3. Caveats
 
-- **Release Notes Dependency**: When executing Milestone 3 (version bumping and release packaging), `releases/v2.4.3_NOTES.md` must be created containing `"Toad v2.4.3"` so that post-bump assertion gate JJ.8 passes cleanly.
-- **Physical Packaging Environment**: Building final binaries via `electron-builder` requires full compilation and packaging (`dist_package.ps1`), which will be handled in Milestone 3.
+- **No Caveats**: All findings are empirically verified with executable tests. Zero speculative claims.
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: APPROVE**
+**Verdict: REQUEST_CHANGES**
 
-- The Milestone 1 (R1) and Milestone 2 (R2, R3, R4) implementations are complete, robust, and empirically verified.
-- The integration test suite `tests/deep_integration_qa.js` passes 200/200 test cases with 100% determinism.
-- The release pre-flight checks are verified and compliant with Zero-Duplicate Binary storage standards.
-- Advisory for Milestone 3 packager: Ensure `releases/v2.4.3_NOTES.md` is created when executing `tools/bump_version.js 2.4.3`.
+The build scripts, packaging configurations, Webpack bundles, and binary de-duplication rules are verified and robust. However, release gates cannot be cleared until the two test resolution regressions and the missing file association are addressed:
+
+1. **Fix `tests/deep_integration_qa.js` line 33**: Allow extension resolution in `mapLegacyPath` (`origExistsSync(redirected + ".js")`) so test E.2 resolves `MultipleLoadingManager.js`.
+2. **Fix `tests/legacy_use_cases.js`**: Update require statements or add NTFS directory junctions at `tad-master/packages/tad-app` and `tadviewer`.
+3. **Fix `toad-app/package.json`**: Add `"ext": "toad"` to `fileAssociations`.
 
 ---
 
 ## 5. Verification Method
 
-To independently verify these findings:
+To independently reproduce and verify these findings:
 
-1. **Execute Integration QA Suite**:
+1. **Verify Challenger Harness (Build & Packaging Pipeline)**:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\test_pipeline_challenge.js
+   ```
+   *Result*: 46/46 PASSED (100% of packaging rules satisfied).
+
+2. **Reproduce Deep Integration QA Failure (Test E.2)**:
    ```powershell
    & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
    ```
-   *Expected Output*: `Total Test Cases : 200`, `Passed : 200`, `Failed : 0`.
+   *Expected Failure*: `✗ [FAIL] E.2 ... Cannot find module '...tadviewer/dist/MultipleLoadingManager'` (221 passed, 1 failed).
 
-2. **Verify Multi-Run Determinism**:
+3. **Reproduce Legacy Use Cases Failure**:
    ```powershell
-   1..3 | ForEach-Object { & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js | Select-String "DEEP INTEGRATION QA TEST SUITE SUMMARY", "Passed", "Failed" }
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\legacy_use_cases.js
    ```
-   *Expected Output*: 3 identical summaries showing 200 Passed, 0 Failed.
+   *Expected Failure*: `Cannot find module '...tad-app/app_dist/portableAppData'`.
 
-3. **Verify Jujutsu Status**:
+4. **Reproduce Overall Test Runner Failure**:
    ```powershell
-   & "C:\Users\huydq\.cargo\bin\jj.exe" status
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all
    ```
-   *Expected Output*: Clean status showing only assigned modifications.
+   *Expected Failure*: Exits with code 1, `RESULT: ONE OR MORE TEST SUITES FAILED!`.

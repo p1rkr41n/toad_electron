@@ -1,15 +1,20 @@
-# Progress — challenger_1
+# Progress — Challenger 1
 
-Last visited: 2026-11-03T03:41:30Z
-Status: COMPLETED
+Last visited: 2026-11-03T12:38:15Z
 
-## Steps
-- [x] Initialized DISPATCH.md and BRIEFING.md
-- [x] Read ORIGINAL_REQUEST.md, PROJECT.md, and handoffs (worker_m1, worker_m2, test_writer_jj)
-- [x] Inspect implementation files in `src/` and `tests/`
-- [x] Task 1: Stress test `getRelativeParentDir` with corner and boundary cases (Deep, trailing slashes, leading, backslashes, mixed case, UNC, root files) -> 9/9 PASS
-- [x] Task 2: Stress test in-memory search filter (20k files, 50 projects; zero project name collision, latency < 3ms) -> 5/5 PASS
-- [x] Task 3: Stress test sort engine (equal sizes, 0-byte, multi-GB numeric sort, casing, 20k sort benchmark < 25ms) -> 6/6 PASS
-- [x] Task 4: Execute `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js` -> 200/200 PASS in 11.82s
-- [x] Task 5: Determine verdict -> APPROVE
-- [x] Task 6: Write handoff.md and notify orchestrator
+## Status
+- [x] Initialized DISPATCH.md, BRIEFING.md, and progress.md
+- [x] Read ORIGINAL_REQUEST.md and PROJECT.md
+- [x] Run full automated test suite (`node run_tests.js --all` and `node tests/deep_integration_qa.js`)
+- [x] Inspect test output line-by-line (pass counts, failures, warnings)
+  - Unified runner: FAIL (exit code 1)
+  - Smoke test: PASS (100% healthy, valid MZ header, valid asar)
+  - Deep Integration QA: 221 / 222 passed, 1 failed (test E.2: MultipleLoadingManager MODULE_NOT_FOUND)
+  - Legacy Use Cases: FAIL (Cannot find module '.../packages/tad-app/app_dist/portableAppData')
+- [x] Empirically test backward compatibility (.tad v1 vs .toad v2 serialization/deserialization)
+  - Created and ran `verify_backward_compat.js`: 7/7 PASSED cleanly
+- [x] Check for broken paths or import references across renamed packages (`toad-app`, `toadviewer`)
+  - Found missing package-level NTFS directory junctions `packages/tad-app` and `packages/tadviewer`
+  - Found extensionless path handling bug in `deep_integration_qa.js:mapLegacyPath`
+- [x] Compile analysis.md and handoff.md with verdict: **REQUEST_CHANGES**
+- [x] Send result message to caller

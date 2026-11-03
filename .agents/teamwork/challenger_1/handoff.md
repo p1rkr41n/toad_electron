@@ -1,172 +1,161 @@
-# Empirical Challenge Handoff Report: Toad v2.4.3 Workspace Overhaul
+# Handoff Report — Challenger 1 (Automated Test Suite Challenger)
 
-**Agent Identity**: `challenger_1`  
-**Archetype**: EMPIRICAL CHALLENGER  
-**Roles**: `critic`, `specialist`  
-**Parent Orchestrator**: `9ac5654e-b2b9-4aed-bbc4-dcd613ccea09`  
-**Milestone**: Empirical Challenge (Tasks 1–5)  
-**Date**: 2026-11-03  
-**Verdict**: **APPROVE**  
+**Milestone**: TOAD v2.4.8 Rebrand & Packaging Verification  
+**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1`  
+**Verdict**: **REQUEST_CHANGES**  
 
 ---
 
 ## 1. Observation
 
-Direct empirical execution was performed using the actual compiled JavaScript bundle (`tad-master/packages/tadviewer/dist/components/ProjectFilesTable.js`) and the master integration QA suite (`tests/deep_integration_qa.js`).
+1. **Unified Test Suite Runner**:
+   - Command: `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all`
+   - Result: Exited with code `1`.
+   - Output summary:
+     ```
+     ======================================================================
+                         OVERALL TEST EXECUTION SUMMARY                    
+     ======================================================================
+       ✔ [PASS] - Smoke Test (v2.1.6) (tests/smoke_test.js)
+       ✖ [FAIL (code 1)] - Deep Integration QA (133 Tests) (tests/deep_integration_qa.js)
+       ✖ [FAIL (code 1)] - Legacy Use Cases (19 Tests) (tests/legacy_use_cases.js)
+       Total Duration : 23.48s
+     ======================================================================
+       RESULT: ONE OR MORE TEST SUITES FAILED!
+     ```
 
-### 1.1 Task 4 Baseline Verification: `tests/deep_integration_qa.js`
-- **Execution Command**:
-  ```powershell
-  & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-  ```
-- **Verbatim Result**:
-  ```text
-  ======================================================================
-    SUITE JJ: Toad v2.4.3 Interactive File Table, Fast Search & Double-Click Rename
-  ======================================================================
-    ✓ [PASS] JJ.1 Native Menu Cleanup & Workspace Action Integration (1.06 ms)
-    ✓ [PASS] JJ.2 getRelativeParentDir Deterministic Calculation Engine (4.28 ms)
-    ✓ [PASS] JJ.3 Strict File-Name Search Filter (Zero Proj Collision & 0ms In-Memory Latency) (10.89 ms)
-    ✓ [PASS] JJ.4 Multi-Project Search Auto-Expansion & Non-Matching Project Suppression (0.52 ms)
-    ✓ [PASS] JJ.5 Interactive Table 4-Column Sorting Engine (3.89 ms)
-    ✓ [PASS] JJ.6 Interactive Table Column Filter & Compound Filtering (0.99 ms)
-    ✓ [PASS] JJ.7 In-Place Double-Click Project Rename: Ledger Integrity & Zero Disk I/O (99.09 ms)
-      [GATE NOTE] System currently at v2.4.2; v2.4.3 packaging gate ready for tools/bump_version.js 2.4.3
-    ✓ [PASS] JJ.8 Version 2.4.3 System-Wide Synchronization Gate (2.25 ms)
+2. **Deep Integration QA Test E.2 Failure**:
+   - In `tests/deep_integration_qa.js`: 221 tests passed, 1 test failed (E.2).
+   - Verbatim error log:
+     ```
+     ======================================================================
+       SUITE E: Toad v2.0.1 Dual Engine IPC & RAM First-Page Micro-Cache
+     ======================================================================
+       ✓ [PASS] E.1 RemoteConnection correctly serializes isBackground flag across IPC (1.63 ms)
+       ✗ [FAIL] E.2 RAM First-Page Micro-Cache returns 1000 rows in < 2ms with 0 Disk I/O
+         Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer\dist\MultipleLoadingManager'
+     Require stack:
+     - D:\Shared_UserData\Downloads\tad\tests\deep_integration_qa.js
+         at Module._resolveFilename (node:internal/modules/cjs/loader:1140:15)
+     ```
+   - In `tests/deep_integration_qa.js:393`:
+     ```javascript
+     const { MultipleLoadingManager } = require(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/dist/MultipleLoadingManager"));
+     ```
+   - In `tests/deep_integration_qa.js:28-33`:
+     ```javascript
+     if (origExistsSync(targetPath)) return targetPath;
+     let redirected = targetPath
+       .replace(/tad-master[/\\]packages[/\\]tad-app\b/, "tad-master/packages/toad-app")
+       .replace(/tad-master[/\\]packages[/\\]tadviewer\b/, "tad-master/packages/toadviewer")
+       .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js");
+     if (origExistsSync(redirected)) return redirected;
+     ```
+   - Testing `fs.existsSync("tad-master/packages/toadviewer/dist/MultipleLoadingManager")` without `.js` returns `false`. The actual file on disk is `MultipleLoadingManager.js`. Because `origExistsSync` returns `false`, `mapLegacyPath` fails to redirect to `toadviewer` and returns `targetPath` unmodified.
 
-  ======================================================================
-    DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.2 Dual Engine, RAM Cache & Multi-Format Extractor)
-  ======================================================================
-    Total Test Cases : 200
-    Passed           : 200
-    Failed           : 0
-    Total Duration   : 11.82s
-  ======================================================================
-  Command exited with code 0.
-  ```
+3. **Legacy Use Cases Crash**:
+   - In `tests/legacy_use_cases.js:96`:
+     ```javascript
+     const {
+       validateAndEnsureConfig,
+       DEFAULT_CONFIG,
+     } = require(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/app_dist/portableAppData"));
+     ```
+   - Verbatim error:
+     ```
+     Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\app_dist\portableAppData'
+     Require stack:
+     - D:\Shared_UserData\Downloads\tad\tests\legacy_use_cases.js
+         at Module._resolveFilename (node:internal/modules/cjs/loader:1140:15)
+     ```
 
-### 1.2 Task 1, 2, 3 Stress Suite: `tests/empirical_challenge_harness_1.js`
-- **Execution Command**:
-  ```powershell
-  & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\empirical_challenge_harness_1.js
-  ```
-- **Verbatim Result**:
-  ```text
-  ======================================================================
-    EMPIRICAL CHALLENGER 1: getRelativeParentDir Boundary & Stress Matrix
-  ======================================================================
-    ✓ [PASS] 1.1 Deeply nested directory structure (50 levels deep) (0.527 ms)
-    ✓ [PASS] 1.2 Deeply nested standalone file (immediate parent level only) (0.154 ms)
-    ✓ [PASS] 1.3 Trailing slashes normalization on folderRoot and filePath (0.155 ms)
-    ✓ [PASS] 1.4 Unix root & leading slash paths (0.161 ms)
-    ✓ [PASS] 1.5 Mixed backslashes, forward slashes, and redundant separators (0.073 ms)
-    ✓ [PASS] 1.6 Case-insensitive path comparison across different casings (0.216 ms)
-    ✓ [PASS] 1.7 UNC Network Share Paths (\\server\share\...) (0.127 ms)
-    ✓ [PASS] 1.8 Root drive files and minimal paths (0.079 ms)
-    ✓ [PASS] 1.9 Unicode, spaces, and special URI-like characters in file paths (0.296 ms)
+4. **Directory Structure on Disk**:
+   - Running `Get-Item "d:\Shared_UserData\Downloads\tad\tad-master\packages\*"` reveals:
+     - `toad-app` exists
+     - `toadviewer` exists
+     - `tad-app` DOES NOT exist
+     - `tadviewer` DOES NOT exist
+   - In `tad-master/packages/toad-app/node_modules/`:
+     - Junctions `toadviewer` and `tadviewer` exist pointing to `../../toadviewer`.
+     - But in `tad-master/packages/`, no backward-compatibility directory junctions exist.
 
-  ======================================================================
-    EMPIRICAL CHALLENGER 1: In-Memory Search Engine Stress Test (20k Files)
-  ======================================================================
-    Constructed test catalog: 50 projects, ~20001 files total.
-    ✓ [PASS] 2.1 Project Name search NEVER matches non-matching files (Zero Collision) (23.997 ms)
-    ✓ [PASS] 2.2 Single exact file needle in 20,000 file catalog (2.163 ms)
-    ✓ [PASS] 2.3 Broad query ('parquet') filtering 20,000 files in < 25ms (2.978 ms)
-    ✓ [PASS] 2.4 Adversarial query strings (regex symbols, unicode, quotes, braces) (39.236 ms)
-    ✓ [PASS] 2.5 Empty query restoration maintains all files with 0ms overhead (0.234 ms)
+5. **Smoke Test & Packaging**:
+   - `tests/smoke_test.js` executed cleanly (100% HEALTHY).
+   - `Toad.exe` size: 72.10 MB (< 75 MB budget). PE header: valid 'MZ'.
+   - `app.asar` contains 6,027 entries; zero BigQuery remnants; lodash present; zero `.map` files.
 
-  ======================================================================
-    EMPIRICAL CHALLENGER 1: Interactive Table Sort Engine Stress Test
-  ======================================================================
-    ✓ [PASS] 3.1 Stable sorting with identical file sizes (0.737 ms)
-    ✓ [PASS] 3.2 0-byte, null, and undefined file size edge conditions (0.111 ms)
-    ✓ [PASS] 3.3 Multi-gigabyte numeric sorting (Strict numeric bytes vs alphabetical) (19.065 ms)
-    ✓ [PASS] 3.4 Identical file names with different cases (0.143 ms)
-      Sorting 20,000 items latency:
-        Name sort  : 14.64 ms
-        Size sort  : 16.64 ms (Numeric)
-        Dir sort   : 14.68 ms
-        Status sort: 8.96 ms
-    ✓ [PASS] 3.5 High-volume sort benchmark on 20,000 files across all columns (60.129 ms)
-    ✓ [PASS] 3.6 formatFileBytes boundary formatting (B, KB, MB, GB, 0 B) (0.207 ms)
-
-  ======================================================================
-    EMPIRICAL CHALLENGER 1 HARNESS SUMMARY
-  ======================================================================
-    Total Challenges Executed : 20
-    Passed                    : 20
-    Failed                    : 0
-  ======================================================================
-  ALL EMPIRICAL CHALLENGES PASSED CONVINCINGLY!
-  Command exited with code 0.
-  ```
+6. **Backward Compatibility Verification**:
+   - Test harness `verify_backward_compat.js` executed against actual repo files:
+     - TC-1: Real legacy `.tad` workspace (`tadFileFormatVersion: 1`) correctly migrated `targetPath` to `DataSourcePath`.
+     - TC-2: Second legacy `.tad` workspace with filters correctly parsed.
+     - TC-3: New `.toad` workspace serialized with dual headers (`toadFileFormatVersion: 2`, `tadFileFormatVersion: 2`).
+     - TC-4 & TC-5: Both `.toad` and `.tad` extensions deserialized accurately.
+     - TC-6: Hybrid migration fallback succeeded.
+     - TC-7: Malformed JSON threw `SyntaxError`.
+   - Result: 7/7 PASSED.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Task 1: `getRelativeParentDir` Robustness**:
-   - *Observation*: Tested 9 adversarial matrix scenarios against the compiled production implementation (`tad-master/packages/tadviewer/dist/components/ProjectFilesTable.js:78-107`).
-   - *Logic*:
-     - Deep paths (50 directory levels) correctly yielded the full relative directory ending in `"/"` under `folderRoot` and the immediate parent directory when standalone.
-     - Redundant trailing slashes (e.g. `folderRoot = "C:/data///"`) are stripped via regex `.replace(/\/+$/, "")`, preventing spurious double slashes.
-     - UNC paths (`\\server\share\folder\file.csv` and `\\192.168.1.100\...`) properly resolved share-relative directories (`folder/` or `./`).
-     - Root files across platforms (`C:/file.csv`, `C:\file.csv`, `/access.log`, and bare `file.csv`) deterministically returned `"./"`.
-     - Null, undefined, and empty string gracefully returned `"./"`.
-
-2. **Task 2: In-Memory Search Zero-Collision & Stress Scalability**:
-   - *Observation*: Tested a synthetic mock catalog containing 20,001 files distributed across 50 distinct projects.
-   - *Logic*:
-     - When queries matching project names (e.g., `"Financial"`, `"Cyber"`, `"Healthcare"`) were executed, exactly 0 non-matching files were returned and non-matching projects were hidden (`shouldShow === false`). This confirms that the elimination of `projMatches` in `DataSourceSidebar.tsx:600-622` has 100% eradicated project-name leakage.
-     - Search latency for needle-in-haystack was measured at **2.16 ms**, and broad query matching 4,000 files across 50 projects executed in **2.98 ms**. This easily satisfies the 0ms / sub-15ms interactive typing budget.
-     - Malicious inputs containing regex special characters (`.*`, `[a-z]+`, `(.*)?`), SQL injection patterns, script tags, and path traversal strings evaluated safely via `String.prototype.includes` without throwing unhandled exceptions.
-
-3. **Task 3: Sort Engine Multi-Gigabyte Numeric Safety & Stability**:
-   - *Observation*: Evaluated `sortFiles` on identical sizes, boundary values (0 B, null, undefined), multi-gigabyte files (512 B to 50 GB), casing variations, and large 20k arrays.
-   - *Logic*:
-     - Size sorting uses numeric difference `(a.fileSizeBytes || 0) - (b.fileSizeBytes || 0)`. Tested against a 5-file dataset ranging from 512 B to 53,687,091,200 bytes (50 GB). Numeric ASC sort strictly yielded `[512, 1024, 2097152, 5368709120, 53687091200]`, directly disproving alphabetical ordering bugs (where `"512"` or `"50 GB"` orders improperly against `"1024"` or `"2 MB"`).
-     - Identical size elements retained original array stability.
-     - Sorting 20,000 rows across Name, Size, Dir, and Status columns took between 8.96 ms and 16.64 ms, proving data-dense table sorting will not cause UI thread stutters.
-
-4. **Task 4: Master Integration QA Suite**:
-   - *Observation*: All 200 test cases in `tests/deep_integration_qa.js` passed with zero errors in 11.82 seconds.
-   - *Logic*: Sub-suites `JJ.1` through `JJ.8` run successfully alongside all pre-existing suites A through II, guaranteeing zero architectural regression.
+1. From Observation 1, the unified test suite runner `run_tests.js --all` must exit with code `0` and all 222+ tests must pass to satisfy acceptance criteria R5.4.
+2. From Observation 2, `tests/deep_integration_qa.js` executed 222 tests, but test `E.2` failed because `mapLegacyPath` only checked `origExistsSync(redirected)`. Because Node allows requiring modules without the `.js` extension, `origExistsSync` returned `false` for extensionless file paths like `toadviewer/dist/MultipleLoadingManager`. Thus, redirection was skipped and the legacy un-renamed path was retained, throwing `MODULE_NOT_FOUND`.
+3. From Observation 3 and 4, `tests/legacy_use_cases.js` hardcodes paths to `tad-master/packages/tad-app` and `tad-master/packages/tadviewer`. Because the packages were renamed on disk to `toad-app` and `toadviewer` without creating backward-compatibility NTFS junctions in `tad-master/packages/`, `legacy_use_cases.js` crashed on line 96.
+4. From Observation 5 and 6, the core rebrand logic, DuckDB view prefixes (`toad_tmpView_`), UI classes (`.toad-app-pane`), error events (`toad-query-error`), Webpack output (`toadapp.bundle.js`), and workspace format backward compatibility (`.toad` / `.tad`) are correctly implemented and functional.
+5. Therefore, the failure of the automated test suite is strictly caused by:
+   - Missing package-level NTFS directory junctions `tad-master/packages/tad-app` and `tad-master/packages/tadviewer`.
+   - Extensionless file path resolution flaw in `tests/deep_integration_qa.js:mapLegacyPath`.
+6. Therefore, the required verdict is **REQUEST_CHANGES**.
 
 ---
 
 ## 3. Caveats
 
-- **No Caveats**: All 4 empirical tasks were tested with real, executing code.
-- Note on JJ.8 Release Gate: In the current development stage, the repository packages are at `2.4.2` prior to running `tools/bump_version.js 2.4.3`. `JJ.8` appropriately tolerates pre-bump `2.4.2` and logs the gate status message while verifying all styles, menu handlers, and bump tool availability.
+- Implementation modifications were not made by Challenger 1, strictly upholding the `Review-only — do NOT modify implementation code` constraint.
+- Packaging verification of `fastbuild.ps1` and `package_release.ps1` for v2.4.8 is in progress by other worker subagents; Challenger 1 focused on automated test runner regression, backward compatibility, and broken references.
+- No other caveats.
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: APPROVE**
+**Verdict**: **REQUEST_CHANGES**
 
-All empirical challenge requirements are fully satisfied:
-1. `getRelativeParentDir` handles all edge cases (deep paths, trailing slashes, leading slashes, mixed backslashes, mixed case, UNC network paths, root drive files, unicode) cleanly and deterministically.
-2. In-memory search is strictly 100% file-name based with zero project-name collision, running in < 3 ms across 20,000 files.
-3. The sort engine operates with strict numeric precision on multi-gigabyte files, stable on identical sizes, and sorts 20,000 rows in < 20 ms.
-4. Master QA test suite `tests/deep_integration_qa.js` passes 200/200 tests (100% pass rate).
+The work product demonstrates solid architecture and correct serialization/deserialization logic, but fails the project's non-negotiable quality gate:
+- `node run_tests.js --all` exits with code 1.
+- `tests/deep_integration_qa.js` passes 221/222 (test E.2 fails).
+- `tests/legacy_use_cases.js` fails with `MODULE_NOT_FOUND`.
 
-The codebase is robust and ready for version bumping and release packaging.
+### Required Fixes:
+1. **Create Package-Level Directory Junctions**:
+   ```cmd
+   mklink /J "D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app" "D:\Shared_UserData\Downloads\tad\tad-master\packages\toad-app"
+   mklink /J "D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer" "D:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer"
+   ```
+2. **Fix `mapLegacyPath` in `tests/deep_integration_qa.js`**:
+   Ensure `mapLegacyPath` checks for file existence with extensions (`.js`, `.ts`) so that extensionless `require()` calls redirect to `toadviewer`.
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce all empirical challenge results:
-
-1. **Run the Challenger Stress Harness**:
+1. Run the unified test runner:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\empirical_challenge_harness_1.js
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all
    ```
-   *Expected Result*: All 20 empirical challenges PASS with exit code 0.
-
-2. **Run Master Integration QA Suite**:
+   **Expected Outcome after fixes**: Exit code 0, 100% test suites pass cleanly.
+2. Run Deep Integration QA directly:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests/deep_integration_qa.js
    ```
-   *Expected Result*: 200 test cases passed, 0 failed, duration < 15.0s.
+   **Expected Outcome after fixes**: 222 passed, 0 failed.
+3. Run Legacy Use Cases directly:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests/legacy_use_cases.js
+   ```
+   **Expected Outcome after fixes**: Exit code 0, all tests pass.
+4. Run Backward Compatibility Harness:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" .agents/teamwork/challenger_1/verify_backward_compat.js
+   ```
+   **Current Outcome**: 7/7 PASSED.
