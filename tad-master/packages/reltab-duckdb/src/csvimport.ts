@@ -2726,22 +2726,26 @@ export async function streamCsvToParquet(
   const isComplex = isComplexLogFile(filePath);
 
   // Layer 1: Neu la file log phuc tap (Hayabusa, Security, EventLog, v.v.):
-  // Kich hoat thang Safe Ingest Profile (all_varchar = true, parallel = false, quote = '"', escape = '')
+  // Kich hoat thang Safe Ingest Profile (all_varchar = true, parallel = false, delim = ',')
   // 100% vector vat ly la PhysicalType::VARCHAR, triet tieu tuyet doi loi assertion tai vector.cpp:1859!
+  const isCsv = filePath.toLowerCase().endsWith(".csv");
+  const isTsv = filePath.toLowerCase().endsWith(".tsv");
+  const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
+
   if (isComplex) {
     log.info("[Ingest Safe Profile] Kich hoat Direct Safe Profile cho file log phuc tap:", filePath);
-    // STAGE 1: Safe Profile với đầy đủ delim=',', all_varchar=true
+    // STAGE 1: Safe Profile với đầy đủ delim, all_varchar=true (RFC-4180 chuẩn, TUYỆT ĐỐI không dùng escape='')
     const safeQuery = `
       COPY (
         SELECT * FROM read_csv(
           '${safeSrc}',
+          ${defaultDelimClause || "delim = ',',"}
           auto_detect = true,
           sample_size = 100000,
           ignore_errors = true,
           null_padding = true,
           parallel = false,
-          all_varchar = true,
-          delim = ','
+          all_varchar = true
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
@@ -2759,7 +2763,7 @@ export async function streamCsvToParquet(
         SELECT * FROM read_csv(
           '${safeSrc}',
           header = true,
-          delim = ',',
+          ${defaultDelimClause || "delim = ',',"}
           ignore_errors = true,
           null_padding = true,
           parallel = false,
@@ -2781,7 +2785,7 @@ export async function streamCsvToParquet(
         SELECT * FROM read_csv(
           '${safeSrc}',
           header = true,
-          delim = '\t',
+          delim = '\\t',
           ignore_errors = true,
           null_padding = true,
           parallel = false,
@@ -2804,23 +2808,22 @@ export async function streamCsvToParquet(
     return;
   }
 
-  // Tier 0: Lệnh chính RFC-4180 chuẩn (quote='"', escape='' triệt tiêu hoàn toàn RemoveEscape trên cột số)
+  // Tier 0: Lệnh chính RFC-4180 chuẩn (định rõ delim cho CSV/TSV, TUYỆT ĐỐI không dùng escape='' làm hỏng sniffer)
   const tier0Query = `
     COPY (
       SELECT * FROM read_csv(
         '${safeSrc}',
+        ${defaultDelimClause}
         auto_detect = true,
         sample_size = 100000,
         ignore_errors = true,
-        null_padding = true,
-        quote = '"',
-        escape = ''
+        null_padding = true
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
   try {
-    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (escape='')...");
+    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
     await dbConn.exec(tier0Query);
     log.info("[Ingest Tier 0] Thanh cong!");
     return;
@@ -2833,13 +2836,12 @@ export async function streamCsvToParquet(
     COPY (
       SELECT * FROM read_csv(
         '${safeSrc}',
+        ${defaultDelimClause}
         auto_detect = true,
         sample_size = 100000,
         ignore_errors = true,
         null_padding = true,
-        parallel = false,
-        quote = '"',
-        escape = ''
+        parallel = false
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -2858,14 +2860,13 @@ export async function streamCsvToParquet(
     COPY (
       SELECT * FROM read_csv(
         '${safeSrc}',
+        ${defaultDelimClause}
         auto_detect = true,
         sample_size = 100000,
         ignore_errors = true,
         null_padding = true,
         parallel = false,
-        all_varchar = true,
-        quote = '"',
-        escape = ''
+        all_varchar = true
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -2885,7 +2886,7 @@ export async function streamCsvToParquet(
       SELECT * FROM read_csv(
         '${safeSrc}',
         header = true,
-        delim = ',',
+        ${defaultDelimClause || "delim = ',',"}
         ignore_errors = true,
         null_padding = true,
         parallel = false,
@@ -3097,15 +3098,18 @@ export const nativeCSVImport = async (
         // Giai đoạn 5: Tạo VIEW ngay từ file Parquet có sẵn (0ms conversion, 0 duplicate bytes!)
         await createViewFromParquet(dbConn, parquetPath, tableName);
 
-        // Kiểm tra xem cache có bị đóng băng ở trạng thái lỗi 1 cột raw_event cho file .csv không
+        // Kiểm tra xem cache có bị đóng băng ở trạng thái lỗi 1 cột raw_event hoặc nhầm delimiter cho file .csv không
         const srcExt = path.extname(filePath).toLowerCase();
         let isCorruptedFallbackCache = false;
         if (srcExt === ".csv") {
           try {
             const cols = await dbConn.all(`DESCRIBE ${tableName}`);
-            if (cols.length === 1 && cols[0].column_name === "raw_event") {
+            const firstColName = (cols[0]?.column_name || "").replace(/^\uFEFF/, "");
+            const isOneColRawEvent = cols.length === 1 && firstColName === "raw_event";
+            const isMisparsedDelimiter = firstColName.includes(",") && (cols.length === 1 || cols.some((c: any) => /^column\d+$/i.test(c.column_name)));
+            if (isOneColRawEvent || isMisparsedDelimiter) {
               log.warn(
-                `[TOAD Ingest Cache] Phat hien cache 1-cot raw_event loi thoi cho "${path.basename(
+                `[TOAD Ingest Cache] Phat hien cache loi delimiter (${isOneColRawEvent ? '1-cot raw_event' : 'header chua dau phay'}) cho "${path.basename(
                   filePath
                 )}". Tu dong dao thai cache va nap lai da cot!`
               );
@@ -3128,7 +3132,7 @@ export const nativeCSVImport = async (
                   row_count: 0,
                   status: "DELETED",
                   duration_ms: 0,
-                  extra_json: JSON.stringify({ reason: "corrupted_1col_raw_event_cache" }),
+                  extra_json: JSON.stringify({ reason: isOneColRawEvent ? "corrupted_1col_raw_event_cache" : "corrupted_delim_sniffer_cache" }),
                 })
                 .catch(() => {});
             }
@@ -3592,10 +3596,14 @@ export const nativeCSVImport = async (
       }
     }
 
+    const isCsvFile = ext === ".csv";
+    const isTsvFile = ext === ".tsv";
+    const memDelimClause = isCsvFile ? "delim=','," : isTsvFile ? "delim='\\t'," : "";
+
     // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
     if (isComplexLogFile(filePath)) {
       try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, delim=',', quote='"', escape='')`;
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
         await dbConn.all(query);
         const importTime = process.hrtime(importStart);
         log.info(
@@ -3606,7 +3614,7 @@ export const nativeCSVImport = async (
       } catch (errSafe) {
         log.warn("[Ingest In-Memory Safe Profile] That bai, thu Force Header:", errSafe);
         try {
-          const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, delim=',', quote='"', escape='', ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+          const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
           await dbConn.all(queryHeader);
           return tableName;
         } catch (errHeader) {
@@ -3615,9 +3623,9 @@ export const nativeCSVImport = async (
       }
     }
 
-    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict with escape='')
+    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, quote='"', escape='')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true)`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3631,7 +3639,7 @@ export const nativeCSVImport = async (
 
     // Tier 1: parallel=false
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, quote='"', escape='')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false)`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3645,7 +3653,7 @@ export const nativeCSVImport = async (
 
     // Tier 2: all_varchar=true (guaranteed success)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, quote='"', escape='')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3656,7 +3664,7 @@ export const nativeCSVImport = async (
     } catch (err2) {
       log.warn("[Ingest In-Memory Tier 2] That bai, thu Force Header (Tier 2b):", err2);
       try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, delim=',', quote='"', escape='', ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
         await dbConn.all(query);
         log.info("[Ingest In-Memory Tier 2b Force Header] Thanh cong!");
         return tableName;

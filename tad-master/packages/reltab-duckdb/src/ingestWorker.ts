@@ -86,21 +86,23 @@ async function runWorker() {
         await dbConn.exec(forceHeaderQuery);
       }
     } else {
-      // Standard CSV with 3-tier fallback (TUYỆT ĐỐI không dùng escape='"' gây crash)
+      // Standard CSV with 3-tier fallback (định rõ delim cho CSV/TSV, TUYỆT ĐỐI không dùng escape='' làm hỏng sniffer)
+      const isCsv = filePath.toLowerCase().endsWith(".csv");
+      const isTsv = filePath.toLowerCase().endsWith(".tsv");
+      const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
       let succeeded = false;
 
-      // Tier 0: RFC-4180 chuẩn (quote='"', escape='')
+      // Tier 0: RFC-4180 chuẩn (delim=',')
       try {
         const tier0 = `
           COPY (
             SELECT * FROM read_csv(
               '${safeSrc}',
+              ${defaultDelimClause}
               auto_detect = true,
               sample_size = 100000,
               ignore_errors = true,
-              null_padding = true,
-              quote = '"',
-              escape = ''
+              null_padding = true
             )
           ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
         `;
@@ -117,13 +119,12 @@ async function runWorker() {
             COPY (
               SELECT * FROM read_csv(
                 '${safeSrc}',
+                ${defaultDelimClause}
                 auto_detect = true,
                 sample_size = 100000,
                 ignore_errors = true,
                 null_padding = true,
-                parallel = false,
-                quote = '"',
-                escape = ''
+                parallel = false
               )
             ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
           `;
@@ -135,20 +136,19 @@ async function runWorker() {
       }
 
       if (!succeeded) {
-        // Tier 2: all_varchar=true (100% columns VARCHAR)
+        // Tier 2: all_varchar=true (100% columns VARCHAR, triệt tiêu assertion)
         try {
           const tier2 = `
             COPY (
               SELECT * FROM read_csv(
                 '${safeSrc}',
+                ${defaultDelimClause}
                 auto_detect = true,
                 sample_size = 100000,
                 ignore_errors = true,
                 null_padding = true,
                 parallel = false,
-                all_varchar = true,
-                quote = '"',
-                escape = ''
+                all_varchar = true
               )
             ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
           `;
@@ -166,7 +166,7 @@ async function runWorker() {
             SELECT * FROM read_csv(
               '${safeSrc}',
               header = true,
-              delim = ',',
+              ${defaultDelimClause || "delim = ',',"}
               ignore_errors = true,
               null_padding = true,
               parallel = false,
