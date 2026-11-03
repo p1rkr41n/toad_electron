@@ -1,0 +1,1 @@
+# Explorer IPC Frontend Workspace

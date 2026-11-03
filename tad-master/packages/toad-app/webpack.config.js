@@ -136,6 +136,22 @@ var app = {
   },
 };
 
+var engine = {
+  target: "node",
+  entry: {
+    engineService: "./app/engineService.ts",
+  },
+  externalsPresets: { node: true },
+  externals: [
+    nodeExternals(),
+    nodeExternals({ modulesDir: "../../node_modules" }),
+  ],
+  node: {
+    __dirname: false,
+    __filename: false,
+  },
+};
+
 function merge(config, env) {
   var merged = Object.assign({}, env, config);
   merged.plugins = (config.plugins || []).concat(env.plugins || []);
@@ -143,8 +159,16 @@ function merge(config, env) {
 }
 
 const configMap = {
-  development: [merge(app, development()), merge(render, development())],
-  production: [merge(app, production()), merge(render, production())],
+  development: [
+    merge(app, development()),
+    merge(render, development()),
+    merge(engine, development()),
+  ],
+  production: [
+    merge(app, production()),
+    merge(render, production()),
+    merge(engine, production()),
+  ],
 };
 
 module.exports = function (env, argv) {

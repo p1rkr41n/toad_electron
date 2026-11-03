@@ -1,106 +1,185 @@
-# Victory Audit Report — TOAD v2.4.8 Rebrand
+# Handoff Report: Post-Victory Audit for TOAD v2.5.0 IPC Architectural Migration
 
-## 1. Observation
-- The implementation swarm claimed victory for the complete rebrand of TAD to TOAD at version `v2.4.8` per `ORIGINAL_REQUEST.md`.
-- Post-victory independent audit was conducted across three distinct phases: Timeline & Provenance Audit, Cheating & Integrity Forensics, and Independent Test Execution & Release Verification.
-- Timeline & Provenance:
-  - Jujutsu VCS shows commit `klqlvyzy d4a6c743` titled `"release: TOAD v2.4.8 full rebrand and portable packaging"` authored at `2026-11-03 18:31:12` and committed at `20:17:06`, branching cleanly from parent commit `mqorlvtq 9b2dca3c` (`Toad v2.4.7 release`).
-  - Swarm artifacts confirm authentic multi-agent development: survey -> parallel implementation (Workers M1, M2, M3) -> review gate with rejection (Challengers 1 & 2, Auditor 1 veto on test runner failure) -> remediation loop (Explorer Remediation, Worker Remediation) -> Auditor 2 CLEAN certification -> Worker M5 packaging.
-- Integrity Forensics:
-  - Source code analysis confirmed genuine implementations without shortcuts:
-    - DuckDB internal view generation in `tad-master/packages/reltab-duckdb/src/reltab-duckdb.ts:35`: `toad_tmpView_${viewCounter++}`.
-    - Webpack entry output in `tad-master/packages/toad-app/webpack.config.js:119`: `toadapp` -> `dist/toadapp.bundle.js`.
-    - Script reference in `tad-master/packages/toad-app/html/index.html:11`: `<script src="toadapp.bundle.js"></script>`.
-    - Asar exclusion pattern in `tad-master/packages/toad-app/package.json:140`: `!**/node_modules/toadviewer/**`.
-    - Backward compatibility in `tad-master/packages/toad-app/src/openParams.ts` (`OpenToad`, `OpenTad`) and `appWindow.ts:375` (`toadFileFormatVersion: 2`, `tadFileFormatVersion: 2`, dialog filters for `.toad` and `.tad`).
-    - UI container class `.toad-app-pane` in `toadviewer/src/components/AppPane.tsx` and `toadviewer/less/tadviewer.less`.
-    - Custom event `toad-query-error` in `PivotRequester.ts` and `FilterEditor.tsx`.
-    - Window title `<File/Project> - TOAD` and About dialog `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)`.
-  - Zero lingering imports of `"tadviewer"` found in TypeScript source files.
-  - Zero hardcoded mock returns, bypassed assertions, or fabricated verification artifacts.
-- Independent Test Execution & Artifact Verification:
-  - Unified Test Suite: `node run_tests.js --all` exited with code 0 in 29.55s (Smoke Test PASS, Deep Integration QA PASS, Legacy Use Cases PASS).
-  - Standalone Deep QA Suite: `node tests/deep_integration_qa.js` executed all 222 test cases cleanly in 16.25s (222 Passed, 0 Failed, exit code 0).
-  - Standalone Smoke Test: `node tests/smoke_test.js` executed cleanly, validating 72.10 MB portable binary, 'MZ' PE header, asar entries, and live bootstrap process.
-  - Standalone Pipeline Challenge: `node tests/test_pipeline_challenge.js` passed 46/46 tests cleanly.
-  - Release Artifacts:
-    - `releases/Toad-2.4.8-x64-portable.exe`: 75,600,394 bytes (72.10 MB <= 75.0 MB budget), valid MZ header (`0x4D 0x5A`) and PE header (`PE\0\0` at offset 216).
-    - `releases/Toad-2.4.8-x64-portable.zip`: 75,605,419 bytes, valid PK header (`0x50 0x4B 0x03 0x04`).
-    - Cryptographic SHA-256 verification:
-      - `Toad-2.4.8-x64-portable.exe`: `6cfa2162f9688c595d07f4b1bf985adf3c146ea282fb2f7d1a6138073a432ada` (100% exact match).
-      - `Toad-2.4.8-x64-portable.zip`: `bd3889b466a82456a396595ef172294c21ca792dd19371bbb158290fd9f79770` (100% exact match).
-    - `releases/v2.4.8_NOTES.md` and `releases/HelloKittyXamKinLung.Toad.yaml` properly generated and synchronized with version `2.4.8`.
-  - Storage & VCS Policies:
-    - Root directory contains exactly 1 binary: `Toad.exe`. Zero duplicate historical binaries.
-    - Jujutsu (`jj`) local tracking is clean and healthy.
-
-## 2. Logic Chain
-1. Timeline and commit forensics demonstrate an authentic iterative development process with realistic timestamps and an enforced quality gate rejection and remediation cycle.
-2. Forensic inspection of project source files, build configurations, and test runners revealed zero cheating patterns (no mocked results, no dummy facades, no bypassed assertions, no disabled checks).
-3. Independent empirical execution of the canonical test commands (`node run_tests.js --all`, `node tests/deep_integration_qa.js`, `node tests/smoke_test.js`, and `node tests/test_pipeline_challenge.js`) produced 100% pass rates matching claimed scores.
-4. Binary forensics confirmed genuine executable (MZ/PE) and archive (PK) headers, sizes well within budgets, and cryptographic hash equivalence against `SHA256SUMS.txt`.
-5. All requirements R1–R5 from `ORIGINAL_REQUEST.md` and repository guidelines from `AGENTS.md` are completely satisfied.
-
-## 3. Caveats
-- No caveats. All checks were empirically verified through independent execution and source inspection.
-
-## 4. Conclusion
-- VICTORY CONFIRMED. The TOAD v2.4.8 full rebrand is complete, fully functional, backwards compatible, rigorously tested, properly packaged, and cryptographically verified.
-
-## 5. Verification Method
-1. Unified Test Runner:
-   ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node run_tests.js --all
-   ```
-2. Standalone Deep QA (222 Tests):
-   ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node tests/deep_integration_qa.js
-   ```
-3. Standalone Smoke Test:
-   ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node tests/smoke_test.js
-   ```
-4. Cryptographic & Header Verification:
-   ```powershell
-   d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe -e "
-   const fs = require('fs'), crypto = require('crypto');
-   const exe = fs.readFileSync('releases/Toad-2.4.8-x64-portable.exe');
-   const zip = fs.readFileSync('releases/Toad-2.4.8-x64-portable.zip');
-   const sums = fs.readFileSync('releases/SHA256SUMS.txt', 'utf8');
-   const exeHash = crypto.createHash('sha256').update(exe).digest('hex');
-   const zipHash = crypto.createHash('sha256').update(zip).digest('hex');
-   console.log('EXE Match:', sums.includes(exeHash), 'MZ:', exe[0]===0x4D && exe[1]===0x5A);
-   console.log('ZIP Match:', sums.includes(zipHash), 'PK:', zip[0]===0x50 && zip[1]===0x4B);
-   "
-   ```
+**Auditor**: `victory_auditor` (`c3b1905f-92cf-460a-b386-0a9a4da44f00`)  
+**Target**: TOAD v2.5.0 IPC Architectural Migration to Electron `utilityProcess` and Host Bridge  
+**Caller / Sentinel**: `c58e55ac-005f-4db9-a4b2-db2e2a1e8982`  
+**Date**: 2026-11-04  
+**Verdict**: **VICTORY CONFIRMED**
 
 ---
 
+## 1. Observation
+
+### 1.1 Timeline & Provenance Audit (Phase A)
+- **Jujutsu VCS Status**: Working copy revision `@` (`osxolpnr d1537067`), commit message: `feat: TOAD v2.5.0 IPC architectural migration to Electron utilityProcess`.
+- **Handoff Progression**: Natural chronological timestamp progression across the team:
+  - `spec_miner_ipc_survey`: 10:59:49 PM
+  - `explorer_ipc_frontend` / `explorer_ipc_backend`: 11:02:38 PM – 11:03:30 PM
+  - `worker_m1_bridge`: 11:16:58 PM
+  - `worker_m2_engine_replacement`: 12:04:08 AM
+  - `worker_m3_supervisor`: 12:24:40 AM
+  - `worker_m4_packaging`: 12:43:20 AM
+  - `worker_m5_qa`: 12:56:36 AM
+  - `auditor_ipc`, `reviewer_ipc_1/2`, `challenger_ipc_1/2`: 1:05:04 AM – 1:09:43 AM
+  - `orchestrator`: 1:10:58 AM
+- **Pre-populated Artifacts**: Scanned for pre-existing `.log`, `*result*`, and `*output*` files; verified zero pre-populated test attestation files or mock execution logs in test directories.
+- **Zero-Duplicate Binary Storage**: Inspected root and `releases/`. Found only single canonical root binary `Toad.exe` (72.11 MB) and `releases/Toad-2.5.0-x64-portable.exe` / `.zip`. No duplicate historical binaries generated.
+
+### 1.2 Forensic Integrity & Architecture Verification (Phase B)
+- **R1 (Version Bumping & Dual-Mode Configuration)**:
+  - Verified `2.5.0` present and synchronized across all 9 metadata files:
+    1. `tad-master/packages/toad-app/package.json`: `"version": "2.5.0"`
+    2. `tad-master/packages/host-bridge/package.json`: `"version": "2.5.0"`
+    3. `tad-master/packages/reltab-duckdb/package.json`: `"version": "2.5.0"`
+    4. `tad-master/packages/toadviewer/package.json`: `"version": "2.5.0"`
+    5. `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`: `v2.5.0`
+    6. `dist_package.ps1`: `Toad-2.5.0-x64-portable.exe` & `v2.5.0` check
+    7. `package_release.ps1`: `$Version = "2.5.0"`
+    8. `README.md`: `Toad (v2.5.0)` & `badge/Version-2.5.0-`
+    9. `releases/HelloKittyXamKinLung.Toad.yaml`: `PackageVersion: 2.5.0`
+  - Dual-mode configuration implemented in `portableAppData.ts` (`runtime.engine = "utility" | "legacy"`), defaults to `"utility"` with auto-fallback.
+- **R2 (Host Bridge Abstraction & CLI Test Compatibility)**:
+  - `appWindow.ts`: `webPreferences.nodeIntegration: false`, `contextIsolation: true` in utility mode (`isLegacy = false`).
+  - `preload.js`: exposes `window.toadBridge` via `contextBridge.exposeInMainWorld` providing `.invoke()`, `.send()`, `.on()`.
+  - `packages/host-bridge`: `IHostBridge` interface; `HeadlessNodeAdapter` cleanly implements `IHostBridge` and `TransportClient`, allowing 168+ CLI tests to run without an Electron window.
+- **R3 (Dedicated Engine Service & Hybrid Protocol)**:
+  - `engineService.ts`: Electron `utilityProcess` hosting DuckDB connection pool, Ingest pipeline, and `ToadParquetLedger` WAL.
+  - `hybridProtocol.ts`: Serializes tabular query blocks into zero-copy Transferable `ArrayBuffer` with `'TOAD'` magic bytes (`[0x54, 0x4F, 0x41, 0x44]`) and protocol version 1.
+  - `Connection.ts` & `server.ts`: Asynchronous RPC query dispatch and binary deserialization over `MessagePort`.
+- **R4 (Crash Supervision & Auto-Recovery)**:
+  - `engineSupervisor.ts`: Singleton managing child lifecycle, monitoring unexpected exit (`exit`, `error`), and auto-restarting in < 500ms.
+  - Parquet view replay: `replayLedgerViews()` re-registers active views via `CREATE OR REPLACE VIEW ... FROM parquet_scan(...)` in < 5ms/view.
+  - Flap guard: Halts restart if >5 crashes occur within 10 seconds.
+  - UI Notification: `AppPane.tsx` listens for `engine:restored` and shows BlueprintJS toast *"Động cơ phân tích vừa được tự động phục hồi"* and refreshes the active view via `actions.reopenCurrentView(stateRef)`.
+- **R5 (Packaging & VCS Conformance)**:
+  - Webpack bundles `engineService.bundle.js` (12.6 KiB) with `target: "node"`.
+  - Native binary `duckdb.node` (25.20 MB) packaged into `app.asar.unpacked/node_modules/duckdb/lib/binding/duckdb.node`.
+  - Verified sizes: `app.asar` is 25.80 MB (< 45 MB limit); portable exe is 72.11 MB (< 75 MB limit).
+- **Prohibited Patterns Scan**: CLEAN. Real DuckDB queries, authentic binary streaming, zero hardcoded test returns or dummy mocks.
+
+### 1.3 Independent Test Execution (Phase C)
+1. **Full Unified Test Suite (`run_tests.js --all`)**:
+   - Command: `node run_tests.js --all`
+   - Duration: 29.73s
+   - Results:
+     - Smoke Test (v2.5.0): **PASS**
+     - Deep Integration QA: **PASS** (222 / 222 tests passed)
+     - Preload 3 Pages & Dynamic PageSize: **PASS** (10 / 10 tests passed)
+     - Legacy Use Cases: **PASS** (19 / 19 tests passed)
+     - Overall Result: **100% HEALTHY**
+2. **Headless Engine Service 1,000 Queries (`tests/test_engine_service.js`)**:
+   - Command: `node tests/test_engine_service.js`
+   - Total Time: 2,279.05 ms
+   - Average Latency: 2.28 ms/query
+   - Latency Percentiles: p50: 2.43 ms, p90: 3.74 ms, p95: 4.24 ms, p99: 6.08 ms, Max: 9.26 ms
+   - Memory Stability: Heap Used Delta +6.17 MB (12.9 MB -> 19.0 MB)
+   - Result: **100% PASS** (1,000 queries completed with 100% data integrity).
+3. **Crash Resilience & Auto-Recovery (`tests/test_engine_crash_recovery.js`)**:
+   - Command: `node tests/test_engine_crash_recovery.js`
+   - View Replay Latency: 2.40 ms (SLA < 5ms)
+   - SIGKILL Crash Recovery Latency: 265.69 ms (SLA < 500ms)
+   - 'engine:restored' Notification Latency: 279.60 ms
+   - Dual-mode fallback to in-process DuckDB: verified functional
+   - Result: **100% PASS**
+4. **FastBuild Packaging (`fastbuild.ps1`)**:
+   - Command: `powershell -ExecutionPolicy Bypass -File .\fastbuild.ps1`
+   - Result: Exit code 0 (131.8s)
+   - Deliverable: `build/Toad-2.5.0/Toad.exe` (271.9 MB unpacked folder)
+5. **Cryptographic Release Artifact Verification**:
+   - `releases/Toad-2.5.0-x64-portable.exe`: `5B00813DBAEA53855058925716AA07D84CA4885B0FD9776512A3321E86353D1E` (matches `SHA256SUMS.txt` & winget manifest `HelloKittyXamKinLung.Toad.yaml`)
+   - `releases/Toad-2.5.0-x64-portable.zip`: `8D79518C5B1D3FD5AAB6E51E78A3D5796F8258F962030264D1E698FC6A97A277` (matches `SHA256SUMS.txt`)
+6. **Dual-Mode Engine Toggle Verification**:
+   - Verified that `EngineSupervisor.resolveEngineMode()` accurately respects `TOAD_ENGINE_MODE` environment variable and `toadPortableEnv.config.runtime.engine`.
+
+---
+
+## 2. Logic Chain
+
+1. **Phase A (Timeline & Provenance)**: The git log and working directory show authentic, timestamped evolution matching the planned milestone breakdown. No fabricated history, pre-populated logs, or duplicate historical binaries exist. -> **Phase A PASS**.
+2. **Phase B (Forensic Integrity)**: Code inspection confirms all five requirements (R1–R5) are genuinely implemented:
+   - Version 2.5.0 is synchronized across 9 files without broken dependencies.
+   - Host bridge abstraction cleanly enforces `contextIsolation: true` while `HeadlessNodeAdapter` maintains complete compatibility for CLI tests.
+   - `engineService.ts` executes genuine DuckDB queries and uses zero-copy Transferable `ArrayBuffer` blocks with `'TOAD'` magic bytes.
+   - `engineSupervisor.ts` restarts crashed workers in 265.69 ms (< 500ms) and restores views in 2.40 ms (< 5ms). `AppPane.tsx` displays the exact required Vietnamese toast message.
+   - Package sizes comply with strict budgets (`app.asar` 25.80 MB < 45 MB; portable exe 72.11 MB < 75 MB).
+   - Zero hardcoded query results or facade implementations were detected. -> **Phase B PASS**.
+3. **Phase C (Independent Test Execution)**: All canonical test commands were executed directly by the victory auditor:
+   - `node run_tests.js --all` passed 100% across all 4 suites (Smoke, 222 Deep QA tests, 10 Preload tests, 19 Legacy tests).
+   - `node tests/test_engine_service.js` completed 1,000 queries with 2.28 ms average latency and zero errors.
+   - `node tests/test_engine_crash_recovery.js` verified crash recovery and state replay meeting all SLAs.
+   - `fastbuild.ps1` compiled successfully.
+   - Independent execution results match the implementation team's claimed scores 100%. -> **Phase C PASS**.
+
+---
+
+## 3. Caveats
+
+- In adversarial challenge testing (`tests/test_engine_adversarial_challenge.js`), rapid sequential toggling (utility <-> legacy) within a single process while DuckDB had uncommitted in-process transactions encountered a DuckDB transaction conflict. In real-world operation, runtime engine switching is configured at startup in `config.ini` rather than hot-toggled 10 times in a tight loop. This was logged by the team as a non-blocking advisory for future sprints.
+- No other caveats.
+
+---
+
+## 4. Conclusion & Structured Victory Audit Report
+
+```
 === VICTORY AUDIT REPORT ===
 
 VERDICT: VICTORY CONFIRMED
 
 PHASE A — TIMELINE:
   Result: PASS
-  Anomalies: none. Jujutsu commit klqlvyzy d4a6c743 (authored 2026-11-03 18:31:12, committed 20:17:06) builds cleanly on parent commit mqorlvtq 9b2dca3c (v2.4.7 release). The multi-agent history demonstrates genuine progression through survey, parallel implementation, Gate 1 challenge rejection/auditor veto, remediation, and final packaging.
+  Anomalies: none
 
 PHASE B — INTEGRITY CHECK:
   Result: PASS
-  Details: Zero hardcoded test results, facade implementations, mocked returns, or suppressed assertions detected. Package renaming (`toad-app`, `toadviewer`) verified on disk with zero lingering `tadviewer` imports. Webpack outputs `toadapp.bundle.js` and `index.html` loads `<script src="toadapp.bundle.js"></script>`. DuckDB views use `toad_tmpView_${counter}`. Backward compatibility transparently handles `.toad` (v2) and legacy `.tad` (v1) formats. UI classes use `.toad-app-pane` and events use `toad-query-error`. Branding displays TOAD v2.4.8.
+  Details: Zero cheating/facades detected. All requirements R1-R5 genuinely implemented (SemVer 2.5.0 across 9 files, Host Bridge with contextIsolation: true, dedicated engineService utilityProcess with DuckDB & MessagePort, hybrid protocol with 'TOAD' magic bytes, engineSupervisor auto-recovery < 500ms, Parquet replay < 5ms, non-blocking toast in AppPane.tsx, app.asar 25.80 MB < 45 MB, portable exe 72.11 MB < 75 MB, clean Jujutsu VCS tracking).
 
 PHASE C — INDEPENDENT TEST EXECUTION:
-  Test command: node run_tests.js --all; node tests/deep_integration_qa.js; node tests/smoke_test.js; node tests/test_pipeline_challenge.js
+  Test command: node run_tests.js --all && node tests/test_engine_service.js && node tests/test_engine_crash_recovery.js && .\fastbuild.ps1
   Your results: 
-    - run_tests.js --all: ALL PASSED (Duration 29.55s, exit code 0)
-    - tests/deep_integration_qa.js: 222/222 PASSED (Duration 16.25s, exit code 0)
-    - tests/smoke_test.js: 100% HEALTHY, exit code 0
-    - tests/test_pipeline_challenge.js: 46/46 PASSED, exit code 0
-    - releases/Toad-2.4.8-x64-portable.exe: 75,600,394 bytes (72.10 MB <= 75.0 MB), valid MZ/PE headers, SHA-256 match (6cfa2162f9688c595d07f4b1bf985adf3c146ea282fb2f7d1a6138073a432ada)
-    - releases/Toad-2.4.8-x64-portable.zip: 75,605,419 bytes, valid PK zip header, SHA-256 match (bd3889b466a82456a396595ef172294c21ca792dd19371bbb158290fd9f79770)
-    - Zero-Duplicate Binary Storage policy strictly enforced (only Toad.exe in root)
-    - Jujutsu VCS status clean and healthy
-  Claimed results: All 222+ tests pass, valid v2.4.8 portable binaries under limits, zero-duplicate storage compliance, clean Jujutsu commit.
-  Match: YES — Exact match across all metrics and test results.
+    - run_tests.js --all: 100% PASS across 4 suites (Smoke, 222 Deep QA, 10 Preload, 19 Legacy, 29.73s)
+    - test_engine_service.js: 1,000 queries PASS (2.28 ms avg, p99 6.08 ms, zero errors)
+    - test_engine_crash_recovery.js: PASS (recovery 265.69 ms < 500ms, view replay 2.40 ms < 5ms)
+    - fastbuild.ps1: PASS (131.8s, build/Toad-2.5.0/Toad.exe generated)
+    - SHA256 checksums: Exact match with SHA256SUMS.txt and winget manifest
+  Claimed results: 
+    - run_tests.js --all: 100% PASS (222/222 Deep QA, 10/10 Preload, 19/19 Legacy)
+    - test_engine_service.js: 1,000 queries PASS (2.32 ms avg, p99 6.39 ms)
+    - test_engine_crash_recovery.js: PASS (recovery 268-317 ms, replay 2.34 ms/view)
+    - fastbuild.ps1: PASS (76-130s)
+  Match: YES — all independent execution metrics match claimed scores.
+
+EVIDENCE (if REJECTED):
+  N/A
+```
+
+---
+
+## 5. Verification Method
+
+To independently re-verify this victory audit verdict:
+
+1. **Run full automated test suites**:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all
+   ```
+   *Expected*: All 4 test suites pass cleanly with 100% healthy status.
+
+2. **Run 1,000 queries MessagePort engine service benchmark**:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests/test_engine_service.js
+   ```
+   *Expected*: 1,000 queries complete with average latency < 5 ms, 0 errors.
+
+3. **Run supervisor crash recovery & view replay SLA test**:
+   ```powershell
+   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests/test_engine_crash_recovery.js
+   ```
+   *Expected*: Auto-recovery < 500ms, view replay < 5ms.
+
+4. **Verify package sizes & SHA-256 integrity**:
+   ```powershell
+   Get-FileHash 'releases/Toad-2.5.0-x64-portable.exe' -Algorithm SHA256
+   Get-FileHash 'releases/Toad-2.5.0-x64-portable.zip' -Algorithm SHA256
+   ```
+   *Expected*: Hashes match `releases/SHA256SUMS.txt`. Exe size < 75 MB.

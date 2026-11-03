@@ -34,6 +34,15 @@ import { Result } from "./result";
 import { serializeError } from "./errorUtils";
 import { Schema } from "../Schema";
 import { ColumnStatsMap } from "../ColumnStats";
+import {
+  EngineQueryReq,
+  EngineQueryResp,
+  encodeTableRepBinary,
+  postHybridResponse,
+  postHybridError,
+} from "./hybridProtocol";
+
+export * from "./hybridProtocol";
 
 const dbConnEvalQuery = async (
   conn: DataSourceConnection,
@@ -376,3 +385,128 @@ export class LocalReltabConnection implements ReltabConnection {
     return getDataSources();
   }
 }
+
+/**
+ * Dispatches an engine query command directly to the registered DataSourceConnection.
+ */
+export async function dispatchEngineCommand(
+  cmd: string,
+  payload: any
+): Promise<any> {
+  const normalizedCmd = cmd.startsWith("DataSourceConnection.")
+    ? cmd.substring("DataSourceConnection.".length)
+    : cmd;
+
+  if (normalizedCmd === "getDataSources") {
+    const res = await handleGetDataSources();
+    return res;
+  }
+
+  const engineId: DataSourceId =
+    payload?.engine || { providerName: "duckdb", resourceId: "" };
+  const conn = await getConnection(engineId);
+
+  switch (normalizedCmd) {
+    case "evalQuery": {
+      const queryStr =
+        typeof payload?.queryStr === "string"
+          ? payload.queryStr
+          : typeof payload?.query === "object"
+          ? JSON.stringify(payload.query)
+          : "";
+      const req: DbConnEvalQueryRequest = {
+        queryStr,
+        offset: payload?.offset ?? null,
+        limit: payload?.limit ?? null,
+        options: payload?.options ?? { showQueries: false },
+      };
+      return await dbConnEvalQuery(conn, req);
+    }
+    case "rowCount": {
+      const queryStr =
+        typeof payload?.queryStr === "string"
+          ? payload.queryStr
+          : typeof payload?.query === "object"
+          ? JSON.stringify(payload.query)
+          : "";
+      const req: DbConnRowCountRequest = {
+        queryStr,
+        options: payload?.options ?? { showQueries: false },
+      };
+      return await dbConnRowCount(conn, req);
+    }
+    case "getTableSchema": {
+      const req: DbConnGetTableSchemaRequest = {
+        tableName: payload?.tableName,
+      };
+      const schema = await dbConnGetTableSchema(conn, req);
+      return schema.toJSON();
+    }
+    case "getTableName": {
+      const req: DbConnGetTableNameRequest = {
+        path: payload?.path,
+        forceReopen: payload?.forceReopen,
+        isBackground: payload?.isBackground,
+      };
+      return await dbConnGetTableName(conn, req);
+    }
+    case "getColumnStatsMap": {
+      const queryStr =
+        typeof payload?.queryStr === "string"
+          ? payload.queryStr
+          : typeof payload?.query === "object"
+          ? JSON.stringify(payload.query)
+          : "";
+      const req: DbConnGetColumnStatsMapRequest = { queryStr };
+      return await dbConnGetColumnStatsMap(conn, req);
+    }
+    case "getRootNode": {
+      return await dbConnGetRootNode(conn);
+    }
+    case "getChildren": {
+      const req: DbConnGetChildrenRequest = { path: payload?.path };
+      return await dbConnGetChildren(conn, req);
+    }
+    case "runSqlQuery": {
+      const req: DbConnRunSqlQueryRequest = { sqlQuery: payload?.sqlQuery };
+      return await dbConnRunSqlQuery(conn, req);
+    }
+    default:
+      throw new Error(`Unknown engine command: '${cmd}'`);
+  }
+}
+
+/**
+ * Handles an EngineQueryReq message from MessagePort, executes genuine logic,
+ * and replies with hybrid data protocol.
+ */
+export async function handleEngineQueryReq(
+  req: EngineQueryReq,
+  port?: any
+): Promise<EngineQueryResp> {
+  const { id, cmd, payload } = req;
+  try {
+    const result = await dispatchEngineCommand(cmd, payload);
+    if (port) {
+      postHybridResponse(port, id, result);
+    }
+    if (result instanceof TableRep) {
+      const { buffer, metadata } = encodeTableRepBinary(result);
+      return { id, ok: true, binary: true, metadata, buffer };
+    }
+    return { id, ok: true, data: result };
+  } catch (err: any) {
+    if (port) {
+      postHybridError(port, id, err);
+    }
+    return {
+      id,
+      ok: false,
+      error: err?.message || String(err),
+      errorObj: serializeError(
+        err instanceof Error ? err : new Error(String(err))
+      ),
+    };
+  }
+}
+

@@ -108,13 +108,16 @@ if ($Dev) {
 $sw.Stop()
 $stageTimes["Webpack $appName"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 
-# Verify main.bundle.js and toadapp.bundle.js (or fallback tadapp.bundle.js)
+# Verify main.bundle.js and toadapp.bundle.js (or fallback tadapp.bundle.js) and engineService.bundle.js
 if (-not (Test-Path "$appDir\dist\main.bundle.js")) {
     throw "ERROR: dist\main.bundle.js was not generated!"
 }
 $bundleName = if (Test-Path "$appDir\dist\toadapp.bundle.js") { "toadapp.bundle.js" } else { "tadapp.bundle.js" }
 if (-not (Test-Path "$appDir\dist\$bundleName")) {
     throw "ERROR: dist\toadapp.bundle.js (or tadapp.bundle.js) was not generated!"
+}
+if (-not (Test-Path "$appDir\dist\engineService.bundle.js")) {
+    throw "ERROR: dist\engineService.bundle.js was not generated!"
 }
 
 # --- STEP 3: Electron-Builder Unpacked Packaging (--dir) ---

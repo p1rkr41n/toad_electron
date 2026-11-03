@@ -3,7 +3,7 @@
 ## 1. Mục Tiêu & Bối Cảnh (Goal Description)
 
 Hiện tại, ứng dụng **Toad (v2.4.6)** đang vận hành theo mô hình kết hợp:
-* **Giao diện (UI Renderer)**: Chạy trong tiến trình Chromium Renderer (`tadviewer`), hiển thị lưới dữ liệu SlickGrid ảo hóa.
+* **Giao diện (UI Renderer)**: Chạy trong tiến trình Chromium Renderer (`toadviewer`), hiển thị lưới dữ liệu SlickGrid ảo hóa.
 * **Tiến trình Chính (Main Process)**: Vừa gánh vác vòng đời ứng dụng Electron, vừa trực tiếp quản lý và thực thi DuckDB (UI Driver), quản lý trạng thái Parquet Ledger (`toad_ledger.parquet`) và điều phối hàng đợi.
 * **Ingestion Worker**: Chạy trên `child_process` độc lập để bảo vệ sập C++ khi nạp CSV.
 
@@ -20,7 +20,7 @@ Hiện tại, ứng dụng **Toad (v2.4.6)** đang vận hành theo mô hình k�
 ```mermaid
 flowchart TD
     subgraph UI_Renderer["UI Canvas (Renderer Process - contextIsolation: true)"]
-        UI["tadviewer (React + SlickGrid Virtualization)"]
+        UI["taodviewer (React + SlickGrid Virtualization)"]
         Bridge["host-bridge (Tauri-like invoke & MessagePort Adapter)"]
         Preload["preload.js (contextBridge.exposeInMainWorld)"]
         UI --> Bridge
@@ -68,7 +68,7 @@ flowchart TD
 
 > [!IMPORTANT]
 > **Kích hoạt `contextIsolation: true`**:
-> Việc chuyển sang `contextIsolation: true` yêu cầu loại bỏ hoàn toàn các lệnh gọi trực tiếp `window.require('electron')` trong mã nguồn UI renderer (`tadviewer`). Tất cả giao tiếp phải đi qua `window.toadBridge` được phơi bày an toàn bởi `preload.js`. Điều này bảo vệ an ninh bộ nhớ và là điều kiện bắt buộc để sau này chạy trên WebView2 của Tauri.
+> Việc chuyển sang `contextIsolation: true` yêu cầu loại bỏ hoàn toàn các lệnh gọi trực tiếp `window.require('electron')` trong mã nguồn UI renderer (`taodviewer`). Tất cả giao tiếp phải đi qua `window.toadBridge` được phơi bày an toàn bởi `preload.js`. Điều này bảo vệ an ninh bộ nhớ và là điều kiện bắt buộc để sau này chạy trên WebView2 của Tauri.
 
 > [!NOTE]
 > **Zero Regression Target**:
@@ -107,7 +107,7 @@ export interface IHostBridge extends TransportClient {
 }
 ```
 
-#### [MODIFY] `packages/tad-app/app/preload.js`
+#### [MODIFY] `packages/toad-app/app/preload.js`
 * Sử dụng `contextBridge.exposeInMainWorld("toadBridge", ...)` để cung cấp API an toàn cho Renderer, không để lộ đối tượng `ipcRenderer` hay `nodeIntegration`.
 * Lắng nghe sự kiện port handshake từ Main process để chuyển tiếp `MessagePort` tới UI.
 
@@ -120,7 +120,7 @@ export interface IHostBridge extends TransportClient {
 
 Mục tiêu: Đưa toàn bộ DuckDB, Parquet Ledger và Ingestion pipeline sang tiến trình con riêng.
 
-#### [NEW] `packages/tad-app/app/engineService.ts`
+#### [NEW] `packages/toad-app/app/engineService.ts`
 * Điểm vào (entrypoint) cho tiến trình `utilityProcess`.
 * Tiếp nhận `MessagePort` từ Main process qua `process.parentPort`.
 * Khởi tạo `ToadParquetLedger` và `DuckDBDriver`.
@@ -129,13 +129,13 @@ Mục tiêu: Đưa toàn bộ DuckDB, Parquet Ledger và Ingestion pipeline sang
   - `rowCount`, `getTableSchema`, `getColumnStatsMap`.
   - Quản lý nạp ngầm file (`MultipleLoadingManager` backend side).
 
-#### [NEW] `packages/tad-app/app/engineSupervisor.ts`
+#### [NEW] `packages/toad-app/app/engineSupervisor.ts`
 * Quản lý tiến trình `utilityProcess`:
   - Khởi tạo: `utilityProcess.fork(path.join(__dirname, "engineService.js"))`.
   - Thiết lập `MessageChannelMain`: Cấp phát `port1` cho Renderer và `port2` cho `engineService`.
   - Lắng nghe sự kiện `'exit'`: Nếu mã thoát khác 0, tự động khởi động lại và thông báo cho Renderer kết nối lại port mới.
 
-#### [MODIFY] `packages/tad-app/app/main.ts`
+#### [MODIFY] `packages/toad-app/app/main.ts`
 * Bật `contextIsolation: true` và `nodeIntegration: false` trong cấu hình `webPreferences` của `BrowserWindow`.
 * Loại bỏ việc import trực tiếp DuckDB trong `main.ts`, chuyển quyền sở hữu cho `engineSupervisor`.
 * Định tuyến các dialogs hệ thống (Open/Save dialog) qua IPC chuẩn.
@@ -147,7 +147,7 @@ Mục tiêu: Đưa toàn bộ DuckDB, Parquet Ledger và Ingestion pipeline sang
 
 ### Giai Đoạn 3: Tự Phục Hồi, Tối Ưu Hóa & Đóng Gói (QA & Benchmark)
 
-#### [MODIFY] `packages/tadviewer/src/ProjectWorkspaceManager.ts` & `MultipleLoadingManager.ts`
+#### [MODIFY] `packages/taodviewer/src/ProjectWorkspaceManager.ts` & `MultipleLoadingManager.ts`
 * Tinh chỉnh để khi nhận tín hiệu tái kết nối (reconnect) từ `engineSupervisor`, tự động gọi `reconcile` để đồng bộ lại trạng thái hiển thị của các bảng trong chưa đầy 500ms.
 
 #### [MODIFY] `tests/deep_integration_qa.js` & `tests/smoke_test.js`

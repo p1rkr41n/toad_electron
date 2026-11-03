@@ -71,6 +71,7 @@ import * as quickStart from "./quickStart";
 import * as appMenu from "./appMenu";
 import * as appWindow from "./appWindow";
 import electron, { BrowserWindow, contextBridge, ipcMain } from "electron";
+import { EngineSupervisor } from "./engineSupervisor";
 import fs from "fs";
 import {
   initPortableEnvironment,
@@ -738,10 +739,11 @@ const initApp =
               quickStart.showQuickStart();
             }
 
+            let mainWindow: BrowserWindow | null = null;
             if (openFilePath) {
               const openMsg = `pid ${process.pid}: Got open-file for ${openFilePath}`;
               log.warn(openMsg);
-              appWindow.createFromFile(openFilePath); // dialog.showMessageBox({ message: openMsg })
+              mainWindow = await appWindow.createFromFile(openFilePath); // dialog.showMessageBox({ message: openMsg })
             } else {
               if (noSrcFile && !awaitingOpenEvent) {
                 const env = (global as any).toadPortableEnv as PortableEnvironment | undefined;
@@ -754,14 +756,20 @@ const initApp =
                   log.info(
                     `[SessionRestore] Tu dong phuc hoi thu muc: ${cfg.general.last_directory}`
                   );
-                  await appWindow.createFromFile(cfg.general.last_directory);
+                  mainWindow = await appWindow.createFromFile(cfg.general.last_directory);
                 } else {
                   app.focus();
                   // Toad v2.0.5: Open clean MainWindow without blocking main thread with modal Windows Shell File Dialog.
                   // MainWindow is immediately ready for Drag & Drop or user-initiated Open (Ctrl+O).
-                  await appWindow.newWindow();
+                  mainWindow = await appWindow.newWindow();
                 }
               }
+            }
+
+            try {
+              await EngineSupervisor.getInstance().start(mainWindow || undefined);
+            } catch (supErr) {
+              log.error("[EngineSupervisor] Error starting EngineSupervisor:", supErr);
             }
 
             isReady = true;
@@ -850,6 +858,9 @@ const main = () => {
     let isQuitting = false;
     app.on("before-quit", (event) => {
       if (isQuitting) return;
+      try {
+        EngineSupervisor.getInstance().stop();
+      } catch (e) {}
       if (portableEnv && portableEnv.config.system.temp_cleanup) {
         isQuitting = true;
         event.preventDefault(); // Tạm hoãn thoát để giải phóng file lock

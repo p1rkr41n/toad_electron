@@ -19,7 +19,25 @@ import {
   Collapse,
   Spinner,
   Icon,
+  Position,
+  Toaster,
+  Intent,
 } from "@blueprintjs/core";
+
+// BlueprintJS v4 singleton Toaster instance
+let appToaster: any = null;
+export const getAppToaster = () => {
+  if (typeof window !== "undefined" && !appToaster) {
+    try {
+      appToaster = Toaster.create({
+        position: Position.BOTTOM_RIGHT,
+      });
+    } catch (e) {
+      // In headless or test environments where DOM is not fully available
+    }
+  }
+  return appToaster;
+};
 import { GridPane, OpenURLFn } from "./GridPane";
 import { EventDetailSidebar } from "./EventDetailSidebar";
 import { DataRow } from "../PagedDataView";
@@ -490,6 +508,58 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     }, 60);
     return () => clearTimeout(timer);
   }, [expandedEvent]);
+
+  // Engine Auto-Recovery: BlueprintJS v4 non-blocking toast & view refresh
+  useEffect(() => {
+    let bridge: any = null;
+    try {
+      const { getHostBridge } = require("host-bridge");
+      bridge = getHostBridge();
+    } catch {}
+
+    const handleRestored = async () => {
+      try {
+        const toaster = getAppToaster();
+        if (toaster) {
+          toaster.show({
+            message: "Động cơ phân tích vừa được tự động phục hồi",
+            intent: Intent.SUCCESS,
+            icon: "refresh",
+            timeout: 4000,
+          });
+        }
+      } catch (toastErr) {
+        console.error("[AppPane] Error displaying engine restored toast:", toastErr);
+      }
+
+      try {
+        await actions.reopenCurrentView(stateRef);
+      } catch (err) {
+        console.error("[AppPane] Failed to reconcile view after engine auto-recovery:", err);
+      }
+    };
+
+    let cleanupBridge: (() => void) | undefined;
+    if (bridge && typeof bridge.onEngineRestored === "function") {
+      cleanupBridge = bridge.onEngineRestored(handleRestored);
+    } else if (bridge && typeof bridge.onEvent === "function") {
+      cleanupBridge = bridge.onEvent("engine:restored", handleRestored);
+    }
+
+    const windowListener = () => {
+      handleRestored();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("engine:restored", windowListener);
+    }
+
+    return () => {
+      cleanupBridge?.();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("engine:restored", windowListener);
+      }
+    };
+  }, [stateRef]);
 
   useDeepCompareEffect(() => {
     if (rtc && dsPath) {

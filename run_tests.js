@@ -27,15 +27,15 @@ const legacyOnly = args.includes("--legacy");
 const testsToRun = [];
 
 if (smokeOnly) {
-  testsToRun.push({ name: "Smoke Test (v2.1.6)", file: "tests/smoke_test.js" });
+  testsToRun.push({ name: "Smoke Test (v2.5.0)", file: "tests/smoke_test.js" });
 } else if (qaOnly) {
-  testsToRun.push({ name: "Deep Integration QA (133 Tests)", file: "tests/deep_integration_qa.js" });
+  testsToRun.push({ name: "Deep Integration QA (222 Tests)", file: "tests/deep_integration_qa.js" });
 } else if (legacyOnly) {
   testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
 } else {
   // Default: Smoke Test + Deep Integration QA + Preload 3 Pages
-  testsToRun.push({ name: "Smoke Test (v2.1.6)", file: "tests/smoke_test.js" });
-  testsToRun.push({ name: "Deep Integration QA (133 Tests)", file: "tests/deep_integration_qa.js" });
+  testsToRun.push({ name: "Smoke Test (v2.5.0)", file: "tests/smoke_test.js" });
+  testsToRun.push({ name: "Deep Integration QA (222 Tests)", file: "tests/deep_integration_qa.js" });
   testsToRun.push({ name: "Preload 3 Pages & Dynamic PageSize (10 Tests)", file: "tests/test_preload_3_pages.js" });
   if (runAll) {
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });

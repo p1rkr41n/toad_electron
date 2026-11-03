@@ -273,6 +273,19 @@ const init = async () => {
       await actions.reopenCurrentView(stateRef);
     });
 
+    ipcRenderer.on("engine:restored", async (event, details) => {
+      log.info("electronRenderMain: received engine:restored IPC", details);
+      const bridge = getHostBridge();
+      if ((bridge as any)?.dataPort) {
+        rtc.setDataPort((bridge as any).dataPort);
+      }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("engine:restored", { detail: details })
+        );
+      }
+    });
+
     ipcRenderer.on("project-add-files", async () => {
       try {
         log.info("electronRenderMain: received project-add-files IPC");

@@ -1,6 +1,6 @@
 {
   "name": "toadviewer",
-  "version": "2.4.8.1",
+  "version": "2.5.0",
   "description": "Tabular data viewer library",
   "main": "dist/toadviewer.js",
   "types": "dist/toadviewer.d.ts",

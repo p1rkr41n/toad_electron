@@ -112,6 +112,10 @@ const encodeFileOpenParams = (targetPath: string): OpenParams => {
 };
 
 const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
+  const env = (global as any).toadPortableEnv;
+  const engineMode = env?.config?.runtime?.engine || "utility";
+  const isLegacy = engineMode === "legacy";
+
   let winProps = {
     title: "TOAD",
     icon: path.join(__dirname, "icon.png"),
@@ -120,12 +124,13 @@ const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
     x: 0,
     y: 0,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: isLegacy,
+      contextIsolation: !isLegacy,
       preload: path.join(__dirname, "preload.js"),
       additionalArguments: [
         `--toadOpenParams=${JSON.stringify(openParams)}`,
         `--tadOpenParams=${JSON.stringify(openParams)}`,
+        `--toadEngineMode=${engineMode}`,
       ],
     },
   };

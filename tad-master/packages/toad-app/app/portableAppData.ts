@@ -28,6 +28,10 @@ export interface ToadConfig {
     auto_restore_last_directory: boolean;
     last_directory: string;
   };
+  runtime: {
+    engine: "utility" | "legacy" | "v8" | "tauri";
+    auto_fallback?: boolean;
+  };
   duckdb: {
     max_memory: string;
     threads: number;
@@ -68,6 +72,10 @@ export const DEFAULT_CONFIG: ToadConfig = {
     max_concurrent_gb: 1,
     auto_restore_last_directory: true,
     last_directory: "",
+  },
+  runtime: {
+    engine: "utility",
+    auto_fallback: true,
   },
   duckdb: {
     max_memory: "auto",
@@ -111,6 +119,17 @@ max_concurrent_gb = 1
 auto_restore_last_directory = true
 # Last opened directory path
 last_directory = 
+
+[runtime]
+# Execution engine mode:
+#   - utility : (RECOMMENDED) Isolated Electron utilityProcess for DuckDB & Parquet WAL
+#   - legacy  : In-process legacy execution model
+engine = utility
+
+# Automatically fall back to legacy engine if utility process fails:
+#   - true  : (RECOMMENDED) Preserves 100% backward compatibility
+#   - false : Fail fast
+auto_fallback = true
 
 [duckdb]
 # Maximum RAM allocated for DuckDB engine:
@@ -302,6 +321,10 @@ max_concurrent_gb = ${cfg.general.max_concurrent_gb}
 auto_restore_last_directory = ${cfg.general.auto_restore_last_directory}
 last_directory = ${cfg.general.last_directory}
 
+[runtime]
+engine = ${cfg.runtime?.engine ?? "utility"}
+auto_fallback = ${cfg.runtime?.auto_fallback ?? true}
+
 [duckdb]
 max_memory = ${cfg.duckdb.max_memory}
 threads = ${cfg.duckdb.threads}
@@ -463,6 +486,24 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
           return DEFAULT_CONFIG.general.last_directory;
         })();
 
+  // [runtime]
+  const VALID_ENGINES = ["utility", "legacy", "v8", "tauri"];
+  const rawEngine = (parsed.runtime?.engine || "").trim().toLowerCase();
+  const engine = VALID_ENGINES.includes(rawEngine)
+    ? (rawEngine as ToadConfig["runtime"]["engine"])
+    : (() => {
+        needRewrite = true;
+        return DEFAULT_CONFIG.runtime.engine;
+      })();
+
+  const auto_fallback =
+    parsed.runtime?.auto_fallback !== undefined
+      ? String(parsed.runtime.auto_fallback).toLowerCase() === "true"
+      : (() => {
+          needRewrite = true;
+          return DEFAULT_CONFIG.runtime.auto_fallback ?? true;
+        })();
+
   // [duckdb]
   let max_memory =
     parsed.duckdb?.max_memory || DEFAULT_CONFIG.duckdb.max_memory;
@@ -552,7 +593,7 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
   }
 
   // Kiểm tra xem có thiếu section nào không
-  if (!parsed.general || !parsed.duckdb || !parsed.parquet || !parsed.system) {
+  if (!parsed.general || !parsed.runtime || !parsed.duckdb || !parsed.parquet || !parsed.system) {
     needRewrite = true;
   }
 
@@ -566,6 +607,7 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       auto_restore_last_directory,
       last_directory,
     },
+    runtime: { engine, auto_fallback },
     duckdb: { max_memory, threads, background_threads, add_raw_event },
     parquet: {
       compression: compression as ToadConfig["parquet"]["compression"],

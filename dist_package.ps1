@@ -47,21 +47,25 @@ Set-Location "$appDir"
 
 $bundleFile = if (Test-Path "$appDir\dist\toadapp.bundle.js") { "toadapp.bundle.js" } else { "tadapp.bundle.js" }
 $bundlePath = "$appDir\dist\$bundleFile"
-Write-Output "=== STEP 3: Verifying integrity of $bundleFile ==="
+$engineBundlePath = "$appDir\dist\engineService.bundle.js"
+Write-Output "=== STEP 3: Verifying integrity of $bundleFile and engineService.bundle.js ==="
 if (-not (Test-Path $bundlePath)) {
     throw "ERROR: Cannot find $bundleFile!"
 }
+if (-not (Test-Path $engineBundlePath)) {
+    throw "ERROR: Cannot find engineService.bundle.js!"
+}
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not ($bundleContent.Contains("v2.4.8.1") -or $bundleContent.Contains("v2.4.8") -or $bundleContent.Contains("v2.4.7") -or $bundleContent.Contains("v2.4.6.1") -or $bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
-    throw "ASSERTION ERROR: $bundleFile does not contain v2.4.8 or earlier versions!"
+if (-not ($bundleContent.Contains("v2.5.0") -or $bundleContent.Contains("v2.4.8.1") -or $bundleContent.Contains("v2.4.8") -or $bundleContent.Contains("v2.4.7") -or $bundleContent.Contains("v2.4.6.1") -or $bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
+    throw "ASSERTION ERROR: $bundleFile does not contain v2.5.0 or earlier versions!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
     throw "ASSERTION ERROR: $bundleFile does not contain padStart(3 for str001!"
 }
-if ((Test-Path "$appDir\dist\toadapp.bundle.js.map") -or (Test-Path "$appDir\dist\tadapp.bundle.js.map")) {
+if ((Test-Path "$appDir\dist\toadapp.bundle.js.map") -or (Test-Path "$appDir\dist\tadapp.bundle.js.map") -or (Test-Path "$appDir\dist\engineService.bundle.js.map") -or (Test-Path "$appDir\dist\main.bundle.js.map")) {
     throw "ASSERTION ERROR: Production bundle .map exists in production dist! Expected devtool=false."
 }
-Write-Output ">>> Bundle Verification SUCCESS: contains v2.4.8/v2.1.6, str001, and sourcemap absent."
+Write-Output ">>> Bundle Verification SUCCESS: contains v2.5.0, engineService.bundle.js present, str001, and sourcemaps absent."
 
 Write-Output "=== STEP 4: Packaging Electron App with electron-builder (Maximum Compression) ==="
 & npm.cmd run dist
@@ -83,7 +87,7 @@ if (-not (Test-Path $duckDbUnpacked)) {
 }
 Write-Output ">>> duckdb.node native binding verified intact in app.asar.unpacked."
 
-& node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); }"
+& node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); } if (!list.some(f => f.includes('engineService.bundle.js'))) { console.error('ERROR: engineService.bundle.js is missing from app.asar!'); process.exit(1); } else { console.log('>>> engineService.bundle.js verified present in app.asar.'); }"
 
 Write-Output "=== STEP 5: Copying binaries to release and root directories ==="
 $releaseDir = "$rootDir\releases"
@@ -108,13 +112,26 @@ if ($latestExe) {
     # toad_v2.0.14_portable.exe toad_v2.1.0_portable.exe toad_v2.1.2_portable.exe toad_v2.1.3_portable.exe
     # toad_v2.1.4_portable.exe toad_v2.1.5_portable.exe toad_v2.1.6_portable.exe toad_v2.3.0_portable.exe
     # toad_v2.3.1_portable.exe toad_v2.3.2_portable.exe toad_v2.3.3_portable.exe toad_v2.3.4_portable.exe
-    # toad_v2.3.5_portable.exe Toad-2.4.8.1-x64-portable.exe Toad-2.4.8.1-x64-portable.exe
+    # toad_v2.3.5_portable.exe Toad-2.5.0-x64-portable.exe Toad-2.5.0-x64-portable.exe
 
     # Single canonical output binaries (Strictly avoids duplicate copies):
     $canonicalReleaseExe = "$releaseDir\Toad-$version-x64-portable.exe"
     Write-Output "Copying $($latestExe.Name) to $canonicalReleaseExe and root\Toad.exe..."
     Copy-Item $latestExe.FullName -Destination $canonicalReleaseExe -Force
     Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
+}
+
+# Enforce zero-duplicate binary policy
+Write-Output "=== STEP 5.1: Enforcing Zero-Duplicate Binary Policy ==="
+$duplicateRoot = Get-ChildItem -Path $rootDir -Filter "Toad *.exe" -ErrorAction SilentlyContinue
+if ($duplicateRoot.Count -gt 0) {
+    Write-Warning "Pruning duplicate historical binaries from root: $($duplicateRoot.Name)"
+    $duplicateRoot | Remove-Item -Force
+}
+$duplicateReleases = Get-ChildItem -Path $releaseDir -Filter "Toad *.exe" -ErrorAction SilentlyContinue
+if ($duplicateReleases.Count -gt 0) {
+    Write-Warning "Pruning duplicate historical alias binaries from releases: $($duplicateReleases.Name)"
+    $duplicateReleases | Remove-Item -Force
 }
 
 Write-Output "=== Packaging completed successfully: Toad $version (Clean Single Binary & Zero-Duplicate)! ==="
