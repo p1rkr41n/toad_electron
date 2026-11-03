@@ -635,11 +635,39 @@ export class PivotRequester {
                 .set("queryView", queryView) as ViewState;
             })
           );
-          /*
-          log.debug(
-            "*** onStateChange: sending request to satisfy view state update"
-          );
-          */
+          // Preloaded buffer reuse - avoid duplicate DuckDB queries when opening cached table
+          const curVs = curState.viewState;
+          const dv = curVs?.dataView;
+          const vp = curVs?.viewParams;
+          const pSize = curVs?.pageSize || this.pageSize || 1000;
+          const expectedLimit = Math.min(queryView.rowCount, pSize * 3);
+
+          const canReusePreloadedBuffer =
+            dv != null &&
+            dv.rawData &&
+            dv.rawData.length > 0 &&
+            dv.offset === 0 &&
+            dv.currentPage === 1 &&
+            dv.pageSize === pSize &&
+            dv.rawData.length >= expectedLimit &&
+            (!vp || (vp.vpivots.length === 0 && vp.filterExp.opArgs.length === 0));
+
+          if (canReusePreloadedBuffer) {
+            this.pendingDataRequest = null;
+            this.pendingOffset = dv.offset;
+            this.pendingLimit = dv.rawData.length;
+            this.pendingPage = 1;
+            this.pageSize = pSize;
+            this.setLoadingCallback(false);
+            oneref.update(
+              stateRef,
+              vsUpdate((vs: ViewState) =>
+                vs.update("loadingTimer", (lt) => lt.stop())
+              )
+            );
+            return dv;
+          }
+
           return this.sendDataRequest(stateRef, queryView);
         })
         .catch((err) => {
@@ -689,9 +717,11 @@ export class PivotRequester {
       const pageEndRow = pageStartRow + pSize;
 
       // Check if current page is outside the loaded buffer range or pageSize changed:
+      const totalRowCount = this.currentQueryView?.rowCount ?? Infinity;
+      const effectiveEndRow = Math.min(pageEndRow, totalRowCount);
       const bufferOutOfRange =
         pageStartRow < this.pendingOffset ||
-        pageEndRow > this.pendingOffset + this.pendingLimit;
+        effectiveEndRow > this.pendingOffset + this.pendingLimit;
       const pageSizeChanged = pSize !== this.pageSize;
       this.pageSize = pSize;
 

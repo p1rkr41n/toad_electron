@@ -12,9 +12,11 @@ import {
  * External link opening is handled through IHostBridge
  */
 
-(window as any).tadLinkNOP = (url: string) => {
-  return false;
-};
+if (typeof window !== "undefined") {
+  (window as any).tadLinkNOP = (url: string) => {
+    return false;
+  };
+}
 
 export interface TextFormatOptionsProps {
   type: string;

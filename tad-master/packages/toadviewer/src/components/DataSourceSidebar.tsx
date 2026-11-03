@@ -662,6 +662,21 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       const canonicalPath = getCanonicalPathFromDSPath(dsPath);
       const manager = MultipleLoadingManager.getInstance();
       const item = manager.getItem(key) || manager.getItemByCanonical(canonicalPath);
+      const ramCache = manager.getFirstPageCache(canonicalPath) || manager.getFirstPageCache(key);
+
+      if (ramCache) {
+        manager.clearPendingActiveOpen();
+        const prevCursor = document.body.style.cursor;
+        document.body.style.cursor = "wait";
+        try {
+          await actions.openDataSourcePath(dsPath, stateRef);
+        } catch (err: any) {
+          console.error(`[handleOpenFile] Error opening cached file ${file.fileName}:`, err?.stack || err);
+        } finally {
+          document.body.style.cursor = prevCursor || "default";
+        }
+        return;
+      }
 
       if (item && item.status === "ready") {
         manager.clearPendingActiveOpen();
