@@ -59,6 +59,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [hasHeader, setHasHeader] = useState<boolean>(false);
   const [headerSep, setHeaderSep] = useState<string>(": ");
   const [headerColName, setHeaderColName] = useState<string>("log_header");
+  const [firstRowIsHeader, setFirstRowIsHeader] = useState<boolean>(true);
 
   // Unified Card Tier 2: Token Syntax Strip (Delimiter, Equal/Assign, Quotes)
   const [delimiter, setDelimiter] = useState<string>(" ");
@@ -77,7 +78,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [inlineEditVal, setInlineEditVal] = useState<string>("");
 
-  // 1,000-Row Real-Data Validation State (Toad v2.4.5)
+  // 1,000-Row Real-Data Validation State (Toad v2.4.6)
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [hasTested, setHasTested] = useState<boolean>(false);
   const [realTotalRows, setRealTotalRows] = useState<number>(0);
@@ -263,7 +264,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     return "VARCHAR";
   };
 
-  // Lexicographical Column Naming Helpers (v2.4.5)
+  // Lexicographical Column Naming Helpers (v2.4.6)
   const formatStrColName = (idx: number): string => {
     if (idx <= 0) idx = 1;
     if (idx <= 999) {
@@ -503,14 +504,29 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         );
       }
     } else {
-      // Delimited (CSV, Space, or Raw Delimited) -> str001, str002, str003...
+      // Delimited (CSV, Space, or Raw Delimited) -> str001, str002, str003... or Header names from Row 1
       let maxParts = 0;
       const partSample = new Map<number, string>();
       const partCount = new Map<number, number>();
       const delimChar = delimiter !== undefined ? delimiter : " ";
       const isCustomDelim = delimChar && delimChar !== " " && delimChar !== "\t";
 
-      samplesToScan.forEach((line) => {
+      // Detect if row 1 is header for CSV
+      let headerColNames: string[] = [];
+      const useFirstRowHeader = formatType === "csv" && firstRowIsHeader && samplesToScan.length > 0;
+      if (useFirstRowHeader) {
+        let firstLine = samplesToScan[0].trim();
+        if (hasHeader && headerSep && firstLine.includes(headerSep)) {
+          firstLine = firstLine.split(headerSep).slice(1).join(headerSep).trim();
+        }
+        headerColNames = firstLine.split(",").map((p) => p.trim().replace(/^["']|["']$/g, ""));
+      }
+
+      const rowsToScanForData = useFirstRowHeader && samplesToScan.length > 1
+        ? samplesToScan.slice(1)
+        : samplesToScan;
+
+      rowsToScanForData.forEach((line) => {
         let b = line.trim();
         if (hasHeader && headerSep && b.includes(headerSep)) {
           b = b.split(headerSep).slice(1).join(headerSep).trim();
@@ -537,15 +553,17 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         }
       });
 
-      for (let i = 1; i <= Math.max(1, maxParts); i++) {
+      const totalCols = useFirstRowHeader ? Math.max(headerColNames.length, maxParts) : Math.max(1, maxParts);
+      for (let i = 1; i <= Math.max(1, totalCols); i++) {
         const val = partSample.get(i) || "";
         const count = partCount.get(i) || 0;
         const colIdx = baseStrOffset + i;
-        const colName = formatStrColName(colIdx);
+        const fallbackColName = formatStrColName(colIdx);
+        const finalColName = (useFirstRowHeader && headerColNames[i - 1]) ? headerColNames[i - 1] : fallbackColName;
         candidates.push({
-          id: `delim_${colName}`,
-          sourceKeyOrIdx: colName,
-          outputColName: colName,
+          id: `delim_${finalColName}`,
+          sourceKeyOrIdx: finalColName,
+          outputColName: finalColName,
           sampleVal: val,
           colType: inferType(val),
           fillRate: samplesToScan.length > 0 ? Math.round((count / samplesToScan.length) * 100) : 0,
@@ -561,9 +579,10 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
       const updatedCandidates = candidates.map((c) => {
         const existing = prevMap.get(String(c.sourceKeyOrIdx));
         if (existing) {
+          const isStaleDefault = existing.outputColName.startsWith("str00") && !c.outputColName.startsWith("str00");
           return {
             ...c,
-            outputColName: existing.outputColName || c.outputColName,
+            outputColName: (isStaleDefault ? c.outputColName : existing.outputColName) || c.outputColName,
             colType: existing.colType || c.colType,
             enabled: existing.enabled,
           };
@@ -579,7 +598,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
       return [...updatedCandidates, ...customRows];
     });
-  }, [mode, sampleText, sampleList, formatType, hasHeader, headerSep, delimiter, kvAssign, quoteOpen, quoteClose, columns]);
+  }, [mode, sampleText, sampleList, formatType, hasHeader, headerSep, delimiter, kvAssign, quoteOpen, quoteClose, columns, firstRowIsHeader]);
 
   // Advanced Mode Regex Evaluation
   const advEval = useMemo(() => {
@@ -788,8 +807,13 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     colClauses.push(`  CASE WHEN (${allExtractedNullCond}) THEN ${targetCol} ELSE NULL END AS "${unmatchedCol}"  -- Auto-pruned if 100% clean`);
 
     const allColumns = (headerSelect + colClauses.join(",\n")).trim();
-    return `CREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || "-- No fields selected"}\n${fromSource}`;
-  }, [selectedCol, formatType, hasHeader, headerSep, headerColName, simpleRows, delimiter, kvAssign, quoteOpen, quoteClose]);
+    let whereFilter = "";
+    if (formatType === "csv" && firstRowIsHeader && sampleList && sampleList.length > 0) {
+      const headerPreview = sampleList[0].slice(0, 40).replace(/'/g, "''");
+      whereFilter = `\nWHERE "${selectedCol}" NOT LIKE '${headerPreview}%'`;
+    }
+    return `CREATE VIEW "table_extracted" AS\n${headerWithClause}SELECT *,\n  ${allColumns || "-- No fields selected"}\n${fromSource}${whereFilter}`;
+  }, [selectedCol, formatType, hasHeader, headerSep, headerColName, simpleRows, delimiter, kvAssign, quoteOpen, quoteClose, firstRowIsHeader, sampleList]);
 
   // Filtered & Sorted Rows
   const displayedRows = useMemo(() => {
@@ -1151,7 +1175,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
               Parse Columns
             </h4>
             <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--md-sys-color-primary, #0369a1)", background: "rgba(138, 180, 248, 0.12)", border: "1px solid rgba(138, 180, 248, 0.28)", padding: "1px 6px", borderRadius: "10px" }}>
-              v2.4.5
+              v2.4.6
             </span>
           </div>
           {/* Linear-style Capsule Segmented Switch */}
@@ -1364,6 +1388,28 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                     }}
                   />
                 </>
+              )}
+              {formatType === "csv" && (
+                <label
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    cursor: "pointer",
+                    fontSize: "12px",
+                    marginLeft: "8px",
+                    userSelect: "none",
+                  }}
+                  title="First row contains column headers (e.g. EntryNumber, InUse, FileName)"
+                >
+                  <input
+                    type="checkbox"
+                    checked={firstRowIsHeader}
+                    onChange={(e) => setFirstRowIsHeader(e.target.checked)}
+                    style={{ cursor: "pointer", accentColor: "#0284c7" }}
+                  />
+                  <span>First row is header</span>
+                </label>
               )}
               {formatType === "kv" && (
                 <>
@@ -2268,6 +2314,6 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   );
 };
 
-// Toad v2.4.5: Canonical ParseDialog export with backward-compatible RegexDialog alias
+// Toad v2.4.6: Canonical ParseDialog export with backward-compatible RegexDialog alias
 export const ParseDialog = RegexDialog;
 

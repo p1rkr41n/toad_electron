@@ -2465,6 +2465,21 @@ export function checkDoubleValidCache(
 
     // LEVEL 1 & 2: Double Validation khi có bản ghi trong Ledger
     if (entry && entry.status === "READY") {
+      // Đào thải cache 1-cột lỗi thời nếu file nguồn là .csv nhưng cache lại là rawEventFallback
+      const fileExt = path.extname(filePath).toLowerCase();
+      if (fileExt === ".csv" && entry.extra_json) {
+        try {
+          const extra = JSON.parse(entry.extra_json);
+          if (extra.isRawEventFallback === true || extra.rawEventFallback === true) {
+            log.warn(
+              `[TOAD Parquet Cache] Phat hien cache 1-cot raw_event loi thoi cho CSV "${path.basename(
+                filePath
+              )}". Dao thai cache va nap lai da cot.`
+            );
+            return false;
+          }
+        } catch {}
+      }
       return getCacheValidityStatus(filePath, cachedInfo, forceReopen) === "VALID";
     }
 
@@ -2646,7 +2661,9 @@ export function runIngestInWorker(params: {
   format?: "csv" | "json" | "raw";
 }): Promise<void> {
   return new Promise((resolve, reject) => {
-    const workerScript = path.join(__dirname, "ingestWorker.js");
+    const workerScript = fs.existsSync(path.join(__dirname, "ingestWorker.js"))
+      ? path.join(__dirname, "ingestWorker.js")
+      : path.join(__dirname, "src", "ingestWorker.js");
     const args = [
       params.filePath,
       params.targetParquetPath,
@@ -2696,7 +2713,7 @@ export function runIngestInWorker(params: {
  *   Tier 1: + parallel=false (xử lý dòng quá dài vỡ chunk đa luồng)
  *   Tier 2: + all_varchar=true (xử lý xung đột kiểu dữ liệu giữa các dòng)
  */
-async function streamCsvToParquet(
+export async function streamCsvToParquet(
   dbConn: Connection,
   filePath: string,
   parquetPath: string,
@@ -2713,6 +2730,7 @@ async function streamCsvToParquet(
   // 100% vector vat ly la PhysicalType::VARCHAR, triet tieu tuyet doi loi assertion tai vector.cpp:1859!
   if (isComplex) {
     log.info("[Ingest Safe Profile] Kich hoat Direct Safe Profile cho file log phuc tap:", filePath);
+    // STAGE 1: Safe Profile với đầy đủ delim=',', all_varchar=true
     const safeQuery = `
       COPY (
         SELECT * FROM read_csv(
@@ -2722,19 +2740,68 @@ async function streamCsvToParquet(
           ignore_errors = true,
           null_padding = true,
           parallel = false,
-          all_varchar = true
+          all_varchar = true,
+          delim = ','
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
     try {
       await dbConn.exec(safeQuery);
-      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (0% assertion risk)!");
+      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 Auto-Detect)!");
       return;
     } catch (safeErr) {
-      log.warn("[Ingest Safe Profile] Safe profile gap loi, chuyen sang Raw Event fallback:", safeErr);
-      await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
-      return;
+      log.warn("[Ingest Safe Profile] Stage 1 auto_detect gap loi, chuyen sang Stage 2 Force Header:", safeErr);
     }
+
+    // STAGE 2: Cưỡng chế đọc dòng 1 làm Header (triệt tiêu 100% lỗi sniffer trên file MFT/forensic)
+    const forceHeaderQuery = `
+      COPY (
+        SELECT * FROM read_csv(
+          '${safeSrc}',
+          header = true,
+          delim = ',',
+          ignore_errors = true,
+          null_padding = true,
+          parallel = false,
+          all_varchar = true
+        )
+      ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+    `;
+    try {
+      await dbConn.exec(forceHeaderQuery);
+      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Comma)!");
+      return;
+    } catch (errStage2) {
+      log.warn("[Ingest Safe Profile] Stage 2 Force Header (comma) gap loi, thu tab delimiter:", errStage2);
+    }
+
+    // STAGE 2b: Thử delimiter Tab nếu là TSV
+    const tabHeaderQuery = `
+      COPY (
+        SELECT * FROM read_csv(
+          '${safeSrc}',
+          header = true,
+          delim = '\t',
+          ignore_errors = true,
+          null_padding = true,
+          parallel = false,
+          all_varchar = true
+        )
+      ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+    `;
+    try {
+      await dbConn.exec(tabHeaderQuery);
+      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Tab)!");
+      return;
+    } catch (errTab) {
+      log.warn("[Ingest Safe Profile] Stage 2 Force Header (tab) gap loi:", errTab);
+    }
+
+    // Chỉ khi tất cả các nỗ lực parse CSV đều thất bại mới chuyển sang Raw Log
+    log.warn("[Ingest Safe Profile] Tat ca cac tang parse CSV deu that bai, chuyen sang Raw Event fallback:", filePath);
+    (cfg as any).isRawEventFallback = true;
+    await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+    return;
   }
 
   // Tier 0: Lệnh chính RFC-4180 chuẩn (quote='"', escape='' triệt tiêu hoàn toàn RemoveEscape trên cột số)
@@ -2809,7 +2876,30 @@ async function streamCsvToParquet(
     log.info("[Ingest Tier 2] Thanh cong (100% guaranteed)!");
     return;
   } catch (err2) {
-    log.warn("[Ingest Tier 2] That bai, chuyen sang Fallback Tier 3 (Raw Event Mode):", err2);
+    log.warn("[Ingest Tier 2] That bai, chuyen sang Fallback Tier 2b (Force Header):", err2);
+  }
+
+  // Tier 2b: Force Header Fallback cho standard CSV trước khi rơi vào Raw Event
+  const forceHeaderTier = `
+    COPY (
+      SELECT * FROM read_csv(
+        '${safeSrc}',
+        header = true,
+        delim = ',',
+        ignore_errors = true,
+        null_padding = true,
+        parallel = false,
+        all_varchar = true
+      )
+    ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+  `;
+  try {
+    log.info("[Ingest Tier 2b] Dang thu lai voi Force Header (header=true)...");
+    await dbConn.exec(forceHeaderTier);
+    log.info("[Ingest Tier 2b] Force Header Thanh cong!");
+    return;
+  } catch (err2b) {
+    log.warn("[Ingest Tier 2b] Force Header that bai, chuyen sang Fallback Tier 3 (Raw Event Mode):", err2b);
   }
 
   // Tier 3: Fallback cuối cùng: nạp nguyên dòng thô (Raw Event Mode) - không bao giờ thất bại
@@ -3006,13 +3096,56 @@ export const nativeCSVImport = async (
         });
         // Giai đoạn 5: Tạo VIEW ngay từ file Parquet có sẵn (0ms conversion, 0 duplicate bytes!)
         await createViewFromParquet(dbConn, parquetPath, tableName);
-        const importTime = process.hrtime(importStart);
-        log.info(
-          `[TOAD Ingest Cache] Hoan tat tai su dung Parquet trong ${prettyHRTime(
-            importTime
-          )} -> VIEW: ${tableName}`
-        );
-        return tableName;
+
+        // Kiểm tra xem cache có bị đóng băng ở trạng thái lỗi 1 cột raw_event cho file .csv không
+        const srcExt = path.extname(filePath).toLowerCase();
+        let isCorruptedFallbackCache = false;
+        if (srcExt === ".csv") {
+          try {
+            const cols = await dbConn.all(`DESCRIBE ${tableName}`);
+            if (cols.length === 1 && cols[0].column_name === "raw_event") {
+              log.warn(
+                `[TOAD Ingest Cache] Phat hien cache 1-cot raw_event loi thoi cho "${path.basename(
+                  filePath
+                )}". Tu dong dao thai cache va nap lai da cot!`
+              );
+              isCorruptedFallbackCache = true;
+              await dbConn.exec(`DROP VIEW IF EXISTS ${tableName}`);
+              if (fs.existsSync(parquetPath)) {
+                try {
+                  fs.unlinkSync(parquetPath);
+                } catch {}
+              }
+              ToadParquetLedger.getInstance()
+                .recordEvent({
+                  event_id: `evict-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  timestamp: Date.now(),
+                  source_path: filePath,
+                  source_size: 0,
+                  source_mtime: 0,
+                  parquet_path: parquetPath,
+                  parquet_size: 0,
+                  row_count: 0,
+                  status: "DELETED",
+                  duration_ms: 0,
+                  extra_json: JSON.stringify({ reason: "corrupted_1col_raw_event_cache" }),
+                })
+                .catch(() => {});
+            }
+          } catch (descErr) {
+            log.warn("[TOAD Ingest Cache] Loi describe view khi kiem tra cache:", descErr);
+          }
+        }
+
+        if (!isCorruptedFallbackCache) {
+          const importTime = process.hrtime(importStart);
+          log.info(
+            `[TOAD Ingest Cache] Hoan tat tai su dung Parquet trong ${prettyHRTime(
+              importTime
+            )} -> VIEW: ${tableName}`
+          );
+          return tableName;
+        }
       }
 
       // ===== CHẾ ĐỘ STREAMING PARQUET (5 giai đoạn đầy đủ - sinh mới hoặc reopen) =====
@@ -3354,7 +3487,11 @@ export const nativeCSVImport = async (
           row_count: finalRowCount,
           status: "READY",
           duration_ms: durationMs,
-          extra_json: JSON.stringify({ ext, view: tableName }),
+          extra_json: JSON.stringify({
+            ext,
+            view: tableName,
+            isRawEventFallback: !!(cfg as any).isRawEventFallback,
+          }),
         });
 
         // Giai đoạn 5: Tạo VIEW
@@ -3458,7 +3595,7 @@ export const nativeCSVImport = async (
     // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
     if (isComplexLogFile(filePath)) {
       try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, delim=',', quote='"', escape='')`;
         await dbConn.all(query);
         const importTime = process.hrtime(importStart);
         log.info(
@@ -3467,7 +3604,14 @@ export const nativeCSVImport = async (
         );
         return tableName;
       } catch (errSafe) {
-        log.warn("[Ingest In-Memory Safe Profile] That bai:", errSafe);
+        log.warn("[Ingest In-Memory Safe Profile] That bai, thu Force Header:", errSafe);
+        try {
+          const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, delim=',', quote='"', escape='', ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+          await dbConn.all(queryHeader);
+          return tableName;
+        } catch (errHeader) {
+          log.warn("[Ingest In-Memory Force Header] That bai:", errHeader);
+        }
       }
     }
 
@@ -3510,8 +3654,16 @@ export const nativeCSVImport = async (
       );
       return tableName;
     } catch (err2) {
-      log.error("[Ingest In-Memory Tier 2] Tat ca cac tier deu that bai:", err2);
-      throw err2;
+      log.warn("[Ingest In-Memory Tier 2] That bai, thu Force Header (Tier 2b):", err2);
+      try {
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, delim=',', quote='"', escape='', ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        await dbConn.all(query);
+        log.info("[Ingest In-Memory Tier 2b Force Header] Thanh cong!");
+        return tableName;
+      } catch (err2b) {
+        log.error("[Ingest In-Memory Tier 2b] Tat ca cac tier deu that bai:", err2b);
+        throw err2b;
+      }
     }
   } finally {
     try {
