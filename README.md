@@ -4,11 +4,11 @@
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
 [![Version](https://img.shields.io/badge/Version-2.4.6-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
-[![Tests](https://img.shields.io/badge/QA%20Tests-PASS-success.svg)](tests/run_tests.js)
+[![Tests](https://img.shields.io/badge/QA%20Tests-PASS%20(138%2F138)-success.svg)](tests/run_tests.js)
 
 > [!NOTE]
 > **Project Origin & Attribution**:
-> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, Double-Valid Parquet State Ledger (`toad_ledger.parquet`), Multi-Project Workspace Navigator, and Ergonomic Slate Dark Mode.
+> **Toad** is an enterprise-grade, high-performance fork of [Tad](https://github.com/antonycourtney/tad) (tadviewer), originally created by [Antony Courtney](https://github.com/antonycourtney). While Tad pioneered the concept of an elegant tabular data viewer, **Toad** fundamentally re-architects the system into an ultra-high-throughput Big Data log analyzer and Digital Forensics & Incident Response (DFIR) platform. Major enhancements include native DuckDB 1.0.0 vectorized engines, isolated dual-engine drivers (UI vs Ingestion), in-place multi-format column extractors (JSON, CSV, KV, Regex, W3C Web Logs), native Windows Event Log (`.evtx`) parsing via Rust SIMD, decoupled `host-bridge` UI architecture, instant RAM First-Page Micro-Cache, Double-Valid Parquet State Ledger (`toad_ledger.parquet`), Multi-Project Workspace Navigator, FastBuild rapid deployment pipeline, and Ergonomic Slate Dark Mode.
 
 > **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale (including **Big Data 40GB+ / 60,000,000+ rows**). Powered by **DuckDB 1.0.0**, native **Apache Parquet**, and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with ArcSight ESM query ergonomics, background **Multiple Loading Ingestion Queue**, visual in-situ progress tracking, $O(1)$ instant row counting, automatic chronological time sorting, background distinct filter caching, Ergonomic Slate dark theme, instant **Smart Expand 1-click triage**, and a flexible **pagination engine (default 1,000 rows with zero arbitrary upper limit)**.
 
@@ -20,130 +20,115 @@ Toad is packaged as a completely self-contained portable Windows executable—no
 
 | Executable / Release | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad 2.4.1 (Latest Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.1)** | ~72 MB | Enterprise release: Data-Dense Dashboard Sidebar, Zero Collision Tree, Hover Actions & Rich Tooltips |
-| **[`Toad 2.4.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.0)** | ~72 MB | Enterprise release: Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2 |
-| **[`Toad 2.3.5 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.5)** | ~72 MB | Enterprise release: Session Auto-Restore, Modified Red Status & Orphan Temp Purge |
-| **[`Toad 2.3.4 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.4)** | ~72 MB | Enterprise release: ASAR Sealing & Zero-Crash Resilience (eliminates ENOENT crash loops) |
-| **[`Toad 2.3.3 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.3)** | ~72 MB | Double-Valid Parquet State Ledger (`toad_ledger.parquet`) & Persistent Cache |
-| **[`Toad 2.3.2 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.2)** | ~72 MB | Dark Mode Contrast Fix across all panes & Ergonomic ActivityBar |
-| **[`Toad 2.3.1 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.1)** | ~72 MB | DuckDB assertion fix (`vector.cpp:1859`), Smart Bounded Ingestion Queue |
-| **[`Toad 2.3.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.0)** | ~75 MB | Standalone portable executable with Host-Bridge modularization & DuckDB 1.0.0 |
+| **[`Toad 2.4.6 (Latest Release)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.6)** | ~72 MB | RFC-4180 strict CSV delimiter enforcement, C++ assertion crash prevention (`vector.cpp:1859`), auto-eviction of corrupt caches, and FastBuild packaging |
+| **[`Toad 2.4.4 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.4)** | ~72 MB | English UI standardization, FullPath Tooltip, and Delete All Projects with confirm modal |
+| **[`Toad 2.4.3 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.3)** | ~72 MB | Real-time File/Table search, in-place Project Rename, and auto-sync ledger |
+| **[`Toad 2.4.2 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.2)** | ~72 MB | Project Isolation & Tombstone Ledger, Startup Reconciliation, and Single Trust Ledger |
+| **[`Toad 2.4.1 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.1)** | ~72 MB | Data-Dense Dashboard Sidebar, Zero Collision Tree, Hover Actions & Rich Tooltips |
+| **[`Toad 2.4.0 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.4.0)** | ~72 MB | Multi-Project Workspace Navigator, Cascade Cache Cleanup & Parquet State Ledger v2 |
+| **[`Toad 2.3.5 (Portable)`](https://github.com/p1rkr41n/toad_electron/releases/tag/v2.3.5)** | ~72 MB | Session Auto-Restore, Modified Red Status Badge & Orphan Temp Purge |
 | **[`All GitHub Releases`](https://github.com/p1rkr41n/toad_electron/releases)** | - | Full catalogue of versioned portable binaries and release packages |
 | **[`releases/RELEASE_NOTES.md`](releases/RELEASE_NOTES.md)** | - | Full Version Changelog & Technical Specifications |
-| **[`QUICK_START.md`](QUICK_START.md)** | - | Complete Quick Start & Feature Guide |
+| **[`QUICK_START.md`](QUICK_START.md)** | - | Complete Quick Start & Practical Usage Guide |
 
 ### Non-Polluting Portable Architecture
-Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configuration (`config.ini`), query filters (`filters_preset.json`), state ledger (`toad_ledger.parquet`), logs, and transient Parquet caches are encapsulated within a local folder named `toadAppData_[id]` created right alongside the executable.
+Toad strictly obeys the zero-footprint portable application philosophy:
+- **No Registry Changes**: Never registers COM components, file associations, or uninstall strings.
+- **No AppData Pollution**: Does not write to `C:\Users\<user>\AppData\Roaming`.
+- **Encapsulated Local Data**: All configuration (`config.ini`), query filters (`filters_preset.json`), state ledger (`toad_ledger.parquet`), logs, and transient Parquet caches are strictly encapsulated within a local folder named `toadAppData_[id]` created alongside the executable.
 
 ---
 
-## 2. Key Capabilities & Architectural Innovations
+## 2. Comprehensive Feature Matrix
 
-### 2.1 What's New in v2.4.0 (Multi-Project Workspace Navigator & Cascade Cleanup)
-* **Multi-Project Workspace Navigator (2-Tier Hierarchy)**:
-  - Organizes tabular data into distinct projects (`Untitled-1`, user-defined projects, and `orphan_prj` for legacy logs).
-  - Add individual files or entire directory trees directly to a target project.
-  - Active project indicator, expand/collapse toggles, and live file counters.
-* **Double-Valid Parquet State Ledger v2**:
-  - Compact Apache Parquet schema storing project metadata, event stream (`PROJECT_CREATE`, `FILE_READY`, `PROJECT_DELETE`), file timestamps, and cached Parquet mappings.
-  - Dictionary encoded, remaining ultra-lightweight (< 30KB) with instant DuckDB snapshot queries (< 5ms).
-* **Automatic `Untitled-1` Auto-Recovery**:
-  - When all projects are deleted, a 500ms debounce timer automatically re-initializes a fresh `Untitled-1` project to guarantee a frictionless workflow.
-* **Cascade Cache Cleanup**:
-  - Deleting a project triggers cascading disk cleanup, removing all transient Parquet cache files and unlinked temporary files while safely preserving source data.
+### 2.1 Workspace & Multi-Project Management
+* **2-Tier Project Hierarchy**:
+  - Top level: Projects (User-defined workspaces, default `Untitled-1`, and legacy `orphan_prj`).
+  - Child level: File tables with live status badges (`[READY]`, `[MODIFIED]`, `[PROCESSING]`, `[PENDING]`, `[ERROR]`).
+* **In-Place Project Rename**: Double-click or click the edit icon on any project header to rename it directly. Changes immediately sync to the Parquet State Ledger.
+* **Batch & Folder Ingestion**: Add individual files, multiple files via multi-select dialog, or drag-and-drop entire directory trees into specific projects.
+* **Cascade Cache Cleanup**: Deleting a project triggers cascading disk cleanup, purging all associated intermediate Parquet caches (`*_cached_*.parquet`) and orphaned temp chunks while strictly safeguarding raw source files.
+* **Project Isolation & Tombstone Ledger**: Ensures deleted files and projects never resurrect as "ghost files" across restarts using immutable tombstone rows in the append-only WAL.
+* **Startup Reconciliation & Single Trust Ledger**: On startup, DuckDB queries the State Ledger snapshot in `<5ms` to verify file existence and freshness, restoring the exact state of all projects and files.
+* **Automatic `Untitled-1` Auto-Recovery**: If all projects are deleted, a 500ms debouncer automatically initializes a clean `Untitled-1` project so the workspace is never left in an invalid empty state.
+* **Delete All Projects Action**: Clean slate in one click with a clear confirmation dialog calculating total reclaimed disk space.
+* **Real-Time Search & Filtering**: Instant search box in the sidebar to filter files by filename or directory path (`data_sample/`).
+* **Rich Tooltips & Hover Actions**: Hovering over any file shows its complete system path, size, modification date, and ingestion status.
 
-### 2.2 What's New in v2.3.5 (Session Auto-Restore, Modified Red Status & Orphan Purge)
-* **Session Auto-Restore**:
-  - Automatically remembers and re-opens the last active workspace directory (`last_directory` in `config.ini [general]`) on application launch, completely preventing empty black sidebars.
-  - Controlled by configurable flag `auto_restore_last_directory = true`.
-* **Double-Valid Modified Detection & Vibrant Red Status**:
-  - State Ledger checks physical file timestamp (`mtime`) and byte size. If a source file is modified externally, its node in the file tree turns vibrant red (`#ef4444`) with an explicit `MODIFIED` badge.
-  - Clicking a modified file triggers automatic priority re-ingestion from source and updates the Ledger journal.
-* **Startup Orphan Temp Purge**:
-  - Automatically cleans stranded `.tmp_*.parquet` and `.tmp` files left behind by ungraceful crashes during heavy 40GB workloads, reclaiming gigabytes of disk space while strictly protecting valid Parquet caches and the State Ledger.
+### 2.2 Dual-Engine Big Data Architecture (40GB+ / 60M+ Rows)
+* **Isolated Dual DuckDB Engine Singletons**:
+  - **UI Driver**: Dedicated solely to low-latency user queries, pagination, sorting, and pivot operations. Never blocked by file loading.
+  - **Ingest Engine**: Multi-worker background pipeline that streams raw CSV, JSONL, and EVTX files into columnar Parquet.
+* **RAM First-Page Micro-Cache**: Caches the initial 1,000 rows in memory immediately upon ingestion completion. Clicking a ready file opens the grid in **< 2ms with zero disk I/O**.
+* **Instant $O(1)$ Metadata Row Count**: For multi-gigabyte datasets, row counts are resolved in **~25ms** directly from Apache Parquet metadata headers (`SELECT SUM(row_group_num_rows) FROM parquet_metadata(...)`), eliminating prolonged 30s table scans.
+* **Smart Bounded Ingestion Queue**:
+  - Automatically limits background ingestion concurrency (maximum 8 files pre-warming concurrently).
+  - Background 1s scheduler prevents CPU starvation and disk I/O thrashing.
+  - **VIP Jump Queue Preemption**: Clicking any pending file immediately promotes it to priority #1 for instant loading.
+* **Dynamic Libuv Threadpool Budgeting**: Configurable in `config.ini` with auto-tuning bounded within `[8, 128]` threads based on host CPU topology.
 
-### 2.2 What's New in v2.3.4 (ASAR Sealing & Zero-Crash Resilience)
-* **ASAR Sealing (`asarUnpack` Isolation)**:
-  - Pruned `**/*reltab*` from `asarUnpack`. All core JavaScript application files (`reltab`, `reltab-duckdb`, `reltab-fs`) are now safely sealed 100% inside `app.asar`.
-  - Completely eliminates the `ENOENT: no such file or directory... reltab-duckdb.js` crash loop caused by NSIS partial temp deletions or Windows sharing violations.
-  - Strictly unpacks only native C++ binary addons (`**/*.node` for `duckdb.node`).
-* **Shutdown File Handle Buffer**:
-  - Extended graceful shutdown release window to 150ms in `before-quit` to ensure Windows kernel memory mappings and active DuckDB streams fully detach before portable NSIS wrapper triggers directory cleanup.
+### 2.3 Resilient Multi-Tier CSV & Delimited Text Ingestion
+* **RFC-4180 Strict Delimiter Enforcement**:
+  - Explicitly enforces `delim = ','` for `.csv` files and `delim = '\t'` for `.tsv` files.
+  - Eliminates parser delimiter confusion caused by quoted commas inside log payloads (e.g. JSON fields or command-line strings).
+* **Native C++ Crash Prevention (`vector.cpp:1859`)**:
+  - Fixed the native DuckDB assertion crash where `RemoveEscape` was invoked on numeric physical vectors.
+  - Complex DFIR logs automatically activate `all_varchar = true`, guaranteeing 100% physical `PhysicalType::VARCHAR` vectors and mathematically preventing assertion failure while preserving full table structure.
+* **Automatic Corrupted Cache Eviction (Auto-Eviction)**:
+  - If an older cache exists where columns were mistakenly merged into a single composite column (e.g. `Timestamp,EventTime,...`), Toad automatically detects the delimiter anomaly, deletes the damaged Parquet cache, and re-ingests cleanly.
+* **3-Tier Streaming Fallback**:
+  - **Tier 0**: High-speed RFC-4180 multi-threaded stream with header auto-detection.
+  - **Tier 1**: Single-threaded serial streaming for boundary-sensitive files.
+  - **Tier 2**: Robust `all_varchar = true` ingest for dirty and irregular forensic logs.
+  - **Tier 2b**: Force Header fallback for unstructured CSV exports without header quotes.
 
-### 2.3 What's New in v2.3.3 (Double-Valid Parquet State Ledger & Persistent Cache)
-* **Double-Valid Parquet State Ledger (`toad_ledger.parquet`)**:
-  - Implements an **Append-Only Write-Ahead Log (WAL)** in Apache Parquet format inside `toadAppData`.
-  - Never deletes or rewrites history; each event (`STARTED`, `READY`, `ERROR`, `STALE`) is an immutable appended transaction row.
-  - Acts as the bootstrap source of truth for the entire system upon startup via DuckDB vectorized window queries:
-    $$\text{Latest Snapshot} = \text{ROW\_NUMBER}() \text{ OVER } (\text{PARTITION BY } \text{source\_path} \text{ ORDER BY } \text{timestamp DESC}) = 1$$
-* **Two-Tier Double Validation Engine**:
-  - **Level 1 (Source Freshness)**: Compares physical file size and filesystem `mtimeMs` against recorded values. If the source file was edited or touched, Level 1 triggers a re-conversion.
-  - **Level 2 (Physical Cache Integrity)**: Verifies that the `.parquet` cache exists on disk, matches `parquet_size`, and is structurally sound.
-  - Files passing Double Validation are immediately marked `status: "ready"` (100% loaded) upon directory scan, completely bypassing background worker queues and progress bars (e.g., 40GB CSV files open in $< 1\text{ ms}$ on subsequent sessions!).
-* **Fix Startup Cache Wiping (`temp_cleanup = false` Persistence)**:
-  - Fixed an issue where `cleanTempDir` was invoked unconditionally at startup before `config.ini` was evaluated.
-  - `config.ini` is now parsed first; when `temp_cleanup = false`, all cached Parquet files in `temp/` are preserved indefinitely across sessions.
-  - Safety guard: `cleanTempDir` never removes `toad_ledger.parquet`.
-* **Zero-Cost Indie Developer Release Pipeline (HelloKittyXamKinLung Standard)**:
-  - Formatted PE metadata branding, portable `.exe` and `.zip` packaging, SHA-256 checksums, and SmartScreen frictionless distribution guidelines.
+### 2.4 Windows Event Log (`.evtx`) Forensic Engine
+* **Embedded Rust SIMD Decoder**:
+  - Powered by native `toad-core-rust` binary module.
+  - High-throughput binary XML decoding into structured columnar records.
+* **Non-Blocking Asynchronous Processing**:
+  - Runs in a background worker without freezing the Electron UI event loop.
+  - Multi-stage progress tracking:
+    - **5% – 45%**: Rust SIMD binary EVTX decoding to JSONL stream.
+    - **45% – 90%**: DuckDB streaming from JSONL to compressed Parquet.
+    - **90% – 100%**: Parquet metadata indexing and instant View registration.
 
-### 2.2 What's New in v2.3.2 (Dark Mode Parity & UI Standardization)
-* **Complete Dark Mode Contrast Resolution across All Panes**:
-  - **Sidebar File Tree**: Fixed invisible black-on-black file names (`.ds-status-ready`) by introducing first-class Material 3 Dark tokens (`var(--md-sys-color-on-surface, #e3e3e8)`), boosting contrast to > 11:1.
-  - **Full Status Color Spectrum**: Distinct and accessible colors for all ingestion states in both Light and Dark mode (`ready`, `processing`, `pending`, `idle`, `error`).
-  - **Tree Node Selection & Hover**: Harmonized selected rows with M3 Primary Container (`#1f385c`) and bright white title text (`#ffffff`).
-  - **Event Details Sidebar (`eventDetailSidebar.less`)**: Built comprehensive Material 3 Dark support across headers, badges, search bar, table rows, forensic decoders, and code preview containers—eliminating the previous solid-white panel glare.
-  - **Center Loading & Empty Workspace Cards**: Styled center loading progress cards, empty workspaces, and error cards with gentle ergonomic slate containers (`#25262c`).
-  - **Column Selector Badges & Grid Borders**: Adapted column search match badges and SlickGrid divider lines to dark mode.
-* **Ergonomic ActivityBar Streamlining**:
-  - Removed the standalone bottom feedback icon button to keep the ActivityBar uncluttered and focused purely on data navigation and the theme toggle.
-  - Preserved the Defender-safe GitHub feedback feature within the native application menu under `Help -> Send Feedback / Bug Reports (GitHub)`.
-
-### 2.2 What's New in v2.3.1 (Reliability & Usability Release)
-* **DuckDB C++ Assertion Resolution (`vector.cpp:1859`)**:
-  - Eliminated the native crash bug caused by DuckDB 1.0.0's CSV scanner attempting to unescape string quotes (`RemoveEscape`) into non-VARCHAR physical vectors.
-  - Enforced RFC-4180 strict dialect (`quote = '"', escape = '"'`) across all streaming and in-memory queries, null-padding resilience, and automatic 3-tier fallback to `all_varchar = true` and Raw Event mode for malformed datasets.
-* **Smart Bounded Queue & Lazy Pre-loading**:
-  - Re-engineered `MultipleLoadingManager` to pre-warm the initial 8 files concurrently upon opening a directory, gracefully keeping larger batches in `idle` on-demand state to prevent disk thrashing and memory exhaustion.
-  - Instant VIP Jump Queue: clicking any file immediately elevates it to the highest priority for instant loading.
-* **Integrated "Send Feedback & Bug Reports"**:
-  - One-click GitHub Issue Reporter added directly to the Activity Bar and Help Menu.
-  - Skilfully engineered using native Windows Shell integration (`shell.openExternal`) via `host-bridge`—opening the default web browser seamlessly without spawning `cmd.exe` or `powershell.exe`, guaranteeing zero false-positive alerts from Windows Defender or heuristic endpoint protection agents.
-
-### 2.2 Decoupled Host-Bridge Architecture (v2.3.0)
-Toad v2.3.0 introduces a modularized runtime boundary between the presentation layer and the native host runtime:
-- **Zero-Electron UI Layer**: The entire [`tadviewer`](packages/tadviewer/) package contains zero direct references to Electron APIs, isolating view logic completely.
-- **`host-bridge` Interface Abstraction**: [`packages/host-bridge`](packages/host-bridge/) defines `IHostBridge` and `V8HostAdapter`, allowing the user interface to communicate cleanly across desktop backends (Electron, future Web / Tauri / Native).
-- **Runtime Configuration Router**: [`config.ini`](config.ini) dynamically controls runtime behavior:
-  ```ini
-  [runtime]
-  engine = v8
-  auto_fallback = true
-  ```
-
-### 2.2 Dual-Engine DuckDB & RAM Micro-Cache
-- **Isolated Engine Singletons**: Toad segregates DuckDB operations into two independent pools:
-  - **UI Driver**: Dedicated to low-latency user queries, grid paging, and pivot calculations.
-  - **Ingest Engine**: Multi-worker background ingestion pipeline that converts raw CSV, JSON, and EVTX files into columnar Parquet without blocking user navigation.
-- **RAM First-Page Micro-Cache**: Caches the initial 1,000 rows in memory immediately upon ingestion completion, resolving first-page table mounts in **< 2ms with zero disk I/O**.
-- **Libuv Thread Budgeting**: Automatically calculates thread pools bounded within `[8, 128]` based on host CPU topology.
-
-### 2.3 Dynamic In-Place Column Extractor
+### 2.5 Dynamic In-Place Column Extractor
 Extract, structure, and rename embedded semi-structured log fields on the fly:
-- **Supported Encodings**:
+* **Supported Extraction Dialects**:
   - **JSON Object & Array**: Extract keys by path (`$.user.name`) or array index (`$[0]`).
   - **Key-Value Pairs**: Parse `key=value` or `key: "value"` with custom delimiters.
   - **Delimited & CSV**: Custom delimiter (`|`, `,`, `\t`, space) with quote enclosure resilience.
   - **Regular Expressions**: Capture groups with automatic `$X_{max}` collision-free resuming column index.
   - **W3C / IIS Web Logs**: Auto-detects space-delimited access logs with sticky headers.
-- **Header Prefix CTE**: Preserves original log headers cleanly via DuckDB Common Table Expressions.
-- **Inline TRY_CAST**: Live type selector defaulting to robust error-suppressed conversion.
-- **Universal Unmatched Column Engine**: Automatically isolates unparsed text into an `unmatched_raw_event` column and measures empirical fill rates.
+* **Header Prefix CTE**: Preserves original log headers cleanly via DuckDB Common Table Expressions.
+* **Inline `TRY_CAST`**: Live type selector defaulting to robust error-suppressed conversion.
+* **Universal Unmatched Column Engine**: Automatically isolates unparsed text into an `unmatched_raw_event` column and measures empirical fill rates.
 
-### 2.4 Ergonomic Slate Dark Theme & Material 3 Styling
-- **WCAG-Compliant Dark Mode**: Carefully calibrated slate palette (`#1E1E24`, `#2D2D39`) designed specifically for dark SOC environments and long DFIR investigation shifts.
-- **ActivityBar Sun/Moon Switcher**: Seamlessly toggle between Light and Dark themes with persistent local configuration.
-- **Subtle DataGrid Borders**: Replaced harsh borders with gentle grid lines and full-row selection highlighting.
+### 2.6 Exploration, Filtering & Pivot Analytics
+* **ArcSight ESM Compound Query Engine**:
+  - Dual View Modes: Visual condition tree editor or direct raw SQL query editing.
+  - Multi-Tag Pill Inputs: Paste comma/newline-separated lists into `IN` / `NOT IN` clauses.
+  - Live Matched Row Counter: Displays matched rows and query latency live on every keystroke.
+  - Drag-and-Drop Rule Nesting: Reorder and nest conditions across logical `AND` / `OR` groups.
+* **Hierarchical Pivot Tables**:
+  - Multi-level group by across arbitrary pivot columns with sub-second response times.
+  - Aggregate metrics: `sum`, `avg`, `min`, `max`, `uniq`, row counts.
+  - Interactive drill-down and drill-up into nested branches.
+* **Event Details Inspector (Master-Detail Drawer)**:
+  - Click the chevron (`›`) on any row to open the secondary **Event Details** inspection panel.
+  - Monospace payload wrapping with data type badges (`str`, `int`, `time`, `bool`).
+  - Smooth keyboard navigation with arrow keys (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>).
+  - One-click JSON export and individual field value clipboard copy.
+* **Smart Expand 1-Click Triage**: Instant row preview and formatted payload inspection.
+* **Flexible Pagination Engine**: Default 1,000 rows with dynamic sliding window and zero arbitrary row cap.
+
+### 2.7 UI/UX & Visual Ergonomics
+* **English UI Standardization**: Clean, professional internationalized English interface across all menus, tooltips, dialogs, and status badges.
+* **Ergonomic Slate Dark Mode & Material 3 Styling**:
+  - WCAG AAA-compliant dark palette (`#1E1E24`, `#2D2D39`) designed specifically for dark SOC environments and long DFIR investigation shifts.
+  - ActivityBar Sun/Moon switch to seamlessly toggle between Light and Dark themes with persistent local storage.
+  - Subtle SlickGrid border dividers and full-row selection highlighting.
 
 ---
 
@@ -151,37 +136,57 @@ Extract, structure, and rename embedded semi-structured log fields on the fly:
 
 | Format | Extension | Capabilities |
 | :--- | :--- | :--- |
-| **Delimited Text** | `.csv`, `.tsv`, `.txt` | Ultra-fast multi-threaded streaming with 3-tier fallback parser |
-| **Apache Parquet** | `.parquet` | Native columnar scanning with zero conversion overhead |
+| **Delimited Text** | `.csv`, `.tsv`, `.txt` | Ultra-fast multi-threaded streaming with RFC-4180 strict delimiter enforcement and 3-tier fallback |
+| **Apache Parquet** | `.parquet` | 100% Native columnar scanning with zero conversion overhead |
 | **DuckDB Database** | `.duckdb` | Full SQL schema tree browsing and instant table views |
 | **SQLite Database** | `.sqlite`, `.db` | Embedded relational database inspection |
 | **JSON / JSON Lines** | `.json`, `.jsonl`, `.ndjson` | Structured and semi-structured streaming ingestion |
-| **Windows Event Logs** | `.evtx` | Rust-accelerated EVTX decoding into columnar records |
+| **Windows Event Logs** | `.evtx` | Rust-accelerated EVTX decoding into columnar Parquet records |
 | **Raw Event Logs** | `.log` | Ingests unformatted log lines directly into a `raw_event` column |
 | **Toad Workspaces** | `.tad` | Saves and restores entire pivot tables, filters, and layouts |
 
 ---
 
-## 4. Exploration & Query Ergonomics
+## 4. Rapid Packaging & Build Pipeline
 
-### 4.1 Hierarchical Pivot Tables
-Transforms flat tables into interactive multi-level tree tables:
-- Group rows across arbitrary pivot columns with sub-second response times.
-- Compute aggregations (`sum`, `avg`, `min`, `max`, `uniq`, row counts).
-- Instant drill-down and drill-up into nested branches.
+Toad provides dual build pipelines optimized for both everyday development/QA testing and production distribution:
 
-### 4.2 ArcSight ESM Query Search & Compound Filtering
-Enterprise-grade compound query engine modeled after ArcSight ESM:
-- **Dual View Modes**: Switch between graphical tree view and direct Raw SQL editing.
-- **Multi-Tag Pill Inputs**: Paste comma/newline-separated lists into `IN` / `NOT IN` clauses.
-- **Real-Time Row Counters**: Shows matched count and execution latency live on every keystroke.
-- **Drag-and-Drop Rule Nesting**: Reorder and nest conditions across logical `AND` / `OR` groups.
+```
+                            [MÃ NGUỒN TOAD]
+                                   │
+                 ┌─────────────────┴─────────────────┐
+                 ▼                                   ▼
+        [1. FASTBUILD PIPELINE]             [2. PRODUCTION PIPELINE]
+        (fastbuild.ps1)                     (dist_package.ps1 + package_release.ps1)
+        - Thời gian: ~70 - 120 giây         - Thời gian: ~255 - 265 giây
+        - Không nén 7-Zip LZMA nặng         - Nén tối đa tạo 1 file .exe duy nhất
+        - Đóng gói thành thư mục:           - Tạo: releases/Toad-<v>-x64-portable.exe
+          build/Toad-<version>/Toad.exe            releases/Toad-<v>-x64-portable.zip
+        - Tạo junction: build/latest        - Tạo mã băm SHA-256 chính thức
+        - Chạy thử & nghiệm thu ngay!       - Đưa lên GitHub Releases
+```
 
-### 4.3 Event Details Inspector (Master-Detail View)
-- Click the chevron (`›`) on any row to open the secondary **Event Details** inspection panel.
-- Monospace payload wrapping with data type badges (`str`, `int`, `time`, `bool`).
-- Smooth keyboard navigation with arrow keys (<kbd>&uarr;</kbd> / <kbd>&darr;</kbd>).
-- One-click JSON export and individual field value clipboard copy.
+### 4.1 FastBuild Pipeline (`fastbuild.ps1`)
+Built specifically to drastically cut turnaround time during debugging, feature development, and QA testing:
+```powershell
+# FastBuild tiêu chuẩn (tạo build/Toad-<version>/Toad.exe trong ~120s):
+powershell -ExecutionPolicy Bypass -File fastbuild.ps1
+
+# FastBuild siêu tốc (bỏ qua tsc nếu chỉ sửa JavaScript/HTML/CSS, ~70s):
+powershell -ExecutionPolicy Bypass -File fastbuild.ps1 -SkipTsc
+
+# FastBuild và tự động khởi chạy ứng dụng ngay sau khi build:
+powershell -ExecutionPolicy Bypass -File fastbuild.ps1 -Launch
+```
+
+### 4.2 Production Release Pipeline
+```powershell
+# 1. Đóng gói binary portable chính thức
+powershell -ExecutionPolicy Bypass -File dist_package.ps1
+
+# 2. Tạo file ZIP phân phối và mã băm SHA-256
+powershell -ExecutionPolicy Bypass -File package_release.ps1
+```
 
 ---
 
@@ -214,20 +219,16 @@ node run_tests.js --all
 
 ---
 
-## 6. Development & Build Instructions
+## 6. Repository Structure
 
-### Prerequisites
-- Windows 10/11 x64
-- Node.js v18.20+ & npm
-- Rust toolchain (optional, for compiling `toad-core-rust`)
-
-### Repository Structure
 ```
 tad/
 ├── build_all.ps1                  # Root build script
 ├── config.ini                     # Runtime configuration router
-├── dist_package.ps1               # Portable packaging script
-├── run_tests.js                   # Unified test runner
+├── dist_package.ps1               # Production portable packaging script
+├── fastbuild.ps1                  # Rapid unpacked deployment script
+├── package_release.ps1            # Release ZIP and SHA-256 generator
+├── run_tests.js                   # Unified test runner (138 tests)
 ├── docs/                          # Architecture & BA documentation
 ├── releases/                      # Release notes & QA reports
 └── tad-master/                    # Core monorepo
@@ -239,24 +240,6 @@ tad/
     │   ├── tadviewer/             # Decoupled React + SlickGrid UI
     │   ├── tad-app/               # Electron application shell & packaging
     │   └── toad-core-rust/        # Rust SIMD binary guard & EVTX engine
-```
-
-### Building from Source
-```powershell
-# 1. Bootstrap monorepo dependencies
-cd tad-master
-npx lerna bootstrap --ci --hoist --force-local
-
-# 2. Build backend packages and UI
-cd packages/host-bridge; npm run build
-cd ../reltab; npm run build
-cd ../reltab-duckdb; npm run build
-cd ../reltab-fs; npm run build
-cd ../tadviewer; npm run build
-
-# 3. Build & package desktop executable
-cd ../tad-app; npm run build-prod
-npx electron-builder --win portable --publish=never
 ```
 
 ---
