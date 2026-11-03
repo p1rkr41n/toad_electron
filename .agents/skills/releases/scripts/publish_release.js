@@ -38,7 +38,7 @@ async function main() {
     body += `\n\n### 🛡️ Checksums & Integrity\n\`\`\`\n${checksums}\n\`\`\``;
   }
 
-  const releaseTitle = `Toad v${version} - Data-Dense Dashboard Sidebar & Hover Ergonomics Release`;
+  const releaseTitle = `Toad v${version} - Tabular OLAP Analytics Desktop (Full Rebrand & Feature Release)`;
 
   // 1. Check if release already exists
   let releaseId = null;
