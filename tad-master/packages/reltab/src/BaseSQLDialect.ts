@@ -1,7 +1,6 @@
 import { SQLDialect } from "./dialect";
 import { QueryRep } from "./QueryRep";
 import { SQLQueryAST } from "./SQLQuery";
-import { pagedQueryToSql } from "./toSql";
 import { ColumnType, CoreColumnTypes, ColumnTypeMap } from "./ColumnType";
 import { LeafSchemaMap } from "./TableRep";
 
@@ -28,6 +27,7 @@ export abstract class BaseSQLDialect implements SQLDialect {
     offset?: number,
     limit?: number
   ): SQLQueryAST {
+    const { pagedQueryToSql } = require("./toSql");
     return pagedQueryToSql(this, tableMap, query, offset, limit);
   }
 

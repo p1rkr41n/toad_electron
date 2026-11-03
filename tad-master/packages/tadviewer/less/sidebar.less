@@ -1129,6 +1129,15 @@
     line-height: 24px;
     height: 25px;
 
+    .bp4-popover-target {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+      display: inline-block;
+    }
+
     .file-name-text {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1141,6 +1150,20 @@
   .cell-dir {
     color: #64748b;
     font-size: 10px;
+
+    .bp4-popover-target {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+      max-width: 100%;
+    }
+
+    .file-dir-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
   }
 
   .cell-size {

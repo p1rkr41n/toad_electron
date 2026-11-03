@@ -58,11 +58,11 @@ export type WorkspaceChangeListener = () => void;
 
 /**
  * ProjectWorkspaceManager:
- * Ring 3 (UI State / Core Logic): Quản lý toàn bộ vòng đời Multi-Project Workspace
- * - Quản lý danh sách Project (Active, Custom, orphan_prj).
- * - Tự động đồng bộ với Parquet State Ledger qua IPC / host-bridge hoặc direct fallback.
- * - Hỗ trợ thao tác: Tạo Project mới, Thêm File(s), Thêm Folder, Xóa Project (Cascade Cleanup).
- * - Debounce 500ms tự động phục hồi Untitled-1 khi danh sách rỗng.
+ * Ring 3 (UI State / Core Logic): Manages multi-project workspace lifecycle
+ * - Manages project catalog (Active, Custom, orphan_prj).
+ * - Automatically synchronizes with Parquet State Ledger via IPC / host-bridge or direct fallback.
+ * - Supports operations: Create new project, Add file(s), Add folder, Delete project (Cascade Cleanup).
+ * - 500ms debounce auto-recovery creating Untitled-1 when project catalog is empty.
  */
 export class ProjectWorkspaceManager {
   private static instance: ProjectWorkspaceManager | null = null;
@@ -325,6 +325,8 @@ export class ProjectWorkspaceManager {
       try {
         result = await bridge.invoke("project:deleteAll", {});
         this.expandedMap.clear();
+        this.cachedProjects = [];
+        this.activeProjectId = "";
         this.notify();
         return result;
       } catch {}
@@ -335,6 +337,8 @@ export class ProjectWorkspaceManager {
       const ledger = duckdb.ToadParquetLedger.getInstance();
       result = await ledger.deleteAllProjectsCascade();
       this.expandedMap.clear();
+      this.cachedProjects = [];
+      this.activeProjectId = "";
       this.notify();
       return result;
     }
@@ -422,11 +426,12 @@ export class ProjectWorkspaceManager {
     return [];
   }
 
-  public async moveOrphanFilesToProject(targetProjectId: string): Promise<void> {
+  public async moveOrphanFilesToProject(targetProjectId?: string): Promise<void> {
+    const target = targetProjectId || this.activeProjectId;
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
       try {
-        await bridge.invoke("project:moveOrphanFiles", { targetProjectId });
+        await bridge.invoke("project:moveOrphanFiles", { targetProjectId: target });
         this.notify();
         return;
       } catch {}
@@ -435,7 +440,7 @@ export class ProjectWorkspaceManager {
     const duckdb = getReltabDuckDB();
     if (duckdb && duckdb.ToadParquetLedger) {
       const ledger = duckdb.ToadParquetLedger.getInstance();
-      await ledger.moveOrphanFilesToProject(targetProjectId);
+      await ledger.moveOrphanFilesToProject(target);
       this.notify();
     }
   }

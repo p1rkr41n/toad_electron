@@ -1296,6 +1296,7 @@ export class ToadParquetLedger {
     for (const projId of this.projects.keys()) {
       await this.dropProjectViews(projId);
     }
+    await this.dropProjectViews("orphan_prj");
 
     // 2. Scan and purge all entries in temp/, except toad_ledger.parquet
     const tempDir = this.getTempDir();
