@@ -90,14 +90,25 @@ export const FileTreeItemLabel: React.FC<{
   }, [appState.viewState?.dsPath, key, canonicalPath]);
 
   const nodeStatus = (dsNode as any).initialStatus;
-  const isReady =
-    isCurrentActiveView ||
-    (item ? item.status === "ready" : nodeStatus === "READY");
+  const isProcessing =
+    (item ? item.status === "processing" : false) ||
+    nodeStatus === "PROCESSING" ||
+    nodeStatus === "STARTED";
+  const isError = !isProcessing && (item ? item.status === "error" : nodeStatus === "ERROR");
   const isModified =
-    !isReady && (item ? item.status === "modified" : nodeStatus === "MODIFIED");
-  const isProcessing = !isReady && !isModified && (item ? item.status === "processing" : false);
-  const isError = !isReady && !isModified && (item ? item.status === "error" : false);
-  const isPending = !isReady && !isModified && !isProcessing && !isError && (item ? item.status === "pending" : false);
+    !isProcessing && !isError && (item ? item.status === "modified" : nodeStatus === "MODIFIED");
+  const isReady =
+    !isProcessing &&
+    !isError &&
+    !isModified &&
+    (isCurrentActiveView ||
+      (item ? item.status === "ready" : nodeStatus === "READY"));
+  const isPending =
+    !isProcessing &&
+    !isError &&
+    !isModified &&
+    !isReady &&
+    (item ? item.status === "pending" : nodeStatus === "PENDING");
   const percent = item ? item.percent : 0;
 
   const rawRowCount = (dsNode as any).rawRowCount;
@@ -107,52 +118,62 @@ export const FileTreeItemLabel: React.FC<{
       : undefined;
   const fileSizeBytes = dsNode.fileSizeBytes;
 
-  const statusTitle = isModified
-    ? "File nguồn đã bị sửa đổi! Nhấp để nạp lại bản mới nhất"
+  const statusTitle = isProcessing
+    ? `${dsNode.displayName} - Loading ${Math.round(percent)}%`
+    : isModified
+    ? "Source file modified! Click to reload"
     : isError
-    ? `Lỗi: ${item?.error || "Không thể nạp tệp"}`
+    ? `Error: ${item?.error || "Failed to load file"}`
     : isReady
-    ? `${dsNode.displayName} (Sẵn sàng • Parquet Cache Hit)`
-    : isProcessing
-    ? `${dsNode.displayName} - Đang nạp ${Math.round(percent)}%`
+    ? `${dsNode.displayName} (Ready • Parquet Cache Hit)`
     : isPending
-    ? `${dsNode.displayName} - Đang chờ nạp ngầm`
-    : `${dsNode.displayName} (Nhấp để mở tức thì)`;
+    ? `${dsNode.displayName} - Waiting for background ingest`
+    : `${dsNode.displayName} (Click to open immediately)`;
 
   const hoverCard = (
     <div className="file-hover-card">
       <div className="file-hover-name">{dsNode.displayName}</div>
       <div className="file-hover-row">
-        <span className="file-hover-label">Đường dẫn:</span>
+        <span className="file-hover-label">Full Path:</span>
         <span className="file-hover-val" title={canonicalPath}>
           {canonicalPath}
         </span>
       </div>
       {fileSizeBytes != null && fileSizeBytes > 0 && (
         <div className="file-hover-row">
-          <span className="file-hover-label">Kích thước gốc:</span>
+          <span className="file-hover-label">Original Size:</span>
           <span className="file-hover-val">{formatFileBytes(fileSizeBytes)}</span>
         </div>
       )}
       {rawRowCount != null && rawRowCount !== "" && !isNaN(Number(rawRowCount)) && (
         <div className="file-hover-row">
-          <span className="file-hover-label">Tổng số dòng:</span>
-          <span className="file-hover-val">{Number(rawRowCount).toLocaleString()} dòng</span>
+          <span className="file-hover-label">Total Rows:</span>
+          <span className="file-hover-val">{Number(rawRowCount).toLocaleString()} rows</span>
         </div>
       )}
       <div className="file-hover-row">
-        <span className="file-hover-label">Trạng thái:</span>
+        <span className="file-hover-label">Status:</span>
         <span
           className={`file-hover-val ${
-            isReady ? "text-success" : isModified ? "text-danger" : ""
+            isReady
+              ? "text-success"
+              : isModified
+              ? "text-danger"
+              : isProcessing
+              ? "text-primary"
+              : ""
           }`}
         >
-          {isReady
+          {isProcessing
+            ? `PROCESSING (${Math.round(percent)}%)`
+            : isReady
             ? "VALID (Parquet Cache Ready)"
             : isModified
-            ? "MODIFIED (Nguồn thay đổi)"
-            : isProcessing
-            ? `PROCESSING (${Math.round(percent)}%)`
+            ? "MODIFIED (Source Changed)"
+            : isError
+            ? "ERROR"
+            : isPending
+            ? "PENDING"
             : "IDLE"}
         </span>
       </div>
@@ -203,7 +224,7 @@ export const FileTreeItemLabel: React.FC<{
           {isModified && (
             <span
               className="status-badge-modified ds-file-node-modified-badge"
-              title="File nguồn đã bị sửa đổi! Nhấp để reload"
+              title="Source file modified! Click to reload"
             >
               MODIFIED
             </span>
@@ -211,20 +232,20 @@ export const FileTreeItemLabel: React.FC<{
           {isProcessing && (
             <span
               className="status-spinner-wrapper ds-file-node-percent"
-              title={`Đang nạp ${Math.round(percent)}%`}
+              title={`Loading ${Math.round(percent)}%`}
             >
               <Spinner size={11} intent={Intent.PRIMARY} />
             </span>
           )}
           {isPending && (
-            <span className="status-dot status-dot-pending" title="Đang chờ nạp ngầm">
+            <span className="status-dot status-dot-pending" title="Waiting for background ingest">
               ◌
             </span>
           )}
           {isError && (
             <span
               className="status-dot status-dot-error ds-file-node-error-badge"
-              title={item?.error || "Lỗi khi nạp file"}
+              title={item?.error || "Error loading file"}
             >
               !
             </span>
@@ -450,6 +471,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     projectName: string;
   } | null>(null);
   const [purgeAllOpen, setPurgeAllOpen] = useState(false);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(false);
   const [, setTreeState] = useState<any[]>([]);
 
   const [projectContextMenu, setProjectContextMenu] = useState<{
@@ -746,6 +768,21 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     }
   };
 
+  const handleExecuteDeleteAllProjects = async () => {
+    try {
+      const curState = mutableGet(stateRef);
+      if (curState.viewState) {
+        const { awaitableUpdate_ } = require("oneref");
+        await awaitableUpdate_(stateRef, (st: AppState) => st.set("viewState", null) as AppState);
+      }
+      await pwManager.deleteAllProjects();
+      setDeleteAllOpen(false);
+      refreshWorkspaceData();
+    } catch (err) {
+      console.error("Error deleting all projects:", err);
+    }
+  };
+
   return (
     <Sidebar expanded={expanded}>
       <div className="project-workspace-header">
@@ -779,6 +816,16 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 onClick={() => setPurgeAllOpen(true)}
               />
             </Tooltip>
+            <Tooltip content="Delete All Projects (Reset ledger and purge temp cache)" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn project-toolbar-danger-btn"
+                icon="trash"
+                intent={Intent.DANGER}
+                minimal={true}
+                small={true}
+                onClick={() => setDeleteAllOpen(true)}
+              />
+            </Tooltip>
           </div>
         </div>
 
@@ -806,7 +853,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       <div className="project-workspace-body">
         {filteredProjects.length === 0 ? (
           <div className="project-search-empty">
-            {q ? `Không tìm thấy file nào khớp với "${searchQuery}"` : "Không có project nào"}
+            {q ? `No files matching "${searchQuery}"` : "No projects available"}
           </div>
         ) : (
           filteredProjects.map(({ project, files, isExpanded }) => {
@@ -1067,6 +1114,32 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
         </div>
       )}
 
+      {/* Confirm Delete All Projects Dialog */}
+      <Dialog
+        isOpen={deleteAllOpen}
+        onClose={() => setDeleteAllOpen(false)}
+        title="Delete All Projects"
+        icon="trash"
+        style={{ width: "440px" }}
+      >
+        <div className={Classes.DIALOG_BODY}>
+          <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
+            Are you sure you want to delete all projects? This will reset the Parquet Ledger to 0 rows, permanently purge all temporary cache directories, and recreate a clean Untitled-1 default project.
+          </p>
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button onClick={() => setDeleteAllOpen(false)}>Cancel</Button>
+            <Button
+              intent={Intent.DANGER}
+              onClick={handleExecuteDeleteAllProjects}
+            >
+              Delete All Projects
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
       {/* Confirm Purge All Cache Dialog */}
       <Dialog
         isOpen={purgeAllOpen}
@@ -1077,10 +1150,10 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       >
         <div className={Classes.DIALOG_BODY}>
           <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
-            Bạn có chắc chắn muốn giải phóng toàn bộ cache Parquet cho <strong>tất cả các project</strong>?
+            Are you sure you want to clear all Parquet cache for <strong>all projects</strong>?
           </p>
           <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>
-            Hành động này sẽ dọn sạch các file đệm trong thư mục temp và đặt lại trạng thái nạp. File dữ liệu gốc không bị thay đổi.
+            This will purge temporary files in the temp directory and reset ingestion states. Original source files will not be changed.
           </p>
         </div>
         <div className={Classes.DIALOG_FOOTER}>
@@ -1186,7 +1259,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       >
         <div className={Classes.DIALOG_BODY}>
           <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
-            Bạn có chắc chắn muốn xóa project <strong>{deleteTarget?.projectName}</strong>?
+            Are you sure you want to delete project <strong>{deleteTarget?.projectName}</strong>?
           </p>
           <div
             style={{
@@ -1201,8 +1274,8 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
               ⚠️ Cascade Cache Cleanup:
             </p>
             <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#64748b" }}>
-              Xóa project này sẽ giải phóng toàn bộ cache Parquet liên quan (ước tính:{" "}
-              <strong>{deleteTarget?.formattedSize || "0 MB"}</strong>). Các file nguồn gốc trên đĩa không bị ảnh hưởng.
+              Deleting this project will permanently purge all associated Parquet cache (estimated:{" "}
+              <strong>{deleteTarget?.formattedSize || "0 MB"}</strong>). Original source files on disk will not be affected.
             </p>
           </div>
         </div>
@@ -1226,10 +1299,10 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       >
         <div className={Classes.DIALOG_BODY}>
           <p style={{ fontSize: "13px", color: "var(--md-sys-color-on-surface, #334155)" }}>
-            Bạn có chắc chắn muốn giải phóng toàn bộ cache Parquet cho project <strong>{purgeTarget?.projectName}</strong>?
+            Are you sure you want to clear Parquet cache for project <strong>{purgeTarget?.projectName}</strong>?
           </p>
           <p style={{ fontSize: "12px", color: "#64748b", marginTop: "8px" }}>
-            Hành động này sẽ xóa các file đệm trong thư mục temp và đặt lại trạng thái nạp. Dữ liệu gốc trên đĩa không bị thay đổi.
+            This will remove temporary cache files and reset ingestion states. Original data on disk will not be changed.
           </p>
         </div>
         <div className={Classes.DIALOG_FOOTER}>

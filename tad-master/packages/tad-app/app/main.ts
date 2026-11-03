@@ -336,6 +336,12 @@ const appInit = (options: any) => {
     return await ledger.deleteProjectCascade(req?.projectId);
   });
 
+  ipcMain.handle("project:deleteAll", async () => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.deleteAllProjectsCascade();
+  });
+
   ipcMain.handle("project:getCacheSize", async (event, req) => {
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();

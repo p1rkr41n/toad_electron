@@ -314,6 +314,34 @@ export class ProjectWorkspaceManager {
     return result;
   }
 
+  public async deleteAllProjects(): Promise<{
+    success: boolean;
+    freedBytes: number;
+    deletedProjects: number;
+  }> {
+    const bridge = getBridge();
+    let result = { success: false, freedBytes: 0, deletedProjects: 0 };
+    if (bridge && typeof bridge.invoke === "function") {
+      try {
+        result = await bridge.invoke("project:deleteAll", {});
+        this.expandedMap.clear();
+        this.notify();
+        return result;
+      } catch {}
+    }
+
+    const duckdb = getReltabDuckDB();
+    if (duckdb && duckdb.ToadParquetLedger) {
+      const ledger = duckdb.ToadParquetLedger.getInstance();
+      result = await ledger.deleteAllProjectsCascade();
+      this.expandedMap.clear();
+      this.notify();
+      return result;
+    }
+
+    return result;
+  }
+
   public async performStartupReconciliation(): Promise<any> {
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
