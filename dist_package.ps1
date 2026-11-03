@@ -41,7 +41,7 @@ if (-not (Test-Path $bundlePath)) {
     throw "ERROR: Cannot find tadapp.bundle.js!"
 }
 $bundleContent = [System.IO.File]::ReadAllText($bundlePath)
-if (-not ($bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
+if (-not ($bundleContent.Contains("v2.4.7") -or $bundleContent.Contains("v2.4.6.1") -or $bundleContent.Contains("v2.4.6") -or $bundleContent.Contains("v2.4.5") -or $bundleContent.Contains("v2.4.4") -or $bundleContent.Contains("v2.4.3") -or $bundleContent.Contains("v2.4.2") -or $bundleContent.Contains("v2.4.1") -or $bundleContent.Contains("v2.4.0") -or $bundleContent.Contains("v2.3.5") -or $bundleContent.Contains("v2.3.4") -or $bundleContent.Contains("v2.3.3") -or $bundleContent.Contains("v2.3.2") -or $bundleContent.Contains("v2.3.1") -or $bundleContent.Contains("v2.3.0") -or $bundleContent.Contains("v2.1.6") -or $bundleContent.Contains("v2.1.5") -or $bundleContent.Contains("v2.1.4") -or $bundleContent.Contains("v2.1.3") -or $bundleContent.Contains("v2.1.2") -or $bundleContent.Contains("v2.1.0"))) {
     throw "ASSERTION ERROR: tadapp.bundle.js does not contain v2.4.1 or earlier versions!"
 }
 if (-not $bundleContent.Contains("padStart(3")) {
@@ -97,7 +97,7 @@ if ($latestExe) {
     # toad_v2.0.14_portable.exe toad_v2.1.0_portable.exe toad_v2.1.2_portable.exe toad_v2.1.3_portable.exe
     # toad_v2.1.4_portable.exe toad_v2.1.5_portable.exe toad_v2.1.6_portable.exe toad_v2.3.0_portable.exe
     # toad_v2.3.1_portable.exe toad_v2.3.2_portable.exe toad_v2.3.3_portable.exe toad_v2.3.4_portable.exe
-    # toad_v2.3.5_portable.exe Toad-2.4.6-x64-portable.exe Toad-2.4.6-x64-portable.exe Toad-2.4.6-x64-portable.exe
+    # toad_v2.3.5_portable.exe Toad-2.4.7-x64-portable.exe Toad-2.4.7-x64-portable.exe Toad-2.4.7-x64-portable.exe
 
     # Single canonical output binaries (Strictly avoids duplicate copies):
     $canonicalReleaseExe = "$releaseDir\Toad-$version-x64-portable.exe"

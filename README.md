@@ -1,8 +1,8 @@
-# Toad (v2.4.6) - High-Performance Tabular Data & Security Log Analyzer
+# Toad (v2.4.7) - High-Performance Tabular Data & Security Log Analyzer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0.0%20%7C%20Rust%20SIMD%20%7C%20Parquet%20Native-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-2.4.6-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
+[![Version](https://img.shields.io/badge/Version-2.4.7-brightgreen.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](https://github.com/p1rkr41n/toad_electron/releases)
 [![Tests](https://img.shields.io/badge/QA%20Tests-PASS%20(138%2F138)-success.svg)](tests/run_tests.js)
 
