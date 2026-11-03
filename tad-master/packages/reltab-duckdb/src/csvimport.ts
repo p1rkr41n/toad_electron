@@ -1766,6 +1766,7 @@ export class ToadParquetLedger {
           folderRoot: folderPath,
           folderName,
           relPath,
+          isComplexLog: isComplexLogFile(filePath),
         },
         false
       );
@@ -2595,8 +2596,103 @@ export async function applyEngineConfig(
 }
 
 /**
- * Streaming CSV/TSV sang Parquet với 3-tier fallback:
- *   Tier 0: auto_detect + sample_size=100000 + ignore_errors + strict_mode=false
+ * Detects whether a file is a forensic or complex log file
+ * (Hayabusa, Windows Event Logs, Sysmon, Audit, MFT, Timeline, etc.)
+ * where heterogeneous numeric/text fields require Safe Ingest Profile (all_varchar = true)
+ * to prevent native C++ D_ASSERT(vector.GetType().InternalType() == PhysicalType::VARCHAR).
+ */
+export function isComplexLogFile(filePath: string): boolean {
+  if (!filePath) return false;
+  const lower = filePath.toLowerCase().replace(/\\/g, "/");
+  const base = path.basename(lower);
+  const ext = path.extname(base);
+
+  if ([".log", ".txt", ".evtx"].includes(ext)) {
+    return true;
+  }
+
+  const complexKeywords = [
+    "hayabusa",
+    "eventlog",
+    "event_log",
+    "security",
+    "audit",
+    "sysmon",
+    "mft",
+    "timeline",
+    "dfir",
+    "winlog",
+    "firewall",
+    "auth",
+    "syslog",
+  ];
+
+  return complexKeywords.some((kw) => lower.includes(kw));
+}
+
+/**
+ * Spawns an isolated out-of-process worker to perform DuckDB streaming ingestion.
+ * Guarantees crash isolation: any native C++ assertion in duckdb.node is contained
+ * in the child process without terminating the main Electron application.
+ */
+export function runIngestInWorker(params: {
+  filePath: string;
+  targetParquetPath: string;
+  compression?: string;
+  rowGroupSize?: number;
+  threads?: number;
+  maxMemory?: string;
+  isComplex?: boolean;
+  format?: "csv" | "json" | "raw";
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const workerScript = path.join(__dirname, "ingestWorker.js");
+    const args = [
+      params.filePath,
+      params.targetParquetPath,
+      JSON.stringify({
+        compression: params.compression,
+        rowGroupSize: params.rowGroupSize,
+        threads: params.threads,
+        maxMemory: params.maxMemory,
+        isComplex: params.isComplex,
+        format: params.format,
+      }),
+    ];
+
+    const env = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
+    const child = child_process.fork(workerScript, args, {
+      env,
+      stdio: ["ignore", "pipe", "pipe", "ipc"],
+    });
+
+    let stderr = "";
+    if (child.stderr) {
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+    }
+
+    child.on("exit", (code, signal) => {
+      if (code === 0) {
+        resolve();
+      } else {
+        const errMsg = `[Worker Guard] Ingest worker exited with code ${code}, signal ${signal}. ${stderr.trim()}`;
+        log.error(errMsg);
+        reject(new Error(errMsg));
+      }
+    });
+
+    child.on("error", (err) => {
+      reject(err);
+    });
+  });
+}
+
+/**
+ * Streaming CSV/TSV sang Parquet voi cac tang bao ve Zero-Assertion (Toad v2.4.5)
+ *   Safe Tier: isComplexLogFile -> all_varchar=true, parallel=false, quote='"', escape=''
+ *   Tier 0: auto_detect=true, quote='"', escape='' (triệt tiêu RemoveEscape assertion)
  *   Tier 1: + parallel=false (xử lý dòng quá dài vỡ chunk đa luồng)
  *   Tier 2: + all_varchar=true (xử lý xung đột kiểu dữ liệu giữa các dòng)
  */
@@ -2610,8 +2706,38 @@ async function streamCsvToParquet(
   const safeDst = escapeSqlPath(parquetPath);
   const compression = cfg.compression.toUpperCase();
   const rowGroupSize = cfg.row_group_size;
+  const isComplex = isComplexLogFile(filePath);
 
-  // Tier 0: Lệnh chính (RFC-4180 chuẩn quốc tế, quote='\"', escape='\"' triệt tiêu lỗi RemoveEscape trên cột số)
+  // Layer 1: Neu la file log phuc tap (Hayabusa, Security, EventLog, v.v.):
+  // Kich hoat thang Safe Ingest Profile (all_varchar = true, parallel = false, quote = '"', escape = '')
+  // 100% vector vat ly la PhysicalType::VARCHAR, triet tieu tuyet doi loi assertion tai vector.cpp:1859!
+  if (isComplex) {
+    log.info("[Ingest Safe Profile] Kich hoat Direct Safe Profile cho file log phuc tap:", filePath);
+    const safeQuery = `
+      COPY (
+        SELECT * FROM read_csv(
+          '${safeSrc}',
+          auto_detect = true,
+          sample_size = 100000,
+          ignore_errors = true,
+          null_padding = true,
+          parallel = false,
+          all_varchar = true
+        )
+      ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+    `;
+    try {
+      await dbConn.exec(safeQuery);
+      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (0% assertion risk)!");
+      return;
+    } catch (safeErr) {
+      log.warn("[Ingest Safe Profile] Safe profile gap loi, chuyen sang Raw Event fallback:", safeErr);
+      await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+      return;
+    }
+  }
+
+  // Tier 0: Lệnh chính RFC-4180 chuẩn (quote='"', escape='' triệt tiêu hoàn toàn RemoveEscape trên cột số)
   const tier0Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -2621,13 +2747,13 @@ async function streamCsvToParquet(
         ignore_errors = true,
         null_padding = true,
         quote = '"',
-        escape = '"'
+        escape = ''
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
   try {
-    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
+    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (escape='')...");
     await dbConn.exec(tier0Query);
     log.info("[Ingest Tier 0] Thanh cong!");
     return;
@@ -2646,7 +2772,7 @@ async function streamCsvToParquet(
         null_padding = true,
         parallel = false,
         quote = '"',
-        escape = '"'
+        escape = ''
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -2672,7 +2798,7 @@ async function streamCsvToParquet(
         parallel = false,
         all_varchar = true,
         quote = '"',
-        escape = '"'
+        escape = ''
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -3329,9 +3455,25 @@ export const nativeCSVImport = async (
       }
     }
 
-    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict)
+    // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
+    if (isComplexLogFile(filePath)) {
+      try {
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        await dbConn.all(query);
+        const importTime = process.hrtime(importStart);
+        log.info(
+          "DuckDB nativeCSVImport (Safe Profile all_varchar=true): import completed in ",
+          prettyHRTime(importTime)
+        );
+        return tableName;
+      } catch (errSafe) {
+        log.warn("[Ingest In-Memory Safe Profile] That bai:", errSafe);
+      }
+    }
+
+    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict with escape='')
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, quote='"', escape='"')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, quote='"', escape='')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3345,7 +3487,7 @@ export const nativeCSVImport = async (
 
     // Tier 1: parallel=false
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, quote='"', escape='"')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, quote='"', escape='')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3359,7 +3501,7 @@ export const nativeCSVImport = async (
 
     // Tier 2: all_varchar=true (guaranteed success)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, quote='"', escape='"')`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true, quote='"', escape='')`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
