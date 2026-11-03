@@ -2,6 +2,7 @@ import * as reltab from "reltab";
 import * as log from "loglevel";
 import { StateRef, mutableGet } from "oneref";
 import { AppState } from "./AppState";
+import { getDefaultPageSize } from "./ViewState";
 
 let _actions: any = null;
 function getActions(): typeof import("./actions") {
@@ -36,6 +37,8 @@ export interface FirstPageCacheEntry {
   schema: reltab.Schema;
   tableRep: reltab.TableRep;
   totalRowCount: number;
+  pageSize: number;
+  bufferPages: number;
   cachedAt: number;
 }
 
@@ -103,6 +106,7 @@ export class MultipleLoadingManager {
   private pendingActiveOpenKey: string | null = null;
   private isPaused: boolean = false;
   private firstPageCache: Map<string, FirstPageCacheEntry> = new Map();
+  private currentRewarmSize: number = 0;
 
   private maxConcurrentFiles: number = 4;
   private maxConcurrentGB: number = 1;
@@ -224,36 +228,64 @@ export class MultipleLoadingManager {
   // =========================================================================
   // RAM First-Page Micro-Cache (< 2ms Instant Loading)
   // =========================================================================
+  private resolveCacheKey(keyOrCanon: string): string {
+    if (!keyOrCanon) return "";
+    const item = this.files.get(keyOrCanon);
+    if (item && item.canonicalPath) {
+      return item.canonicalPath.replace(/[\/\\]+/g, "\\").toLowerCase();
+    }
+    if (keyOrCanon.startsWith("{") && keyOrCanon.endsWith("}")) {
+      try {
+        const parsed = JSON.parse(keyOrCanon);
+        if (parsed && (parsed.sourceId || parsed.path)) {
+          return getCanonicalPathFromDSPath(parsed);
+        }
+      } catch {}
+    }
+    return keyOrCanon.replace(/[\/\\]+/g, "\\").toLowerCase();
+  }
+
   public getFirstPageCache(keyOrCanon: string): FirstPageCacheEntry | undefined {
-    return this.firstPageCache.get(keyOrCanon);
+    const key = this.resolveCacheKey(keyOrCanon);
+    const entry = this.firstPageCache.get(key) || this.firstPageCache.get(keyOrCanon);
+    if (entry) {
+      entry.cachedAt = Date.now();
+    }
+    return entry;
   }
 
   public hasFirstPageCache(keyOrCanon: string): boolean {
-    return this.firstPageCache.has(keyOrCanon);
+    const key = this.resolveCacheKey(keyOrCanon);
+    return this.firstPageCache.has(key) || this.firstPageCache.has(keyOrCanon);
   }
 
   public setFirstPageCache(keyOrCanon: string, entry: FirstPageCacheEntry): void {
-    if (this.firstPageCache.size >= 50) {
-      let oldestKey: string | null = null;
-      let oldestTime = Infinity;
-      for (const [k, v] of this.firstPageCache.entries()) {
-        if (v.cachedAt < oldestTime) {
-          oldestTime = v.cachedAt;
-          oldestKey = k;
+    const key = this.resolveCacheKey(keyOrCanon);
+    if (!this.firstPageCache.has(key)) {
+      while (this.firstPageCache.size >= 30) {
+        let oldestKey: string | null = null;
+        let oldestTime = Infinity;
+        for (const [k, v] of this.firstPageCache.entries()) {
+          if (v.cachedAt < oldestTime) {
+            oldestTime = v.cachedAt;
+            oldestKey = k;
+          }
+        }
+        if (oldestKey) {
+          this.firstPageCache.delete(oldestKey);
+        } else {
+          break;
         }
       }
-      if (oldestKey) {
-        this.firstPageCache.delete(oldestKey);
-      }
     }
-    this.firstPageCache.set(keyOrCanon, entry);
+    this.firstPageCache.set(key, entry);
   }
 
   public clearFirstPageCache(targetKeyOrPath?: string): void {
     if (targetKeyOrPath) {
+      const key = this.resolveCacheKey(targetKeyOrPath);
+      this.firstPageCache.delete(key);
       this.firstPageCache.delete(targetKeyOrPath);
-      const canon = targetKeyOrPath.replace(/[\/\\]+/g, "\\").toLowerCase();
-      this.firstPageCache.delete(canon);
     } else {
       this.firstPageCache.clear();
     }
@@ -821,24 +853,27 @@ export class MultipleLoadingManager {
         `[MultipleLoading] Hoan tat nạp file ${processingItem.fileName} thanh cong -> Bang: ${tableName}`
       );
 
-      // RAM First-Page Micro-Cache: Pre-warm first 1,000 rows into RAM cache (< 2ms instant open)
+      // RAM 3-Page Micro-Cache: Pre-warm first 3 pages into RAM buffer cache (< 5ms instant open)
       try {
+        const pSize = getDefaultPageSize();
         const baseQuery = reltab.tableQuery(tableName);
-        const [tableRep, totalRowCount] = await Promise.all([
-          processingItem.dsc.evalQuery(baseQuery, 0, 1000),
-          processingItem.dsc.rowCount(baseQuery),
-        ]);
+        const totalRowCount = await processingItem.dsc.rowCount(baseQuery);
+        const preloadLimit = Math.min(totalRowCount, pSize * 3);
+
+        const tableRep = await processingItem.dsc.evalQuery(baseQuery, 0, preloadLimit);
         const cacheEntry: FirstPageCacheEntry = {
           tableName,
           schema: tableRep.schema,
           tableRep,
           totalRowCount,
+          pageSize: pSize,
+          bufferPages: 3,
           cachedAt: Date.now(),
         };
         this.setFirstPageCache(processingItem.canonicalPath, cacheEntry);
         this.setFirstPageCache(processingItem.key, cacheEntry);
         log.info(
-          `[MultipleLoading] Pre-warmed RAM First-Page Micro-Cache cho ${processingItem.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows)`
+          `[MultipleLoading] Pre-warmed RAM 3-Page Cache cho ${processingItem.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, pageSize: ${pSize})`
         );
       } catch (cacheErr: any) {
         log.warn(
@@ -942,6 +977,67 @@ export class MultipleLoadingManager {
 
       // Kích hoạt ngay file kế tiếp
       setTimeout(() => this.checkAndProcessQueue(), 50);
+    }
+  }
+
+  /**
+   * Re-warm RAM 3-Page Buffer Cache for all ready files when pageSize is changed
+   */
+  public async rewarmAllReadyCaches(newSize: number): Promise<void> {
+    this.currentRewarmSize = newSize;
+    const readyItems = Array.from(this.files.values()).filter(
+      (it) => it.status === "ready" && it.dsc
+    );
+    const seenCanons = new Set<string>();
+    for (const it of readyItems) {
+      if (this.currentRewarmSize !== newSize) {
+        log.info(
+          `[MultipleLoading] Aborting rewarmAllReadyCaches(${newSize}) because a newer rewarm target (${this.currentRewarmSize}) is active`
+        );
+        return;
+      }
+      if (seenCanons.has(it.canonicalPath)) continue;
+      seenCanons.add(it.canonicalPath);
+      try {
+        const existing =
+          this.getFirstPageCache(it.canonicalPath) || this.getFirstPageCache(it.key);
+        if (
+          existing &&
+          existing.pageSize === newSize &&
+          existing.tableRep.rowData.length === Math.min(existing.totalRowCount, newSize * 3)
+        ) {
+          continue;
+        }
+        const tableName =
+          existing?.tableName ||
+          (await it.dsc.getTableName(it.dsPath, { isBackground: true } as any));
+        const baseQuery = reltab.tableQuery(tableName);
+        const totalRowCount =
+          existing?.totalRowCount ?? (await it.dsc.rowCount(baseQuery));
+        const limit = Math.min(totalRowCount, newSize * 3);
+        const tableRep = await it.dsc.evalQuery(baseQuery, 0, limit);
+
+        if (this.currentRewarmSize !== newSize) {
+          return;
+        }
+
+        const updated: FirstPageCacheEntry = {
+          tableName,
+          schema: tableRep.schema,
+          tableRep,
+          totalRowCount,
+          pageSize: newSize,
+          bufferPages: 3,
+          cachedAt: Date.now(),
+        };
+        this.setFirstPageCache(it.canonicalPath, updated);
+        this.setFirstPageCache(it.key, updated);
+        log.info(
+          `[MultipleLoading] Re-warmed RAM 3-Page Cache cho ${it.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, pageSize: ${newSize})`
+        );
+      } catch (err) {
+        log.warn(`[MultipleLoading] Loi khi rewarm cache cho ${it.fileName}:`, err);
+      }
     }
   }
 

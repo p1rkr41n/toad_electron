@@ -333,7 +333,7 @@ export const openDataSourcePath = async (
           : "dataset"
         : lastSeg;
 
-    if (!isAlreadyLoading) {
+    if (!isAlreadyLoading && !ramCache) {
       setActiveLoadingFile(
         {
           isLoading: true,
@@ -348,15 +348,26 @@ export const openDataSourcePath = async (
       );
     }
 
+    const prevCursor =
+      typeof document !== "undefined" && document.body
+        ? document.body.style.cursor
+        : "";
+    if (ramCache && typeof document !== "undefined" && document.body) {
+      document.body.style.cursor = "wait";
+    }
+
     try {
       manager.pause();
-      await startAppLoadingTimer(stateRef);
+      if (!ramCache) {
+        await startAppLoadingTimer(stateRef);
+      }
       await replaceCurrentView(path, stateRef, viewParams);
       const dv = await waitForDataView(stateRef, 8000);
-      if (dv && !ramCache) {
+      if (dv && (!ramCache || ramCache.pageSize !== getDefaultPageSize())) {
         try {
           const vs = mutableGet(stateRef).viewState;
           if (vs && vs.baseSchema && dv.rawData) {
+            const pSize = getDefaultPageSize();
             manager.setFirstPageCache(canon, {
               tableName:
                 (vs.baseQuery as any).tableName ||
@@ -364,6 +375,8 @@ export const openDataSourcePath = async (
               schema: vs.baseSchema,
               tableRep: new reltab.TableRep(vs.baseSchema, dv.rawData),
               totalRowCount: dv.totalRowCount,
+              pageSize: pSize,
+              bufferPages: 3,
               cachedAt: Date.now(),
             });
           }
@@ -434,7 +447,12 @@ export const openDataSourcePath = async (
         stateRef
       );
     } finally {
-      stopAppLoadingTimer(stateRef);
+      if (ramCache && typeof document !== "undefined" && document.body) {
+        document.body.style.cursor = prevCursor || "default";
+      }
+      if (!ramCache) {
+        stopAppLoadingTimer(stateRef);
+      }
       const cur = mutableGet(stateRef).activeLoadingFile;
       if (!cur?.error) {
         setActiveLoadingFile(null, stateRef);
@@ -735,6 +753,11 @@ export const setPageSize = (
         return nextVs;
       }) as AppState
   );
+  try {
+    MultipleLoadingManager.getInstance().rewarmAllReadyCaches(validSize);
+  } catch (err) {
+    log.warn("[actions.setPageSize] Error triggering rewarmAllReadyCaches:", err);
+  }
 };
 
 export const setIngestProgress = (
