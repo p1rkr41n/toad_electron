@@ -1231,7 +1231,7 @@ async function main() {
 
     // Header Title and Version
     assert(dialogContent.includes("Parse Columns"), "Dialog title must be 'Parse Columns'");
-    assert(dialogContent.includes("v2.0.7") || dialogContent.includes("v2.0.8") || dialogContent.includes("v2.0.9"), "Dialog title must display version badge");
+    assert(dialogContent.includes("v2.0.7") || dialogContent.includes("v2.0.8") || dialogContent.includes("v2.0.9") || dialogContent.includes("v2.4.2"), "Dialog title must display version badge");
 
     // Capsule Segmented Switch
     assert(dialogContent.includes("Visual"), "Capsule switcher must contain Visual mode");
@@ -1247,7 +1247,7 @@ async function main() {
   await runTest("K.3 Toad v2.0.7 Version Synchronization & Mockup Requirements", async () => {
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.7" || pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     const reqsPath = path.resolve(ROOT_DIR, "mockup/requirements.json");
     const reqs = JSON.parse(fs.readFileSync(reqsPath, "utf8"));
@@ -1413,7 +1413,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.8" || pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -1474,7 +1474,7 @@ async function main() {
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
     assert(dialogSrc.includes("<ParseSplitIcon"), "Dialog header must render ParseSplitIcon");
-    assert(dialogSrc.includes("v2.0.9") || dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.0.9") || dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.4.2"), "Dialog header must display version badge");
   });
 
   await runTest("M.2 Field Mapping Table Header Streamlining (Key, Type, Rate, Sample, New name)", async () => {
@@ -1545,7 +1545,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.9" || pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -1805,7 +1805,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.10" || pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -1822,7 +1822,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.0.10") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display version badge");
 
     // 5. requirements.json
     const reqsPath = path.resolve(ROOT_DIR, "mockup/requirements.json");
@@ -1892,7 +1892,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.11" || pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -1907,7 +1907,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.0.11") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -1968,7 +1968,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.12" || pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -1985,7 +1985,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.12") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2117,7 +2117,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.13" || pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2133,7 +2133,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.13") || dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2167,7 +2167,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.0.14" || pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2183,7 +2183,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.0.14") || dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   await runTest("S.4 Production Webpack Bundle Verification (tadapp.bundle.js)", async () => {
@@ -2254,7 +2254,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.0" || pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
     assert(Array.isArray(pkgApp.build.electronLanguages), "package.json must configure electronLanguages");
     assert(pkgApp.build.electronLanguages.includes("vi"), "electronLanguages must include vi");
     assert(pkgApp.build.electronLanguages.includes("en-US"), "electronLanguages must include en-US");
@@ -2274,7 +2274,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.1.0") || dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display version badge");
   });
 
   // ===========================================================================
@@ -2457,7 +2457,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.2" || pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2474,7 +2474,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.1.2") || dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2663,7 +2663,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.3" || pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2680,7 +2680,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid badge");
+    assert(dialogSrc.includes("v2.1.3") || dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid badge");
   });
 
   // ===========================================================================
@@ -2803,7 +2803,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.4" || pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2819,7 +2819,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display version badge");
+    assert(dialogSrc.includes("v2.1.4") || dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display version badge");
   });
 
   // ===========================================================================
@@ -2894,7 +2894,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be valid");
+    assert(pkgApp.version === "2.1.5" || pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be valid");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2911,7 +2911,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display valid version badge");
+    assert(dialogSrc.includes("v2.1.5") || dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display valid version badge");
   });
 
   await runTest("AA.6 Backend Transitive Dependency Audit & Lodash Preservation Integrity", async () => {
@@ -2942,7 +2942,7 @@ async function main() {
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
     assert(!pkgApp.dependencies["reltab-bigquery"], "tad-app dependencies must not contain reltab-bigquery");
-    assert(pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app version must be 2.1.6 or 2.3.x");
+    assert(pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app version must be 2.1.6 or 2.3.x");
   });
 
   await runTest("BB.3 Webpack Production Config: prod.devtool = false eliminates .map debris", async () => {
@@ -2966,7 +2966,7 @@ async function main() {
     // 1. tad-app package.json
     const pkgAppPath = path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json");
     const pkgApp = JSON.parse(fs.readFileSync(pkgAppPath, "utf8"));
-    assert(pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "package.json version must be 2.1.6 or 2.3.x");
+    assert(pkgApp.version === "2.1.6" || pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "package.json version must be 2.1.6 or 2.3.x");
 
     // 2. dist_package.ps1
     const distPs1Path = path.resolve(ROOT_DIR, "dist_package.ps1");
@@ -2983,7 +2983,7 @@ async function main() {
     // 4. RegexDialog.tsx header badge
     const dialogTsPath = path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx");
     const dialogSrc = fs.readFileSync(dialogTsPath, "utf8");
-    assert(dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "Dialog header must display v2.1.6 or v2.3.x badge");
+    assert(dialogSrc.includes("v2.1.6") || dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "Dialog header must display v2.1.6 or v2.3.x badge");
   });
 
   await runTest("BB.6 Backend Runtime Engine & Lodash Preservation Integrity", async () => {
@@ -3030,17 +3030,17 @@ async function main() {
 
   await runTest("CC.3 Version 2.3.0 Synchronization Across Packages, UI & Packaging", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert(pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app version must be 2.3.x or 2.4.x");
+    assert(pkgApp.version === "2.3.0" || pkgApp.version === "2.3.1" || pkgApp.version === "2.3.2" || pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app version must be 2.3.x or 2.4.x");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert(pkgBridge.version === "2.3.0" || pkgBridge.version === "2.3.1" || pkgBridge.version === "2.3.2" || pkgBridge.version === "2.3.3" || pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1", "host-bridge version must be 2.3.x or 2.4.x");
+    assert(pkgBridge.version === "2.3.0" || pkgBridge.version === "2.3.1" || pkgBridge.version === "2.3.2" || pkgBridge.version === "2.3.3" || pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge version must be 2.3.x or 2.4.x");
 
     const htmlContent = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/html/userdocs/quickstart.html"), "utf8");
     assert(htmlContent.includes("v2.3.0"), "quickstart.html must include v2.3.0 badge");
     assert(htmlContent.includes("Version 2.3.0"), "quickstart.html must include Version 2.3.0 changelog");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.3.x or 2.4.x");
+    assert(dialogSrc.includes("v2.3.0") || dialogSrc.includes("v2.3.1") || dialogSrc.includes("v2.3.2") || dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.3.x or 2.4.x");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
     assert(distPs1.includes("Toad 2.3.0.exe"), "dist_package.ps1 must package Toad 2.3.0.exe");
@@ -3205,16 +3205,16 @@ async function main() {
 
   await runTest("DD.4 Version 2.3.3/2.3.4/2.3.5/2.4.0 Synchronization Across Packages, UI & Packaging", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert(pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be 2.3.3, 2.3.4, 2.3.5 or 2.4.x");
+    assert(pkgApp.version === "2.3.3" || pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be 2.3.3, 2.3.4, 2.3.5 or 2.4.x");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert(pkgBridge.version === "2.3.3" || pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1", "host-bridge package.json version must be 2.3.3, 2.3.4, 2.3.5 or 2.4.x");
+    assert(pkgBridge.version === "2.3.3" || pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge package.json version must be 2.3.3, 2.3.4, 2.3.5 or 2.4.x");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.3.3, v2.3.4, v2.3.5 or 2.4.x");
+    assert(dialogSrc.includes("v2.3.3") || dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.3.3, v2.3.4, v2.3.5 or 2.4.x");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
-    assert(distPs1.includes("Toad 2.3.3.exe") || distPs1.includes("Toad 2.3.4.exe") || distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe"), "dist_package.ps1 must package Toad exe");
+    assert(distPs1.includes("Toad 2.3.3.exe") || distPs1.includes("Toad 2.3.4.exe") || distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe") || distPs1.includes("Toad 2.4.2.exe"), "dist_package.ps1 must package Toad exe");
   });
 
   // ===========================================================================
@@ -3231,16 +3231,16 @@ async function main() {
 
   await runTest("EE.2 Version 2.3.4/2.3.5/2.4.0 Synchronization Across Application, UI & Distribution Pipeline", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert(pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be 2.3.4, 2.3.5 or 2.4.x");
+    assert(pkgApp.version === "2.3.4" || pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be 2.3.4, 2.3.5 or 2.4.x");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert(pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1", "host-bridge package.json version must be 2.3.4, 2.3.5 or 2.4.x");
+    assert(pkgBridge.version === "2.3.4" || pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge package.json version must be 2.3.4, 2.3.5 or 2.4.x");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.3.4, v2.3.5 or 2.4.x");
+    assert(dialogSrc.includes("v2.3.4") || dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.3.4, v2.3.5 or 2.4.x");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
-    assert(distPs1.includes("Toad 2.3.4.exe") || distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe"), "dist_package.ps1 must package Toad exe");
+    assert(distPs1.includes("Toad 2.3.4.exe") || distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe") || distPs1.includes("Toad 2.4.2.exe"), "dist_package.ps1 must package Toad exe");
   });
 
   // ===========================================================================
@@ -3400,21 +3400,21 @@ async function main() {
 
   await runTest("FF.5 Version 2.3.5/2.4.0 Synchronization across packages and packaging", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert(pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be 2.3.5 or 2.4.x");
+    assert(pkgApp.version === "2.3.5" || pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be 2.3.5 or 2.4.x");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert(pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1", "host-bridge package.json version must be 2.3.5 or 2.4.x");
+    assert(pkgBridge.version === "2.3.5" || pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge package.json version must be 2.3.5 or 2.4.x");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.3.5 or 2.4.x");
+    assert(dialogSrc.includes("v2.3.5") || dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.3.5 or 2.4.x");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
-    assert(distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe"), "dist_package.ps1 must package Toad exe");
-    assert(distPs1.includes("Toad-2.3.5-x64-portable.exe") || distPs1.includes("Toad-2.4.0-x64-portable.exe") || distPs1.includes("Toad-2.4.1-x64-portable.exe"), "dist_package.ps1 must package Toad portable exe");
+    assert(distPs1.includes("Toad 2.3.5.exe") || distPs1.includes("Toad 2.4.0.exe") || distPs1.includes("Toad 2.4.1.exe") || distPs1.includes("Toad 2.4.2.exe"), "dist_package.ps1 must package Toad exe");
+    assert(distPs1.includes("Toad-2.3.5-x64-portable.exe") || distPs1.includes("Toad-2.4.0-x64-portable.exe") || distPs1.includes("Toad-2.4.1-x64-portable.exe") || distPs1.includes("Toad-2.4.2-x64-portable.exe"), "dist_package.ps1 must package Toad portable exe");
 
     const readmeSrc = fs.readFileSync(path.resolve(ROOT_DIR, "README.md"), "utf8");
-    assert(readmeSrc.includes("Toad (v2.3.5)") || readmeSrc.includes("Toad (v2.4.0)") || readmeSrc.includes("Toad (v2.4.1)"), "README.md title must display v2.3.5, v2.4.0, or v2.4.1");
-    assert(readmeSrc.includes("Version-2.3.5") || readmeSrc.includes("Version-2.4.0") || readmeSrc.includes("Version-2.4.1"), "README.md version badge must display 2.3.5, 2.4.0, or 2.4.1");
+    assert(readmeSrc.includes("Toad (v2.3.5)") || readmeSrc.includes("Toad (v2.4.0)") || readmeSrc.includes("Toad (v2.4.1)") || readmeSrc.includes("Toad (v2.4.2)"), "README.md title must display v2.3.5, v2.4.0, or v2.4.1");
+    assert(readmeSrc.includes("Version-2.3.5") || readmeSrc.includes("Version-2.4.0") || readmeSrc.includes("Version-2.4.1") || readmeSrc.includes("Version-2.4.2"), "README.md version badge must display 2.3.5, 2.4.0, or 2.4.1");
   });
 
   uiDriverF.connPool.giveBack(connF);
@@ -3616,28 +3616,28 @@ async function main() {
 
   await runTest("GG.7 Version 2.4.0 / 2.4.1 Synchronization across entire system", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert(pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1", "tad-app package.json version must be 2.4.0 or 2.4.1");
+    assert(pkgApp.version === "2.4.0" || pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be 2.4.0 or 2.4.1");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert(pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1", "host-bridge package.json version must be 2.4.0 or 2.4.1");
+    assert(pkgBridge.version === "2.4.0" || pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge package.json version must be 2.4.0 or 2.4.1");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.4.0 or v2.4.1");
+    assert(dialogSrc.includes("v2.4.0") || dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.4.0 or v2.4.1");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
-    assert(distPs1.includes("v2.4.0") || distPs1.includes("v2.4.1"), "dist_package.ps1 must assert bundle contains v2.4.0 or v2.4.1");
+    assert(distPs1.includes("v2.4.0") || distPs1.includes("v2.4.1") || distPs1.includes("v2.4.2"), "dist_package.ps1 must assert bundle contains v2.4.0 or v2.4.1");
 
     const readmeSrc = fs.readFileSync(path.resolve(ROOT_DIR, "README.md"), "utf8");
-    assert(readmeSrc.includes("Toad (v2.4.0)") || readmeSrc.includes("Toad (v2.4.1)"), "README.md title must display v2.4.0 or v2.4.1");
-    assert(readmeSrc.includes("Version-2.4.0") || readmeSrc.includes("Version-2.4.1"), "README.md version badge must display 2.4.0 or 2.4.1");
+    assert(readmeSrc.includes("Toad (v2.4.0)") || readmeSrc.includes("Toad (v2.4.1)") || readmeSrc.includes("Toad (v2.4.2)"), "README.md title must display v2.4.0 or v2.4.1");
+    assert(readmeSrc.includes("Version-2.4.0") || readmeSrc.includes("Version-2.4.1") || readmeSrc.includes("Version-2.4.2"), "README.md version badge must display 2.4.0 or 2.4.1");
 
     const wingetYaml = fs.readFileSync(path.resolve(ROOT_DIR, "releases/HelloKittyXamKinLung.Toad.yaml"), "utf8");
-    assert(wingetYaml.includes("PackageVersion: 2.4.0") || wingetYaml.includes("PackageVersion: 2.4.1"), "Winget manifest must specify PackageVersion: 2.4.0 or 2.4.1");
+    assert(wingetYaml.includes("PackageVersion: 2.4.0") || wingetYaml.includes("PackageVersion: 2.4.1") || wingetYaml.includes("PackageVersion: 2.4.2"), "Winget manifest must specify PackageVersion: 2.4.0 or 2.4.1");
 
     const releaseNotes = fs.existsSync(path.resolve(ROOT_DIR, "releases/v2.4.1_NOTES.md"))
       ? fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.1_NOTES.md"), "utf8")
       : fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.0_NOTES.md"), "utf8");
-    assert(releaseNotes.includes("Toad v2.4.0") || releaseNotes.includes("Toad v2.4.1"), "Release notes must exist and document v2.4.0 or v2.4.1");
+    assert(releaseNotes.includes("Toad v2.4.0") || releaseNotes.includes("Toad v2.4.1") || releaseNotes.includes("Toad v2.4.2"), "Release notes must exist and document v2.4.0 or v2.4.1");
   });
 
   await runTest("GG.8 IPC Handler Completeness & Event Broadcast in main.ts", async () => {
@@ -4021,26 +4021,26 @@ async function main() {
 
   await runTest("HH.6 Version 2.4.1 Synchronization across entire application & packaging", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
-    assert.strictEqual(pkgApp.version, "2.4.1", "tad-app package.json version must be 2.4.1");
+    assert(pkgApp.version === "2.4.1" || pkgApp.version === "2.4.2", "tad-app package.json version must be 2.4.1 or 2.4.2");
 
     const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
-    assert.strictEqual(pkgBridge.version, "2.4.1", "host-bridge package.json version must be 2.4.1");
+    assert(pkgBridge.version === "2.4.1" || pkgBridge.version === "2.4.2", "host-bridge package.json version must be 2.4.1 or 2.4.2");
 
     const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
-    assert(dialogSrc.includes("v2.4.1"), "RegexDialog.tsx header badge must display v2.4.1");
+    assert(dialogSrc.includes("v2.4.1") || dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.4.1 or v2.4.2");
 
     const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
-    assert(distPs1.includes("v2.4.1"), "dist_package.ps1 must assert bundle contains v2.4.1");
+    assert(distPs1.includes("v2.4.1") || distPs1.includes("v2.4.2"), "dist_package.ps1 must assert bundle contains v2.4.1 or v2.4.2");
 
     const readmeSrc = fs.readFileSync(path.resolve(ROOT_DIR, "README.md"), "utf8");
-    assert(readmeSrc.includes("Toad (v2.4.1)"), "README.md title must display v2.4.1");
-    assert(readmeSrc.includes("Version-2.4.1"), "README.md version badge must display 2.4.1");
+    assert(readmeSrc.includes("Toad (v2.4.1)") || readmeSrc.includes("Toad (v2.4.2)"), "README.md title must display v2.4.1 or v2.4.2");
+    assert(readmeSrc.includes("Version-2.4.1") || readmeSrc.includes("Version-2.4.2"), "README.md version badge must display 2.4.1 or v2.4.2");
 
     const wingetYaml = fs.readFileSync(path.resolve(ROOT_DIR, "releases/HelloKittyXamKinLung.Toad.yaml"), "utf8");
-    assert(wingetYaml.includes("PackageVersion: 2.4.1"), "Winget manifest must specify PackageVersion: 2.4.1");
+    assert(wingetYaml.includes("PackageVersion: 2.4.1") || wingetYaml.includes("PackageVersion: 2.4.2"), "Winget manifest must specify PackageVersion: 2.4.1 or 2.4.2");
 
-    const releaseNotes = fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.1_NOTES.md"), "utf8");
-    assert(releaseNotes.includes("Toad v2.4.1"), "v2.4.1_NOTES.md must exist and document v2.4.1");
+    const releaseNotes = fs.existsSync(path.resolve(ROOT_DIR, "releases/v2.4.2_NOTES.md")) ? fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.2_NOTES.md"), "utf8") : fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.1_NOTES.md"), "utf8");
+    assert(releaseNotes.includes("Toad v2.4.1") || releaseNotes.includes("Toad v2.4.2"), "Release notes must exist and document v2.4.1 or v2.4.2");
   });
 
   await runTest("HH.7 Project Renaming via ToadParquetLedger, Manager & IPC", async () => {
@@ -4109,6 +4109,380 @@ async function main() {
     assert(lessSrc.includes("min-width: 88px"), "sidebar.less must reserve at least 88px for .project-node-right to prevent hover action overlap");
     assert(sidebarSrc.includes("project-orphan-actions"), "DataSourceSidebar.tsx must render in-flow project-orphan-actions");
     assert(sidebarSrc.includes("isExpanded: q ? true : isExpanded"), "DataSourceSidebar.tsx must auto-expand matching projects during search filtering");
+  });
+
+
+  // ===========================================================================
+  // SUITE II: TOAD v2.4.2 STARTUP RECONCILIATION & 5-CHAR PROJECT ID LEDGER
+  // ===========================================================================
+  reportSuite("SUITE II: Toad v2.4.2 Startup Reconciliation & 5-Char Project ID Ledger");
+
+  const testSuiteIIDir = path.join(testTmpDir, "suite_ii_workspace");
+  fs.mkdirSync(testSuiteIIDir, { recursive: true });
+  const iiTempDir = path.join(testSuiteIIDir, "temp");
+  fs.mkdirSync(iiTempDir, { recursive: true });
+
+  await runTest("II.1 5-Character Random Project ID Generation & Collision Guard", async () => {
+    const { generateUniqueProjectId } = reltabDuckDB;
+    assert.strictEqual(typeof generateUniqueProjectId, "function", "generateUniqueProjectId must be exported");
+
+    const ids = new Set();
+    for (let i = 0; i < 100; i++) {
+      const id = generateUniqueProjectId(iiTempDir, ids);
+      assert.strictEqual(id.length, 5, `Project ID '${id}' must be exactly 5 chars`);
+      assert(/^[a-z0-9]{5}$/.test(id), `Project ID '${id}' must match [a-z0-9]{5}`);
+      assert(!ids.has(id), `Generated ID '${id}' must not collide`);
+      ids.add(id);
+    }
+
+    // Collision with filesystem test
+    const dummyFolder = "abc12";
+    fs.mkdirSync(path.join(iiTempDir, dummyFolder), { recursive: true });
+    for (let i = 0; i < 20; i++) {
+      const generated = generateUniqueProjectId(iiTempDir);
+      assert.notStrictEqual(generated, dummyFolder, "Must never generate an ID matching an existing disk directory");
+    }
+  });
+
+  await runTest("II.2 Independent Cache Partitioning temp/<project_id>/ & Deterministic Parquet Path", async () => {
+    const { getDeterministicParquetPath } = reltabDuckDB;
+    const samplePath = path.join(testSuiteIIDir, "customers.csv");
+    fs.writeFileSync(samplePath, "id,name\n1,Alice\n", "utf8");
+
+    const prjId = "x9y2z";
+    const cacheRes = getDeterministicParquetPath(samplePath, iiTempDir, prjId);
+    assert(cacheRes && cacheRes.parquetPath, "getDeterministicParquetPath must return ParquetCachePaths");
+    const cachePath = cacheRes.parquetPath;
+    
+    const normalized = cachePath.replace(/\\/g, "/");
+    assert(normalized.includes(`/temp/${prjId}/customers_cached_`), `Cache path must be under temp/${prjId}/: ${cachePath}`);
+    assert(normalized.endsWith(".parquet"), "Cache path must end with .parquet");
+  });
+
+  await runTest("II.3 Zero-Cost Project Rename: Physical Path Unchanged & Metadata Updated", async () => {
+    const renameDir = path.join(testSuiteIIDir, "rename_isolate");
+    fs.mkdirSync(renameDir, { recursive: true });
+    const ledgerPath = path.join(renameDir, "toad_ledger.parquet");
+    const tempDir = path.join(renameDir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Original Name");
+    assert.strictEqual(prjId.length, 5, "Generated project ID must be 5 chars");
+
+    // Add a file and create fake cache in temp/<prjId>/
+    const srcFile = path.join(renameDir, "data.csv");
+    fs.writeFileSync(srcFile, "col\n1\n", "utf8");
+    await ledger.addFileToProject(prjId, srcFile, "Original Name");
+
+    const prjTempDir = path.join(tempDir, prjId);
+    fs.mkdirSync(prjTempDir, { recursive: true });
+    const fakeParquet = path.join(prjTempDir, "data_cached_111.parquet");
+    fs.writeFileSync(fakeParquet, "parquet_bytes", "utf8");
+
+    // Rename project
+    const renamed = await ledger.renameProject(prjId, "Brand New Name");
+    assert.strictEqual(renamed, true, "renameProject should succeed");
+    assert.strictEqual(ledger.getProjectName(prjId), "Brand New Name");
+
+    // Physical cache must REMAIN in temp/<prjId>/ without moving
+    assert(fs.existsSync(fakeParquet), "Physical cache path must remain unchanged (zero disk I/O)");
+    assert(fs.existsSync(prjTempDir), "Project cache directory must remain unchanged");
+  });
+
+  await runTest("II.4 Typed NULL Tombstone Generation & DuckDB Type Safety", async () => {
+    const tombDir = path.join(testSuiteIIDir, "tombstone_isolate");
+    fs.mkdirSync(tombDir, { recursive: true });
+    const ledgerPath = path.join(tombDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Tombstone Project");
+    const file1 = path.join(tombDir, "f1.csv");
+    fs.writeFileSync(file1, "a\n1\n", "utf8");
+    await ledger.addFileToProject(prjId, file1);
+
+    // Delete project cascade (records typed NULL tombstone)
+    await ledger.deleteProjectCascade(prjId);
+
+    // Query parquet with DuckDB
+    const memDb = await Database.create(":memory:");
+    const memConn = await memDb.connect();
+    const rows = await memConn.all(`SELECT * FROM read_parquet('${ledgerPath.replace(/\\/g, "/")}') WHERE event_type = 'PROJECT_DELETE'`);
+    await memConn.close();
+    await memDb.close();
+
+    assert.strictEqual(rows.length, 1, "Must find exactly 1 PROJECT_DELETE tombstone event");
+    const tomb = rows[0];
+    assert.strictEqual(tomb.project_id, prjId);
+    assert.strictEqual(tomb.source_path, null, "source_path must be typed NULL");
+    assert.strictEqual(tomb.source_size, null, "source_size must be typed NULL");
+    assert.strictEqual(tomb.source_mtime, null, "source_mtime must be typed NULL");
+    assert.strictEqual(tomb.parquet_path, null, "parquet_path must be typed NULL");
+    assert.strictEqual(tomb.parquet_size, null, "parquet_size must be typed NULL");
+    assert.strictEqual(tomb.row_count, null, "row_count must be typed NULL");
+  });
+
+  await runTest("II.5 Scenario 1: Missing Cache Parquet -> Marked MODIFIED for Re-ingest", async () => {
+    const s1Dir = path.join(testSuiteIIDir, "scenario_1");
+    fs.mkdirSync(s1Dir, { recursive: true });
+    const ledgerPath = path.join(s1Dir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Scenario 1 Project");
+    const srcFile = path.join(s1Dir, "active.csv");
+    fs.writeFileSync(srcFile, "col1\n100\n", "utf8");
+
+    const entry = await ledger.addFileToProject(prjId, srcFile);
+    entry.parquet_path = path.join(s1Dir, "missing_cache.parquet");
+    entry.parquet_size = 500;
+    entry.status = "READY";
+    await ledger.recordEvent(entry);
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario1Recovered >= 1, "Must trigger Scenario 1");
+
+    const files = ledger.getProjectFiles(prjId);
+    assert.strictEqual(files.length, 1);
+    assert.strictEqual(files[0].status, "MODIFIED", "File status must be reverted to MODIFIED");
+    assert.strictEqual(files[0].parquet_path, "", "Parquet path must be reset");
+  });
+
+  await runTest("II.6 Scenario 2: Foreign Orphan Files & Folders in temp/ Deleted Immediately", async () => {
+    const s2Dir = path.join(testSuiteIIDir, "scenario_2");
+    fs.mkdirSync(s2Dir, { recursive: true });
+    const tempDir = path.join(s2Dir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // Create foreign orphan file in temp
+    const orphanFile = path.join(tempDir, "foreign_orphan.tmp");
+    fs.writeFileSync(orphanFile, "garbage", "utf8");
+
+    // Create foreign orphan directory in temp
+    const orphanFolder = path.join(tempDir, "zz999");
+    fs.mkdirSync(orphanFolder, { recursive: true });
+    const innerGarbage = path.join(orphanFolder, "untracked.parquet");
+    fs.writeFileSync(innerGarbage, "garbage", "utf8");
+
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    await ledger.createProject("Scenario 2 Active Project");
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario2OrphansCleaned >= 1, "Must trigger Scenario 2");
+    assert(!fs.existsSync(orphanFile), "Foreign orphan file must be physically deleted");
+    assert(!fs.existsSync(orphanFolder), "Foreign orphan folder must be physically deleted");
+  });
+
+  await runTest("II.7 Scenario 3: Folder Root Removed -> Project Tombstone & Async Cache Removal", async () => {
+    const s3Dir = path.join(testSuiteIIDir, "scenario_3");
+    fs.mkdirSync(s3Dir, { recursive: true });
+    const tempDir = path.join(s3Dir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const folderRoot = path.join(s3Dir, "my_tracked_folder");
+    fs.mkdirSync(folderRoot, { recursive: true });
+    const f1 = path.join(folderRoot, "data.csv");
+    fs.writeFileSync(f1, "x\n1\n", "utf8");
+
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Tracked Folder Prj");
+    await ledger.addFolderToProject(prjId, folderRoot);
+
+    const prjCacheDir = path.join(tempDir, prjId);
+    fs.mkdirSync(prjCacheDir, { recursive: true });
+    fs.writeFileSync(path.join(prjCacheDir, "cache.parquet"), "data", "utf8");
+
+    fs.rmSync(folderRoot, { recursive: true, force: true });
+    assert(!fs.existsSync(folderRoot), "Source folder root deleted");
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario3ProjectsTombstoned >= 1, "Must trigger Scenario 3");
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const activeProjects = ledger.getProjects();
+    assert(!activeProjects.some(p => p.projectId === prjId), "Missing folder project must be removed from active projects");
+    assert(!fs.existsSync(prjCacheDir), "Cache folder must be deleted");
+  });
+
+  await runTest("II.8 Scenario 4: Missing Source File -> FILE_DELETED Recorded & Cache Purged", async () => {
+    const s4Dir = path.join(testSuiteIIDir, "scenario_4");
+    fs.mkdirSync(s4Dir, { recursive: true });
+    const tempDir = path.join(s4Dir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Scenario 4 Project");
+    const srcFile = path.join(s4Dir, "will_delete.csv");
+    fs.writeFileSync(srcFile, "col\nval\n", "utf8");
+
+    const entry = await ledger.addFileToProject(prjId, srcFile);
+    const prjCacheDir = path.join(tempDir, prjId);
+    fs.mkdirSync(prjCacheDir, { recursive: true });
+    const fakeParquet = path.join(prjCacheDir, "will_delete_cached.parquet");
+    fs.writeFileSync(fakeParquet, "cached_bytes", "utf8");
+    entry.parquet_path = fakeParquet;
+    entry.status = "READY";
+    await ledger.recordEvent(entry);
+
+    fs.unlinkSync(srcFile);
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario4FilesDeleted >= 1, "Must trigger Scenario 4");
+    assert(!fs.existsSync(fakeParquet), "Associated parquet cache file must be deleted");
+
+    const files = ledger.getProjectFiles(prjId);
+    assert.strictEqual(files.length, 0, "Deleted file must be removed from project");
+  });
+
+  await runTest("II.9 Scenario 5: Recursive Subdirectory Scan Discovers New File", async () => {
+    const s5Dir = path.join(testSuiteIIDir, "scenario_5");
+    fs.mkdirSync(s5Dir, { recursive: true });
+    const tempDir = path.join(s5Dir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const folderRoot = path.join(s5Dir, "scan_root");
+    const subFolder = path.join(folderRoot, "sub_dept");
+    fs.mkdirSync(subFolder, { recursive: true });
+
+    const initialFile = path.join(folderRoot, "initial.csv");
+    fs.writeFileSync(initialFile, "a\n1\n", "utf8");
+
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Scan Project");
+    await ledger.addFolderToProject(prjId, folderRoot);
+
+    assert.strictEqual(ledger.getProjectFiles(prjId).length, 1);
+
+    const newFile = path.join(subFolder, "deep_file.csv");
+    fs.writeFileSync(newFile, "b\n2\n", "utf8");
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario5NewFilesDiscovered >= 1, "Must trigger Scenario 5");
+
+    const files = ledger.getProjectFiles(prjId);
+    assert.strictEqual(files.length, 2, "Reconciliation must discover newly added file in subdirectory");
+    assert(files.some(f => f.source_path === newFile), "Newly discovered file must be registered in project");
+  });
+
+  await runTest("II.10 Scenario 6: Modified Source File (mtime/size) Invalidates Cache", async () => {
+    const s6Dir = path.join(testSuiteIIDir, "scenario_6");
+    fs.mkdirSync(s6Dir, { recursive: true });
+    const tempDir = path.join(s6Dir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjId = await ledger.createProject("Scenario 6 Project");
+    const srcFile = path.join(s6Dir, "modify_me.csv");
+    fs.writeFileSync(srcFile, "col1\nold_content\n", "utf8");
+
+    const entry = await ledger.addFileToProject(prjId, srcFile);
+    const prjCacheDir = path.join(tempDir, prjId);
+    fs.mkdirSync(prjCacheDir, { recursive: true });
+    const fakeParquet = path.join(prjCacheDir, "modify_me_cached.parquet");
+    fs.writeFileSync(fakeParquet, "cached_bytes", "utf8");
+    entry.parquet_path = fakeParquet;
+    entry.status = "READY";
+    await ledger.recordEvent(entry);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+    fs.appendFileSync(srcFile, "extra_row,values\n", "utf8");
+
+    const result = await ledger.performStartupReconciliation();
+    assert(result.scenario6FilesModified >= 1, "Must trigger Scenario 6");
+    assert(!fs.existsSync(fakeParquet), "Stale parquet cache must be deleted");
+
+    const files = ledger.getProjectFiles(prjId);
+    assert.strictEqual(files[0].status, "MODIFIED", "File status must be reverted to MODIFIED");
+  });
+
+  await runTest("II.11 Reset Ledger When 0 Active Projects: 0-Row Parquet & 5-Char Untitled-1 Auto-Creation", async () => {
+    const resetDir = path.join(testSuiteIIDir, "reset_ledger_test");
+    fs.mkdirSync(resetDir, { recursive: true });
+    const ledgerPath = path.join(resetDir, "toad_ledger.parquet");
+    const tempDir = path.join(resetDir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    // Delete all projects to reach 0 active projects
+    const initialProjects = ledger.getProjects();
+    assert(initialProjects.length >= 1, "Initial project must exist");
+    for (const p of initialProjects) {
+      await ledger.deleteProjectCascade(p.projectId);
+    }
+    assert.strictEqual(ledger.getProjects().length, 0, "Active projects should be 0");
+
+    assert(fs.existsSync(ledgerPath), "Ledger file must exist");
+    const memDb = await Database.create(":memory:");
+    const memConn = await memDb.connect();
+    const rows = await memConn.all(`SELECT * FROM read_parquet('${ledgerPath.replace(/\\/g, "/")}')`);
+    await memConn.close();
+    await memDb.close();
+    assert.strictEqual(rows.length, 0, "Ledger must be physically reset to 0 rows");
+
+    // Wait 550ms for debounce timer
+    await new Promise(resolve => setTimeout(resolve, 550));
+
+    const recovered = ledger.getProjects();
+    assert(recovered.length >= 1, "Must auto-recover Untitled-1 after 500ms debounce");
+    const defaultPrj = recovered[0];
+    assert.strictEqual(defaultPrj.projectName, "Untitled-1", "Auto-recovered project name must be Untitled-1");
+    assert.strictEqual(defaultPrj.projectId.length, 5, `Auto-recovered project ID '${defaultPrj.projectId}' must be 5 chars`);
+    assert(/^[a-z0-9]{5}$/.test(defaultPrj.projectId), "Auto-recovered project ID must match [a-z0-9]{5}");
+  });
+
+  await runTest("II.12 Toad v2.4.2 System-Wide Version Synchronization", async () => {
+    const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
+    assert.strictEqual(pkgApp.version, "2.4.2", "tad-app package.json version must be 2.4.2");
+
+    const pkgBridge = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/package.json"), "utf8"));
+    assert.strictEqual(pkgBridge.version, "2.4.2", "host-bridge package.json version must be 2.4.2");
+
+    const pkgDuck = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/reltab-duckdb/package.json"), "utf8"));
+    assert.strictEqual(pkgDuck.version, "2.4.2", "reltab-duckdb package.json version must be 2.4.2");
+
+    const pkgViewer = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/package.json"), "utf8"));
+    assert.strictEqual(pkgViewer.version, "2.4.2", "tadviewer package.json version must be 2.4.2");
+
+    const dialogSrc = fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tadviewer/src/components/RegexDialog.tsx"), "utf8");
+    assert(dialogSrc.includes("v2.4.2"), "RegexDialog.tsx header badge must display v2.4.2");
+
+    const distPs1 = fs.readFileSync(path.resolve(ROOT_DIR, "dist_package.ps1"), "utf8");
+    assert(distPs1.includes("v2.4.2"), "dist_package.ps1 must assert bundle contains v2.4.2");
+    assert(distPs1.includes("Toad-2.4.2-x64-portable.exe"), "dist_package.ps1 must package Toad-2.4.2-x64-portable.exe");
+
+    const readmeSrc = fs.readFileSync(path.resolve(ROOT_DIR, "README.md"), "utf8");
+    assert(readmeSrc.includes("Toad (v2.4.2)"), "README.md title must display v2.4.2");
+    assert(readmeSrc.includes("Version-2.4.2"), "README.md version badge must display 2.4.2");
+
+    const wingetYaml = fs.readFileSync(path.resolve(ROOT_DIR, "releases/HelloKittyXamKinLung.Toad.yaml"), "utf8");
+    assert(wingetYaml.includes("PackageVersion: 2.4.2"), "Winget manifest must specify PackageVersion: 2.4.2");
+
+    const releaseNotes = fs.readFileSync(path.resolve(ROOT_DIR, "releases/v2.4.2_NOTES.md"), "utf8");
+    assert(releaseNotes.includes("Toad v2.4.2"), "releases/v2.4.2_NOTES.md must exist and document v2.4.2");
+
+    const docThuyetMinh = fs.readFileSync(path.resolve(ROOT_DIR, "docs/thuyet_minh_nang_cap_v2.4.2_startup_reconciliation_va_single_trust_ledger.md"), "utf8");
+    assert(docThuyetMinh.includes("v2.4.2"), "Documentation must exist and document v2.4.2 architecture");
   });
 
   // Cleanup temporary directory

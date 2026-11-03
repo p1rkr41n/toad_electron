@@ -24,6 +24,8 @@ import {
 import * as reltabDuckDB from "reltab-duckdb";
 import { DuckDBDriver } from "reltab-duckdb";
 
+export { scanDirectoryRecursive, generateUniqueProjectId } from "reltab-duckdb";
+
 export const dataFileExtensions = [
   "csv",
   "tsv",

@@ -387,6 +387,19 @@ const appInit = (options: any) => {
     return { success: true };
   });
 
+  ipcMain.handle("project:reconcile", async () => {
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.performStartupReconciliation();
+  });
+
+  // Three-Way Startup Reconciliation Engine (SSOT = Parquet Ledger)
+  reltabDuckDB.ToadParquetLedger.getInstance()
+    .performStartupReconciliation()
+    .catch((err) => {
+      log.warn("[StartupReconciliation] Error during startup reconciliation:", err);
+    });
+
   appMenu.createMenu(); // log.log('appInit: done')
 };
 
