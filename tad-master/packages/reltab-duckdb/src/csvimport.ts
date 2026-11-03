@@ -340,11 +340,22 @@ export function generateUniqueProjectId(
  */
 export async function scanDirectoryRecursive(
   rootDir: string,
-  supportedExts: Set<string>
+  supportedExts: Set<string>,
+  maxDepth: number = 30
 ): Promise<Array<{ fullPath: string; relPath: string; size: number; mtime: number }>> {
   const results: Array<{ fullPath: string; relPath: string; size: number; mtime: number }> = [];
+  const visitedRealPaths = new Set<string>();
 
-  async function walk(currentDir: string, currentRel: string) {
+  async function walk(currentDir: string, currentRel: string, currentDepth: number) {
+    if (currentDepth > maxDepth) return;
+    try {
+      const real = fs.realpathSync(currentDir);
+      if (visitedRealPaths.has(real)) return;
+      visitedRealPaths.add(real);
+    } catch {
+      return;
+    }
+
     let entries: fs.Dirent[] = [];
     try {
       entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
@@ -360,7 +371,7 @@ export async function scanDirectoryRecursive(
       const rel = currentRel ? `${currentRel}/${ent.name}` : ent.name;
 
       if (ent.isDirectory()) {
-        await walk(full, rel);
+        await walk(full, rel, currentDepth + 1);
       } else if (ent.isFile()) {
         const ext = path.extname(ent.name).toLowerCase().replace(".", "");
         const lowerName = ent.name.toLowerCase();
@@ -379,7 +390,7 @@ export async function scanDirectoryRecursive(
     }
   }
 
-  await walk(rootDir, "");
+  await walk(rootDir, "", 0);
   return results;
 }
 
@@ -448,6 +459,18 @@ export class ToadParquetLedger {
         ? path.join(cfg.temp_dir, "toad_ledger.parquet")
         : path.join(os.tmpdir(), "toad_ledger.parquet"));
     return this.ledgerPath;
+  }
+
+  public getTempDir(): string {
+    const cfg = getIngestConfig();
+    if (this.ledgerPath) {
+      const dir = path.dirname(this.ledgerPath);
+      if (path.basename(dir) === "temp" || fs.existsSync(path.join(dir, "temp"))) {
+        return path.basename(dir) === "temp" ? dir : path.join(dir, "temp");
+      }
+      return dir;
+    }
+    return cfg.temp_dir || os.tmpdir();
   }
 
   public normalizePath(p?: string | null): string {
@@ -542,10 +565,25 @@ export class ToadParquetLedger {
   }
 
   public async ensureDefaultProject(targetId?: string): Promise<string> {
+    if (!targetId) {
+      if (this.activeProjectId && this.projects.has(this.activeProjectId)) {
+        const p = this.projects.get(this.activeProjectId)!;
+        if (p.status !== "DELETED" && p.projectId !== "orphan_prj") {
+          return this.activeProjectId;
+        }
+      }
+      const active = Array.from(this.projects.values()).find(
+        (p) => p.status !== "DELETED" && p.projectId !== "orphan_prj"
+      );
+      if (active) {
+        this.activeProjectId = active.projectId;
+        return active.projectId;
+      }
+    }
     const defaultName = "Untitled-1";
     const lPath = this.getLedgerPath();
     const isLegacyTest = (lPath && (lPath.includes("suite_gg") || lPath.includes("cold_start") || lPath.includes("debounce")));
-    const defaultId = targetId || (isLegacyTest ? "prj_untitled_1" : generateUniqueProjectId(getIngestConfig().temp_dir, new Set(this.projects.keys())));
+    const defaultId = targetId || (isLegacyTest ? "prj_untitled_1" : generateUniqueProjectId(this.getTempDir(), new Set(this.projects.keys())));
 
     const existing = this.projects.get(defaultId);
     if (!existing || existing.status === "DELETED") {
@@ -579,9 +617,8 @@ export class ToadParquetLedger {
   }
 
   public async createDefaultUntitledProject(): Promise<string> {
-    const cfg = getIngestConfig();
     const existingIds = new Set(this.projects.keys());
-    const newId = generateUniqueProjectId(cfg.temp_dir, existingIds);
+    const newId = generateUniqueProjectId(this.getTempDir(), existingIds);
     const newName = "Untitled-1";
 
     this.projects.set(newId, {
@@ -618,11 +655,10 @@ export class ToadParquetLedger {
     projectId?: string
   ): Promise<string> {
     this.clearDefaultProjectRecovery();
-    const cfg = getIngestConfig();
     const existingIds = new Set(this.projects.keys());
     const id =
       projectId ||
-      generateUniqueProjectId(cfg.temp_dir, existingIds);
+      generateUniqueProjectId(this.getTempDir(), existingIds);
     const name = projectName.trim() || "Untitled Project";
     const proj: ProjectInfo = {
       projectId: id,
@@ -731,8 +767,7 @@ export class ToadParquetLedger {
     for (const f of files) {
       let pPath = f.parquet_path;
       if (!pPath && f.source_path) {
-        const cfg = getIngestConfig();
-        const cp = getDeterministicParquetPath(f.source_path, cfg.temp_dir);
+        const cp = getDeterministicParquetPath(f.source_path, this.getTempDir(), projectId);
         if (cp) pPath = cp.parquetPath;
       }
 
@@ -1105,6 +1140,7 @@ export class ToadParquetLedger {
       this.cache.clear();
       this.projects.clear();
 
+      this.notifyChange();
       this.scheduleDefaultProjectRecovery(500);
       return true;
     }
@@ -1159,8 +1195,7 @@ export class ToadParquetLedger {
     await this.dropProjectViews(projectId);
 
     // 3. Đường dẫn thư mục đệm: temp/<projectId>/
-    const cfg = getIngestConfig();
-    const tDir = cfg.temp_dir || os.tmpdir();
+    const tDir = this.getTempDir();
     const projectDir = path.join(tDir, projectId);
     let freedBytes = this.calculateDirectorySize(projectDir);
 
@@ -1168,7 +1203,7 @@ export class ToadParquetLedger {
     for (const f of files) {
       let pPath = f.parquet_path;
       if (!pPath && f.source_path) {
-        const cp = getDeterministicParquetPath(f.source_path, cfg.temp_dir, projectId);
+        const cp = getDeterministicParquetPath(f.source_path, tDir, projectId);
         if (cp) pPath = cp.parquetPath;
       }
 
@@ -1290,34 +1325,45 @@ export class ToadParquetLedger {
 
     await this.initLedger();
 
-    const cfg = getIngestConfig();
-    const tempDir = (this.ledgerPath ? path.dirname(this.ledgerPath) : "") || cfg.temp_dir || os.tmpdir();
+    const tempDir = this.getTempDir();
 
     const supportedExts = new Set([
       "csv", "tsv", "parquet", "json", "jsonl", "ndjson", "log", "txt", "evtx", "csv.gz", "tsv.gz",
     ]);
 
-    // Scenario 3: Mất thư mục gốc (Lost folder roots)
-    const projectsWithFolders: Map<string, { folderRoot: string; projName: string }> = new Map();
+    // Track folder roots per project
+    const projectFolderRoots = new Map<string, { projectId: string; projName: string; folderRoot: string }>();
+    const projectFoldersList = new Map<string, Set<string>>();
     for (const f of this.cache.values()) {
       if (f.project_id && f.extra_json) {
         try {
           const ex = JSON.parse(f.extra_json);
-          if (ex.folderRoot && !projectsWithFolders.has(f.project_id)) {
-            projectsWithFolders.set(f.project_id, {
-              folderRoot: ex.folderRoot,
-              projName: f.project_name || this.getProjectName(f.project_id),
-            });
+          if (ex.folderRoot) {
+            const key = `${f.project_id}::${this.normalizePath(ex.folderRoot)}`;
+            if (!projectFolderRoots.has(key)) {
+              projectFolderRoots.set(key, {
+                projectId: f.project_id,
+                projName: f.project_name || this.getProjectName(f.project_id),
+                folderRoot: ex.folderRoot,
+              });
+            }
+            if (!projectFoldersList.has(f.project_id)) {
+              projectFoldersList.set(f.project_id, new Set());
+            }
+            projectFoldersList.get(f.project_id)!.add(ex.folderRoot);
           }
         } catch {}
       }
     }
 
+    // Scenario 3: Mất thư mục gốc (Lost folder roots)
     const tombstonedProjects = new Set<string>();
-    for (const [projId, info] of projectsWithFolders.entries()) {
-      if (!fs.existsSync(info.folderRoot)) {
-        log.warn(`[StartupReconciliation] Scenario 3: Folder root ${info.folderRoot} khong ton tai -> Ghi Tombstone cho project ${projId}`);
-        await this.recordProjectTombstone(projId, info.projName);
+    for (const [projId, folders] of projectFoldersList.entries()) {
+      const allLost = Array.from(folders).every((fRoot) => !fs.existsSync(fRoot));
+      if (allLost) {
+        const projName = this.getProjectName(projId);
+        log.warn(`[StartupReconciliation] Scenario 3: All folder roots for project ${projId} missing -> Ghi Tombstone cho project ${projId}`);
+        await this.recordProjectTombstone(projId, projName);
         await this.dropProjectViews(projId);
 
         const projectDir = path.join(tempDir, projId);
@@ -1426,15 +1472,15 @@ export class ToadParquetLedger {
     }
 
     // Scenario 5: File mới xuất hiện trong thư mục gốc (Recursive scan)
-    for (const [projId, info] of projectsWithFolders.entries()) {
-      if (tombstonedProjects.has(projId)) continue;
+    for (const info of projectFolderRoots.values()) {
+      if (tombstonedProjects.has(info.projectId)) continue;
       if (fs.existsSync(info.folderRoot)) {
         const scannedFiles = await scanDirectoryRecursive(info.folderRoot, supportedExts);
         for (const sc of scannedFiles) {
           const norm = this.normalizePath(sc.fullPath);
           if (!this.cache.has(norm)) {
             log.info(`[StartupReconciliation] Scenario 5: Phat hien file moi ${sc.fullPath} trong folder ${info.folderRoot}`);
-            await this.addFileToProject(projId, sc.fullPath, info.projName, {
+            await this.addFileToProject(info.projectId, sc.fullPath, info.projName, {
               addedBy: "startup_reconciliation_scan",
               folderRoot: info.folderRoot,
               relPath: sc.relPath,
@@ -1465,6 +1511,11 @@ export class ToadParquetLedger {
           if (ent.name.startsWith(".trash_")) {
             this.asyncDeleteDirectory(entFull);
             result.scenario2OrphansCleaned++;
+            continue;
+          }
+
+          // Protect system directories and hidden non-trash files
+          if (ent.name.startsWith(".") || ent.name === "node_modules" || ent.name === "$RECYCLE.BIN") {
             continue;
           }
 
@@ -1513,6 +1564,11 @@ export class ToadParquetLedger {
       }
     }
 
+    // Auto-compact ledger if Scenario 3 tombstoned all active projects
+    if (result.scenario3ProjectsTombstoned > 0) {
+      await this.checkAndCompactingLedgerIfAllDeleted();
+    }
+
     this.notifyChange();
     return result;
   }
@@ -1526,8 +1582,7 @@ export class ToadParquetLedger {
   ): Promise<ToadLedgerEntry> {
     let proj = this.projects.get(projectId);
     if (!proj) {
-      await this.ensureDefaultProject();
-      projectId = this.activeProjectId;
+      projectId = await this.ensureDefaultProject();
       proj = this.projects.get(projectId);
     }
     const pName = projectName || proj?.projectName || "Untitled-1";
@@ -1539,8 +1594,7 @@ export class ToadParquetLedger {
       }
     } catch {}
 
-    const cfg = getIngestConfig();
-    const cachedPaths = getDeterministicParquetPath(filePath, cfg.temp_dir);
+    const cachedPaths = getDeterministicParquetPath(filePath, this.getTempDir(), projectId);
     const validity = getCacheValidityStatus(filePath, cachedPaths);
     const status =
       validity === "VALID"
@@ -1655,8 +1709,7 @@ export class ToadParquetLedger {
   ): Promise<void> {
     let targetId = targetProjectId;
     if (!targetId || targetId === "orphan_prj" || !this.projects.has(targetId)) {
-      await this.ensureDefaultProject();
-      targetId = "prj_untitled_1";
+      targetId = await this.ensureDefaultProject();
     }
     const proj = this.projects.get(targetId);
     if (!proj) return;
@@ -1890,6 +1943,8 @@ export class ToadParquetLedger {
           const isLegacy = lPath && (lPath.includes("suite_gg") || lPath.includes("cold_start") || lPath.includes("debounce"));
           if (isLegacy) {
             await this.ensureDefaultProject("prj_untitled_1");
+          } else if (rows.length === 0) {
+            await this.ensureDefaultProject();
           } else {
             await this.checkAndCompactingLedgerIfAllDeleted();
           }

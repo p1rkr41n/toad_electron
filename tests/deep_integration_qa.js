@@ -4451,6 +4451,184 @@ async function main() {
     assert(/^[a-z0-9]{5}$/.test(defaultPrj.projectId), "Auto-recovered project ID must match [a-z0-9]{5}");
   });
 
+  await runTest("II.13 Cache Partitioning for Non-Active Project (Target projectId Routing)", async () => {
+    const isolateDir = path.join(testSuiteIIDir, "non_active_add_test");
+    fs.mkdirSync(isolateDir, { recursive: true });
+    const ledgerPath = path.join(isolateDir, "toad_ledger.parquet");
+    const tempDir = path.join(isolateDir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const prjA = await ledger.createProject("Active Project A");
+    const prjB = await ledger.createProject("Background Project B");
+
+    // Make Project A active
+    ledger.setActiveProjectId(prjA);
+    assert.strictEqual(ledger.getActiveProjectId(), prjA);
+
+    // Add a file targeting Project B while Project A is active
+    const sampleCsv = path.join(isolateDir, "data_b.csv");
+    fs.writeFileSync(sampleCsv, "col1\nvalB\n", "utf8");
+
+    const entryB = await ledger.addFileToProject(prjB, sampleCsv);
+    assert(entryB.parquet_path, "parquet_path should be generated");
+
+    const normParquet = entryB.parquet_path.replace(/\\/g, "/");
+    assert(normParquet.includes(`/${prjB}/`), `Cache must be routed to temp/${prjB}/, got: ${entryB.parquet_path}`);
+    assert(!normParquet.includes(`/${prjA}/`), "Cache must NEVER be placed in temp/prjA/");
+
+    // Purge cache of Project B
+    const prjBTempDir = path.join(tempDir, prjB);
+    fs.mkdirSync(prjBTempDir, { recursive: true });
+    const fakeParquetB = path.join(prjBTempDir, "data_b_cached_123.parquet");
+    fs.writeFileSync(fakeParquetB, "cached", "utf8");
+    entryB.parquet_path = fakeParquetB;
+    await ledger.recordEvent(entryB);
+
+    const purgeRes = await ledger.purgeProjectCache(prjB);
+    assert(purgeRes.purgedFiles >= 1, "purgeProjectCache must find and delete cache for prjB");
+    assert(!fs.existsSync(fakeParquetB), "Cache file for prjB must be unlinked");
+  });
+
+  await runTest("II.14 moveOrphanFilesToProject() Default Target Migration to 5-Char Project", async () => {
+    const orphanDir = path.join(testSuiteIIDir, "orphan_migration_test");
+    fs.mkdirSync(orphanDir, { recursive: true });
+    const ledgerPath = path.join(orphanDir, "toad_ledger.parquet");
+    const tempDir = path.join(orphanDir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const activePrjId = await ledger.createProject("Active Receiving Prj");
+    assert.strictEqual(activePrjId.length, 5);
+
+    // Simulate an orphan file (project_id = "orphan_prj")
+    const orphanFile = path.join(orphanDir, "legacy_file.csv");
+    fs.writeFileSync(orphanFile, "col\nlegacy\n", "utf8");
+    await ledger.recordEvent({
+      event_id: `evt-orphan-${Date.now()}`,
+      event_type: "FILE_READY",
+      timestamp: Date.now(),
+      project_id: "orphan_prj",
+      project_name: "orphan_prj",
+      source_path: orphanFile,
+      source_size: 100,
+      source_mtime: Date.now(),
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 5,
+      status: "READY",
+      duration_ms: 10,
+      extra_json: "{}",
+    });
+
+    assert.strictEqual(ledger.getProjectFiles("orphan_prj").length, 1);
+
+    // Move orphan files without passing targetProjectId -> should automatically move to active project
+    await ledger.moveOrphanFilesToProject();
+
+    assert.strictEqual(ledger.getProjectFiles("orphan_prj").length, 0, "Orphan file must no longer be in orphan_prj");
+    const activeFiles = ledger.getProjectFiles(activePrjId);
+    assert.strictEqual(activeFiles.length, 1, "Orphan file must be moved to active project");
+    assert.strictEqual(activeFiles[0].project_id, activePrjId);
+  });
+
+  await runTest("II.15 ensureDefaultProject() Idempotency When Active Projects Exist", async () => {
+    const idempDir = path.join(testSuiteIIDir, "idempotent_test");
+    fs.mkdirSync(idempDir, { recursive: true });
+    const ledgerPath = path.join(idempDir, "toad_ledger.parquet");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    const initialId = await ledger.ensureDefaultProject();
+    assert.strictEqual(initialId.length, 5);
+
+    const countBefore = ledger.getProjects().length;
+    const secondCallId = await ledger.ensureDefaultProject();
+    assert.strictEqual(secondCallId, initialId, "ensureDefaultProject must return existing active project ID");
+    assert.strictEqual(ledger.getProjects().length, countBefore, "ensureDefaultProject must NOT create duplicate projects");
+  });
+
+  await runTest("II.16 scanDirectoryRecursive Resilience Against Symlink/Junction Directory Loops", async () => {
+    const loopDir = path.join(testSuiteIIDir, "symlink_loop_test");
+    const subDir = path.join(loopDir, "folder_a");
+    fs.mkdirSync(subDir, { recursive: true });
+
+    const csvFile = path.join(subDir, "report.csv");
+    fs.writeFileSync(csvFile, "h1\nv1\n", "utf8");
+
+    // Create a circular junction loop: folder_a/circular -> loopDir
+    const junctionPath = path.join(subDir, "circular_loop");
+    try {
+      fs.symlinkSync(loopDir, junctionPath, "junction");
+    } catch {}
+
+    const { scanDirectoryRecursive } = reltabDuckDB;
+    const supportedExts = new Set(["csv"]);
+
+    const t0 = process.hrtime();
+    const scanned = await scanDirectoryRecursive(loopDir, supportedExts);
+    const diff = process.hrtime(t0);
+    const ms = diff[0] * 1000 + diff[1] / 1e6;
+
+    assert(ms < 1000, `Scanning circular loop must terminate quickly (< 1s), took ${ms.toFixed(2)}ms`);
+    assert.strictEqual(scanned.length, 1, "Must find exactly 1 CSV file without infinite loop duplicates");
+
+    // Clean up junction
+    try {
+      fs.unlinkSync(junctionPath);
+    } catch {}
+  });
+
+  await runTest("II.17 Scenario 3 All-Roots-Lost Ledger Reset & Debounced Auto-Recovery", async () => {
+    const s3ResetDir = path.join(testSuiteIIDir, "scenario_3_all_lost_reset");
+    fs.mkdirSync(s3ResetDir, { recursive: true });
+    const tempDir = path.join(s3ResetDir, "temp");
+    fs.mkdirSync(tempDir, { recursive: true });
+    const ledgerPath = path.join(tempDir, "toad_ledger.parquet");
+
+    const folderRoot = path.join(s3ResetDir, "isolated_project_folder");
+    fs.mkdirSync(folderRoot, { recursive: true });
+    fs.writeFileSync(path.join(folderRoot, "source.csv"), "x\n10\n", "utf8");
+
+    const ledger = new reltabDuckDB.ToadParquetLedger(ledgerPath);
+    await ledger.initLedger();
+
+    // Clean initial default project so Single Folder Prj is the sole project
+    for (const p of ledger.getProjects()) {
+      await ledger.deleteProjectCascade(p.projectId);
+    }
+    ledger.clearDefaultProjectRecovery();
+
+    const prjId = await ledger.createProject("Single Folder Prj");
+    await ledger.addFolderToProject(prjId, folderRoot);
+
+    // Physically delete folder root
+    fs.rmSync(folderRoot, { recursive: true, force: true });
+
+    const reconRes = await ledger.performStartupReconciliation();
+    assert.strictEqual(reconRes.scenario3ProjectsTombstoned, 1, "Must tombstone the lost project");
+
+    // Active project count should be 0, so toad_ledger.parquet was reset to 0 rows
+    const memDb = await Database.create(":memory:");
+    const memConn = await memDb.connect();
+    const rows = await memConn.all(`SELECT * FROM read_parquet('${ledgerPath.replace(/\\/g, "/")}')`);
+    await memConn.close();
+    await memDb.close();
+    assert.strictEqual(rows.length, 0, "Scenario 3 deleting all projects must reset ledger to 0 rows");
+
+    // Wait 550ms for auto-recovery debounce
+    await new Promise(resolve => setTimeout(resolve, 550));
+    const recovered = ledger.getProjects();
+    assert.strictEqual(recovered.length, 1, "Must auto-recover Untitled-1 after 500ms debounce");
+    assert.strictEqual(recovered[0].projectName, "Untitled-1");
+    assert.strictEqual(recovered[0].projectId.length, 5);
+  });
+
   await runTest("II.12 Toad v2.4.2 System-Wide Version Synchronization", async () => {
     const pkgApp = JSON.parse(fs.readFileSync(path.resolve(ROOT_DIR, "tad-master/packages/tad-app/package.json"), "utf8"));
     assert.strictEqual(pkgApp.version, "2.4.2", "tad-app package.json version must be 2.4.2");

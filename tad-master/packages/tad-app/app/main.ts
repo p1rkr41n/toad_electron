@@ -393,13 +393,6 @@ const appInit = (options: any) => {
     return await ledger.performStartupReconciliation();
   });
 
-  // Three-Way Startup Reconciliation Engine (SSOT = Parquet Ledger)
-  reltabDuckDB.ToadParquetLedger.getInstance()
-    .performStartupReconciliation()
-    .catch((err) => {
-      log.warn("[StartupReconciliation] Error during startup reconciliation:", err);
-    });
-
   appMenu.createMenu(); // log.log('appInit: done')
 };
 
@@ -693,6 +686,12 @@ const initApp =
                   }
                 } catch {}
               });
+              // Three-Way Startup Reconciliation Engine (SSOT = Parquet Ledger)
+              reltabDuckDB.ToadParquetLedger.getInstance()
+                .performStartupReconciliation()
+                .catch((err: any) => {
+                  log.warn("[StartupReconciliation] Error during startup reconciliation:", err);
+                });
             } catch (err) {
               log.warn("Error initializing ToadLedger in main process:", err);
             }

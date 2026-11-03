@@ -69,7 +69,7 @@ export class ProjectWorkspaceManager {
   private listeners: Set<WorkspaceChangeListener> = new Set();
   private expandedMap: Map<string, boolean> = new Map();
   private cachedProjects: ProjectWorkspaceProject[] = [];
-  private activeProjectId: string = "prj_untitled_1";
+  private activeProjectId: string = "";
 
   public static getInstance(): ProjectWorkspaceManager {
     if (!ProjectWorkspaceManager.instance) {
@@ -83,7 +83,6 @@ export class ProjectWorkspaceManager {
   }
 
   private constructor() {
-    this.expandedMap.set("prj_untitled_1", true);
     this.expandedMap.set("orphan_prj", true);
 
     const bridge = getBridge();
@@ -137,7 +136,7 @@ export class ProjectWorkspaceManager {
         const res = await bridge.invoke("project:getWorkspace", {});
         if (res && res.projects) {
           this.cachedProjects = res.projects;
-          this.activeProjectId = res.activeProjectId || "prj_untitled_1";
+          this.activeProjectId = res.activeProjectId || (res.projects[0]?.projectId) || "";
           return { projects: res.projects, activeProjectId: this.activeProjectId };
         }
       } catch (err) {
@@ -155,10 +154,11 @@ export class ProjectWorkspaceManager {
       return { projects, activeProjectId: this.activeProjectId };
     }
 
+    const fallbackId = Math.random().toString(36).slice(2, 7);
     return {
       projects: [
         {
-          projectId: "prj_untitled_1",
+          projectId: fallbackId,
           projectName: "Untitled-1",
           status: "READY",
           createdAt: Date.now(),
@@ -166,7 +166,7 @@ export class ProjectWorkspaceManager {
           totalBytes: 0,
         },
       ],
-      activeProjectId: "prj_untitled_1",
+      activeProjectId: fallbackId,
     };
   }
 
@@ -236,7 +236,7 @@ export class ProjectWorkspaceManager {
       return id;
     }
 
-    return "prj_untitled_1";
+    return Math.random().toString(36).slice(2, 7);
   }
 
   public async renameProject(projectId: string, newName: string): Promise<boolean> {
