@@ -246,8 +246,9 @@ export const FileTreeItemLabel: React.FC<{
             <span
               className="status-dot status-dot-error ds-file-node-error-badge"
               title={item?.error || "Error loading file"}
+              style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
             >
-              !
+              <Icon icon="error" size={12} style={{ color: "#ef4444" }} />
             </span>
           )}
         </div>
@@ -650,50 +651,59 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   };
 
   const handleOpenFile = async (file: ProjectWorkspaceFile) => {
-    const dsPath: DataSourcePath = {
-      sourceId: { providerName: "localfs", resourceId: file.filePath },
-      path: ["."],
-    };
-    pwManager.setActiveProject(file.projectId);
-    const clickSeq = ++clickSeqRef.current;
-    const key = JSON.stringify(dsPath);
-    const canonicalPath = getCanonicalPathFromDSPath(dsPath);
-    const manager = MultipleLoadingManager.getInstance();
-    const item = manager.getItem(key) || manager.getItemByCanonical(canonicalPath);
+    try {
+      const dsPath: DataSourcePath = {
+        sourceId: { providerName: "localfs", resourceId: file.filePath },
+        path: ["."],
+      };
+      pwManager.setActiveProject(file.projectId);
+      const clickSeq = ++clickSeqRef.current;
+      const key = JSON.stringify(dsPath);
+      const canonicalPath = getCanonicalPathFromDSPath(dsPath);
+      const manager = MultipleLoadingManager.getInstance();
+      const item = manager.getItem(key) || manager.getItemByCanonical(canonicalPath);
 
-    if (item && item.status === "ready") {
-      manager.clearPendingActiveOpen();
-      actions.setActiveLoadingFile(
-        {
-          isLoading: true,
-          fileName: file.fileName,
-          dsPath,
-          percent: 100,
-          statusText: "Opening table view...",
-        },
-        stateRef
-      );
-      try {
-        await actions.openDataSourcePath(dsPath, stateRef);
-      } finally {
-        if (clickSeq === clickSeqRef.current) {
-          actions.setActiveLoadingFile(null, stateRef);
+      if (item && item.status === "ready") {
+        manager.clearPendingActiveOpen();
+        actions.setActiveLoadingFile(
+          {
+            isLoading: true,
+            fileName: file.fileName,
+            dsPath,
+            percent: 100,
+            statusText: "Opening table view...",
+          },
+          stateRef
+        );
+        try {
+          await actions.openDataSourcePath(dsPath, stateRef);
+        } catch (err: any) {
+          console.error(`[handleOpenFile] Error opening ready file ${file.fileName}:`, err?.stack || err);
+        } finally {
+          if (clickSeq === clickSeqRef.current) {
+            const cur = mutableGet(stateRef).activeLoadingFile;
+            if (!cur?.error) {
+              actions.setActiveLoadingFile(null, stateRef);
+            }
+          }
         }
+      } else {
+        manager.prioritize(key, stateRef);
+        actions.setActiveLoadingFile(
+          {
+            isLoading: true,
+            fileName: file.fileName,
+            dsPath,
+            percent: item ? item.percent : 0,
+            speedMBs: item?.speedMBs,
+            etaSec: item?.etaSec,
+            statusText: item?.statusText || "Prioritizing loading...",
+          },
+          stateRef
+        );
       }
-    } else {
-      manager.prioritize(key, stateRef);
-      actions.setActiveLoadingFile(
-        {
-          isLoading: true,
-          fileName: file.fileName,
-          dsPath,
-          percent: item ? item.percent : 0,
-          speedMBs: item?.speedMBs,
-          etaSec: item?.etaSec,
-          statusText: item?.statusText || "Prioritizing loading...",
-        },
-        stateRef
-      );
+    } catch (err: any) {
+      console.error(`[handleOpenFile] Error handling open file ${file?.fileName}:`, err?.stack || err);
     }
   };
 

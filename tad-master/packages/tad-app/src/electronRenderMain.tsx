@@ -13,23 +13,13 @@ import { getHostBridge } from "host-bridge";
 if (typeof window !== "undefined") {
   window.addEventListener("error", (e) => {
     console.error("[UNCAUGHT-WINDOW-ERROR]", e.message, e.error?.stack);
-    try {
-      getHostBridge().showErrorDialog(
-        "Renderer Error: " + (e.error?.message || e.message),
-        e.error?.stack || e.message || String(e),
-        false
-      );
-    } catch { }
   });
   window.addEventListener("unhandledrejection", (e) => {
-    console.error("[UNCAUGHT-PROMISE-REJECTION]", e.reason?.message, e.reason?.stack);
-    try {
-      getHostBridge().showErrorDialog(
-        "Promise Rejection: " + (e.reason?.message || String(e.reason)),
-        e.reason?.stack || String(e.reason),
-        false
-      );
-    } catch { }
+    console.error(
+      "[UNCAUGHT-PROMISE-REJECTION]",
+      e.reason?.message || String(e.reason),
+      e.reason?.stack
+    );
   });
 }
 

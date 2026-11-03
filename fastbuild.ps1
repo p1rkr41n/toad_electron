@@ -130,6 +130,15 @@ if (-not (Test-Path "$winUnpacked\Toad.exe")) {
 # --- STEP 4: Output Version Directory ---
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Output "`n>>> [STEP 4] Deploying to version directory: $OutDir..."
+
+# Stop any running instances in OutDir that lock files
+Get-CimInstance Win32_Process -Filter "Name like 'Toad%'" -ErrorAction SilentlyContinue | Where-Object {
+    $_.ExecutablePath -and $_.ExecutablePath.StartsWith($OutDir, [System.StringComparison]::OrdinalIgnoreCase)
+} | ForEach-Object {
+    Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+}
+Start-Sleep -Milliseconds 200
+
 if (Test-Path "$OutDir") {
     Write-Output "    Cleaning existing destination directory..."
     Remove-Item -Recurse -Force "$OutDir" -ErrorAction SilentlyContinue
@@ -137,7 +146,7 @@ if (Test-Path "$OutDir") {
 New-Item -ItemType Directory -Force -Path "$OutDir" | Out-Null
 
 # Robocopy or Copy-Item for ultra fast directory copy
-robocopy "$winUnpacked" "$OutDir" /E /NFL /NDL /NJH /NJS /nc /ns /np | Out-Null
+robocopy "$winUnpacked" "$OutDir" /E /NFL /NDL /NJH /NJS /nc /ns /np /R:1 /W:1 | Out-Null
 if (-not (Test-Path "$OutDir\Toad.exe")) {
     # Fallback to Copy-Item
     Copy-Item -Recurse -Force "$winUnpacked\*" "$OutDir\"

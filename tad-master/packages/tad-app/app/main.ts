@@ -190,8 +190,8 @@ const remotableNewWindowFromDSPath = (
 const appInit = (options: any) => {
   // log.log('appInit: ', options)
   ipcMain.handle("initMain", async (event) => initMainAsync(options));
-  ipcMain.handle("errorDialog", (event, title, msg, fatal) =>
-    errorDialog(title, msg, fatal)
+  ipcMain.handle("errorDialog", (event, arg1, arg2, arg3) =>
+    errorDialog(arg1, arg2, arg3)
   );
   ipcMain.handle("newWindowFromDSPath", (event, dsPath) =>
     newWindowFromDSPath(dsPath)
@@ -486,14 +486,30 @@ const reportFatalError = (msg: string) => {
 };
 
 const errorDialog = async (
-  title: string,
-  msg: string,
-  fatal = false
+  arg1: any,
+  arg2?: any,
+  arg3?: any
 ): Promise<void> => {
-  log.log("*** errorDialog: ", title, msg, fatal);
-  dialog.showErrorBox(title, msg);
+  let title = "Error";
+  let msg = "";
+  let fatal = false;
 
+  if (arg1 && typeof arg1 === "object") {
+    title = arg1.title || "Error";
+    msg = arg1.message || arg1.msg || "";
+    fatal = !!arg1.fatal;
+  } else {
+    title = typeof arg1 === "string" ? arg1 : String(arg1 || "Error");
+    msg = typeof arg2 === "string" ? arg2 : String(arg2 || "");
+    fatal = !!arg3;
+  }
+
+  // Non-blocking: record error trace into log (toad.log)
+  log.error(`[errorDialog] [fatal=${fatal}] ${title}: ${msg}`);
+
+  // Suppress modal dialog unless fatal
   if (fatal) {
+    dialog.showErrorBox(title, msg);
     app.quit();
   }
 };

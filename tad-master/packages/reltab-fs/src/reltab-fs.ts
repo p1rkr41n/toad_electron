@@ -245,7 +245,7 @@ export class FSDriver implements DbDriver {
     options?: GetTableNameOptions
   ): Promise<string> {
     const targetPath = this.getTargetPath(dsPath);
-    let importInfo = this.importMap[targetPath];
+    let importInfo: ImportInfo | undefined = this.importMap[targetPath];
     const forceReopen = options?.forceReopen === true;
     const isBackground = (options as any)?.isBackground === true;
 
@@ -266,11 +266,12 @@ export class FSDriver implements DbDriver {
     // Trường hợp file đã được nạp xong bởi Ingest Engine hoặc phiên làm việc trước:
     // Tuyệt đối không gọi Ingest Engine, chỉ mount VIEW trực tiếp vào UI Engine trong < 1ms!
     if (isCacheHit && cachedPaths) {
-      const extName = path.extname(targetPath);
+      const extName = path.extname(targetPath).toLowerCase();
       const baseName = path.basename(targetPath, extName);
       const tableName = importInfo?.tableName || reltabDuckDB.genTableName(baseName);
 
       let uiConn: any = null;
+      let mountSuccess = false;
       try {
         uiConn = await this.dbc.connPool.take();
         await reltabDuckDB.createViewFromParquet(
@@ -278,31 +279,100 @@ export class FSDriver implements DbDriver {
           cachedPaths.parquetPath,
           tableName
         );
-        log.info(
-          `[DualEngine UI] Mount VIEW thanh cong tu Parquet cache vao UI Engine: ${tableName} (< 1ms)`
-        );
+
+        // Gateway Schema Validation: Evict misparsed delimiter/column cache on open
+        if (extName === ".csv") {
+          const cols: any = await uiConn.all(`DESCRIBE ${tableName}`);
+          const firstColName = (cols[0]?.column_name || "").replace(/^\uFEFF/, "");
+          const isOneColRawEvent = cols.length === 1 && firstColName === "raw_event";
+          const hasSyntheticCol = cols.some((c: any) => /^column0*\d+$/i.test(c.column_name));
+          const hasCommaInCol0 = firstColName.includes(",");
+          const isMisparsed = isOneColRawEvent || hasSyntheticCol || hasCommaInCol0;
+
+          if (isMisparsed) {
+            log.warn(
+              `[DualEngine UI] Phat hien cache loi delimiter (${isOneColRawEvent ? "1-cot raw_event" : "header chua dau phay hoac column01"}) cho "${path.basename(
+                targetPath
+              )}". Dao thai cache va nap lai da cot!`
+            );
+            // a) Drop the view if already created
+            await uiConn.exec(`DROP VIEW IF EXISTS ${tableName}`);
+
+            // b) Evict/delete the corrupted parquet cache file from disk
+            if (fs.existsSync(cachedPaths.parquetPath)) {
+              try {
+                fs.unlinkSync(cachedPaths.parquetPath);
+              } catch (unlinkErr) {
+                log.warn(`[DualEngine UI] Khong the xoa file cache hong:`, unlinkErr);
+              }
+            }
+
+            // c) Invalidate the cache in the ledger / RAM cache
+            try {
+              reltabDuckDB.ToadParquetLedger.getInstance()
+                .recordEvent({
+                  event_id: `evict-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                  timestamp: Date.now(),
+                  source_path: targetPath,
+                  source_size: 0,
+                  source_mtime: 0,
+                  parquet_path: cachedPaths.parquetPath,
+                  parquet_size: 0,
+                  row_count: 0,
+                  status: "DELETED",
+                  duration_ms: 0,
+                  extra_json: JSON.stringify({ reason: "evict_misparsed_delimiter_gateway" }),
+                })
+                .catch(() => {});
+            } catch {}
+
+            if ((global as any)._toadTableRowCountCache) {
+              delete (global as any)._toadTableRowCountCache[tableName];
+              delete (global as any)._toadTableRowCountCache[cachedPaths.parquetPath];
+            }
+
+            // Clear importMap for this targetPath
+            delete this.importMap[targetPath];
+            importInfo = undefined;
+            mountSuccess = false;
+          } else {
+            mountSuccess = true;
+          }
+        } else {
+          mountSuccess = true;
+        }
+
+        if (mountSuccess) {
+          log.info(
+            `[DualEngine UI] Mount VIEW thanh cong tu Parquet cache vao UI Engine: ${tableName} (< 1ms)`
+          );
+        }
       } catch (viewErr) {
         log.warn("[DualEngine UI] Loi khi tao VIEW tu Parquet cache:", viewErr);
+        mountSuccess = false;
       } finally {
         if (uiConn) {
           this.dbc.connPool.giveBack(uiConn);
         }
       }
 
-      if (!isIPFSPath(targetPath)) {
-        try {
-          const fileStats = await fsPromises.stat(targetPath);
-          importInfo = {
-            tableName,
-            importModTime: fileStats.mtime,
-          };
+      if (mountSuccess) {
+        if (!isIPFSPath(targetPath)) {
+          try {
+            const fileStats = await fsPromises.stat(targetPath);
+            importInfo = {
+              tableName,
+              importModTime: fileStats.mtime,
+            };
+            this.importMap[targetPath] = importInfo;
+          } catch {}
+        } else {
+          importInfo = { tableName };
           this.importMap[targetPath] = importInfo;
-        } catch {}
-      } else {
-        importInfo = { tableName };
-        this.importMap[targetPath] = importInfo;
+        }
+        return tableName;
       }
-      return tableName;
+      // If mount failed or cache was evicted, fall through to NHÁNH 2 (Streaming Ingest)!
     }
 
     // NHÁNH 2: Chưa có Parquet cache -> Cần convert (Streaming Ingest)

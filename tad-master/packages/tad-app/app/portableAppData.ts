@@ -769,35 +769,47 @@ export const setLastOpenedDirectory = updateLastOpenedDirectory;
 /**
  * Quét dọn các file tạm dở dang mồ côi (*.tmp, *.tmp_*.parquet) từ các phiên bị crash trước đó.
  * Được gọi ngay khi khởi động ứng dụng (không phụ thuộc temp_cleanup).
+ * Quét đệ quy toàn bộ thư mục con của temp/ (vd: temp/okgrg/, temp/ekm8j/).
  * Tuyệt đối bảo tồn các tệp cache hoàn chỉnh (*_cached_*.parquet) và state ledger (*_ledger.parquet).
  */
 export function purgeOrphanTempFiles(tempDir: string): number {
   let purgedCount = 0;
   try {
     if (!fs.existsSync(tempDir)) return 0;
-    const entries = fs.readdirSync(tempDir);
-    for (const entry of entries) {
-      if (entry === "toad_ledger.parquet" || entry.endsWith("_ledger.parquet")) {
-        continue; // Bảo tồn state ledger
-      }
-      // Nhận diện file rác tạm: đuôi .tmp hoặc chứa .tmp_ (ví dụ sample_40gb_cached_*.tmp_1793626527527.parquet)
-      const isOrphan = entry.endsWith(".tmp") || entry.includes(".tmp_");
-      if (isOrphan) {
-        const fullPath = path.join(tempDir, entry);
+
+    const walkAndPurge = (dir: string): void => {
+      const entries = fs.readdirSync(dir);
+      for (const entry of entries) {
+        if (entry === "toad_ledger.parquet" || entry.endsWith("_ledger.parquet")) {
+          continue; // Bảo tồn state ledger
+        }
+        const fullPath = path.join(dir, entry);
         try {
           const stat = fs.statSync(fullPath);
           if (stat.isDirectory()) {
-            fs.rmSync(fullPath, { recursive: true, force: true });
+            walkAndPurge(fullPath);
+            // Don thu muc con neu da rong
+            try {
+              if (fs.readdirSync(fullPath).length === 0) {
+                fs.rmdirSync(fullPath);
+              }
+            } catch {}
           } else {
-            fs.unlinkSync(fullPath);
+            // Nhận diện file rác tạm: đuôi .tmp hoặc chứa .tmp_ (ví dụ sample_40gb_cached_*.tmp_1793626527527.parquet)
+            const isOrphan = entry.endsWith(".tmp") || entry.includes(".tmp_");
+            if (isOrphan) {
+              fs.unlinkSync(fullPath);
+              purgedCount++;
+              log.info(`[OrphanPurge] Da don file rac mo coi: ${entry}`);
+            }
           }
-          purgedCount++;
-          log.info(`[OrphanPurge] Da don file rac mo coi: ${entry}`);
         } catch (err: any) {
           log.warn(`[OrphanPurge] Khong the xoa file mo coi ${entry}:`, err?.message);
         }
       }
     }
+
+    walkAndPurge(tempDir);
   } catch (err: any) {
     log.warn("[OrphanPurge] Loi khi quet thu muc temp:", err?.message);
   }
