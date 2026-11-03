@@ -40,17 +40,21 @@ export const createMenu = () => {
     },
 
     {
-      label: "Open File...",
+      label: "Add Files to Active Project...",
       accelerator: "CmdOrCtrl+O",
       click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
-        appWindow.openDialog("openFile", focusedWindow);
+        if (focusedWindow) {
+          focusedWindow.webContents.send("project-add-files");
+        }
       },
     },
     {
-      label: "Open Directory...",
-      accelerator: "CmdOrCtrl+O",
+      label: "Add Folder to Active Project...",
+      accelerator: "CmdOrCtrl+Shift+O",
       click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
-        appWindow.openDialog("openDirectory", focusedWindow);
+        if (focusedWindow) {
+          focusedWindow.webContents.send("project-add-folder");
+        }
       },
     },
     {
