@@ -1,11 +1,12 @@
 import { IHostBridge } from "./IHostBridge";
 import { V8HostAdapter } from "./V8HostAdapter";
+import { HeadlessNodeAdapter } from "./HeadlessNodeAdapter";
 
 let activeBridge: IHostBridge | null = null;
 
 /**
  * Get the active singleton HostBridge instance.
- * Defaults to V8HostAdapter in Phase 1.
+ * Defaults to V8HostAdapter.
  */
 export function getHostBridge(): IHostBridge {
   if (!activeBridge) {
@@ -15,7 +16,7 @@ export function getHostBridge(): IHostBridge {
 }
 
 /**
- * Override the active HostBridge (for testing, Tauri shell, or Web).
+ * Override the active HostBridge (for testing, Tauri shell, Headless CLI, or Web).
  */
 export function setHostBridge(customBridge: IHostBridge): void {
   activeBridge = customBridge;
@@ -23,3 +24,4 @@ export function setHostBridge(customBridge: IHostBridge): void {
 
 export * from "./IHostBridge";
 export * from "./V8HostAdapter";
+export * from "./HeadlessNodeAdapter";

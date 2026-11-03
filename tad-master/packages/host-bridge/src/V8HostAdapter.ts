@@ -1,22 +1,34 @@
-import { IHostBridge, OpenDialogOptions, SaveDialogOptions, AppConfigDTO } from "./IHostBridge";
+import { IHostBridge, OpenDialogOptions, SaveDialogOptions, AppConfigDTO, EngineName } from "./IHostBridge";
 
 /**
  * Ring 2: V8 Host Adapter
  * Concrete implementation of IHostBridge for Electron / Node.js V8 Runtime.
- * Interacts with main process via ipcRenderer, shell, and clipboard.
+ * Prioritizes window.toadBridge (contextIsolation: true), falling back gracefully
+ * to window.require("electron") in legacy mode (contextIsolation: false).
  */
 export class V8HostAdapter implements IHostBridge {
-  readonly engineName = "v8" as const;
+  private toadBridge: any = null;
   private ipc: any = null;
   private clipboard: any = null;
   private shell: any = null;
+  private dataPort: any = null;
 
   constructor() {
-    this.initElectronAPIs();
+    this.initAPIs();
+    this.initPortListener();
   }
 
-  private initElectronAPIs() {
+  public get engineName(): EngineName {
+    return this.toadBridge ? "utility" : "v8";
+  }
+
+  private initAPIs(): void {
     if (typeof window !== "undefined") {
+      // 1. Prioritize secure toadBridge exposed by preload.js
+      if ((window as any).toadBridge) {
+        this.toadBridge = (window as any).toadBridge;
+      }
+      // 2. Legacy fallback if running in legacy mode
       try {
         const electron = (window as any).electron || (window as any).require?.("electron");
         if (electron) {
@@ -30,15 +42,40 @@ export class V8HostAdapter implements IHostBridge {
     }
   }
 
+  private initPortListener(): void {
+    if (typeof window !== "undefined") {
+      window.addEventListener("message", (event: MessageEvent) => {
+        if (event.data?.type === "toad-engine-port-handshake" && event.ports?.[0]) {
+          this.setupDataPort(event.ports[0]);
+        }
+      });
+    }
+  }
+
+  public setupDataPort(port: any): void {
+    this.dataPort = port;
+    if (this.dataPort && typeof this.dataPort.start === "function") {
+      this.dataPort.start();
+    }
+    this.sendEvent("engine:restored", {});
+  }
+
   // TransportClient implementation for reltab
   async invoke(functionName: string, req: any): Promise<any> {
-    if (!this.ipc) {
-      this.initElectronAPIs();
+    if (!this.toadBridge && !this.ipc) {
+      this.initAPIs();
+    }
+    if (this.toadBridge) {
+      return await this.toadBridge.invoke(functionName, req);
     }
     if (this.ipc) {
       return await this.ipc.invoke(functionName, req);
     }
-    throw new Error(`[V8HostAdapter] ipcRenderer not available for invoking '${functionName}'`);
+    throw new Error(`[V8HostAdapter] Neither toadBridge nor ipcRenderer is available for invoking '${functionName}'`);
+  }
+
+  async invokeCmd<T = any>(command: string, payload?: any): Promise<T> {
+    return await this.invoke(command, payload);
   }
 
   async getConfig(): Promise<AppConfigDTO> {
@@ -54,7 +91,7 @@ export class V8HostAdapter implements IHostBridge {
           max_concurrent_gb: 1.0,
         },
         runtime: {
-          engine: "v8",
+          engine: "utility",
           auto_fallback: true,
         },
         duckdb: {
@@ -92,8 +129,11 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   async openExternal(url: string): Promise<void> {
-    if (!this.shell) {
-      this.initElectronAPIs();
+    if (!this.toadBridge && !this.shell) {
+      this.initAPIs();
+    }
+    if (this.toadBridge && typeof this.toadBridge.openExternal === "function") {
+      return await this.toadBridge.openExternal(url);
     }
     if (this.shell) {
       await this.shell.openExternal(url);
@@ -103,10 +143,12 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   copyToClipboard(text: string): void {
-    if (!this.clipboard) {
-      this.initElectronAPIs();
+    if (!this.toadBridge && !this.clipboard) {
+      this.initAPIs();
     }
-    if (this.clipboard) {
+    if (this.toadBridge?.clipboard && typeof this.toadBridge.clipboard.writeText === "function") {
+      this.toadBridge.clipboard.writeText(text);
+    } else if (this.clipboard) {
       this.clipboard.writeText(text);
     } else if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(text).catch(() => {});
@@ -118,26 +160,41 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   onEvent<T = any>(channel: string, listener: (data: T) => void): () => void {
-    if (!this.ipc) {
-      this.initElectronAPIs();
+    if (!this.toadBridge && !this.ipc) {
+      this.initAPIs();
     }
-    if (!this.ipc) return () => {};
-    const wrappedHandler = (_: any, data: T) => listener(data);
-    this.ipc.on(channel, wrappedHandler);
-    return () => {
-      if (this.ipc) {
-        this.ipc.removeListener(channel, wrappedHandler);
-      }
-    };
+    if (this.toadBridge && typeof this.toadBridge.on === "function") {
+      return this.toadBridge.on(channel, listener);
+    }
+    if (this.ipc) {
+      const wrappedHandler = (_: any, data: T) => listener(data);
+      this.ipc.on(channel, wrappedHandler);
+      return () => {
+        if (this.ipc) {
+          this.ipc.removeListener(channel, wrappedHandler);
+        }
+      };
+    }
+    return () => {};
   }
 
   sendEvent(channel: string, payload?: any): void {
-    if (!this.ipc) {
-      this.initElectronAPIs();
+    if (!this.toadBridge && !this.ipc) {
+      this.initAPIs();
     }
-    if (this.ipc) {
+    if (this.toadBridge && typeof this.toadBridge.send === "function") {
+      this.toadBridge.send(channel, payload);
+    } else if (this.ipc) {
       this.ipc.send(channel, payload);
     }
+  }
+
+  onEngineCrash(listener: () => void): () => void {
+    return this.onEvent("engine:crash", listener);
+  }
+
+  onEngineRestored(callback: () => void): () => void {
+    return this.onEvent("engine:restored", callback);
   }
 
   setTheme(theme: "light" | "dark"): void {

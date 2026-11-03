@@ -1,5 +1,7 @@
 import { TransportClient } from "reltab";
 
+export type EngineName = "utility" | "legacy" | "v8" | "headless" | "tauri";
+
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -28,7 +30,7 @@ export interface AppConfigDTO {
     max_concurrent_gb: number;
   };
   runtime?: {
-    engine: "v8" | "tauri" | "auto";
+    engine: "utility" | "legacy" | "v8" | "tauri" | "headless" | "auto";
     auto_fallback: boolean;
   };
   duckdb: {
@@ -53,10 +55,13 @@ export interface AppConfigDTO {
  * Extends TransportClient from reltab so all DuckDB queries flow through it naturally.
  */
 export interface IHostBridge extends TransportClient {
-  readonly engineName: "v8" | "tauri";
+  readonly engineName: EngineName;
 
   // Low-level RPC invocation (TransportClient compatible)
   invoke(functionName: string, req: any): Promise<any>;
+
+  // Tauri-standard asynchronous invocation signature
+  invokeCmd<T = any>(command: string, payload?: any): Promise<T>;
 
   // Configuration management
   getConfig(): Promise<AppConfigDTO>;
@@ -70,6 +75,13 @@ export interface IHostBridge extends TransportClient {
   openExternal(url: string): Promise<void>;
   copyToClipboard(text: string): void;
   openNewWindow(dsPath: any): Promise<void>;
+
+  // High-speed Data Port setup (MessagePort)
+  setupDataPort?(port: any): void;
+
+  // Engine Lifecycle Supervision Listeners
+  onEngineCrash?(listener: () => void): () => void;
+  onEngineRestored?(callback: () => void): () => void;
 
   // Pub/Sub Events between Host Shell and UI Canvas
   onEvent<T = any>(channel: string, listener: (data: T) => void): () => void;
