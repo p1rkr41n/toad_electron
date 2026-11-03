@@ -114,10 +114,23 @@ function production() {
 }
 
 var render = {
-  target: "electron-renderer",
+  target: "web",
   entry: {
     toadapp: "./src/electronRenderMain.tsx",
   },
+  resolve: {
+    fallback: {
+      events: path.resolve(__dirname, "../../node_modules/events"),
+      path: false,
+      fs: false,
+      util: false,
+    },
+  },
+  plugins: [
+    new webpack.ProvidePlugin({
+      process: path.resolve(__dirname, "../../node_modules/process/browser.js"),
+    }),
+  ],
 };
 
 var app = {
@@ -155,6 +168,13 @@ var engine = {
 function merge(config, env) {
   var merged = Object.assign({}, env, config);
   merged.plugins = (config.plugins || []).concat(env.plugins || []);
+  if (config.resolve || env.resolve) {
+    merged.resolve = Object.assign({}, env.resolve, config.resolve, {
+      extensions: (env.resolve && env.resolve.extensions) || [".webpack.js", ".web.js", ".js", ".ts", ".tsx"],
+      fallback: Object.assign({}, env.resolve && env.resolve.fallback, config.resolve && config.resolve.fallback),
+      alias: Object.assign({}, env.resolve && env.resolve.alias, config.resolve && config.resolve.alias),
+    });
+  }
   return merged;
 }
 

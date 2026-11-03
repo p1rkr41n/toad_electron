@@ -1,10 +1,14 @@
 /* preload script for renderer process - TOAD v2.5.0 Secure Host Bridge */
 let contextBridge = null;
 let ipcRenderer = null;
+let electronClipboard = null;
+let electronShell = null;
 try {
   const electron = require("electron");
   contextBridge = electron.contextBridge;
   ipcRenderer = electron.ipcRenderer;
+  electronClipboard = electron.clipboard;
+  electronShell = electron.shell;
 } catch (e) {
   // Graceful fallback for non-Electron / headless test environments
 }
@@ -20,7 +24,7 @@ if (typeof process !== "undefined" && Array.isArray(process.argv)) {
     if (arg.startsWith(argPrefixToad)) {
       try {
         openParams = JSON.parse(arg.slice(argPrefixToad.length));
-      } catch {}
+      } catch { }
       break;
     }
   }
@@ -31,7 +35,7 @@ if (typeof process !== "undefined" && Array.isArray(process.argv)) {
       if (arg.startsWith(argPrefixTad)) {
         try {
           openParams = JSON.parse(arg.slice(argPrefixTad.length));
-        } catch {}
+        } catch { }
         break;
       }
     }
@@ -71,16 +75,21 @@ const toadBridge = {
         }
       };
     }
-    return () => {};
+    return () => { };
   },
   clipboard: {
     writeText: (text) => {
-      if (ipcRenderer && typeof ipcRenderer.send === "function") {
+      if (electronClipboard && typeof electronClipboard.writeText === "function") {
+        electronClipboard.writeText(text);
+      } else if (ipcRenderer && typeof ipcRenderer.send === "function") {
         ipcRenderer.send("clipboard:writeText", text);
       }
     },
   },
   openExternal: (url) => {
+    if (electronShell && typeof electronShell.openExternal === "function") {
+      return electronShell.openExternal(url);
+    }
     if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
       return ipcRenderer.invoke("shell:openExternal", url);
     }

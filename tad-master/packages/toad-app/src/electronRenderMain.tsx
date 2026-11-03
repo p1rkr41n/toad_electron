@@ -23,7 +23,6 @@ if (typeof window !== "undefined") {
   });
 }
 
-import "source-map-support/register";
 import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import OneRef, { mkRef, refContainer, mutableGet, StateRef } from "oneref";
@@ -41,22 +40,21 @@ import { ViewParams, actions } from "toadviewer";
 import { initAppState } from "toadviewer";
 import * as reltab from "reltab";
 import log from "loglevel";
-import { ElectronTransportClient } from "./electronClient";
-import * as electron from "electron";
-import { clipboard, ipcRenderer, shell } from "electron";
 import { DataSourcePath, DataSourceId, RemoteReltabConnection } from "reltab";
 import { OpenParams } from "./openParams";
 import "./app.css";
 
-const initMainProcess = () => ipcRenderer.invoke("initMain");
-const getToadConfig = () => ipcRenderer.invoke("getToadConfig");
+const bridge = getHostBridge();
+
+const initMainProcess = () => bridge.invokeCmd("initMain");
+const getToadConfig = () => bridge.invokeCmd("getToadConfig");
 const remoteErrorDialog = (title: string, msg: string, fatal = false) => {
-  return ipcRenderer.invoke("errorDialog", title, msg, fatal);
+  return bridge.showErrorDialog(title, msg, fatal);
 };
 const newWindowFromDSPath = (
   dsPath: DataSourcePath,
   stateRef: StateRef<AppState>
-) => ipcRenderer.invoke("newWindowFromDSPath", dsPath);
+) => bridge.openNewWindow(dsPath);
 
 type InitInfo = {
   connKey: DataSourceId;
@@ -167,7 +165,11 @@ const init = async () => {
     await initAppState(rtc, stateRef);
 
     const openURL = (url: string) => {
-      shell.openExternal(url);
+      bridge.openExternal(url);
+    };
+
+    const appClipboard = {
+      writeText: (text: string) => bridge.copyToClipboard(text),
     };
 
     const root = ReactDOM.createRoot(document.getElementById("app")!);
@@ -175,18 +177,18 @@ const init = async () => {
     root.render(
       <App
         newWindow={newWindowFromDSPath}
-        clipboard={clipboard}
+        clipboard={appClipboard}
         openURL={openURL}
         embedded={false}
         onBrowseExportPath={(exportFormat: ExportFormat) =>
-          ipcRenderer.send("browse-export-path", { exportFormat })
+          bridge.sendEvent("browse-export-path", { exportFormat })
         }
         onExportFile={(
           exportFormat: ExportFormat,
           exportPath: string,
           parquetExportOptions: ParquetExportOptions
         ) =>
-          ipcRenderer.send("export-file", {
+          bridge.sendEvent("export-file", {
             exportFormat,
             exportPath,
             parquetExportOptions,
@@ -201,7 +203,7 @@ const init = async () => {
     const openParams = (window as any).openParams as OpenParams | undefined;
     await openFromOpenParams(openParams, stateRef);
 
-    ipcRenderer.on("request-serialize-app-state", (event, req) => {
+    bridge.onEvent("request-serialize-app-state", (req: any) => {
       const { requestId } = req;
       const curState = mutableGet(stateRef);
       const viewState = curState.viewState;
@@ -211,15 +213,15 @@ const init = async () => {
         dsPath,
         viewParams: viewParamsJS,
       };
-      ipcRenderer.send("response-serialize-app-state", {
+      bridge.sendEvent("response-serialize-app-state", {
         requestId,
         contents: serState,
       });
     });
-    ipcRenderer.on("set-show-hidden-cols", (event, val) => {
+    bridge.onEvent("set-show-hidden-cols", (val: boolean) => {
       actions.setShowHiddenCols(val, stateRef);
     });
-    ipcRenderer.on("request-serialize-filter-query", (event, req) => {
+    bridge.onEvent("request-serialize-filter-query", (req: any) => {
       // console.log("got request-serialize-filter-query: ", req);
       const { requestId } = req;
       const curState = mutableGet(stateRef);
@@ -231,16 +233,16 @@ const init = async () => {
         filterRowCount,
       };
       const contents = JSON.stringify(queryObj, null, 2);
-      ipcRenderer.send("response-serialize-filter-query", {
+      bridge.sendEvent("response-serialize-filter-query", {
         requestId,
         contents,
       });
     });
-    ipcRenderer.on("open-export-begin-dialog", (event, req) => {
+    bridge.onEvent("open-export-begin-dialog", (req: any) => {
       const { openState, saveFilename } = req;
       actions.setExportBeginDialogOpen(openState, stateRef);
     });
-    ipcRenderer.on("open-export-progress-dialog", (event, req) => {
+    bridge.onEvent("open-export-progress-dialog", (req: any) => {
       const { openState, exportPathBaseName } = req;
       actions.setExportProgressDialogOpen(
         openState,
@@ -248,34 +250,33 @@ const init = async () => {
         stateRef
       );
     });
-    ipcRenderer.on("close-export-progress-dialog", (event, req) => {
+    bridge.onEvent("close-export-progress-dialog", () => {
       actions.setExportProgressDialogOpen(false, "", stateRef);
     });
-    ipcRenderer.on("set-export-path", (event, req) => {
+    bridge.onEvent("set-export-path", (req: any) => {
       const { exportPath } = req;
       actions.setExportPath(exportPath, stateRef);
     });
-    ipcRenderer.on("export-progress", (event, req) => {
+    bridge.onEvent("export-progress", (req: any) => {
       const { percentComplete } = req;
       actions.setExportProgress(percentComplete, stateRef);
     });
-    ipcRenderer.on("toad-ingest-progress", (event, req) => {
+    bridge.onEvent("toad-ingest-progress", (req: any) => {
       actions.setIngestProgress(req, stateRef);
       MultipleLoadingManager.getInstance().handleIngestProgress(req, stateRef);
     });
-    ipcRenderer.on("open-file", (event, req) => {
+    bridge.onEvent("open-file", (req: any) => {
       const { openParams } = req;
       openFromOpenParams(openParams, stateRef);
     });
 
-    ipcRenderer.on("reopen-current-file", async () => {
+    bridge.onEvent("reopen-current-file", async () => {
       log.info("electronRenderMain: received reopen-current-file IPC");
       await actions.reopenCurrentView(stateRef);
     });
 
-    ipcRenderer.on("engine:restored", async (event, details) => {
+    bridge.onEvent("engine:restored", async (details: any) => {
       log.info("electronRenderMain: received engine:restored IPC", details);
-      const bridge = getHostBridge();
       if ((bridge as any)?.dataPort) {
         rtc.setDataPort((bridge as any).dataPort);
       }
@@ -286,10 +287,9 @@ const init = async () => {
       }
     });
 
-    ipcRenderer.on("project-add-files", async () => {
+    bridge.onEvent("project-add-files", async () => {
       try {
         log.info("electronRenderMain: received project-add-files IPC");
-        const bridge = getHostBridge();
         const chosen = await bridge.showOpenDialog({
           title: "Add Files to Active Project",
           multiple: true,
@@ -308,10 +308,9 @@ const init = async () => {
       }
     });
 
-    ipcRenderer.on("project-add-folder", async () => {
+    bridge.onEvent("project-add-folder", async () => {
       try {
         log.info("electronRenderMain: received project-add-folder IPC");
-        const bridge = getHostBridge();
         const chosen = await bridge.showOpenDialog({
           title: "Add Folder to Active Project",
           directory: true,
@@ -332,7 +331,7 @@ const init = async () => {
 
     document.addEventListener("copy", function (e) { });
 
-    ipcRenderer.send("render-init-complete");
+    bridge.sendEvent("render-init-complete");
   } catch (e) {
     const err = e as any;
     console.error(
