@@ -310,8 +310,12 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
     }
     if (s === "ERROR") {
       return (
-        <span className="status-indicator status-error" title="ERROR">
-          !
+        <span
+          className="status-indicator status-error"
+          title="ERROR"
+          style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <Icon icon="error" size={12} style={{ color: "#ef4444" }} />
         </span>
       );
     }

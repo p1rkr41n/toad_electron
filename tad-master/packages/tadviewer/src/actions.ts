@@ -325,14 +325,15 @@ export const openDataSourcePath = async (
     const isFileAlreadyReady = item && item.status === "ready";
     const ramCache = manager.getFirstPageCache(canon) || manager.getFirstPageCache(key);
 
+    const lastSeg = path.path[path.path.length - 1];
+    const fileName =
+      !lastSeg || lastSeg === "."
+        ? path.sourceId && typeof (path.sourceId as any).resourceId === "string"
+          ? (path.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
+          : "dataset"
+        : lastSeg;
+
     if (!isAlreadyLoading) {
-      const lastSeg = path.path[path.path.length - 1];
-      const fileName =
-        !lastSeg || lastSeg === "."
-          ? path.sourceId && typeof (path.sourceId as any).resourceId === "string"
-            ? (path.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
-            : "dataset"
-          : lastSeg;
       setActiveLoadingFile(
         {
           isLoading: true,
@@ -356,17 +357,10 @@ export const openDataSourcePath = async (
         try {
           const vs = mutableGet(stateRef).viewState;
           if (vs && vs.baseSchema && dv.rawData) {
-            const lastSeg = path.path[path.path.length - 1];
-            const fallbackName =
-              !lastSeg || lastSeg === "."
-                ? path.sourceId && typeof (path.sourceId as any).resourceId === "string"
-                  ? (path.sourceId as any).resourceId.split(/[/\\]/).pop() || "dataset"
-                  : "dataset"
-                : lastSeg;
             manager.setFirstPageCache(canon, {
               tableName:
                 (vs.baseQuery as any).tableName ||
-                fallbackName,
+                fileName,
               schema: vs.baseSchema,
               tableRep: new reltab.TableRep(vs.baseSchema, dv.rawData),
               totalRowCount: dv.totalRowCount,
@@ -375,9 +369,76 @@ export const openDataSourcePath = async (
           }
         } catch { }
       }
+    } catch (err: any) {
+      console.error("[openDataSourcePath] Ingestion failed:", err?.stack || err);
+      const errMsg = err?.message || String(err);
+      try {
+        const mgr = manager as any;
+        if (typeof mgr.markError === "function") {
+          mgr.markError(path, errMsg);
+        } else {
+          const existing = mgr.getItem(key) || mgr.getItemByCanonical(canon);
+          if (existing) {
+            const errorItem = {
+              ...existing,
+              status: "error",
+              error: errMsg,
+              version: (existing.version || 0) + 1,
+            };
+            mgr.files.set(existing.key, errorItem);
+            const siblingKeys = mgr.canonicalMap?.get(existing.canonicalPath);
+            if (siblingKeys) {
+              for (const sKey of siblingKeys) {
+                const sib = mgr.files.get(sKey);
+                if (sib) {
+                  mgr.files.set(sKey, {
+                    ...sib,
+                    status: "error",
+                    error: errMsg,
+                    version: (sib.version || 0) + 1,
+                  });
+                }
+              }
+            }
+          } else {
+            mgr.files.set(key, {
+              key,
+              canonicalPath: canon,
+              dsPath: path,
+              dsc: null,
+              fileName,
+              status: "error",
+              error: errMsg,
+              percent: 0,
+              priority: 0,
+              addedTime: Date.now(),
+              version: 1,
+            });
+          }
+          mgr.activeItems?.delete(key);
+          if (typeof mgr.notify === "function") {
+            mgr.notify();
+          }
+        }
+      } catch (mErr) {
+        console.error("[openDataSourcePath] Error updating MultipleLoadingManager status:", mErr);
+      }
+      setActiveLoadingFile(
+        {
+          isLoading: false,
+          fileName,
+          dsPath: path,
+          percent: 0,
+          error: errMsg,
+        },
+        stateRef
+      );
     } finally {
       stopAppLoadingTimer(stateRef);
-      setActiveLoadingFile(null, stateRef);
+      const cur = mutableGet(stateRef).activeLoadingFile;
+      if (!cur?.error) {
+        setActiveLoadingFile(null, stateRef);
+      }
       manager.resume();
     }
   }

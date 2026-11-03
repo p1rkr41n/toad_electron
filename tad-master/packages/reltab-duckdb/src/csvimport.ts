@@ -2385,6 +2385,40 @@ export function getDeterministicParquetPath(
 }
 
 /**
+ * Fast synchronous probe for misparsed Parquet cache footer/metadata.
+ * Inspects Thrift FileMetaData to detect synthetic columns (^column0*\d+$)
+ * or concatenated headers with commas (e.g. Timestamp,EventTime...) without opening DuckDB.
+ */
+export function isParquetFileMisparsedSync(parquetPath: string): boolean {
+  try {
+    if (!fs.existsSync(parquetPath)) return false;
+    const stat = fs.statSync(parquetPath);
+    if (stat.size < 12) return true;
+    const fd = fs.openSync(parquetPath, "r");
+    const tailBuf = Buffer.alloc(8);
+    fs.readSync(fd, tailBuf, 0, 8, stat.size - 8);
+    const metaLen = tailBuf.readInt32LE(0);
+    const magic = tailBuf.slice(4).toString("ascii");
+    if (magic !== "PAR1" || metaLen <= 0) {
+      fs.closeSync(fd);
+      return true;
+    }
+    const startPos = Math.max(0, stat.size - 4 - metaLen);
+    const readSize = Math.min(65536, stat.size - 4 - startPos);
+    const metaBuf = Buffer.alloc(readSize);
+    fs.readSync(fd, metaBuf, 0, readSize, startPos);
+    fs.closeSync(fd);
+
+    const str = metaBuf.toString("latin1");
+    const hasSyntheticCol = /column0*\d+/i.test(str);
+    const hasCommaInHeader = /Timestamp,EventTime/i.test(str) || /,\w+,/i.test(str);
+    return hasSyntheticCol || hasCommaInHeader;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Thẩm định Parquet cache chi tiết theo trạng thái 4 cấp độ:
  * - "VALID"      : File nguồn và Parquet cache khớp 100% với Ledger -> Xanh lá / Sẵn sàng tức thì
  * - "MODIFIED"   : File nguồn đã bị sửa đổi (mtime hoặc size lệch) -> Cảnh báo ĐỎ CAM #ef4444
@@ -2424,6 +2458,12 @@ export function getCacheValidityStatus(
   try {
     const pStat = fs.statSync(parquetPath);
     if (pStat.size === 0 || pStat.size !== Number(entry.parquet_size)) return "CORRUPTED";
+
+    // Gateway Header Probe for CSV files
+    if (filePath.toLowerCase().endsWith(".csv") && isParquetFileMisparsedSync(parquetPath)) {
+      log.warn(`[getCacheValidityStatus] Corrupted misparsed delimiter detected in cache: ${parquetPath}`);
+      return "CORRUPTED";
+    }
   } catch {
     return "CORRUPTED";
   }
@@ -2459,6 +2499,16 @@ export function checkDoubleValidCache(
   try {
     const parquetStat = fs.statSync(targetParquetPath);
     if (parquetStat.size === 0) return false;
+
+    // Fast Gateway Probe: Đào thải cache bi loi misparsed delimiter / column01..columnN
+    if (filePath.toLowerCase().endsWith(".csv") && isParquetFileMisparsedSync(targetParquetPath)) {
+      log.warn(
+        `[TOAD Parquet Cache] Phat hien cache bi loi misparsed delimiter cho CSV "${path.basename(
+          filePath
+        )}". Cache khong hop le!`
+      );
+      return false;
+    }
 
     if (!fs.existsSync(filePath)) return false;
     const srcStat = fs.statSync(filePath);
@@ -2808,7 +2858,7 @@ export async function streamCsvToParquet(
     return;
   }
 
-  // Tier 0: Lệnh chính RFC-4180 chuẩn (định rõ delim cho CSV/TSV, TUYỆT ĐỐI không dùng escape='' làm hỏng sniffer)
+  // Tier 0: Lệnh chính RFC-4180 chuẩn (định rõ delim cho CSV/TSV, all_varchar=true, TUYỆT ĐỐI không dùng escape='' làm hỏng sniffer)
   const tier0Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -2817,7 +2867,8 @@ export async function streamCsvToParquet(
         auto_detect = true,
         sample_size = 100000,
         ignore_errors = true,
-        null_padding = true
+        null_padding = true,
+        all_varchar = true
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -2831,7 +2882,7 @@ export async function streamCsvToParquet(
     log.warn("[Ingest Tier 0] That bai, chuyen sang Fallback Tier 1:", err0);
   }
 
-  // Tier 1: parallel=false (xử lý dòng quá dài)
+  // Tier 1: parallel=false, all_varchar=true (xử lý dòng quá dài)
   const tier1Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -2841,7 +2892,8 @@ export async function streamCsvToParquet(
         sample_size = 100000,
         ignore_errors = true,
         null_padding = true,
-        parallel = false
+        parallel = false,
+        all_varchar = true
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -3106,10 +3158,12 @@ export const nativeCSVImport = async (
             const cols = await dbConn.all(`DESCRIBE ${tableName}`);
             const firstColName = (cols[0]?.column_name || "").replace(/^\uFEFF/, "");
             const isOneColRawEvent = cols.length === 1 && firstColName === "raw_event";
-            const isMisparsedDelimiter = firstColName.includes(",") && (cols.length === 1 || cols.some((c: any) => /^column\d+$/i.test(c.column_name)));
-            if (isOneColRawEvent || isMisparsedDelimiter) {
+            const hasSyntheticCol = cols.some((c: any) => /^column0*\d+$/i.test(c.column_name));
+            const hasCommaInCol0 = firstColName.includes(",");
+            const isMisparsedDelimiter = isOneColRawEvent || hasSyntheticCol || hasCommaInCol0;
+            if (isMisparsedDelimiter) {
               log.warn(
-                `[TOAD Ingest Cache] Phat hien cache loi delimiter (${isOneColRawEvent ? '1-cot raw_event' : 'header chua dau phay'}) cho "${path.basename(
+                `[TOAD Ingest Cache] Phat hien cache loi delimiter (${isOneColRawEvent ? '1-cot raw_event' : 'header chua dau phay hoac column01'}) cho "${path.basename(
                   filePath
                 )}". Tu dong dao thai cache va nap lai da cot!`
               );
@@ -3119,6 +3173,10 @@ export const nativeCSVImport = async (
                 try {
                   fs.unlinkSync(parquetPath);
                 } catch {}
+              }
+              if ((global as any)._toadTableRowCountCache) {
+                delete (global as any)._toadTableRowCountCache[tableName];
+                delete (global as any)._toadTableRowCountCache[parquetPath];
               }
               ToadParquetLedger.getInstance()
                 .recordEvent({
@@ -3623,9 +3681,9 @@ export const nativeCSVImport = async (
       }
     }
 
-    // Tier 0: auto_detect + ignore_errors (RFC-4180 strict)
+    // Tier 0: auto_detect + ignore_errors + all_varchar=true (RFC-4180 strict)
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true)`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, all_varchar=true)`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(
@@ -3637,9 +3695,9 @@ export const nativeCSVImport = async (
       log.warn("[Ingest In-Memory Tier 0] That bai:", err0);
     }
 
-    // Tier 1: parallel=false
+    // Tier 1: parallel=false + all_varchar=true
     try {
-      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false)`;
+      const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
       const resRows = await dbConn.all(query);
       const importTime = process.hrtime(importStart);
       log.info(

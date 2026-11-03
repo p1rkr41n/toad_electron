@@ -1,13 +1,28 @@
-# Project: Toad v2.4.3 Project Management & File Table Overhaul
+# Project: DuckDB CSV Parser Delimiter Sniffer, Gateway Cache Validation & Non-blocking Error Handling
 
 ## Architecture
-Toad v2.4.3 overhauls project workspace ergonomics and file interaction through 3 modular architectural milestones:
-1. **Milestone 1 (Menu Modernization - R1)**: Deprecate legacy single-file/dir menu triggers in `appMenu.ts` and dispatch `project-add-files` / `project-add-folder` IPC to route directly into the active project workspace in `electronRenderMain.tsx`.
-2. **Milestone 2 (Sidebar Workspace Overhaul - R2, R3, R4)**:
-   - *In-Place Project Rename (R2)*: Double-click on `ProjectNodeLabel` in `DataSourceSidebar.tsx` to switch to inline `<input>`. Commits via `ProjectWorkspaceManager.renameProject` into the DuckDB Parquet Ledger (`csvimport.ts`), preserving `projectId` with 0 disk I/O.
-   - *Strict 100% File-Name Fast Search (R3)*: Eradicate `projMatches` in `DataSourceSidebar.tsx`. Match exclusively against `f.fileName.toLowerCase()`. Instant 0ms in-memory reactive filtering via `useMemo`. Auto-expand matching projects and collapse/hide non-matching projects during search; restore previous expansion state on clear.
-   - *Interactive 4-Column File Table Layout (R4)*: Replace nested tree file listing with a modular, data-dense `ProjectFilesTable` component (Name with icon/tooltip, Relative Parent Dir via `getRelativeParentDir`, Size formatted B/KB/MB/GB, Status indicator). Interactive header sorting (▲/▼/⇅) and column-level filters. Styled via `sidebar.less` supporting both Light and Dark modes.
-3. **Milestone 3 (E2E Integration QA & Portable Release Packaging - R5)**: Automated test suite `SUITE JJ` (sub-suites JJ.1 to JJ.8) in `tests/deep_integration_qa.js` verifying all new features and reaching 200+ assertions passing 100%. Version bumped to `2.4.3` across all 10 files and packaged into portable single-binary releases (`Toad-2.4.3-x64-portable.exe` and `.zip`).
+This project addresses the DuckDB CSV delimiter misparsing root cause, resolves the gateway cache bypass vulnerability, implements non-blocking ingestion error handling with file status badging, purges stale/corrupted parquet files, and verifies application build and schema integrity across 3 architectural milestones:
+
+1. **Milestone 1 (Backend CSV Parser & Gateway Cache Engine - R1, R2, R3)** [DONE]:
+   - *CSV Parser Enforcements (R2)*: Enforced `delim = ','`, removed `escape = ''`, maintained `all_varchar = true`, `null_padding = true`, and `ignore_errors = true` across `csvimport.ts` and `ingestWorker.ts`. Fixed argument parsing in `ingestWorker.ts` (`isComplexLog`).
+   - *Gateway Cache Validation & Eviction (R1)*: Implemented `isParquetFileMisparsedSync` and active Gateway schema validation right after `createViewFromParquet` in `reltab-fs.ts` and in `checkDoubleValidCache` (`csvimport.ts`). Any cache with `column01..columnN` or comma in col 0 is immediately dropped, evicted from disk and ledger, and falls through to fresh streaming import.
+   - *Cache & Temporary File Cleanup (R3)*: Purged corrupted parquet caches (`sample_40gb_cached_3535af61fe.parquet`) and stale `.tmp_` files. Made `purgeOrphanTempFiles` recursive in `portableAppData.ts`.
+   - *Compilation*: Rebuilt `reltab-duckdb` and `packages/reltab-fs` (`npm run build`).
+
+2. **Milestone 2 (Non-blocking Ingestion Error Handling & Status Badging - R4)** [DONE]:
+   - *Modal Dialog Suppression*: In `main.ts:errorDialog`, suppressed `dialog.showErrorBox()` unless `fatal === true`. In `electronRenderMain.tsx`, suppressed modal dialog invocation on `unhandledrejection` / `error`, routing to `console.error`.
+   - *Non-Blocking Ingestion Error Catch*: Wrapped `actions.ts:openDataSourcePath` and `DataSourceSidebar.tsx:handleOpenFile` in `try/catch`. On failure, logs full stack trace to `console.error` (which forwards to `toad.log`), sets `activeLoadingFile.error` to render the existing non-blocking center error card in `AppPane.tsx`, and marks file status in `MultipleLoadingManager` as `"error"`.
+   - *Sidebar Exclamation Icon Badging*: In `ProjectFilesTable.tsx:311–316` and `DataSourceSidebar.tsx:246-253`, rendered Blueprint `<Icon icon="error" size={12} style={{ color: "#ef4444" }} />` for files with status `"ERROR"`.
+   - *Compilation*: Rebuilt `packages/tadviewer` (`npm run build-prod`).
+
+3. **Milestone 3 (E2E Integration Testing & Fastbuild Verification - R5)** [DONE]:
+   - *Test Suite Expansion*: Integrated SUITE NN into `tests/deep_integration_qa.js` covering R1, R2, R3, R4.
+     - Verified CSV parsing on `sample_40gb.csv` mini sample (first 1000 lines) extracts exactly 11 columns with 0 synthetic `column01..column10`.
+     - Verified corrupt cache detection and automatic eviction on file open / registration.
+     - Verified non-blocking ingestion error handling and `toad.log` trace generation.
+     - 222/222 test cases pass in 16.12s (100% pass, 0 failures).
+   - *Build Verification*: Executed `fastbuild.ps1 -Dev` producing runnable application at `build\Toad-2.4.6\Toad.exe` (278.5MB).
+   - *Workspace Compliance*: Adhered to `AGENTS.md` (Jujutsu `jj` tracking, Zero-Duplicate Binary Storage policy).
 
 ---
 
@@ -17,31 +32,28 @@ Every feature discovered in the Survey phase is mapped to its architectural mile
 
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Menu Item Removal | Remove `Open File...` and `Open Directory...` from `appMenu.ts` | M1 | Survey |
-| 2 | Add Files Menu Item | Add `Add Files to Active Project...` (`CmdOrCtrl+O`, IPC `project-add-files`) | M1 | Survey |
-| 3 | Add Folder Menu Item | Add `Add Folder to Active Project...` (`CmdOrCtrl+Shift+O`, IPC `project-add-folder`) | M1 | Survey |
-| 4 | Renderer Menu IPC Handlers | Listeners in `electronRenderMain.tsx` to prompt picker and add to active project | M1 | Survey |
-| 5 | Double-Click Inline Rename Activation | Double-clicking `project-title-text` activates inline input in `ProjectNodeLabel` | M2 | Survey |
-| 6 | Inline Project Rename Commit on Enter | Pressing Enter commits new name to Ledger via `pwManager.renameProject` | M2 | Survey |
-| 7 | Inline Project Rename Commit on Blur | Blurring input commits new name to Ledger | M2 | Survey |
-| 8 | Inline Project Rename Cancel on Escape | Pressing Escape discards changes and restores previous project name | M2 | Survey |
-| 9 | Zero-Cost Ledger Rename Immutability | Preserves `projectId` and parquet cache intact, only updates metadata event | M2 | Survey |
-| 10 | 100% File-Name Filter (Zero Collision) | Eliminate `projMatches`; search query strictly matches `f.fileName` | M2 | Survey |
-| 11 | 0ms In-Memory Reactive Filter | Synchronous `useMemo` filtering over project files cache with 0ms latency | M2 | Survey |
-| 12 | Search Auto-Expand Matching Projects | Auto-expand projects with matching files; hide non-matching projects | M2 | Survey |
-| 13 | Search State Restoration on Clear | Clearing query restores saved expand/collapse states | M2 | Survey |
-| 14 | Interactive 4-Column File Table | Data-dense table component (`ProjectFilesTable`) with 4 columns | M2 | Survey |
-| 15 | File Name Column with Icon & Tooltip | File format icon, file name with text ellipsis, hover details tooltip | M2 | Survey |
-| 16 | Relative Parent Directory Algorithm | `getRelativeParentDir(filePath, folderRoot)` calculation engine | M2 | Survey |
-| 17 | File Size Column with Byte Formatting | Formatted size string (B/KB/MB/GB) | M2 | Survey |
-| 18 | File Status Indicator Column | 🟢 VALID / 🔴 MODIFIED / ◌ PENDING / ! ERROR indicator | M2 | Survey |
-| 19 | Table Header Column Filter Inputs | Clickable header toggling column filter text input | M2 | Survey |
-| 20 | Table Header Sort Toggles (▲/▼/⇅) | Sort buttons for Name, Dir, Size (numeric), Status | M2 | Survey |
-| 21 | Table Row Click File View Activation | Clicking table row opens file via `MultipleLoadingManager` & `openDataSourcePath` | M2 | Survey |
-| 22 | Data-Dense Sidebar Styling (Light & Dark) | CSS rules in `sidebar.less` for table, inline input, 24-26px row height, themes | M2 | Survey |
-| 23 | Integration QA Suite JJ | Tests JJ.1 through JJ.8 in `tests/deep_integration_qa.js` (200+ passing tests) | M3 | Survey |
-| 24 | Version Bumping to v2.4.3 | Synchronize 10 target files to version 2.4.3 via `tools/bump_version.js` | M3 | Survey |
-| 25 | Release Artifact Packaging v2.4.3 | Portable exe & zip packaging satisfying <=45MB asar and <=75MB exe gates | M3 | Survey |
+| 1 | Enforce CSV Delim Comma | Set `delim = ','` explicitly for CSV files in `csvimport.ts` | M1 (DONE) | Survey |
+| 2 | Remove Escape Empty String | Eradicate `escape = ''` to restore RFC-4180 `""` quote escaping in `csvimport.ts` & `ingestWorker.ts` | M1 (DONE) | Survey |
+| 3 | Retain All Varchar | Keep `all_varchar = true` to prevent `vector.cpp:1859` native assertion crashes | M1 (DONE) | Survey |
+| 4 | Worker Argument Fix | Fix `ingestWorker.ts:21` to read `cfg.isComplex === true` from JSON payload | M1 (DONE) | Survey |
+| 5 | Gateway Cache Validation | Validate schema in `reltab-fs.ts` right after `createViewFromParquet` | M1 (DONE) | Survey |
+| 6 | Misparsed Cache Eviction | Evict cache file and drop view if `column01..columnN` or comma in col 0 is found | M1 (DONE) | Survey |
+| 7 | Double Valid Cache Check | Mirror schema validation in `csvimport.ts:checkDoubleValidCache` | M1 (DONE) | Survey |
+| 8 | Recursive Temp Purge | Make `portableAppData.ts:purgeOrphanTempFiles` recursively clean subfolders in `temp/` | M1 (DONE) | Survey |
+| 9 | Stale Parquet Cleanup | Delete corrupted `sample_40gb_cached_*.parquet` and `.tmp_` files in `build/` and `releases/` | M1 (DONE) | Survey |
+| 10 | Compile reltab-fs | Run `npm run build` in `packages/reltab-fs` to compile `dist/reltab-fs.js` | M1 (DONE) | Survey |
+| 11 | Suppress Modal Error Dialog | Suppress `dialog.showErrorBox()` for non-fatal errors in `main.ts:errorDialog` | M2 (DONE) | Survey |
+| 12 | Suppress Uncaught Dialogs | Replace `showErrorDialog` in `electronRenderMain.tsx` with `console.error` | M2 (DONE) | Survey |
+| 13 | Catch Open View Errors | Wrap `replaceCurrentView` in `actions.ts:openDataSourcePath` with `try/catch` | M2 (DONE) | Survey |
+| 14 | Catch Sidebar Open Errors | Wrap `openDataSourcePath` call in `DataSourceSidebar.tsx:handleOpenFile` with `try/catch` | M2 (DONE) | Survey |
+| 15 | Log Full Error Trace | Call `console.error` with stack trace on ingestion failure to populate `toad.log` | M2 (DONE) | Survey |
+| 16 | Non-blocking Center Card | Trigger existing `AppPane.tsx` error card via `setActiveLoadingFile.error` without blocking UI | M2 (DONE) | Survey |
+| 17 | Exclamation Circle Icon | Render Blueprint `<Icon icon="error" size={12} style={{ color: "#ef4444" }} />` in `ProjectFilesTable.tsx` | M2 (DONE) | Survey |
+| 18 | E2E CSV Schema Test | Test 11 proper columns on `sample_40gb.csv` mini sample (0 synthetic columns) | M3 (DONE) | Survey |
+| 19 | E2E Cache Eviction Test | Test corrupt cache detection and eviction upon file open / registration | M3 (DONE) | Survey |
+| 20 | E2E Error Handling Test | Test non-blocking error handling and `toad.log` logging | M3 (DONE) | Survey |
+| 21 | FastBuild Application | Run `fastbuild.ps1 -Dev` to generate updated runnable application directory | M3 (DONE) | Survey |
+| 22 | Workspace Compliance | Jujutsu `jj` tracking and zero-duplicate binary storage adherence | M3 (DONE) | Survey |
 
 ---
 
@@ -49,54 +61,25 @@ Every feature discovered in the Survey phase is mapped to its architectural mile
 
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Menu Modernization (R1) | Clean up `appMenu.ts`, add Add Files/Folder items & shortcuts, add renderer IPC handlers in `electronRenderMain.tsx` | none | DONE |
-| M2 | Sidebar Workspace Overhaul (R2, R3, R4) | Double-click inline rename, strict 100% file search, `ProjectFilesTable.tsx`, `getRelativeParentDir`, LESS styles | none | DONE |
-| M3 | E2E Integration QA Suite JJ & Packaging (R5) | Add SUITE JJ (JJ.1-JJ.8) to `tests/deep_integration_qa.js`, bump to 2.4.3, build & package portable release | M1, M2 | DONE |
+| M1 | Backend CSV & Gateway Cache Engine (R1, R2, R3) | Fix CSV parser params, worker args, gateway cache validation & eviction, recursive temp purge, stale file cleanup, reltab-fs build | none | DONE |
+| M2 | Non-blocking Error Handling & UI Status Badging (R4) | Suppress modal error dialogs, catch ingestion rejections, forward stack traces to `toad.log`, render exclamation icon in file table | none | DONE |
+| M3 | E2E Integration QA & Fastbuild Verification (R5, QA) | E2E test suites in `deep_integration_qa.js`, `fastbuild.ps1 -Dev`, schema verification, Jujutsu compliance | M1, M2 | DONE |
 
 ---
 
 ## Code Layout & File Boundaries
 
-To prevent concurrent write conflicts:
-- **Milestone 1 Files (exclusively owned by M1)**:
-  - `tad-master/packages/tad-app/app/appMenu.ts`
-  - `tad-master/packages/tad-app/src/electronRenderMain.tsx`
-- **Milestone 2 Files (exclusively owned by M2)**:
-  - `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx` (new component)
-  - `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx`
-  - `tad-master/packages/tadviewer/less/sidebar.less`
-- **Milestone 3 Files (exclusively owned by M3)**:
+- **Milestone 1 Files (Worker M1)**:
+  - `packages/reltab-fs/src/reltab-fs.ts`
+  - `packages/reltab-fs/src/csvimport.ts`
+  - `packages/reltab-duckdb/src/ingestWorker.ts`
+  - `packages/tad-app/app/portableAppData.ts`
+- **Milestone 2 Files (Worker M2)**:
+  - `packages/tad-app/app/main.ts`
+  - `packages/tad-app/src/electronRenderMain.tsx`
+  - `packages/tadviewer/src/actions.ts`
+  - `packages/tadviewer/src/components/ProjectFilesTable.tsx`
+  - `packages/tadviewer/src/components/DataSourceSidebar.tsx`
+- **Milestone 3 Files (Worker M3 / Test Writer)**:
   - `tests/deep_integration_qa.js`
-  - `tools/bump_version.js`, `dist_package.ps1`, `package_release.ps1`
-
----
-
-## Interface Contracts
-
-### 1. Menu IPC Contract (`appMenu.ts` -> `electronRenderMain.tsx`)
-- Channel: `"project-add-files"` (no payload). Action: Prompts multi-file open dialog and calls `pwManager.addFilesToProject(activeProjectId, chosenPaths)`.
-- Channel: `"project-add-folder"` (no payload). Action: Prompts folder open dialog and calls `pwManager.addFolderToProject(activeProjectId, chosenFolder)`.
-
-### 2. Parent Directory Engine Contract (`getRelativeParentDir`)
-```typescript
-export function getRelativeParentDir(filePath: string, folderRoot?: string): string;
-```
-- Input: `filePath` (full normalized or raw path), `folderRoot` (optional root directory path).
-- Output: normalized relative path ending with `"/"` (e.g. `"logs/2026/"`, `"./"` if root or direct parent).
-
-### 3. File Table Component Contract (`ProjectFilesTable`)
-```typescript
-export interface ProjectFilesTableProps {
-  files: ProjectWorkspaceFile[];
-  activeFilePath?: string;
-  onOpenFile: (file: ProjectWorkspaceFile) => void;
-  stateRef: StateRef<AppState>;
-}
-```
-
-### 4. Project Inline Rename Contract
-```typescript
-onRenameCommit: (newName: string) => Promise<boolean>;
-```
-- Invokes `pwManager.renameProject(project.projectId, newName)`.
-- Reverts to `project.projectName` on error or empty string.
+  - `fastbuild.ps1`

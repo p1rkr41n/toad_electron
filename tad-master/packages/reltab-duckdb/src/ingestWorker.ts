@@ -18,7 +18,6 @@ async function runWorker() {
   const filePath = process.argv[2];
   const targetParquetPath = process.argv[3];
   const cfgJson = process.argv[4] || "{}";
-  const isComplexLog = process.argv[5] === "1";
 
   if (!filePath || !targetParquetPath) {
     console.error("[IngestWorker] Missing required arguments: filePath and targetParquetPath");
@@ -29,6 +28,8 @@ async function runWorker() {
   try {
     cfg = JSON.parse(cfgJson);
   } catch {}
+
+  const isComplexLog = process.argv[5] === "1" || cfg.isComplex === true;
 
   const compression = (cfg.compression || "snappy").toUpperCase();
   const rowGroupSize = cfg.row_group_size || 122880;
@@ -92,7 +93,7 @@ async function runWorker() {
       const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
       let succeeded = false;
 
-      // Tier 0: RFC-4180 chuẩn (delim=',')
+      // Tier 0: RFC-4180 chuẩn (delim=',', all_varchar=true)
       try {
         const tier0 = `
           COPY (
@@ -102,7 +103,8 @@ async function runWorker() {
               auto_detect = true,
               sample_size = 100000,
               ignore_errors = true,
-              null_padding = true
+              null_padding = true,
+              all_varchar = true
             )
           ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
         `;
@@ -113,7 +115,7 @@ async function runWorker() {
       }
 
       if (!succeeded) {
-        // Tier 1: parallel=false
+        // Tier 1: parallel=false, all_varchar=true
         try {
           const tier1 = `
             COPY (
@@ -124,7 +126,8 @@ async function runWorker() {
                 sample_size = 100000,
                 ignore_errors = true,
                 null_padding = true,
-                parallel = false
+                parallel = false,
+                all_varchar = true
               )
             ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
           `;
