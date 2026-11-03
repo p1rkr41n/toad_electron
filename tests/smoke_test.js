@@ -10,11 +10,17 @@ async function runSmokeTest() {
   console.log("  SMOKE TEST: TOAD v2.1.6 RUNTIME INTEGRITY & STARTUP VERIFICATION");
   console.log("======================================================================");
 
-  // 1. Check Portable Exe
-  const exe230 = path.resolve(ROOT_DIR, "Toad 2.3.0.exe");
-  const exe216 = path.resolve(ROOT_DIR, "Toad 2.1.6.exe");
-  const portableExe = fs.existsSync(exe230) ? exe230 : exe216;
-  assert(fs.existsSync(portableExe), `Portable executable must exist in root: ${portableExe}`);
+  // 1. Check Portable Exe (Canonical Toad.exe or releases/Toad-*-x64-portable.exe)
+  const canonicalRootExe = path.resolve(ROOT_DIR, "Toad.exe");
+  const releasesDir = path.resolve(ROOT_DIR, "releases");
+  let portableExe = fs.existsSync(canonicalRootExe) ? canonicalRootExe : null;
+  if (!portableExe && fs.existsSync(releasesDir)) {
+    const relExes = fs.readdirSync(releasesDir).filter(f => f.startsWith("Toad-") && f.endsWith("-x64-portable.exe"));
+    if (relExes.length > 0) {
+      portableExe = path.resolve(releasesDir, relExes[0]);
+    }
+  }
+  assert(portableExe && fs.existsSync(portableExe), `Portable executable must exist: ${canonicalRootExe}`);
   const exeStats = fs.statSync(portableExe);
   const exeSizeMB = (exeStats.size / (1024 * 1024)).toFixed(2);
   console.log(`[PASS] Portable Exe verified: ${portableExe}`);
