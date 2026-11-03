@@ -903,3 +903,350 @@
     }
   }
 }
+
+/* ==========================================================================
+   Toad v2.4.3: Project Title Inline Input (Double-Click Rename)
+   ========================================================================== */
+.project-title-inline-input {
+  height: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 4px;
+  border: 1px solid #0284c7;
+  border-radius: 3px;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  max-width: 140px;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: #0284c7;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.2);
+  }
+}
+
+/* ==========================================================================
+   Toad v2.4.3: Project Accordion Section & Workspace Body
+   ========================================================================== */
+.project-workspace-body {
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 12px;
+}
+
+.project-search-empty {
+  padding: 16px 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: center;
+  font-style: italic;
+}
+
+.project-accordion-section {
+  width: 100%;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.project-accordion-header {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 6px 0 4px;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: background-color 0.12s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+
+    .project-node-row {
+      .project-meta-pill:not(.orphan-pill) {
+        opacity: 0;
+      }
+      .project-hover-actions {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+      }
+    }
+  }
+
+  .project-caret-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: 2px;
+    flex-shrink: 0;
+    color: #64748b;
+  }
+
+  .project-node-row {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+.project-accordion-content {
+  width: 100%;
+  padding-left: 6px;
+  padding-right: 4px;
+  box-sizing: border-box;
+}
+
+/* ==========================================================================
+   Toad v2.4.3: Interactive Project Files Table (Data-Dense 4-Column Layout)
+   ========================================================================== */
+.project-table-container {
+  width: 100%;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  box-sizing: border-box;
+}
+
+.project-files-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  table-layout: fixed;
+
+  thead th {
+    padding: 3px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    background: rgba(0, 0, 0, 0.02);
+    user-select: none;
+    cursor: pointer;
+    vertical-align: middle;
+
+    .th-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2px;
+    }
+
+    .sort-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 10px;
+      padding: 0 2px;
+      color: #94a3b8;
+      line-height: 1;
+
+      &:hover {
+        color: #0284c7;
+      }
+    }
+
+    .col-filter-input {
+      width: 100%;
+      height: 18px;
+      margin-top: 3px;
+      font-size: 10px;
+      padding: 0 4px;
+      border: 1px solid #cbd5e1;
+      border-radius: 2px;
+      outline: none;
+      box-sizing: border-box;
+      background: #ffffff;
+      color: #0f172a;
+
+      &:focus {
+        border-color: #0284c7;
+      }
+    }
+  }
+
+  /* Column widths */
+  .col-name { width: 38%; }
+  .col-dir { width: 32%; }
+  .col-size { width: 18%; text-align: right; }
+  .col-status { width: 12%; text-align: center; }
+
+  tbody tr.file-table-row {
+    height: 25px; // Data-dense 24-26px row height
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+    transition: background-color 0.1s ease;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.04);
+    }
+
+    &.is-selected {
+      background-color: #0284c7 !important;
+      color: #ffffff !important;
+
+      .file-name-text,
+      .cell-dir,
+      .cell-size {
+        color: #ffffff !important;
+      }
+    }
+  }
+
+  td {
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    box-sizing: border-box;
+  }
+
+  .cell-name {
+    display: flex;
+    align-items: center;
+    line-height: 24px;
+    height: 25px;
+
+    .file-name-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+      color: #0f172a;
+    }
+  }
+
+  .cell-dir {
+    color: #64748b;
+    font-size: 10px;
+  }
+
+  .cell-size {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 10px;
+    color: #64748b;
+  }
+
+  .cell-status {
+    text-align: center;
+    font-size: 10px;
+
+    .status-indicator {
+      display: inline-block;
+      font-size: 10px;
+      line-height: 1;
+
+      &.status-ready {
+        color: #22c55e;
+      }
+      &.status-modified {
+        color: #ef4444;
+      }
+      &.status-error {
+        color: #ef4444;
+        font-weight: 700;
+      }
+      &.status-pending {
+        color: #94a3b8;
+      }
+    }
+  }
+
+  .empty-row td {
+    text-align: center;
+    color: #94a3b8;
+    padding: 10px;
+    font-style: italic;
+  }
+}
+
+/* ==========================================================================
+   Toad v2.4.3: Dark Mode Overrides for Table & Rename Input
+   ========================================================================== */
+.bp4-dark,
+.toad-dark {
+  .project-title-inline-input {
+    background: #1e293b;
+    color: #f8fafc;
+    border-color: #38bdf8;
+
+    &:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+    }
+  }
+
+  .project-accordion-section {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .project-accordion-header {
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    .project-caret-wrapper {
+      color: #94a3b8;
+    }
+  }
+
+  .project-files-table {
+    thead th {
+      color: #94a3b8;
+      border-bottom-color: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.02);
+
+      .sort-btn {
+        color: #64748b;
+        &:hover {
+          color: #38bdf8;
+        }
+      }
+
+      .col-filter-input {
+        background: #1e293b;
+        color: #f8fafc;
+        border-color: #475569;
+
+        &:focus {
+          border-color: #38bdf8;
+        }
+      }
+    }
+
+    tbody tr.file-table-row {
+      border-bottom-color: rgba(255, 255, 255, 0.04);
+
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+
+      &.is-selected {
+        background-color: var(--md-sys-color-primary-container, #1f385c) !important;
+        color: #ffffff !important;
+
+        .file-name-text,
+        .cell-dir,
+        .cell-size {
+          color: #ffffff !important;
+        }
+      }
+    }
+
+    .cell-name .file-name-text {
+      color: #f1f5f9;
+    }
+
+    .cell-dir,
+    .cell-size {
+      color: #94a3b8;
+    }
+  }
+}

@@ -43,6 +43,7 @@ import {
   ExportFormat,
   ParquetExportOptions,
   MultipleLoadingManager,
+  ProjectWorkspaceManager,
 } from "tadviewer";
 import { PivotRequester } from "tadviewer";
 import { AppState } from "tadviewer";
@@ -276,6 +277,50 @@ const init = async () => {
     ipcRenderer.on("reopen-current-file", async () => {
       log.info("electronRenderMain: received reopen-current-file IPC");
       await actions.reopenCurrentView(stateRef);
+    });
+
+    ipcRenderer.on("project-add-files", async () => {
+      try {
+        log.info("electronRenderMain: received project-add-files IPC");
+        const bridge = getHostBridge();
+        const chosen = await bridge.showOpenDialog({
+          title: "Add Files to Active Project",
+          multiple: true,
+        });
+        if (chosen && chosen.length > 0) {
+          const pwManager = ProjectWorkspaceManager.getInstance();
+          const ws = await pwManager.getWorkspace();
+          const activeId =
+            ws.activeProjectId ||
+            (ws.projects && ws.projects[0]?.projectId) ||
+            "prj_untitled_1";
+          await pwManager.addFilesToProject(activeId, chosen);
+        }
+      } catch (err) {
+        log.error("Error adding files to project from menu:", err);
+      }
+    });
+
+    ipcRenderer.on("project-add-folder", async () => {
+      try {
+        log.info("electronRenderMain: received project-add-folder IPC");
+        const bridge = getHostBridge();
+        const chosen = await bridge.showOpenDialog({
+          title: "Add Folder to Active Project",
+          directory: true,
+        });
+        if (chosen && chosen.length > 0 && chosen[0]) {
+          const pwManager = ProjectWorkspaceManager.getInstance();
+          const ws = await pwManager.getWorkspace();
+          const activeId =
+            ws.activeProjectId ||
+            (ws.projects && ws.projects[0]?.projectId) ||
+            "prj_untitled_1";
+          await pwManager.addFolderToProject(activeId, chosen[0]);
+        }
+      } catch (err) {
+        log.error("Error adding folder to project from menu:", err);
+      }
     });
 
     document.addEventListener("copy", function (e) { });
