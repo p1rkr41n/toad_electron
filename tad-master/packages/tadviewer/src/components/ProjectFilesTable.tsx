@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useState, useMemo, useEffect, useReducer } from "react";
-import { Icon, IconName, Tooltip, Position } from "@blueprintjs/core";
+import { Icon, IconName, Tooltip, Position, Spinner, Intent } from "@blueprintjs/core";
 import { StateRef, mutableGet } from "oneref";
 import { AppState } from "../AppState";
 import { DataSourcePath } from "reltab";
@@ -49,6 +49,19 @@ export function getRelativeParentDir(filePath: string, folderRoot?: string): str
   return `${lastPart}/`;
 }
 
+/**
+ * Extracts the full absolute parent directory of a file path.
+ * Normalizes backslashes for Windows paths.
+ */
+export function getFullParentDir(filePath: string): string {
+  if (!filePath) return "";
+  const norm = filePath.replace(/\\/g, "/").replace(/\/+/g, "/");
+  const lastSlash = norm.lastIndexOf("/");
+  if (lastSlash === -1) return filePath;
+  const dir = norm.substring(0, lastSlash);
+  return filePath.includes("\\") ? dir.replace(/\//g, "\\") : dir;
+}
+
 export function formatFileBytes(b: number): string {
   if (b == null || isNaN(b) || b <= 0) return "0 B";
   if (b >= 1024 * 1024 * 1024) return (b / (1024 * 1024 * 1024)).toFixed(2) + " GB";
@@ -89,6 +102,7 @@ export type TableSortDir = "asc" | "desc";
 export interface ProjectTableFileItem extends ProjectWorkspaceFile {
   relDir: string;
   effectiveStatus: string;
+  loadingPercent?: number;
 }
 
 export function sortFiles(
@@ -199,7 +213,9 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
     }));
   };
 
-  const getEffectiveStatus = (f: ProjectWorkspaceFile): string => {
+  const getEffectiveStatus = (
+    f: ProjectWorkspaceFile
+  ): { status: string; percent?: number } => {
     const dsPath: DataSourcePath = {
       sourceId: { providerName: "localfs", resourceId: f.filePath },
       path: ["."],
@@ -209,24 +225,32 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
     const manager = MultipleLoadingManager.getInstance();
     const item = manager.getItem(key) || manager.getItemByCanonical(canonical);
 
+    if (item) {
+      if (item.status === "processing") {
+        return { status: "PROCESSING", percent: item.percent };
+      }
+      if (item.status === "ready") return { status: "READY" };
+      if (item.status === "modified") return { status: "MODIFIED" };
+      if (item.status === "error") return { status: "ERROR" };
+      if (item.status === "pending") return { status: "PENDING" };
+    }
+
     if (stateRef) {
       const appState = mutableGet(stateRef);
       if (appState.viewState?.dsPath) {
         const curCanon = getCanonicalPathFromDSPath(appState.viewState.dsPath);
         if (curCanon === canonical) {
-          return "READY";
+          return { status: "READY" };
         }
       }
     }
 
-    if (item) {
-      if (item.status === "ready") return "READY";
-      if (item.status === "modified") return "MODIFIED";
-      if (item.status === "error") return "ERROR";
-      if (item.status === "processing" || item.status === "pending") return "PENDING";
+    const rawStatus = (f.status || "READY").toUpperCase();
+    if (rawStatus === "STARTED" || rawStatus === "PROCESSING") {
+      return { status: "PROCESSING", percent: item?.percent ?? 0 };
     }
 
-    return (f.status || "READY").toUpperCase();
+    return { status: rawStatus };
   };
 
   const normPath = (p?: string): string => {
@@ -234,11 +258,15 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
   };
 
   const tableItems: ProjectTableFileItem[] = useMemo(() => {
-    return files.map((f) => ({
-      ...f,
-      relDir: getRelativeParentDir(f.filePath, f.folderRoot),
-      effectiveStatus: getEffectiveStatus(f),
-    }));
+    return files.map((f) => {
+      const eff = getEffectiveStatus(f);
+      return {
+        ...f,
+        relDir: getRelativeParentDir(f.filePath, f.folderRoot),
+        effectiveStatus: eff.status,
+        loadingPercent: eff.percent,
+      };
+    });
   }, [files]);
 
   const displayedFiles = useMemo(() => {
@@ -246,8 +274,23 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
     return sortFiles(filtered, sortCol, sortDir);
   }, [tableItems, colFilters, sortCol, sortDir]);
 
-  const renderStatus = (status: string) => {
+  const renderStatus = (status: string, percent?: number) => {
     const s = status.toUpperCase();
+    if (s === "PROCESSING") {
+      const pct = Math.round(percent ?? 0);
+      return (
+        <span
+          className="status-indicator status-processing"
+          title={`Loading ${pct}%`}
+          style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}
+        >
+          <Spinner size={11} intent={Intent.PRIMARY} />
+          <span style={{ fontSize: "11px", color: "var(--md-sys-color-primary, #0284c7)", fontWeight: 500 }}>
+            {pct}%
+          </span>
+        </span>
+      );
+    }
     if (s === "READY" || s === "VALID") {
       return (
         <span className="status-indicator status-ready" title="READY / VALID">
@@ -288,11 +331,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
           <tr>
             <th className="col-name" onClick={(e) => toggleColumnFilter("name", e)}>
               <div className="th-content">
-                <span>Tên file</span>
+                <span>Name</span>
                 <button
                   type="button"
                   className="sort-btn"
-                  title="Sắp xếp theo Tên file"
+                  title="Sort by Name"
                   onClick={(e) => handleSort("name", e)}
                 >
                   {getSortIcon("name")}
@@ -301,7 +344,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               {filterOpenCol === "name" && (
                 <input
                   className="col-filter-input"
-                  placeholder="Lọc tên file..."
+                  placeholder="Filter name..."
                   value={colFilters.name || ""}
                   autoFocus
                   onClick={(e) => e.stopPropagation()}
@@ -318,11 +361,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
 
             <th className="col-dir" onClick={(e) => toggleColumnFilter("dir", e)}>
               <div className="th-content">
-                <span>Thư mục cha</span>
+                <span>DirPath</span>
                 <button
                   type="button"
                   className="sort-btn"
-                  title="Sắp xếp theo Thư mục cha"
+                  title="Sort by DirPath"
                   onClick={(e) => handleSort("dir", e)}
                 >
                   {getSortIcon("dir")}
@@ -331,7 +374,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               {filterOpenCol === "dir" && (
                 <input
                   className="col-filter-input"
-                  placeholder="Lọc thư mục..."
+                  placeholder="Filter dir..."
                   value={colFilters.dir || ""}
                   autoFocus
                   onClick={(e) => e.stopPropagation()}
@@ -348,11 +391,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
 
             <th className="col-size" onClick={(e) => toggleColumnFilter("size", e)}>
               <div className="th-content">
-                <span>Kích thước</span>
+                <span>Size</span>
                 <button
                   type="button"
                   className="sort-btn"
-                  title="Sắp xếp theo Kích thước"
+                  title="Sort by Size"
                   onClick={(e) => handleSort("size", e)}
                 >
                   {getSortIcon("size")}
@@ -361,7 +404,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               {filterOpenCol === "size" && (
                 <input
                   className="col-filter-input"
-                  placeholder="Lọc kích thước..."
+                  placeholder="Filter size..."
                   value={colFilters.size || ""}
                   autoFocus
                   onClick={(e) => e.stopPropagation()}
@@ -378,11 +421,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
 
             <th className="col-status" onClick={(e) => toggleColumnFilter("status", e)}>
               <div className="th-content">
-                <span>Trạng thái</span>
+                <span>Status</span>
                 <button
                   type="button"
                   className="sort-btn"
-                  title="Sắp xếp theo Trạng thái"
+                  title="Sort by Status"
                   onClick={(e) => handleSort("status", e)}
                 >
                   {getSortIcon("status")}
@@ -391,7 +434,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               {filterOpenCol === "status" && (
                 <input
                   className="col-filter-input"
-                  placeholder="Lọc trạng thái..."
+                  placeholder="Filter status..."
                   value={colFilters.status || ""}
                   autoFocus
                   onClick={(e) => e.stopPropagation()}
@@ -410,32 +453,34 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
         <tbody>
           {displayedFiles.length === 0 ? (
             <tr className="empty-row">
-              <td colSpan={4}>Không có tệp phù hợp</td>
+              <td colSpan={4}>No files matching filter</td>
             </tr>
           ) : (
             displayedFiles.map((f) => {
               const isSelected =
                 activeFilePath && normPath(activeFilePath) === normPath(f.filePath);
+              const parentDir = getFullParentDir(f.filePath);
               return (
                 <tr
                   key={f.filePath}
                   className={`file-table-row ${isSelected ? "is-selected" : ""}`}
                   onClick={() => onOpenFile(f)}
+                  title={f.filePath}
                 >
-                  <td className="cell-name">
+                  <td className="cell-name" title={f.filePath}>
                     {getFileFormatIcon(f.fileName)}
-                    <span className="file-name-text" title={f.fileName}>
+                    <span className="file-name-text" title={f.filePath}>
                       {f.fileName}
                     </span>
                   </td>
-                  <td className="cell-dir" title={f.relDir}>
+                  <td className="cell-dir" title={parentDir}>
                     {f.relDir}
                   </td>
-                  <td className="cell-size" title={formatFileBytes(f.fileSizeBytes)}>
+                  <td className="cell-size" title={`${formatFileBytes(f.fileSizeBytes)} (${(f.fileSizeBytes || 0).toLocaleString()} bytes)`}>
                     {formatFileBytes(f.fileSizeBytes)}
                   </td>
-                  <td className="cell-status">
-                    {renderStatus(f.effectiveStatus)}
+                  <td className="cell-status" title={f.effectiveStatus === "PROCESSING" ? `Loading ${Math.round(f.loadingPercent || 0)}%` : f.effectiveStatus}>
+                    {renderStatus(f.effectiveStatus, f.loadingPercent)}
                   </td>
                 </tr>
               );

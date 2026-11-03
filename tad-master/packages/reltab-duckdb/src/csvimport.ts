@@ -1287,6 +1287,78 @@ export class ToadParquetLedger {
     return { deletedFiles, freedBytes, success: true };
   }
 
+  public async deleteAllProjectsCascade(): Promise<{
+    success: boolean;
+    freedBytes: number;
+    deletedProjects: number;
+  }> {
+    // 1. Drop all DuckDB VIEWs across all projects to release locks
+    for (const projId of this.projects.keys()) {
+      await this.dropProjectViews(projId);
+    }
+
+    // 2. Scan and purge all entries in temp/, except toad_ledger.parquet
+    const tempDir = this.getTempDir();
+    let freedBytes = 0;
+    if (tempDir && fs.existsSync(tempDir)) {
+      try {
+        const entries = fs.readdirSync(tempDir, { withFileTypes: true });
+        for (const ent of entries) {
+          if (ent.name === "toad_ledger.parquet") continue;
+          const full = path.join(tempDir, ent.name);
+          try {
+            if (ent.isDirectory()) {
+              freedBytes += this.calculateDirectorySize(full);
+              const trash = path.join(tempDir, `.trash_${ent.name}_${Date.now()}`);
+              try {
+                fs.renameSync(full, trash);
+                this.asyncDeleteDirectory(trash);
+              } catch {
+                this.asyncDeleteDirectory(full);
+              }
+            } else {
+              freedBytes += fs.statSync(full).size;
+              fs.unlinkSync(full);
+            }
+          } catch {}
+        }
+      } catch {}
+    }
+
+    // 3. Reset toad_ledger.parquet to a clean 0-row Parquet file
+    const lPath = this.getLedgerPath();
+    if (fs.existsSync(lPath)) {
+      try {
+        await this.closeInternalDb();
+        fs.unlinkSync(lPath);
+      } catch (err) {
+        log.warn("[LedgerReset] Unlink ledger error:", err);
+      }
+    }
+    await this.createCleanEmptyParquetFile(lPath);
+
+    // 4. Clear cache and project list in memory
+    const deletedProjects = this.projects.size;
+    this.cache.clear();
+    this.projects.clear();
+    this.activeProjectId = "";
+
+    try {
+      const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
+      if (globalMLM) {
+        if (typeof globalMLM.clearFirstPageCache === "function") {
+          globalMLM.clearFirstPageCache();
+        }
+      }
+    } catch {}
+
+    // 5. Notify change and schedule Untitled-1 default project recreation after 500ms
+    this.notifyChange();
+    this.scheduleDefaultProjectRecovery(500);
+
+    return { success: true, freedBytes, deletedProjects };
+  }
+
   public scheduleDefaultProjectRecovery(delayMs: number = 500): void {
     this.clearDefaultProjectRecovery();
     this.recoveryTimer = setTimeout(async () => {

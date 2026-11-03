@@ -1,6 +1,6 @@
 {
   "name": "host-bridge",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "description": "Ring 2 Host Bridge abstraction layer for Toad Dual-Engine Architecture",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
