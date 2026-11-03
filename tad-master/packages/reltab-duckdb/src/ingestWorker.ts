@@ -51,6 +51,7 @@ async function runWorker() {
 
     if (isComplexLog) {
       // Safe Ingest Profile (100% VARCHAR, 0% Crash assertion)
+      // Stage 1: Auto-detect with all_varchar = true, delim = ','
       const safeLogQuery = `
         COPY (
           SELECT * FROM read_csv(
@@ -61,12 +62,29 @@ async function runWorker() {
             null_padding = true,
             parallel = false,
             all_varchar = true,
-            quote = '"',
-            escape = ''
+            delim = ','
           )
         ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
       `;
-      await dbConn.exec(safeLogQuery);
+      try {
+        await dbConn.exec(safeLogQuery);
+      } catch (errStage1) {
+        // Stage 2: Force Header Fallback (đọc trực tiếp dòng 1 làm danh sách cột)
+        const forceHeaderQuery = `
+          COPY (
+            SELECT * FROM read_csv(
+              '${safeSrc}',
+              header = true,
+              delim = ',',
+              ignore_errors = true,
+              null_padding = true,
+              parallel = false,
+              all_varchar = true
+            )
+          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+        `;
+        await dbConn.exec(forceHeaderQuery);
+      }
     } else {
       // Standard CSV with 3-tier fallback (TUYỆT ĐỐI không dùng escape='"' gây crash)
       let succeeded = false;
@@ -117,23 +135,46 @@ async function runWorker() {
       }
 
       if (!succeeded) {
-        // Tier 2: all_varchar=true (100% columns VARCHAR, guaranteed success)
-        const tier2 = `
+        // Tier 2: all_varchar=true (100% columns VARCHAR)
+        try {
+          const tier2 = `
+            COPY (
+              SELECT * FROM read_csv(
+                '${safeSrc}',
+                auto_detect = true,
+                sample_size = 100000,
+                ignore_errors = true,
+                null_padding = true,
+                parallel = false,
+                all_varchar = true,
+                quote = '"',
+                escape = ''
+              )
+            ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+          `;
+          await dbConn.exec(tier2);
+          succeeded = true;
+        } catch (err2) {
+          // Fallback Tier 2b
+        }
+      }
+
+      if (!succeeded) {
+        // Tier 2b: Force Header fallback
+        const tier2b = `
           COPY (
             SELECT * FROM read_csv(
               '${safeSrc}',
-              auto_detect = true,
-              sample_size = 100000,
+              header = true,
+              delim = ',',
               ignore_errors = true,
               null_padding = true,
               parallel = false,
-              all_varchar = true,
-              quote = '"',
-              escape = ''
+              all_varchar = true
             )
           ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
         `;
-        await dbConn.exec(tier2);
+        await dbConn.exec(tier2b);
       }
     }
 
