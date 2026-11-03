@@ -122,6 +122,9 @@ export function sortFiles(
       cmp = (a.fileSizeBytes || 0) - (b.fileSizeBytes || 0);
     } else if (sortCol === "status") {
       cmp = a.effectiveStatus.localeCompare(b.effectiveStatus);
+      if (cmp === 0 && a.effectiveStatus === "PROCESSING") {
+        cmp = (a.loadingPercent || 0) - (b.loadingPercent || 0);
+      }
     }
     return sortDir === "asc" ? cmp : -cmp;
   });
@@ -175,7 +178,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
   const [sortDir, setSortDir] = useState<TableSortDir>("asc");
   const [filterOpenCol, setFilterOpenCol] = useState<TableSortCol | null>(null);
   const [colFilters, setColFilters] = useState<{ [K in TableSortCol]?: string }>({});
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
+  const [updateTick, forceUpdate] = useReducer((x) => x + 1, 0);
 
   // Subscribe to live status updates from MultipleLoadingManager
   useEffect(() => {
@@ -267,7 +270,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
         loadingPercent: eff.percent,
       };
     });
-  }, [files]);
+  }, [files, updateTick]);
 
   const displayedFiles = useMemo(() => {
     const filtered = filterFiles(tableItems, colFilters);
@@ -469,12 +472,87 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 >
                   <td className="cell-name" title={f.filePath}>
                     {getFileFormatIcon(f.fileName)}
-                    <span className="file-name-text" title={f.filePath}>
-                      {f.fileName}
-                    </span>
+                    <Tooltip
+                      content={
+                        <div className="file-hover-card">
+                          <div className="file-hover-name">{f.fileName}</div>
+                          <div className="file-hover-row">
+                            <span className="file-hover-label">Full Path:</span>
+                            <span
+                              className="file-hover-val"
+                              style={{ fontFamily: "monospace", fontSize: "10px" }}
+                              title={f.filePath}
+                            >
+                              {f.filePath}
+                            </span>
+                          </div>
+                          {f.fileSizeBytes != null && f.fileSizeBytes > 0 && (
+                            <div className="file-hover-row">
+                              <span className="file-hover-label">Original Size:</span>
+                              <span className="file-hover-val">
+                                {formatFileBytes(f.fileSizeBytes)} ({(f.fileSizeBytes || 0).toLocaleString()} bytes)
+                              </span>
+                            </div>
+                          )}
+                          {f.rowCount != null && f.rowCount > 0 && (
+                            <div className="file-hover-row">
+                              <span className="file-hover-label">Total Rows:</span>
+                              <span className="file-hover-val">{f.rowCount.toLocaleString()} rows</span>
+                            </div>
+                          )}
+                          <div className="file-hover-row">
+                            <span className="file-hover-label">Status:</span>
+                            <span
+                              className={`file-hover-val ${
+                                f.effectiveStatus === "READY"
+                                  ? "text-success"
+                                  : f.effectiveStatus === "MODIFIED"
+                                  ? "text-danger"
+                                  : ""
+                              }`}
+                            >
+                              {f.effectiveStatus === "PROCESSING"
+                                ? `PROCESSING (${Math.round(f.loadingPercent || 0)}%)`
+                                : f.effectiveStatus}
+                            </span>
+                          </div>
+                        </div>
+                      }
+                      position={Position.RIGHT}
+                      boundary="window"
+                      hoverOpenDelay={350}
+                      popoverClassName="file-node-tooltip-popover"
+                    >
+                      <span className="file-name-text" title={f.filePath}>
+                        {f.fileName}
+                      </span>
+                    </Tooltip>
                   </td>
                   <td className="cell-dir" title={parentDir}>
-                    {f.relDir}
+                    <Tooltip
+                      content={
+                        <div className="file-hover-card" style={{ maxWidth: "420px" }}>
+                          <div className="file-hover-row">
+                            <span className="file-hover-label">Full DirPath:</span>
+                            <span
+                              className="file-hover-val"
+                              style={{ fontFamily: "monospace", fontSize: "10px" }}
+                              title={parentDir}
+                            >
+                              {parentDir}
+                            </span>
+                          </div>
+                        </div>
+                      }
+                      position={Position.RIGHT}
+                      boundary="window"
+                      hoverOpenDelay={350}
+                      popoverClassName="file-node-tooltip-popover"
+                    >
+                      <span className="file-dir-text" title={parentDir}>
+                        {f.relDir}
+                      </span>
+                    </Tooltip>
                   </td>
                   <td className="cell-size" title={`${formatFileBytes(f.fileSizeBytes)} (${(f.fileSizeBytes || 0).toLocaleString()} bytes)`}>
                     {formatFileBytes(f.fileSizeBytes)}

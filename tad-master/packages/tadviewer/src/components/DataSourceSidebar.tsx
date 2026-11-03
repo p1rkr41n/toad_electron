@@ -435,7 +435,7 @@ export const ProjectNodeLabel: React.FC<{
               minimal={true}
               small={true}
               text="Move all"
-              title="Move all legacy files to Untitled-1"
+              title="Move all legacy files to active project"
               onClick={onMoveOrphan}
             />
           </div>
@@ -943,7 +943,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     }}
                     onMoveOrphan={async (e) => {
                       e.stopPropagation();
-                      await pwManager.moveOrphanFilesToProject("prj_untitled_1");
+                      await pwManager.moveOrphanFilesToProject(activeProjectId);
                       refreshWorkspaceData();
                     }}
                     onContextMenu={(e) => handleProjectContextMenu(project, e)}
@@ -1074,10 +1074,10 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 <MenuItem
                   icon="inheritance"
                   intent={Intent.WARNING}
-                  text="Move all to Untitled-1"
+                  text="Move all to Active Project"
                   onClick={async () => {
                     setProjectContextMenu(null);
-                    await pwManager.moveOrphanFilesToProject("prj_untitled_1");
+                    await pwManager.moveOrphanFilesToProject(activeProjectId);
                     refreshWorkspaceData();
                   }}
                 />

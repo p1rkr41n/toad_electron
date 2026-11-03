@@ -234,14 +234,14 @@ export const replaceCurrentView = async (
     (st: AppState): AppState => st.set("viewState", viewState) as AppState
   );
 
-  // Tự động đồng bộ trạng thái tệp sang MultipleLoadingManager (Ready 100%)
+  // Automatically sync file status to MultipleLoadingManager (Ready 100%)
   try {
     MultipleLoadingManager.getInstance().markReady(dsPath);
   } catch { }
 };
 
 /**
- * Chờ cho đến khi PivotRequester nạp xong dataView đầu tiên cho ViewState hiện tại
+ * Wait until PivotRequester loads the first dataView for the current ViewState
  */
 export const waitForDataView = (
   stateRef: StateRef<AppState>,
