@@ -284,7 +284,7 @@ export class ProjectWorkspaceManager {
             (p: any) => !p.isOrphan && p.status !== "DELETED"
           );
           if (nonOrphan.length === 0) {
-            await this.createProject("Untitled-1", "prj_untitled_1");
+            await this.createProject("Untitled-1");
           }
           this.notify();
         }, 550);
@@ -304,7 +304,7 @@ export class ProjectWorkspaceManager {
           (p: any) => !p.isOrphan && p.status !== "DELETED"
         );
         if (nonOrphan.length === 0) {
-          await this.createProject("Untitled-1", "prj_untitled_1");
+          await this.createProject("Untitled-1");
         }
         this.notify();
       }, 550);
@@ -312,6 +312,26 @@ export class ProjectWorkspaceManager {
     }
 
     return result;
+  }
+
+  public async performStartupReconciliation(): Promise<any> {
+    const bridge = getBridge();
+    if (bridge && typeof bridge.invoke === "function") {
+      try {
+        const res = await bridge.invoke("project:reconcile", {});
+        this.notify();
+        return res;
+      } catch {}
+    }
+
+    const duckdb = getReltabDuckDB();
+    if (duckdb && duckdb.ToadParquetLedger) {
+      const ledger = duckdb.ToadParquetLedger.getInstance();
+      const res = await ledger.performStartupReconciliation();
+      this.notify();
+      return res;
+    }
+    return null;
   }
 
   public async getCacheSize(
