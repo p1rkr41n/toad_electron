@@ -491,12 +491,7 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
   }, [appState.viewState?.dsPath]);
 
   const normPath = (p: string) => {
-    try {
-      const pathModule = require("path");
-      return pathModule.resolve(p).replace(/\\/g, "/").toLowerCase();
-    } catch {
-      return (p || "").replace(/\\/g, "/").toLowerCase();
-    }
+    return (p || "").replace(/\\/g, "/").toLowerCase();
   };
 
   const refreshWorkspaceData = async () => {

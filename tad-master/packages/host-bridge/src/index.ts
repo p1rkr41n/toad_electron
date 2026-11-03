@@ -1,6 +1,5 @@
 import { IHostBridge } from "./IHostBridge";
 import { V8HostAdapter } from "./V8HostAdapter";
-import { HeadlessNodeAdapter } from "./HeadlessNodeAdapter";
 
 let activeBridge: IHostBridge | null = null;
 
@@ -24,4 +23,3 @@ export function setHostBridge(customBridge: IHostBridge): void {
 
 export * from "./IHostBridge";
 export * from "./V8HostAdapter";
-export * from "./HeadlessNodeAdapter";

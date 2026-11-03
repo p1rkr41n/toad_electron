@@ -66,7 +66,7 @@ async function runSmokeTest() {
   let stdoutLog = "";
   let processExitedEarly = false;
 
-  const child = spawn(unpackedExe, ["--no-sandbox"], {
+  const child = spawn(unpackedExe, [], {
     detached: false,
     stdio: ["ignore", "pipe", "pipe"],
   });
@@ -94,6 +94,53 @@ async function runSmokeTest() {
   assert(!stderrLog.includes("Uncaught Exception"), "Stderr must not contain 'Uncaught Exception'");
   assert(!stdoutLog.includes("Cannot find module"), "Stdout must not contain 'Cannot find module'");
   assert(!stdoutLog.includes("Uncaught Exception"), "Stdout must not contain 'Uncaught Exception'");
+
+  // 4. Verify Application & Renderer Logs for Zero White Screen / Unhandled Exceptions
+  const exeDir = path.dirname(unpackedExe);
+  let logPath = null;
+
+  try {
+    const subdirs = fs.readdirSync(exeDir);
+    for (const d of subdirs) {
+      if (d.startsWith("toadAppData_")) {
+        const candidate = path.join(exeDir, d, "logs", "toad.log");
+        if (fs.existsSync(candidate)) {
+          logPath = candidate;
+          break;
+        }
+      }
+    }
+  } catch {}
+
+  if (!logPath && process.env.APPDATA) {
+    const candidate = path.join(process.env.APPDATA, "Toad", "logs", "toad.log");
+    if (fs.existsSync(candidate)) {
+      logPath = candidate;
+    }
+  }
+
+  if (logPath) {
+    console.log(`[INFO] Inspecting live log: ${logPath}`);
+    const logContent = fs.readFileSync(logPath, "utf8");
+
+    const rendererErrors = logContent
+      .split("\n")
+      .filter((line) => line.includes("[RENDERER-CONSOLE]") && (line.includes("lvl=3") || line.includes("Uncaught") || line.includes("ReferenceError") || line.includes("TypeError")));
+
+    if (rendererErrors.length > 0) {
+      console.error("[FAIL] Renderer console unhandled exceptions detected in toad.log:");
+      rendererErrors.forEach((e) => console.error("   --> " + e));
+      throw new Error(`Renderer unhandled exception detected! (${rendererErrors.length} errors found)`);
+    }
+    console.log("[PASS] Renderer log inspected: Zero unhandled console exceptions detected (No White Screen)");
+
+    const hasEngineSpawn = logContent.includes("Engine child spawned successfully") || logContent.includes("Forwarded MessagePort pair");
+    if (hasEngineSpawn) {
+      console.log("[PASS] Engine Supervisor verified: Dedicated engine child and MessagePort active");
+    }
+  } else {
+    console.log("[WARN] toad.log not found in expected locations, falling back to process stdout/stderr checks");
+  }
 
   console.log("[PASS] Main process bootstrap completed cleanly without uncaught exceptions!");
 
