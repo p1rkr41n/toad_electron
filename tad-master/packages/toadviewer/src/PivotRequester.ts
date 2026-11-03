@@ -497,6 +497,11 @@ export class PivotRequester {
       );
       if (typeof window !== "undefined") {
         window.dispatchEvent(
+          new CustomEvent("toad-query-error", {
+            detail: { message: err.message },
+          })
+        );
+        window.dispatchEvent(
           new CustomEvent("tad-query-error", {
             detail: { message: err.message },
           })
@@ -644,6 +649,11 @@ export class PivotRequester {
             err.stack
           );
           if (typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("toad-query-error", {
+                detail: { message: err.message },
+              })
+            );
             window.dispatchEvent(
               new CustomEvent("tad-query-error", {
                 detail: { message: err.message },

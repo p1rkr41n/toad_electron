@@ -9,16 +9,55 @@ import electron, {
 } from "electron";
 
 const Menu = electron.Menu;
+const dialog = electron.dialog;
 const isDarwin = process.platform === "darwin";
 let appMenu: electron.Menu | null = null;
 const separatorMenuItem: MenuItemConstructorOptions = {
   type: "separator",
 };
 
+const showAboutDialog = (win?: BrowserWindow) => {
+  const focusedWin = win || BrowserWindow.getFocusedWindow();
+  const title = "About TOAD";
+  const message = "TOAD - Tabular OLAP Analytics Desktop (v2.4.8)";
+  const detail = [
+    "TOAD - Tabular OLAP Analytics Desktop",
+    "Version: v2.4.8",
+    `Electron: ${process.versions.electron}`,
+    `Chrome: ${process.versions.chrome}`,
+    `Node.js: ${process.versions.node}`,
+    `V8: ${process.versions.v8}`,
+    "",
+    "High-performance local OLAP & tabular data analysis engine.",
+    "Copyright (c) 2016-2024 Tad authors, 2024-2026 TOAD authors.",
+  ].join("\n");
+
+  if (focusedWin) {
+    dialog.showMessageBox(focusedWin, {
+      type: "info",
+      title,
+      message,
+      detail,
+      buttons: ["OK"],
+    });
+  } else {
+    dialog.showMessageBox({
+      type: "info",
+      title,
+      message,
+      detail,
+      buttons: ["OK"],
+    });
+  }
+};
+
 const aboutToadMenuItem = () => {
   return {
-    label: "About Toad",
-    role: "about",
+    label: "About TOAD",
+    role: "about" as const,
+    click: (item: MenuItem, focusedWindow: BrowserWindow | undefined) => {
+      showAboutDialog(focusedWindow);
+    },
   };
 };
 
@@ -170,6 +209,16 @@ export const createMenu = () => {
         event: KeyboardEvent
       ) => {
         electron.shell.openExternal("https://github.com/p1rkr41n/toad_electron/issues");
+      },
+    },
+    separatorMenuItem,
+    {
+      label: "About TOAD",
+      click: (
+        item: MenuItem,
+        focusedWindow: BrowserWindow | undefined
+      ) => {
+        showAboutDialog(focusedWindow);
       },
     },
   ];

@@ -20,7 +20,11 @@
     "rootDirs": ["src/ts", "app"],
     "baseUrl": ".",
     "paths": {
-      "host-bridge": ["../host-bridge"]
+      "host-bridge": ["../host-bridge"],
+      "toadviewer": ["../toadviewer"],
+      "toadviewer/*": ["../toadviewer/*"],
+      "tadviewer": ["../toadviewer"],
+      "tadviewer/*": ["../toadviewer/*"]
     }
   },
   "include": ["./src/*", "./app/*"]

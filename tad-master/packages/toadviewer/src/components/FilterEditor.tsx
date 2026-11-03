@@ -760,8 +760,12 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
       setQueryError(msg);
       setTimeout(() => setQueryError(null), 8000);
     };
+    window.addEventListener("toad-query-error", handleError);
     window.addEventListener("tad-query-error", handleError);
-    return () => window.removeEventListener("tad-query-error", handleError);
+    return () => {
+      window.removeEventListener("toad-query-error", handleError);
+      window.removeEventListener("tad-query-error", handleError);
+    };
   }, []);
 
   // Synchronize rootGroup whenever filterExp changes from outside (e.g. Add Rule from Event Details or cell context menu)

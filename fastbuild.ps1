@@ -42,7 +42,11 @@ $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
 $rootDir = "D:\Shared_UserData\Downloads\tad"
-$appDir = "$rootDir\tad-master\packages\tad-app"
+$appDir = "$rootDir\tad-master\packages\toad-app"
+if (-not (Test-Path $appDir)) {
+    $appDir = "$rootDir\tad-master\packages\tad-app"
+}
+$appName = Split-Path $appDir -Leaf
 
 $totalStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 $stageTimes = @{}
@@ -72,23 +76,29 @@ if (-not $SkipTsc) {
     Set-Location "$rootDir\tad-master\packages\reltab-duckdb"
     & npm.cmd run build
 
-    Write-Output ">>> [STEP 1.3] Building tadviewer..."
-    Set-Location "$rootDir\tad-master\packages\tadviewer"
+    $viewerDir = "$rootDir\tad-master\packages\toadviewer"
+    if (-not (Test-Path $viewerDir)) {
+        $viewerDir = "$rootDir\tad-master\packages\tadviewer"
+    }
+    $viewerName = Split-Path $viewerDir -Leaf
+
+    Write-Output ">>> [STEP 1.3] Building $viewerName..."
+    Set-Location $viewerDir
     if ($Dev) {
         & npm.cmd run build-dev
     } else {
         & npm.cmd run build-prod
     }
     $sw.Stop()
-    $stageTimes["TypeScript & Tadviewer"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+    $stageTimes["TypeScript & $viewerName"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 } else {
     Write-Output "`n>>> [STEP 1] Skipping TypeScript dependencies (-SkipTsc active)..."
-    $stageTimes["TypeScript & Tadviewer"] = 0
+    $stageTimes["TypeScript & Viewer"] = 0
 }
 
-# --- STEP 2: Build tad-app Webpack Bundles ---
+# --- STEP 2: Build Webpack Bundles ---
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-Write-Output "`n>>> [STEP 2] Building Webpack bundles for tad-app..."
+Write-Output "`n>>> [STEP 2] Building Webpack bundles for $appName..."
 Set-Location "$appDir"
 if ($Dev) {
     & npm.cmd run build-dev
@@ -96,14 +106,15 @@ if ($Dev) {
     & npm.cmd run build-prod
 }
 $sw.Stop()
-$stageTimes["Webpack tad-app"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+$stageTimes["Webpack $appName"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 
-# Verify main.bundle.js and tadapp.bundle.js
+# Verify main.bundle.js and toadapp.bundle.js (or fallback tadapp.bundle.js)
 if (-not (Test-Path "$appDir\dist\main.bundle.js")) {
     throw "ERROR: dist\main.bundle.js was not generated!"
 }
-if (-not (Test-Path "$appDir\dist\tadapp.bundle.js")) {
-    throw "ERROR: dist\tadapp.bundle.js was not generated!"
+$bundleName = if (Test-Path "$appDir\dist\toadapp.bundle.js") { "toadapp.bundle.js" } else { "tadapp.bundle.js" }
+if (-not (Test-Path "$appDir\dist\$bundleName")) {
+    throw "ERROR: dist\toadapp.bundle.js (or tadapp.bundle.js) was not generated!"
 }
 
 # --- STEP 3: Electron-Builder Unpacked Packaging (--dir) ---

@@ -3,7 +3,7 @@ import * as csv from "fast-csv";
 import * as fs from "fs";
 import { BrowserWindow, dialog } from "electron";
 import { DbDataSource } from "reltab";
-import { ExportFormat, ParquetExportOptions } from "tadviewer";
+import { ExportFormat, ParquetExportOptions } from "toadviewer";
 import path from "path";
 
 export const openExportBeginDialog = async (

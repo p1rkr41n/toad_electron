@@ -1,6 +1,6 @@
 {
-  "name": "toad",
-  "version": "2.4.7",
+  "name": "toad-app",
+  "version": "2.4.8",
   "homepage": "https://example.com",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -11,7 +11,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "build:dir": "mkdirp dist",
-    "build:tadviewer-assets": "recursive-copy -w node_modules/tadviewer/dist/public dist/public",
+    "build:toadviewer-assets": "recursive-copy -w node_modules/toadviewer/dist/public dist/public",
     "build:html": "recursive-copy -w html dist",
     "build:preload": "recursive-copy -w app/preload.js dist/preload.js",
     "build:icon": "mkdirp buildRes && recursive-copy -w res/icon.ico buildRes/icon.ico && recursive-copy -w res/icon.png dist/icon.png",
@@ -53,7 +53,7 @@
     "reltab-duckdb": "^0.12.0",
     "reltab-fs": "^0.12.0",
     "source-map-support": "^0.5.21",
-    "tadviewer": "^0.12.0"
+    "toadviewer": "^0.12.0"
   },
   "devDependencies": {
     "@blueprintjs/icons": "^4.10.1",
@@ -137,6 +137,7 @@
       "!**/node_modules/jquery/**",
       "!**/node_modules/popper.js/**",
       "!**/node_modules/@popperjs/**",
+      "!**/node_modules/toadviewer/**",
       "!**/node_modules/tadviewer/**",
       "!**/*.map",
       "!**/*.ts",
@@ -158,6 +159,11 @@
         "ext": "tsv",
         "name": "Tab Separated Values",
         "role": "Viewer"
+      },
+      {
+        "ext": "toad",
+        "name": "Toad Saved Workspace",
+        "role": "Editor"
       },
       {
         "ext": "tad",

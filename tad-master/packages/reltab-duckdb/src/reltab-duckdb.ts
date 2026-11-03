@@ -32,7 +32,7 @@ const columnTypes = DuckDBDialect.columnTypes;
 
 let viewCounter = 0;
 
-const genViewName = (): string => `tad_tmpView_${viewCounter++}`;
+const genViewName = (): string => `toad_tmpView_${viewCounter++}`;
 
 const typeLookup = (tnm: string): ColumnType => {
   const ret = columnTypes[tnm] as ColumnType | undefined;

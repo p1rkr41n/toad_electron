@@ -1,5 +1,6 @@
 // webpack.config.js
 
+var pkg = require("./package.json");
 var webpack = require("webpack");
 var path = require("path");
 var fs = require("fs");
@@ -9,6 +10,10 @@ process.traceDeprecation = true;
 
 function config(nodeEnv) {
   return {
+    entry: {
+      toadviewer: "./src/toadviewer.ts",
+      tadviewer: "./src/toadviewer.ts",
+    },
     devtool: "source-map",
     mode: nodeEnv,
     resolve: {
@@ -18,9 +23,24 @@ function config(nodeEnv) {
       },
     },
     output: {
-      path: __dirname + "/dist/",
-      filename: "[name].bundle.js",
+      path: path.resolve(__dirname, "dist"),
+      filename: "[name].js",
+      libraryTarget: "commonjs2",
+      /* Note!  Do NOT use the library target -- it will cause the top-level exports to be replaced
+         with a single "tadviewer" export.
+         See: https://github.com/webpack/webpack/issues/11800 for details
+      library: {
+        name: pkg.name,
+        export: "tadviewer",
+        type: "commonjs2",
+      },
+      */
     },
+    externalsPresets: { node: true }, // in order to ignore built-in modules like path, fs, etc.
+    externals: [
+      nodeExternals(),
+      nodeExternals({ modulesDir: "../../node_modules" }),
+    ],
     module: {
       rules: [
         // All files with a '.ts' or '.tsx' extension will be handled by 'ts-loader'.
@@ -31,7 +51,7 @@ function config(nodeEnv) {
           enforce: "pre",
           test: /\.js$/,
           loader: "source-map-loader",
-          exclude: [/node_modules\/export-to-csv/, /fast-csv/],
+          exclude: [/node_modules\/export-to-csv/],
         },
         {
           test: /\.less$/,
@@ -52,37 +72,11 @@ function config(nodeEnv) {
         },
         {
           test: /\.(jpe?g|png|gif|svg)$/i,
-          use: [
-            {
-              loader: "file-loader",
-              options: {
-                hash: "sha512",
-                digest: "hex",
-                name: "[hash].[ext]",
-              },
-            },
-            {
-              loader: "image-webpack-loader",
-              options: {
-                bypassOnDebug: true,
-                optipng: {
-                  optimizationLevel: 7,
-                },
-                gifsicle: {
-                  interlaced: false,
-                },
-              },
-            },
-          ],
+          type: "asset/inline",
         },
         {
           test: /\.(eot|svg|ttf|woff|woff2)$/,
-          use: {
-            loader: "file-loader",
-            options: {
-              name: "public/fonts/[name].[ext]",
-            },
-          },
+          type: "asset/inline",
         },
       ],
     },
@@ -90,7 +84,9 @@ function config(nodeEnv) {
     plugins: [
       new webpack.IgnorePlugin({ resourceRegExp: /^\.\/stores\/appStore$/ }),
       new webpack.DefinePlugin({
-        "process.env.NODE_ENV": JSON.stringify(nodeEnv),
+        "process.env": {
+          NODE_ENV: JSON.stringify(nodeEnv),
+        },
       }),
     ],
   };
@@ -106,43 +102,13 @@ function development() {
 
 function production() {
   var prod = config("production");
-  prod.devtool = false;
   prod.optimization.minimize = true;
   return prod;
 }
 
-var render = {
-  target: "electron-renderer",
-  entry: {
-    tadapp: "./src/electronRenderMain.tsx",
-  },
-};
-
-var app = {
-  target: "electron-main",
-  entry: {
-    main: "./app/main.ts",
-  },
-  externalsPresets: { node: true }, // in order to ignore built-in modules like path, fs, etc.
-  externals: [
-    nodeExternals(),
-    nodeExternals({ modulesDir: "../../node_modules" }),
-  ],
-  node: {
-    __dirname: false,
-    __filename: false,
-  },
-};
-
-function merge(config, env) {
-  var merged = Object.assign({}, env, config);
-  merged.plugins = (config.plugins || []).concat(env.plugins || []);
-  return merged;
-}
-
 const configMap = {
-  development: [merge(app, development()), merge(render, development())],
-  production: [merge(app, production()), merge(render, production())],
+  development: [development()],
+  production: [production()],
 };
 
 module.exports = function (env, argv) {

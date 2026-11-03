@@ -1,9 +1,9 @@
 {
-  "name": "tadviewer",
-  "version": "2.4.7",
+  "name": "toadviewer",
+  "version": "2.4.8",
   "description": "Tabular data viewer library",
-  "main": "dist/tadviewer.js",
-  "types": "dist/tadviewer.d.ts",
+  "main": "dist/toadviewer.js",
+  "types": "dist/toadviewer.d.ts",
   "scripts": {
     "prepublish": "npm run build",
     "clean": "rimraf dist",

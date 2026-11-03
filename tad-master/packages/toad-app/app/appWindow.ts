@@ -3,7 +3,13 @@ import url from "url";
 import path from "path";
 import fsPromises from "fs/promises";
 import electron, { BrowserWindow, IpcMainEvent, ipcRenderer } from "electron";
-import { OpenType, OpenFSPath, OpenTad, OpenParams } from "../src/openParams";
+import {
+  OpenType,
+  OpenFSPath,
+  OpenToad,
+  OpenTad,
+  OpenParams,
+} from "../src/openParams";
 const dialog = electron.dialog;
 const ipcMain = electron.ipcMain;
 
@@ -76,8 +82,17 @@ ipcMain.on("render-init-complete", (event: IpcMainEvent) => {
 
 const encodeFileOpenParams = (targetPath: string): OpenParams => {
   let openParams: OpenParams;
+  const ext = targetPath ? path.extname(targetPath).toLowerCase() : "";
 
-  if (targetPath && path.extname(targetPath) === ".tad") {
+  if (ext === ".toad") {
+    const fileContents = fs.readFileSync(targetPath, "utf8");
+    const openToad: OpenToad = {
+      openType: "toad",
+      fileContents,
+      fileBaseName: path.basename(targetPath),
+    };
+    openParams = openToad;
+  } else if (ext === ".tad") {
     const fileContents = fs.readFileSync(targetPath, "utf8");
     const openTad: OpenTad = {
       openType: "tad",
@@ -86,7 +101,6 @@ const encodeFileOpenParams = (targetPath: string): OpenParams => {
     };
     openParams = openTad;
   } else {
-    let openType: OpenType;
     const openFSPath: OpenFSPath = {
       openType: "fspath",
       path: targetPath,
@@ -99,7 +113,7 @@ const encodeFileOpenParams = (targetPath: string): OpenParams => {
 
 const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
   let winProps = {
-    title: "Toad",
+    title: "TOAD",
     icon: path.join(__dirname, "icon.png"),
     width: 1280,
     height: 980,
@@ -109,7 +123,10 @@ const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
       nodeIntegration: true,
       contextIsolation: false,
       preload: path.join(__dirname, "preload.js"),
-      additionalArguments: [`--tadOpenParams=${JSON.stringify(openParams)}`],
+      additionalArguments: [
+        `--toadOpenParams=${JSON.stringify(openParams)}`,
+        `--tadOpenParams=${JSON.stringify(openParams)}`,
+      ],
     },
   };
 
@@ -236,7 +253,16 @@ export const openDialog = async (
     filters: [
       {
         name: "All Supported Data Files",
-        extensions: dataFileExtensions.concat(["tad", "sqlite", "duckdb"]),
+        extensions: dataFileExtensions.concat([
+          "toad",
+          "tad",
+          "sqlite",
+          "duckdb",
+        ]),
+      },
+      {
+        name: "TOAD Workspace Files (*.toad, *.tad)",
+        extensions: ["toad", "tad"],
       },
       {
         name: "CSV / TSV / Log Files (*.csv, *.tsv, *.log, *.txt)",
@@ -341,10 +367,12 @@ export const getFilterQuery = async (win: BrowserWindow): Promise<string> => {
     win.webContents.send("request-serialize-filter-query", requestContents);
   });
 };
+const TOAD_FILE_FORMAT_VERSION = 2;
 const TAD_FILE_FORMAT_VERSION = 2;
 
 const serialize = (contents: any): string => {
   const versionedObject = {
+    toadFileFormatVersion: TOAD_FILE_FORMAT_VERSION,
     tadFileFormatVersion: TAD_FILE_FORMAT_VERSION,
     contents,
   };
@@ -358,11 +386,19 @@ export const saveAsDialog = async () => {
   }
   const fileContents = await getAppState(win);
   const saveFilename = dialog.showSaveDialogSync(win, {
-    title: "Save Toad Workspace",
+    title: "Save TOAD Workspace",
     filters: [
       {
-        name: "Toad Workspace files",
-        extensions: ["toad", "tad"],
+        name: "TOAD Workspace Files (*.toad)",
+        extensions: ["toad"],
+      },
+      {
+        name: "Legacy TAD Workspace Files (*.tad)",
+        extensions: ["tad"],
+      },
+      {
+        name: "All Files (*.*)",
+        extensions: ["*"],
       },
     ],
   });

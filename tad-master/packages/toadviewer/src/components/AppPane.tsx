@@ -396,7 +396,7 @@ async function setTitleFromDSPath(
   dsPath: DataSourcePath
 ) {
   const node = await resolvePath(rtc, dsPath);
-  const title = "Toad - " + node.displayName;
+  const title = `${node.displayName} - TOAD`;
   document.title = title;
 }
 
@@ -654,7 +654,7 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     <DataSourceSidebar expanded={dataSourceExpanded} stateRef={stateRef} />
   ) : null;
   mainContents = (
-    <div className="container-fluid full-height main-container tad-app-pane">
+    <div className="container-fluid full-height main-container toad-app-pane tad-app-pane">
       <DndProvider manager={dndManager}>
         <ActivityBar
           activity={activity}
@@ -684,4 +684,5 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
 };
 
 // Useful for checking for duplicate React versions
-export const tadReact = ReactDefault;
+export const toadReact = ReactDefault;
+export const tadReact = toadReact;

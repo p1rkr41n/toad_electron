@@ -3,7 +3,7 @@
   "version": "0.14.0",
   "command": {
     "run": {
-      "ignore": ["reltab-sqlite", "tad-app"]
+      "ignore": ["reltab-sqlite", "toad-app"]
     }
   }
 }

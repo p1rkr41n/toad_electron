@@ -4,9 +4,10 @@
 @import "~@blueprintjs/icons/lib/css/blueprint-icons.css";
 @import "~@blueprintjs/popover2/lib/css/blueprint-popover2.css";
 
+.toad-app-pane,
 .tad-app-pane {
-  font-family: var(--tad-font-family, "Helvetica Neue", Helvetica, Arial, sans-serif);
-  font-size: var(--tad-font-size, 8pt);
+  font-family: var(--toad-font-family, var(--tad-font-family, "Helvetica Neue", Helvetica, Arial, sans-serif));
+  font-size: var(--toad-font-size, var(--tad-font-size, 8pt));
   margin: 0;
   font-weight: 400;
   height: 100%;
@@ -318,7 +319,7 @@ html.bp4-dark ::-webkit-scrollbar-thumb:hover {
 }
 
 /* Smooth background transition */
-html, body, .tad-app-pane {
+html, body, .toad-app-pane, .tad-app-pane {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 

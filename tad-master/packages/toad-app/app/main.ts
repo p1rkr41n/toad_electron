@@ -224,6 +224,7 @@ const appInit = (options: any) => {
         {
           name: "All Supported Data Files",
           extensions: reltabFS.dataFileExtensions.concat([
+            "toad",
             "tad",
             "sqlite",
             "duckdb",
@@ -399,6 +400,16 @@ const appInit = (options: any) => {
     return await ledger.performStartupReconciliation();
   });
 
+  if (app.setAboutPanelOptions) {
+    app.setAboutPanelOptions({
+      applicationName: "TOAD",
+      applicationVersion: "2.4.8",
+      version: "v2.4.8",
+      copyright: "TOAD - Tabular OLAP Analytics Desktop (v2.4.8)",
+      credits: "TOAD Team & Open Source Contributors",
+    });
+  }
+
   appMenu.createMenu(); // log.log('appInit: done')
 };
 
@@ -409,9 +420,9 @@ const optionDefinitions = [
     multiple: true,
     defaultOption: true,
     typeLabel:
-      "{underline file}.csv or {underline file}.tad or sqlite://{underline file}/{underline table}",
+      "{underline file}.toad or {underline file}.tad or {underline file}.csv or sqlite://{underline file}/{underline table}",
     description:
-      "CSV file(.csv with header row), Tad(.tad) file, Parquet file or sqlite file to view",
+      "TOAD workspace (.toad) file, legacy TAD (.tad) file, CSV file, Parquet file or sqlite file to view",
   },
   {
     name: "executed-from",
@@ -455,11 +466,12 @@ const usageInfo = [
   {
     header: "Synopsis",
     content: [
+      "$ toad [{italic options}] {underline file}.toad",
+      "$ toad [{italic options}] {underline file}.tad",
       "$ toad [{italic options}] {underline file}.csv",
       "$ toad [{italic options}] {underline file}.csv.gz",
       "$ toad [{italic options}] {underline file}.duckdb",
       "$ toad [{italic options}] {underline file}.parquet",
-      "$ toad [{italic options}] {underline file}.tad",
       "$ toad [{italic options}] {underline file}.tsv",
       "$ toad [{italic options}] {underline directory}",
     ],
@@ -481,7 +493,7 @@ const showUsage = () => {
 };
 
 const reportFatalError = (msg: string) => {
-  dialog.showErrorBox("Error starting Toad", msg);
+  dialog.showErrorBox("Error starting TOAD", msg);
   app.quit();
 };
 

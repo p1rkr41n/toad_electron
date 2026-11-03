@@ -20,7 +20,7 @@ import {
 import { initAppState } from "../actions";
 import { AppState } from "../AppState";
 import { PivotRequester } from "../PivotRequester";
-import { actions } from "../tadviewer";
+import { actions } from "../toadviewer";
 import { AppPane, AppPaneBaseProps } from "./AppPane";
 import { CellClickData } from "./CellClickData";
 import { SelectionChangeData } from "./SelectionChangeData";
@@ -197,3 +197,6 @@ export function TadViewerPane({
   }
   return tadAppElem;
 }
+
+export const ToadViewerPane = TadViewerPane;
+export type ToadViewerPaneProps = TadViewerPaneProps;

@@ -34,11 +34,11 @@ import {
   ParquetExportOptions,
   MultipleLoadingManager,
   ProjectWorkspaceManager,
-} from "tadviewer";
-import { PivotRequester } from "tadviewer";
-import { AppState } from "tadviewer";
-import { ViewParams, actions } from "tadviewer";
-import { initAppState } from "tadviewer";
+} from "toadviewer";
+import { PivotRequester } from "toadviewer";
+import { AppState } from "toadviewer";
+import { ViewParams, actions } from "toadviewer";
+import { initAppState } from "toadviewer";
 import * as reltab from "reltab";
 import log from "loglevel";
 import { ElectronTransportClient } from "./electronClient";
@@ -73,7 +73,7 @@ let delay = (ms: number) => {
 function openParamsDSPath(
   openParams: OpenParams
 ): [DataSourcePath | null, ViewParams | null] {
-  let targetDSPath: DataSourcePath | null;
+  let targetDSPath: DataSourcePath | null = null;
   let viewParams: ViewParams | null = null;
   switch (openParams.openType) {
     case "fspath":
@@ -86,13 +86,17 @@ function openParamsDSPath(
     case "dspath":
       targetDSPath = openParams.dsPath;
       break;
+    case "toad":
     case "tad":
       const parsedFileState = JSON.parse(openParams.fileContents!);
       const savedFileState = parsedFileState.contents;
-      // attempt to migrate from version 1 format:
-      if (parsedFileState.tadFileFormatVersion === 1) {
+      // attempt to migrate from legacy version 1 format (or if targetPath is present without dsPath):
+      if (
+        parsedFileState.tadFileFormatVersion === 1 ||
+        Boolean(savedFileState?.targetPath && !savedFileState?.dsPath)
+      ) {
         const rawTargetPath = savedFileState.targetPath;
-        log.info("Found older tad file format, targetPath: ", rawTargetPath);
+        log.info("Found legacy tad file format, targetPath: ", rawTargetPath);
         const connKey: DataSourceId = {
           providerName: "localfs",
           resourceId: rawTargetPath,
@@ -323,7 +327,7 @@ const init = async () => {
       err.message,
       err.stack
     );
-    remoteErrorDialog("Error initializing Tad", err.message, true);
+    remoteErrorDialog("Error initializing TOAD", err.message, true);
   }
 };
 init();

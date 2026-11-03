@@ -29,7 +29,7 @@ import {
   DataSourceNode,
   DataSourcePath,
 } from "reltab";
-import { actions } from "../tadviewer";
+import { actions } from "../toadviewer";
 import {
   FileIngestStatus,
   MultipleLoadingManager,
