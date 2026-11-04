@@ -35,12 +35,12 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
   2. Synthesize PROJECT.md Feature Inventory, Milestones & Contracts [done]
   3. Milestone 1: Interface Contracts & Core Traversal Engine (Stream 1, 4) [done]
   4. Milestone 2: Direct Ingestion Dynamic Projection Pipeline (Stream 5, 6) [done]
-  5. Milestone 3: Interactive UI Discovered Fields & Async Scanner (Stream 2, 3) [in-progress]
-  6. Milestone 4: Version Bump v2.5.1, Packaging & VCS Conformance (R5) [pending]
+  5. Milestone 3: Interactive UI Discovered Fields & Async Scanner (Stream 2, 3) [done]
+  6. Milestone 4: Version Bump v2.5.1, Packaging & VCS Conformance (R5) [in-progress]
   7. Milestone 5: Real-world EVTX Parity & Adversarial Fuzzing Test Suite [pending]
   8. Gate: Independent Reviewers, Challengers, and Forensic Auditor [pending]
 - **Current phase**: 1 (Implementation)
-- **Current focus**: Milestone 3 execution (worker_m3)
+- **Current focus**: Milestone 4 execution (worker_m4)
 
 ## 🔒 Key Constraints
 - NEVER write source code directly.
@@ -64,13 +64,13 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
 
 ## Current Parent
 - Conversation ID: a7138761-870d-415b-b0cf-4aa7fb39bd96
-- Updated: 2026-11-04T14:32:00+07:00
+- Updated: 2026-11-04T15:16:00+07:00
 
 ## Key Decisions Made
 - Milestone 1 completed (worker_m1): NestedJsonContracts.ts, NestedJsonTraverser.ts, DuckDbJsonSqlBuilder.ts verified with 20/20 unit tests pass.
 - Milestone 2 completed (worker_m2): JsonSchemaIntrospector.ts, JsonStreamingFlattener.ts, csvimport.ts verified with 96/96 assertions pass.
-- Milestone 3 in-progress (worker_m3: `3c614888-9c7e-41d1-9659-e952f4066bc0`): UI Discovered Fields Table, Async Scanner, and RegexDialog integration.
-- Holding Milestone 4 dispatch until Milestone 3 completes to prevent merge contention on RegexDialog.tsx.
+- Milestone 3 completed (worker_m3): SampleScanWorker.ts, SampleScanController.tsx, NestedFieldsTable.tsx, nested-dialog.less, RegexDialog.tsx verified with 10/10 unit tests pass and clean tsc.
+- Proceeding to Milestone 4: Version Bump to v2.5.1, Packaging & Jujutsu VCS Conformance.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -80,12 +80,13 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
 | explorer_backend_json | teamwork_explorer | reltab-duckdb ingestion & test mapping | completed | a2df39ba-a11e-4481-b6b6-9d9e43c20d99 |
 | worker_m1 | teamwork_worker | M1: Core Contracts & Traversal/SQL Engine | completed | 5c070185-4355-4490-a986-abb327855850 |
 | worker_m2 | teamwork_worker | M2: Direct Ingestion Dynamic Projection | completed | 0c93082f-f29f-4b1f-9ed2-b45aac72db39 |
-| worker_m3 | teamwork_worker | M3: UI Discovered Fields & Scanner | in-progress | 3c614888-9c7e-41d1-9659-e952f4066bc0 |
+| worker_m3 | teamwork_worker | M3: UI Discovered Fields & Scanner | completed | 3c614888-9c7e-41d1-9659-e952f4066bc0 |
+| worker_m4 | teamwork_worker | M4: Version Bump v2.5.1 & Packaging | in-progress | ec73da2d-3d40-4efb-b282-3ab48fd30b5b |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 6 / 16
-- Pending subagents: 3c614888-9c7e-41d1-9659-e952f4066bc0
+- Spawn count: 7 / 16
+- Pending subagents: ec73da2d-3d40-4efb-b282-3ab48fd30b5b
 - Predecessor: none
 - Successor: not yet spawned
 
