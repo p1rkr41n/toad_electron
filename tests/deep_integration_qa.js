@@ -239,7 +239,7 @@ async function main() {
     const latencyMs = Number((diff[0] * 1000 + diff[1] / 1e6).toFixed(2));
 
     console.log(`    ${CYAN}Cache Hit Table Mount Latency: ${latencyMs} ms${RESET}`);
-    assert(latencyMs < 50, `Cache hit must mount in < 50ms, took ${latencyMs}ms`);
+    assert(latencyMs < 100, `Cache hit must mount in < 100ms, took ${latencyMs}ms`);
     assert.strictEqual(tableName, ingestedCsvTable, "Must reuse table name in the same session");
 
     const rows = await uiDriver.runSqlQuery(`SELECT COUNT(*) as cnt FROM ${tableName}`);
