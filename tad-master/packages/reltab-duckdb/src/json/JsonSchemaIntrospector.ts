@@ -295,6 +295,37 @@ export function extractLeafProjections(colName: string, colType: string): LeafPr
  * Executes DuckDB DESCRIBE on `read_json_auto(safePath, sample_size = sampleSize) LIMIT 0;`
  * and recursively extracts structural definitions.
  */
+
+async function execQueryAll(dbConn: any, sql: string): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    try {
+      let resolved = false;
+      const res = dbConn.all(sql, (err: any, rows: any) => {
+        if (!resolved) {
+          resolved = true;
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      });
+      if (res && typeof res.then === "function") {
+        res.then((rows: any) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(rows || []);
+          }
+        }).catch((err: any) => {
+          if (!resolved) {
+            resolved = true;
+            reject(err);
+          }
+        });
+      }
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 export async function introspectJsonSchema(
   dbConn: any,
   filePath: string,
@@ -307,7 +338,7 @@ export async function introspectJsonSchema(
 
   let descRows: Array<{ column_name: string; column_type: string }> = [];
   try {
-    descRows = await dbConn.all(describeSql);
+    descRows = await execQueryAll(dbConn, describeSql);
   } catch (err: any) {
     log.warn(`[JsonSchemaIntrospector] DESCRIBE query failed for ${safePath}:`, err?.message || err);
     return {
