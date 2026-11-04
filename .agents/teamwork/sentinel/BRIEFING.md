@@ -1,37 +1,40 @@
-# BRIEFING — 2026-11-04T15:23:00Z
+# BRIEFING — 2026-11-04T18:32:45Z
 
 ## Mission
-Manage project execution, routing, and verification for Toad Column Resizing & Active Row Auto-Wrap implementation.
+Orchestrate execution and oversight of the 50-engineer Tauri v2 port and rebuild of Toad for Windows.
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\sentinel\
-- Orchestrator: 9699ca00-885a-4723-9e59-f34fe9df2bf4
-- Victory Auditor: 942d8c7e-c2f2-4037-912b-ab436d07c986
+- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\sentinel
+- Orchestrator: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
+- Victory Auditor: to be spawned on victory claim
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- R1: ProjectFilesTable draggable resize (minWidth 45px) + double-click auto-fit + active row auto-wrap (max 180px)
-- R2: DataGrid (SlickGrid) double-click auto-fit + floating active cell wrap (in-place, z-index 20, max 180px, dismiss on scroll/Escape)
-- R3: Styling in sidebar.less and slickgrid.scss, slim scrollbars, cursor management, event isolation
-- R4: 15 unit tests (files table) + 15 unit tests (datagrid) + 10 stress tests, integrated into run_tests.js
-- R5: Jujutsu VCS, HelloKittyXamKinLung identity, zero enterprise leaks, English-only, zero duplicate binaries
+- R1: Scaffolding, Toolchain & Jujutsu Version Control (tauri/project, Vite 5, React 18, local builds only, HelloKittyXamKinLung, no push/API)
+- R2: Native Rust Core, DuckDB Engine & Forensics Ingestion (100% Native Rust backend, Tokio Async, DuckDB 1.0 connection pool dual-engine driver, QueryExp AST compiler, Arrow IPC 0xFFFFFFFF stream, CSV/TSV/JSONL/EVTX SIMD, toad_ledger.parquet, toadAppData_[5chars])
+- R3: Frontend Porting & Host Bridge Integration (React 18 / SlickGrid / Pivot / ArcSight ESM, TauriHostAdapter.ts, commandAliases.ts, zero-copy Arrow IPC decoding via @apache-arrow/es2015-cjs)
+- R4: Automated Testing & Verification (cargo test in src-tauri, npm run build, test_tauri_arrow_ipc.js, 100K scroll stress test)
+- R5: Production Portable Packaging & Release Audit (package_portable.ps1, Toad-2.5.1-x64-portable.exe < 50MB, Toad-2.5.1-x64-portable.zip, SHA256SUMS.txt, Zero-Duplicate Binary storage policy)
+- 50 engineers across 7 squads structure
 
 ## User Context
-- **Last user request**: Approved task prompt received
+- **Last user request**: Approved task prompt received and dispatched to orchestrator
 - **Pending clarifications**: none
-- **Delivered results**: none
+- **Delivered results**: Run started notification sent
 
 ## Project Status
-- **Phase**: complete (VICTORY CONFIRMED by independent auditor; all deliverables verified)
+- **Phase**: in progress (Phase 0 Survey completed; PROJECT.md consolidated; Phase 1 dispatched: M1 Worker for scaffolding & VCS, E2E Test Writer for TEST_INFRA.md)
 - **Route**: General (teamwork_orchestrator)
-- **Rationale**: Multi-part full-team software engineering implementation task across multiple components and test suites.
+- **Active Orchestrator**: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
+- **Crons**: Progress reporting (task-36), Liveness check (task-37)
 
 ## Victory Audit Status
-- **Triggered**: yes
-- **Verdict**: VICTORY CONFIRMED
+- **Triggered**: no
+- **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user intent record
+- C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md — Reference implementation plan

@@ -12,7 +12,7 @@
  * - TEST 2.8: Layer Isolation (z-index: 20, contain: none !important override)
  * - TEST 2.9: Visual Prominence & Blueprint Theme (border & shadow 0 4px 14px rgba(0,0,0,0.15))
  * - TEST 2.10: Dynamic Text Wrap Formatting (white-space: normal, word-break: break-word)
- * - TEST 2.11: Max-Height (180px) & Scrollability (overflow-y: auto, 4px slim scrollbar)
+ * - TEST 2.11: Dynamic N-Line Bounds & Scrollability (24px flat, exact fit N*17+8, 93px cap & overflow-y: auto)
  * - TEST 2.12: Virtual Scroll Coordinate Invariance (top = rowIndex * 24px strictly constant)
  * - TEST 2.13: Grid Scroll Dismissal (grid.onScroll collapses floating cell)
  * - TEST 2.14: Escape Key Dismissal
@@ -24,6 +24,27 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "../..");
+const ts = require(path.resolve(ROOT_DIR, "tad-master/node_modules/typescript"));
+
+require.extensions[".ts"] = function (module, filename) {
+  const content = fs.readFileSync(filename, "utf8");
+  const result = ts.transpileModule(content, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  });
+  module._compile(result.outputText, filename);
+};
+
+const {
+  calculateLineCount,
+  getHeightAndScrollState,
+} = require(path.resolve(
+  ROOT_DIR,
+  "tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts"
+));
 
 const BOLD = "\x1b[1m";
 const GREEN = "\x1b[32m";
@@ -120,17 +141,17 @@ class SlickGridFloatingWrapModel {
     const cellValue = item ? item[col.field] : "";
     const strVal = cellValue != null ? String(cellValue) : "";
 
-    // Overflow check: string length > 28 or simulated scrollWidth > col.width
-    const textLen = strVal.length;
-    const estTextWidth = this.measureStringWidth(strVal);
-    const isOverflowing = textLen > 28 || estTextWidth > col.width;
+    const lineCount = calculateLineCount(strVal, col.width - 16);
+    const heightState = getHeightAndScrollState(lineCount, 17, 8, 24);
 
-    if (isOverflowing) {
+    if (heightState.shouldExpand) {
       this.expandedCell = {
         row,
         cell: cellIndex,
         colId: col.id,
         text: strVal,
+        lineCount,
+        heightState,
         classes: ["slick-cell-active-expanded"],
         rowClasses: ["slick-row-has-expanded"],
       };
@@ -167,8 +188,11 @@ class SlickGridFloatingWrapModel {
         position: "absolute",
         zIndex: 20,
         contain: "none",
-        maxHeight: "180px",
-        overflowY: "auto",
+        height: `${this.expandedCell.heightState.height}px`,
+        maxHeight: `${this.expandedCell.heightState.height}px`,
+        overflowY: this.expandedCell.heightState.overflowY,
+        hasScrollbar: this.expandedCell.heightState.hasScrollbar,
+        lineCount: this.expandedCell.lineCount,
         whiteSpace: "normal",
         wordBreak: "break-word",
         overflowWrap: "anywhere",
@@ -184,8 +208,11 @@ class SlickGridFloatingWrapModel {
       position: "absolute",
       zIndex: 1,
       contain: "strict",
+      height: "24px",
       maxHeight: "24px",
       overflowY: "hidden",
+      hasScrollbar: false,
+      lineCount: 1,
       whiteSpace: "nowrap",
       wordBreak: "normal",
       overflowWrap: "normal",
@@ -410,19 +437,52 @@ async function runTestSuite() {
   }
 
   // ------------------------------------------------------------------
-  // TEST 2.11: Max-Height (180px) & Scrollability
+  // TEST 2.11: Dynamic N-Line Bounds & Scrollability
   // ------------------------------------------------------------------
   try {
-    const gridModel = new SlickGridFloatingWrapModel({ dataView: sampleData });
-    gridModel.setActiveCell(5, 2);
+    const gridModel = new SlickGridFloatingWrapModel({
+      dataView: [
+        ...sampleData,
+        // Synthetic row for exact fit: 3 lines
+        {
+          id: 1001,
+          provider: "TestProvider",
+          message: "Line One\nLine Two\nLine Three",
+          raw: "{}",
+        },
+      ],
+    });
 
-    const style = gridModel.getCellStyle(5, 2);
-    assert.strictEqual(style.maxHeight, "180px", "Floating cell max-height must be capped at 180px");
-    assert.strictEqual(style.overflowY, "auto", "Floating cell overflow-y must be 'auto'");
+    // 1. Contract Rule 1 (N <= 1): flat 24px, no expansion, no scrollbar
+    gridModel.setActiveCell(0, 0); // "1"
+    const styleFlat = gridModel.getCellStyle(0, 0);
+    assert.strictEqual(styleFlat.height, "24px", "Flat cell height must be 24px");
+    assert.strictEqual(styleFlat.overflowY, "hidden", "Flat cell overflow-y must be hidden");
+    assert.strictEqual(styleFlat.hasScrollbar, false, "Flat cell must not have scrollbar");
+    assert.strictEqual(gridModel.expandedCell, null, "N <= 1 must not expand");
 
-    report("TEST 2.11: Max-Height (180px) & Scrollability (max-height: 180px & overflow-y: auto)", true);
+    // 2. Contract Rule 2 (2 <= N <= 5): exact fit (N * 17 + 8), hidden scrollbar
+    const fitRowIndex = sampleData.length; // row with 3 lines
+    gridModel.setActiveCell(fitRowIndex, 2); // message column (width 200)
+    assert(gridModel.expandedCell !== null, "2 <= N <= 5 cell must expand");
+    assert.strictEqual(gridModel.expandedCell.lineCount, 3, "Line count must be 3");
+    const styleFit = gridModel.getCellStyle(fitRowIndex, 2);
+    assert.strictEqual(styleFit.height, `${3 * 17 + 8}px`, "Exact fit height must be 3 * 17 + 8 = 59px");
+    assert.strictEqual(styleFit.overflowY, "hidden", "2 <= N <= 5 cell must have overflow-y: hidden");
+    assert.strictEqual(styleFit.hasScrollbar, false, "2 <= N <= 5 cell must not have scrollbar");
+
+    // 3. Contract Rule 3 (N > 5): 5-line cap (93px), auto scrollbar
+    gridModel.setActiveCell(5, 2); // long message (> 200 chars, N > 5)
+    assert(gridModel.expandedCell !== null, "N > 5 cell must expand");
+    assert(gridModel.expandedCell.lineCount > 5, "Line count must be > 5");
+    const styleCapped = gridModel.getCellStyle(5, 2);
+    assert.strictEqual(styleCapped.height, "93px", "Capped cell height must be 93px (5 * 17 + 8)");
+    assert.strictEqual(styleCapped.overflowY, "auto", "N > 5 cell overflow-y must be 'auto'");
+    assert.strictEqual(styleCapped.hasScrollbar, true, "N > 5 cell must have scrollbar enabled");
+
+    report("TEST 2.11: Dynamic N-Line Bounds & Scrollability (24px flat, exact fit N*17+8, 93px cap & overflow-y: auto)", true);
   } catch (err) {
-    report("TEST 2.11: Max-Height & Scrollability", false, err.message);
+    report("TEST 2.11: Dynamic N-Line Bounds & Scrollability", false, err.message);
   }
 
   // ------------------------------------------------------------------

@@ -1,47 +1,57 @@
-# BRIEFING — 2026-11-03T03:10:30Z
+# BRIEFING — 2026-11-04T18:43:00Z
 
 ## Mission
-Explore testing suite and build/release pipeline for v2.4.3: deep_integration_qa.js Suite JJ design, packaging tools, workspace rules, and test command verification.
+Phase 0 Survey of Native Backend Engine, Forensics Ingestion Pipelines, and Packaging/VCS Infrastructure for the Toad Tauri v2 port.
 
 ## 🔒 My Identity
 - Archetype: explorer
-- Roles: explorer, survey
-- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\
-- Original parent: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Milestone: Survey & Test/Release Architecture Plan for v2.4.3
+- Roles: investigation, synthesis
+- Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3
+- Original parent: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
+- Milestone: Phase 0 Survey
 
 ## 🔒 Key Constraints
 - Read-only investigation — do NOT implement
-- Follow workspace rules (Jujutsu / Zero-Duplicate Binary Storage / Auto 4th-digit increment or explicit v2.4.3)
-- Use exact node executable path: D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe
-- .agents/teamwork/ must contain only metadata
+- Zero-duplicate binary storage policy (never copy/duplicate built binary across historical version names)
+- English-only public language policy
+- Jujutsu (`jj`) local default VCS with Git colocation
+- PE metadata branding: HelloKittyXamKinLung / p1rkr41n@users.noreply.github.com
+- Do not modify source code in this survey phase; produce structured reports
 
 ## Current Parent
-- Conversation ID: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Updated: 2026-11-03T03:05:53Z
+- Conversation ID: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
+- Updated: 2026-11-04T18:43:00Z
 
 ## Investigation State
 - **Explored paths**:
-  - `tests/deep_integration_qa.js` (suites AA to II verified, current baseline 192 passed, 0 failed, 11.71s)
-  - `tad-master/packages/tad-app/app/appMenu.ts` (lines 42-55 legacy Open File/Dir items identified)
-  - `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx` (lines 544, 603, 661 projMatches bug located; line 320 project title double click rename spot)
-  - `tad-master/packages/tadviewer/less/sidebar.less` (lines 800-905 inspected for table & theme styles)
-  - `tools/bump_version.js`, `dist_package.ps1`, `package_release.ps1`, `tad-master/package.json`
-  - `releases/` directory & binary footprint check
-  - Jujutsu `jj` status and commit history
+  - `d:\Shared_UserData\Downloads\tad\.gitignore`
+  - `tad-master/packages/toad-core-rust/src/` (`config_manager.rs`, `csv_engine.rs`, `evtx_parser.rs`)
+  - `tad-master/packages/host-bridge/src/` (`commandAliases.ts`, `TauriHostAdapter.ts`)
+  - `tad-master/packages/reltab/src/` (`QueryExp.ts`, `FilterExp.ts`, `toSql.ts`, `hybridProtocol.ts`)
+  - `tad-master/packages/reltab-duckdb/src/` (`reltab-duckdb.ts`, `csvimport.ts`)
+  - `tauri/docs/` (`TAURI_V2_AI_COMPACT.md`, `develop/calling-rust.md`)
+  - `tests/` (`test_arrow_ipc_stream.js`, `test_grid_wrap_concurrency_stress.js`)
+  - `.agents/skills/releases/` (`SKILL.md`, `package_release.ps1`)
+  - Windows environment toolchain verification (`cargo`, `rustc`, `jj`, local `node`, local `npm`)
 - **Key findings**:
-  - Test baseline is currently 192/192 PASS. Adding Suite JJ (JJ.1 to JJ.8) will bring test count to 200+ (approx 200-205).
-  - Existing test II.12 strictly asserts `2.4.2` and will need backward-compatible tolerance (`"2.4.2" || "2.4.3"`) when bumped.
-  - `tools/bump_version.js 2.4.3` coordinates all 4 packages, scripts, README, and winget manifest.
-  - Footprint gates in `dist_package.ps1` (`app.asar <= 45.0 MB`, `portable exe <= 75.0 MB`) are well-calibrated (v2.4.2 exe was 72.09 MB).
-  - Release pipeline satisfies Zero-Duplicate Binary Storage policy.
-- **Unexplored areas**: None. Full scope of testing & packaging investigation completed.
+  - DuckDB 1.0 bundled C++ mode verified optimal for zero-dependency standalone portable binary.
+  - In-process Tokio async dual-engine architecture (`ui_conn` vs `ingest_pool`) completely prevents UI rendering freezes during large log ingestion.
+  - Binary Arrow IPC stream serialization via `StreamWriter` with `0xFFFFFFFF` continuation marker delivers zero-copy responses directly to `window.__TAURI__.core.invoke` via `tauri::ipc::Response`.
+  - Forensics pipelines specified: CSV sniffer with `all_varchar = true` assertion protection, SIMD-accelerated EVTX decoding, dynamic JSONL flattening.
+  - Parquet State Ledger WAL (`toad_ledger.parquet`) in `toadAppData_[5chars]` with 6 startup reconciliation scenarios, tombstone rows, 500ms debounce `Untitled-1` recovery, and cascade cache purging.
+  - Root `.gitignore` line 44 currently ignores `tauri/`; must be reconfigured to track `tauri/project/` while excluding build artifacts (`target/`, `node_modules/`, `dist/`).
+  - Standalone portable packaging script `package_portable.ps1` delivers `< 50MB` executable, optimal `.zip`, `SHA256SUMS.txt`, and Winget manifest under `HelloKittyXamKinLung`.
+- **Unexplored areas**: None within the survey scope; complete blueprint delivered.
 
 ## Key Decisions Made
-- SUITE JJ architecture designed across 8 cohesive sub-suites (JJ.1 through JJ.8) providing rigorous coverage of R1 through R5.
-- Documented exact commands for test verification and 3-step packaging pipeline.
+- Recommended DuckDB 1.0 bundled static linkage over dynamic linking.
+- Standardized binary response protocol on Apache Arrow IPC Streams via `tauri::ipc::Response`.
+- Formalized dual-driver concurrency design for `AppState`.
+- Identified mandatory root `.gitignore` adjustment as Phase 1 gating prerequisite.
 
 ## Artifact Index
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\DISPATCH.md — Received instructions
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\progress.md — Heartbeat and progress log
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\handoff.md — Final handoff report
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\DISPATCH.md` — Inbound instructions
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\BRIEFING.md` — Situational awareness & memory
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\progress.md` — Liveness heartbeat & progress
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\backend_infra_report.md` — Comprehensive survey report
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\handoff.md` — 5-component handoff report

@@ -81,3 +81,74 @@ Enforce workspace standards: commit using Jujutsu (`jj`), author strictly `Hello
 - [ ] TypeScript compilation and Webpack production build succeed without errors.
 - [ ] `dist_package.ps1` and `package_release.ps1` produce canonical portable artifacts in `releases/` adhering to the zero-duplicate binary policy.
 - [ ] All commits are recorded with `jj` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+## 2026-11-04T17:54:42Z
+Use a team of 20 engineers across 5 squads to implement intelligent line calculation & auto-wrap across all three tables, refactor the Parse Columns dialog, and suppress background active cell highlights behind modal overlays in ToadViewer.
+
+Integrity mode: development
+
+Reference material:
+- Plan: `C:/Users/huydq/.gemini/antigravity/brain/489b863f-84dc-4fd6-bbfb-142488ba4d23/ke_hoach_trien_khai_20_ki_su_song_song.md`
+
+## Requirements
+
+### R1. Intelligent Line Calculation & Dynamic Auto-Wrap across All 3 Tables
+Implement pure mathematical and heuristic line calculation in `tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts` and dynamic auto-wrap across:
+- Table 1 (Sidebar Files Table): `ProjectFilesTable.tsx`, `less/sidebar.less`
+- Table 2 (Main DataGrid): `DataGrid.tsx`, `src/slickgrid.scss`
+- Table 3 (Parse Columns Table): `RegexDialog.tsx`, `NestedFieldsTable.tsx`, `less/nested-dialog.less`
+
+Contract specifications:
+- N <= 1 line: Flat single-line, NO expansion, NO elevation, default height (24px-25px), no scrollbar.
+- 2 <= N <= 5 lines: Expand to fit exactly N lines (height = N * 17px + 8px), NO scrollbar (`overflow-y: hidden`).
+- N > 5 lines: Capped height at exactly 5 lines (approx 93-95px), enable slim 4px vertical scrollbar (`overflow-y: auto`).
+- 4-way collapse lifecycle: re-click active cell, click another cell, click outside, or press `Escape`.
+
+### R2. Parse Columns Header & Format Dropdown Refactor
+In `RegexDialog.tsx`:
+- Remove `#ntab-nested` from header mode switcher. Top tabs strictly only: `[Visual]` and `[Regex]`.
+- In `minFormatSelect` dropdown (`using [Format ▾]`): add `<option value="nested_json">Nested JSON</option>`.
+- Remove redundant button `#btn-switch-nested` (`Auto-Flatten Available ➔`).
+- When `nested_json` is selected: trigger scan `triggerNestedScan(100)` if empty, and switch dialog body to the Nested JSON view (`SampleScanController`, `NestedFieldsTable`, live DuckDB SQL Preview).
+- When other formats are selected: switch back to the Visual sample and rule mapping view.
+- Update `handleApply` to support both `formatType === "nested_json"` and `mode === "nested_json"`.
+
+### R3. Active Cell Highlight Suppression behind Modal Overlays
+In `RegexDialog.tsx` and `slickgrid.scss`:
+- When dialog opens (`isOpen === true`), dispatch `"dismiss-grid-cell-expand"`, dismiss floating cell nodes (`.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded`), and call `grid.resetActiveCell()`.
+- When `body.bp4-overlay-open` is active, suppress `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected` (background transparent, box-shadow none, outline none, border transparent) so no cell glows white or blue behind modal overlays.
+- Coordinate cross-component overlay events via `tad-master/packages/toadviewer/src/utils/GridOverlayBus.ts`.
+
+### R4. Automated Unit & Stress Test Suites
+Implement new test suites:
+- `tests/unit/test_cell_line_calculator.js`: 25 test cases for boundary line counts (N = 1, 2, 5, 6, 100), column widths (45px to 1200px), special characters, and nested JSON.
+- `tests/unit/test_parse_dialog_nested_dropdown.js`: 15 test cases verifying tab switcher, format dropdown switching, and auto-scan trigger.
+- `tests/qa/test_modal_cell_glow_suppression.js`: 10 test cases verifying grid active cell reset and highlight suppression on modal open.
+Update existing test suites (`test_project_files_table_wrap_resize.js`, `test_datagrid_floating_wrap.js`, `test_grid_wrap_concurrency_stress.js`) and register all suites in `run_tests.js`.
+
+### R5. Systems QA, Packaging & Release Standards
+Enforce workspace standards:
+- Commit and release author strictly `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+- Public language strictly 100% professional English for commits, tags, and PRs.
+- Zero-Duplicate Binary Policy: only `Toad.exe` at root, and canonical `v2.5.1` pair (`Toad-2.5.1-x64-portable.exe` & `Toad-2.5.1-x64-portable.zip`) in `releases/`.
+- Maintain clean build cache via `tools/clean_cache.ps1` and execute packaging via `dist_package.ps1` and `package_release.ps1`.
+
+## Acceptance Criteria
+
+### Automated Test Verification
+- [ ] `node tests/unit/test_cell_line_calculator.js` passes all 25 test cases.
+- [ ] `node tests/unit/test_parse_dialog_nested_dropdown.js` passes all 15 test cases.
+- [ ] `node tests/qa/test_modal_cell_glow_suppression.js` passes all 10 test cases.
+- [ ] `node run_tests.js --all` passes 100% of all registered test suites (575+ tests).
+
+### Functional & Visual Acceptance Criteria
+- [ ] Cells with <= 1 line render flat at default height without elevation or scrollbar.
+- [ ] Cells with 2 <= N <= 5 lines expand to exactly N lines with `overflow-y: hidden` (no scrollbar).
+- [ ] Cells with > 5 lines cap height at 5 lines with a slim 4px vertical scrollbar (`overflow-y: auto`).
+- [ ] Expanded rows/cells collapse upon re-clicking, clicking another cell/row, clicking outside, or pressing `Escape`.
+- [ ] Parse Columns dialog header displays strictly `[Visual]` and `[Regex]` modes; format dropdown contains `Nested JSON` which switches view and triggers auto-scan; `#btn-switch-nested` is removed.
+- [ ] Opening Parse Columns dialog dismisses active floating cells and eliminates cell glow/border in the grid behind the overlay.
+
+### Build and Release Verification
+- [ ] TypeScript compilation and Webpack production build complete with zero errors.
+- [ ] `dist_package.ps1` and `package_release.ps1` generate `Toad.exe` and `releases/Toad-2.5.1-x64-portable.*` without duplicate historical binaries.
+- [ ] Version control commits recorded using `jj` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with professional English messages.

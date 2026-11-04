@@ -28,6 +28,11 @@ import { CellFormatter } from "../FormatOptions";
 import { DataRow, PagedDataView } from "../PagedDataView";
 import { Cell } from "./SelectionChangeData";
 import { SimpleClipboard } from "./SimpleClipboard";
+import {
+  calculateLineCount,
+  getHeightAndScrollState,
+} from "../utils/CellLineCalculator";
+import { onDismissGridCellExpand } from "../utils/GridOverlayBus";
 
 const { Slick } = SlickGrid;
 const { Plugins } = SlickGrid as any;
@@ -573,10 +578,19 @@ const createGrid = (
   // Floating In-Place Active Cell Wrap state & lifecycle (Stream 4 & 6)
   let currentExpandedCellNode: HTMLElement | null = null;
   let currentExpandedRowNode: HTMLElement | null = null;
+  let currentExpandedPos: { row: number; cell: number } | null = null;
+  let justActivatedRowCell: { row: number; cell: number } | null = null;
 
   const dismissFloatingCell = () => {
+    currentExpandedPos = null;
     if (currentExpandedCellNode) {
       currentExpandedCellNode.classList.remove("slick-cell-active-expanded");
+      currentExpandedCellNode.style.height = "";
+      currentExpandedCellNode.style.overflowY = "";
+      try {
+        currentExpandedCellNode.style.removeProperty("height");
+        currentExpandedCellNode.style.removeProperty("overflow-y");
+      } catch (err) {}
       currentExpandedCellNode = null;
     }
     if (currentExpandedRowNode) {
@@ -589,9 +603,16 @@ const createGrid = (
       document.getElementById(containerId);
     if (container) {
       const cells = container.querySelectorAll(".slick-cell-active-expanded");
-      cells.forEach((c: Element) =>
-        c.classList.remove("slick-cell-active-expanded")
-      );
+      cells.forEach((c: Element) => {
+        c.classList.remove("slick-cell-active-expanded");
+        const el = c as HTMLElement;
+        el.style.height = "";
+        el.style.overflowY = "";
+        try {
+          el.style.removeProperty("height");
+          el.style.removeProperty("overflow-y");
+        } catch (err) {}
+      });
       const rows = container.querySelectorAll(
         ".slick-row-has-expanded, .slick-row-active-expanded"
       );
@@ -633,23 +654,39 @@ const createGrid = (
     if (!cellNode) return;
 
     const textContent = (cellNode.textContent || "").trim();
-    const textLen = textContent.length;
-    // Overflow condition: scrollWidth > clientWidth or text length > 28
-    const isOverflowing =
-      cellNode.scrollWidth > cellNode.clientWidth || textLen > 28;
+    const colWidth =
+      colDef.width || (cellNode.offsetWidth || cellNode.clientWidth || 100);
 
-    if (isOverflowing) {
-      cellNode.classList.add("slick-cell-active-expanded");
-      currentExpandedCellNode = cellNode;
+    const N = calculateLineCount(textContent, colWidth - 16);
+    const heightState = getHeightAndScrollState(N, 17, 8, 24);
 
-      const rowNode = (
-        cellNode.closest ? cellNode.closest(".slick-row") : cellNode.parentElement
-      ) as HTMLElement;
-      if (rowNode) {
-        rowNode.classList.add("slick-row-has-expanded");
-        rowNode.classList.add("slick-row-active-expanded");
-        currentExpandedRowNode = rowNode;
-      }
+    // Contract Rule 1 (N <= 1): return immediately!
+    // Do NOT add .slick-cell-active-expanded, do NOT float the cell, stays flat 24px.
+    if (N <= 1 || !heightState.shouldExpand) {
+      return;
+    }
+
+    // Contract Rule 2 (2 <= N <= 5): add .slick-cell-active-expanded and .slick-row-has-expanded.
+    // Set inline cellNode.style.height = heightState.height + "px" and overflowY = "hidden".
+    // Contract Rule 3 (N > 5): add .slick-cell-active-expanded and .slick-row-has-expanded.
+    // Set inline cellNode.style.height = heightState.height + "px" (93px) and overflowY = "auto".
+    cellNode.classList.add("slick-cell-active-expanded");
+    cellNode.style.height = heightState.height + "px";
+    cellNode.style.overflowY = heightState.overflowY;
+    try {
+      cellNode.style.setProperty("height", heightState.height + "px", "important");
+      cellNode.style.setProperty("overflow-y", heightState.overflowY, "important");
+    } catch (err) {}
+    currentExpandedCellNode = cellNode;
+    currentExpandedPos = { row, cell };
+
+    const rowNode = (
+      cellNode.closest ? cellNode.closest(".slick-row") : cellNode.parentElement
+    ) as HTMLElement;
+    if (rowNode) {
+      rowNode.classList.add("slick-row-has-expanded");
+      rowNode.classList.add("slick-row-active-expanded");
+      currentExpandedRowNode = rowNode;
     }
   };
 
@@ -889,6 +926,7 @@ const createGrid = (
       return;
     }
 
+    justActivatedRowCell = { row: args.row, cell: args.cell };
     tryExpandCell(args.row, args.cell);
 
     const curProps = (grid as any)._tadProps || props;
@@ -926,12 +964,42 @@ const createGrid = (
       dismissFloatingCell();
     }
   };
-  window.addEventListener("keydown", handleGridEscape);
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("keydown", handleGridEscape);
+  }
+
+  // Click outside grid dismisses floating cell (Stream 6 / Squad 3)
+  const handleGridOutsideClick = (e: MouseEvent) => {
+    const container =
+      (grid.getContainerNode && grid.getContainerNode()) ||
+      document.getElementById(containerId);
+    if (!container) return;
+    const target = e.target as Node;
+    if (target && !container.contains(target)) {
+      dismissFloatingCell();
+    }
+  };
+  if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+    document.addEventListener("mousedown", handleGridOutsideClick);
+  }
+
+  // Cross-component overlay event bus listener
+  const unsubDismissExpand = onDismissGridCellExpand(() => {
+    dismissFloatingCell();
+  });
 
   const origDestroy = grid.destroy;
   grid.destroy = () => {
     dismissFloatingCell();
-    window.removeEventListener("keydown", handleGridEscape);
+    if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
+      window.removeEventListener("keydown", handleGridEscape);
+    }
+    if (typeof document !== "undefined" && typeof document.removeEventListener === "function") {
+      document.removeEventListener("mousedown", handleGridOutsideClick);
+    }
+    if (typeof unsubDismissExpand === "function") {
+      unsubDismissExpand();
+    }
     if (origDestroy && typeof origDestroy === "function") {
       origDestroy.call(grid);
     }
@@ -968,6 +1036,45 @@ const createGrid = (
     if (!columns || !columns[args.cell]) return;
     const col = columns[args.cell];
     var item = grid.getDataItem(args.row);
+
+    // 4-way collapse lifecycle: re-click active cell toggles collapse
+    if (
+      currentExpandedPos &&
+      currentExpandedPos.row === args.row &&
+      currentExpandedPos.cell === args.cell
+    ) {
+      const wasJustActivated =
+        justActivatedRowCell &&
+        justActivatedRowCell.row === args.row &&
+        justActivatedRowCell.cell === args.cell;
+
+      justActivatedRowCell = null;
+
+      if (!wasJustActivated) {
+        dismissFloatingCell();
+        const cellVal = item && col ? item[col.id] : null;
+        curProps.onGridClick?.(args.row, args.cell, item, col?.id, cellVal);
+        return;
+      }
+    } else {
+      const wasJustActivated =
+        justActivatedRowCell &&
+        justActivatedRowCell.row === args.row &&
+        justActivatedRowCell.cell === args.cell;
+
+      justActivatedRowCell = null;
+
+      const active = grid.getActiveCell ? grid.getActiveCell() : null;
+      if (
+        !wasJustActivated &&
+        active &&
+        active.row === args.row &&
+        active.cell === args.cell &&
+        !currentExpandedPos
+      ) {
+        tryExpandCell(args.row, args.cell);
+      }
+    }
 
     if (col && col.id === "_expand") {
       if (item && item._isLeaf !== false) {

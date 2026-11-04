@@ -41,7 +41,12 @@ tmp_test*/
 
 
 ponytail/
-tauri/
+!tauri/
+!tauri/project/
+tauri/project/src-tauri/target/
+tauri/project/node_modules/
+tauri/project/dist/
+tauri/project/toadAppData*/
 
 __pycache__/
 *.pyc

@@ -10,9 +10,9 @@
  * - Window blur and mouseleave cleanup (cancel in-flight drag)
  * - Double-click auto-fit calculation from visible text (round(len * 7.0 + 24))
  * - Double-click auto-fit min clamping (45px) and max clamping (400px)
- * - Active row selection wrap trigger (.is-selected with white-space: normal, word-break: break-all)
- * - Compact single-line preservation for unselected rows (25px, white-space: nowrap)
- * - Max-height capping & scrollability (180px, overflow-y: auto, 4px slim scrollbar)
+ * - Active row selection wrap trigger (.is-selected.is-expanded with white-space: normal, word-break: break-all)
+ * - Compact single-line preservation for unselected and N<=1 rows (25px flat, white-space: nowrap)
+ * - Dynamic N-line bounds capping & scrollability (25px flat for N<=1, exact N*17+8 for 2<=N<=5, 93px cap & scrollbar for N>5)
  * - Toggle click collapse (clicking selected row collapses to single line)
  * - Escape key and click-away dismissal
  */
@@ -22,6 +22,31 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "../..");
+
+// Hook TypeScript compiler to require .ts files directly in Node.js
+const ts = require(path.resolve(ROOT_DIR, "tad-master/node_modules/typescript"));
+
+if (!require.extensions[".ts"]) {
+  require.extensions[".ts"] = function (module, filename) {
+    const content = fs.readFileSync(filename, "utf8");
+    const result = ts.transpileModule(content, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        esModuleInterop: true,
+      },
+    });
+    module._compile(result.outputText, filename);
+  };
+}
+
+const {
+  calculateLineCount,
+  getHeightAndScrollState,
+} = require(path.resolve(
+  ROOT_DIR,
+  "tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts"
+));
 
 const BOLD = "\x1b[1m";
 const GREEN = "\x1b[32m";
@@ -142,25 +167,54 @@ class ProjectFilesTableStateModel {
 
   getRowStyle(filePath) {
     const isSelected = this.selectedRowPath === filePath;
-    if (isSelected) {
-      return {
-        className: "file-table-row is-selected",
-        height: "auto",
-        whiteSpace: "normal",
-        wordBreak: "break-all",
-        overflowWrap: "anywhere",
-        containerMaxHeight: "180px",
-        overflowY: "auto",
-      };
+    const file = this.files.find((f) => f.filePath === filePath);
+
+    if (isSelected && file) {
+      const nameLines = calculateLineCount(file.fileName, (this.colWidths.name || 140) - 24);
+      const dirLines = calculateLineCount(file.relDir || file.dir || "", (this.colWidths.dir || 120) - 12);
+      const lineCount = Math.max(nameLines, dirLines);
+      const heightState = getHeightAndScrollState(lineCount, 17, 8, 25);
+
+      if (heightState.shouldExpand) {
+        return {
+          className: "file-table-row is-selected is-expanded",
+          height: heightState.height,
+          whiteSpace: "normal",
+          wordBreak: "break-all",
+          overflowWrap: "anywhere",
+          containerMaxHeight: heightState.height,
+          overflowY: heightState.overflowY,
+          shouldExpand: true,
+          hasScrollbar: heightState.hasScrollbar,
+          lineCount: lineCount,
+        };
+      } else {
+        return {
+          className: "file-table-row is-selected",
+          height: 25,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          containerMaxHeight: 25,
+          overflowY: "hidden",
+          shouldExpand: false,
+          hasScrollbar: false,
+          lineCount: 1,
+        };
+      }
     }
+
     return {
       className: "file-table-row",
-      height: "25px",
+      height: 25,
       whiteSpace: "nowrap",
       overflow: "hidden",
       textOverflow: "ellipsis",
-      containerMaxHeight: "25px",
+      containerMaxHeight: 25,
       overflowY: "hidden",
+      shouldExpand: false,
+      hasScrollbar: false,
+      lineCount: 1,
     };
   }
 }
@@ -425,18 +479,19 @@ async function runTestSuite() {
 
     const style = model.getRowStyle(targetPath);
     assert(style.className.includes("is-selected"), "Selected row must contain 'is-selected' class");
-    assert.strictEqual(style.height, "auto", "Selected row height must be 'auto'");
+    assert(style.className.includes("is-expanded"), "Multi-line row must contain 'is-expanded' class");
     assert.strictEqual(style.whiteSpace, "normal", "Selected row white-space must be 'normal'");
     assert.strictEqual(style.wordBreak, "break-all", "Selected row word-break must be 'break-all'");
     assert.strictEqual(style.overflowWrap, "anywhere", "Selected row overflow-wrap must be 'anywhere'");
+    assert.strictEqual(style.height, 93, "Expanded row height must match dynamic N*17+8 (5*17+8 = 93px)");
 
-    report("TEST 1.11: Active Row Selection Wrap Trigger (.is-selected, white-space: normal, word-break: break-all)", true);
+    report("TEST 1.11: Active Row Selection Wrap Trigger (.is-selected.is-expanded, white-space: normal, word-break: break-all)", true);
   } catch (err) {
     report("TEST 1.11: Active Row Selection Wrap Trigger", false, err.message);
   }
 
   // ------------------------------------------------------------------
-  // TEST 1.12: Compact Single-Line Preservation for Unselected Rows
+  // TEST 1.12: Compact Single-Line Preservation for Unselected & N<=1 Rows
   // ------------------------------------------------------------------
   try {
     const model = new ProjectFilesTableStateModel({ files: sampleFiles });
@@ -445,30 +500,75 @@ async function runTestSuite() {
     // Check row 0 (unselected)
     const unselectedStyle = model.getRowStyle(sampleFiles[0].filePath);
     assert(!unselectedStyle.className.includes("is-selected"), "Unselected row must NOT contain 'is-selected'");
-    assert.strictEqual(unselectedStyle.height, "25px", "Unselected row must preserve 25px height");
+    assert(!unselectedStyle.className.includes("is-expanded"), "Unselected row must NOT contain 'is-expanded'");
+    assert.strictEqual(unselectedStyle.height, 25, "Unselected row must preserve 25px height");
     assert.strictEqual(unselectedStyle.whiteSpace, "nowrap", "Unselected row must preserve white-space: nowrap");
     assert.strictEqual(unselectedStyle.overflow, "hidden", "Unselected row must preserve overflow: hidden");
     assert.strictEqual(unselectedStyle.textOverflow, "ellipsis", "Unselected row must preserve text-overflow: ellipsis");
 
-    report("TEST 1.12: Compact Single-Line Preservation for Unselected Rows (25px, white-space: nowrap)", true);
+    // Check row 0 when selected (N <= 1 single line file): must stay flat 25px and NOT expand
+    model.handleRowClick(sampleFiles[0].filePath);
+    const shortSelectedStyle = model.getRowStyle(sampleFiles[0].filePath);
+    assert(shortSelectedStyle.className.includes("is-selected"), "Selected short row must contain 'is-selected'");
+    assert(!shortSelectedStyle.className.includes("is-expanded"), "N <= 1 row must NOT contain 'is-expanded'");
+    assert.strictEqual(shortSelectedStyle.height, 25, "N <= 1 row must remain flat 25px");
+    assert.strictEqual(shortSelectedStyle.whiteSpace, "nowrap", "N <= 1 row must preserve white-space: nowrap");
+    assert.strictEqual(shortSelectedStyle.overflowY, "hidden", "N <= 1 row must have overflow-y: hidden");
+    assert.strictEqual(shortSelectedStyle.hasScrollbar, false, "N <= 1 row must not have scrollbar");
+
+    report("TEST 1.12: Compact Single-Line Preservation for Unselected & N<=1 Rows (25px flat, white-space: nowrap)", true);
   } catch (err) {
-    report("TEST 1.12: Compact Single-Line Preservation for Unselected Rows", false, err.message);
+    report("TEST 1.12: Compact Single-Line Preservation for Unselected & N<=1 Rows", false, err.message);
   }
 
   // ------------------------------------------------------------------
-  // TEST 1.13: Max-Height Capping & Scrollability (180px)
+  // TEST 1.13: Dynamic N-Line Bounds Capping & Scrollability (25px flat, exact N*17+8, 93px cap)
   // ------------------------------------------------------------------
   try {
     const model = new ProjectFilesTableStateModel({ files: sampleFiles });
+
+    // Boundary 1: N <= 1 line -> flat 25px, no expansion, no scrollbar
+    model.handleRowClick(sampleFiles[0].filePath);
+    const flatStyle = model.getRowStyle(sampleFiles[0].filePath);
+    assert.strictEqual(flatStyle.height, 25, "N <= 1 must render flat at 25px");
+    assert.strictEqual(flatStyle.shouldExpand, false, "N <= 1 must not expand");
+    assert.strictEqual(flatStyle.overflowY, "hidden", "N <= 1 must have overflowY: hidden");
+    assert.strictEqual(flatStyle.hasScrollbar, false, "N <= 1 must not have scrollbar");
+
+    // Boundary 2: 2 <= N <= 5 lines -> exact fit (N * 17 + 8), no scrollbar
+    // 2a. N = 3 lines at width 200px -> exact height 3 * 17 + 8 = 59px
+    model.colWidths.name = 200;
+    model.colWidths.dir = 200;
     model.handleRowClick(sampleFiles[1].filePath);
+    const fit3Style = model.getRowStyle(sampleFiles[1].filePath);
+    assert.strictEqual(fit3Style.lineCount, 3, "Line count should be 3 at width 200px");
+    assert.strictEqual(fit3Style.height, 59, "2 <= N <= 5 must fit exact height (3 * 17 + 8 = 59px)");
+    assert.strictEqual(fit3Style.shouldExpand, true, "2 <= N <= 5 must expand");
+    assert.strictEqual(fit3Style.overflowY, "hidden", "2 <= N <= 5 must have overflowY: hidden");
+    assert.strictEqual(fit3Style.hasScrollbar, false, "2 <= N <= 5 must not have scrollbar");
 
-    const style = model.getRowStyle(sampleFiles[1].filePath);
-    assert.strictEqual(style.containerMaxHeight, "180px", "Selected row container max-height must be capped at 180px");
-    assert.strictEqual(style.overflowY, "auto", "Selected row container overflow-y must be 'auto'");
+    // 2b. N = 5 lines at default width (140px, 120px) -> exact height 5 * 17 + 8 = 93px
+    model.colWidths.name = 140;
+    model.colWidths.dir = 120;
+    const fit5Style = model.getRowStyle(sampleFiles[1].filePath);
+    assert.strictEqual(fit5Style.lineCount, 5, "Line count should be 5 at default width");
+    assert.strictEqual(fit5Style.height, 93, "2 <= N <= 5 must fit exact height (5 * 17 + 8 = 93px)");
+    assert.strictEqual(fit5Style.shouldExpand, true, "2 <= N <= 5 must expand");
+    assert.strictEqual(fit5Style.overflowY, "hidden", "2 <= N <= 5 must have overflowY: hidden (no scrollbar)");
+    assert.strictEqual(fit5Style.hasScrollbar, false, "2 <= N <= 5 must not have scrollbar");
 
-    report("TEST 1.13: Max-Height Capping & Scrollability (180px max-height & overflow-y: auto)", true);
+    // Boundary 3: N > 5 lines -> capped at 5 lines (93px), slim scrollbar enabled
+    model.colWidths.name = 45; // clamp to min width to force > 5 lines
+    const capStyle = model.getRowStyle(sampleFiles[1].filePath);
+    const expectedCapHeight = 5 * 17 + 8; // 93px
+    assert(capStyle.lineCount > 5, "Line count must exceed 5 at 45px column width");
+    assert.strictEqual(capStyle.height, expectedCapHeight, "N > 5 must cap at 5 lines (5 * 17 + 8 = 93px)");
+    assert.strictEqual(capStyle.overflowY, "auto", "N > 5 must enable overflowY: auto");
+    assert.strictEqual(capStyle.hasScrollbar, true, "N > 5 must enable slim scrollbar");
+
+    report("TEST 1.13: Dynamic N-Line Bounds Capping & Scrollability (25px flat, exact N*17+8, 93px cap & scrollbar)", true);
   } catch (err) {
-    report("TEST 1.13: Max-Height Capping & Scrollability", false, err.message);
+    report("TEST 1.13: Dynamic N-Line Bounds Capping & Scrollability", false, err.message);
   }
 
   // ------------------------------------------------------------------
@@ -487,7 +587,7 @@ async function runTestSuite() {
     assert.strictEqual(model.selectedRowPath, null, "Second click on selected row collapses selection (toggle click)");
 
     const style = model.getRowStyle(targetPath);
-    assert.strictEqual(style.height, "25px", "Collapsed row height reverts to 25px");
+    assert.strictEqual(style.height, 25, "Collapsed row height reverts to 25px");
     assert.strictEqual(style.whiteSpace, "nowrap", "Collapsed row whiteSpace reverts to nowrap");
 
     report("TEST 1.14: Toggle Click Collapse (re-clicking selected row deselects & collapses)", true);

@@ -1,47 +1,54 @@
-Use a full team of subagents to implement Column Resizing and Active Row Auto-Wrap across both the File Management Table and Main Data Grid in ToadViewer based on the approved 11-stream plan.
+Use a team of 50 engineers across 7 squads to port and rebuild the Toad application for Windows on Tauri v2 at `D:\Shared_UserData\Downloads\tad\tauri\project`, reference Tauri v2 documentation at `D:\Shared_UserData\Downloads\tad\tauri\docs/`, and package a portable release at `D:\Shared_UserData\Downloads\tad\tauri\project\releases/`.
 
+Working directory: D:\Shared_UserData\Downloads\tad
 Integrity mode: development
 
 Reference material:
-- Plan: `C:/Users/huydq/.gemini/antigravity/brain/489b863f-84dc-4fd6-bbfb-142488ba4d23/ke_hoach_trien_khai_auto_wrap_va_keo_dan_cot_song_song.md`
-- Design Spec: `C:/Users/huydq/.gemini/antigravity/brain/489b863f-84dc-4fd6-bbfb-142488ba4d23/thiet_ke_tinh_nang_auto_wrap_va_keo_dan_cot.md`
+- Approved plan: `C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md`
+- Tauri v2 documentation: `D:\Shared_UserData\Downloads\tad\tauri\docs/`
+- Existing Frontend source: `tad-master/packages/toadviewer`
+- IPC Command aliases: `packages/host-bridge/src/commandAliases.ts`
+- Host Adapter: `packages/host-bridge/src/TauriHostAdapter.ts`
 
 ## Requirements
 
-### R1. File Management Table Column Resizing & Active Row Auto-Wrap
-Implement draggable column header divider resizers (`col-resizer-handle`) between headers (`Name`, `DirPath`, `Size`, `Status`) in `ProjectFilesTable.tsx` with minWidth clamping (45px) and double-click auto-fit based on longest visible text. Implement active row auto-wrap on click (`is-selected`) expanding dynamically (`white-space: normal; word-break: break-all; overflow-wrap: anywhere; max-height: 180px; overflow-y: auto;`) while unselected rows stay compact single-line. Collapse on clicking another row, toggle clicking selected row, clicking outside table, or pressing `Escape`.
+### R1. Scaffolding, Toolchain & Jujutsu Version Control
+Set up the Tauri v2 project structure at `tauri/project` with Vite 5 and React 18. Update the root `.gitignore` to track `tauri/project/` while strictly excluding build artifacts (`tauri/project/src-tauri/target/`, `node_modules/`, `dist/`). Manage local version control using Jujutsu (`jj`), recording commits under identity `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with professional English commit messages. Strictly perform local builds only (never call `git push` or GitHub Release API).
 
-### R2. Main Data Grid Double-Click Auto-Fit & Floating In-Place Active Cell Wrap
-In `DataGrid.tsx` (SlickGrid), implement double-click on header resizer handles to calculate max string length on visible rows and auto-fit column width. Implement Floating In-Place Wrap on active/selected cell/row (`.slick-cell-active-expanded`, `z-index: 20`, light border, soft shadow `0 4px 14px rgba(0, 0, 0, 0.15)`, `max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word;`) without distorting SlickGrid virtual scroll coordinates. Dismiss expanded cell on grid scroll or pressing `Escape`.
+### R2. Native Rust Core, DuckDB Engine & Forensics Ingestion
+Implement a 100% Native Rust backend in `src-tauri` using In-Process Tokio Async:
+- DuckDB 1.0 connection pool with dual-engine driver (UI query connection and ingestion worker connections).
+- QueryExp AST compiler to generate optimized DuckDB SQL.
+- Streaming tabular query results to WebView as binary Apache Arrow IPC Stream (`0xFFFFFFFF` marker) via `tauri::ipc::Response`.
+- Ingestion pipelines for RFC-4180 CSV/TSV, JSONL/NDJSON, and binary Windows Event Logs (`.evtx`) decoded via Rust SIMD `evtx` crate.
+- Write-Ahead Log Parquet state ledger (`toad_ledger.parquet`) and portable environment creating `toadAppData_[5chars]` adjacent to the executable.
 
-### R3. CSS Design System, Blueprint Theme & Keyboard Accessibility
-Standardize visual styling in `sidebar.less` and `slickgrid.scss` for Light and Dark themes, including custom slim scrollbars (4px, `border-radius: 2px`), subtle divider line on hover/drag (`rgba(2, 132, 199, 0.75)`), and `.col-resizing` cursor management. Isolate events to prevent row selection when dragging column dividers (`e.stopPropagation()`), handle `window.onblur`/`mouseleave` to cancel unfinished dragging, and support `Escape` key to collapse wrapped rows/cells.
+### R3. Frontend Porting & Host Bridge Integration
+Port and bundle the frontend into `tauri/project/dist/` using Vite 5, reusing React 18, virtualized SlickGrid, pivot table, and ArcSight ESM filter from `tad-master/packages/toadviewer`. Connect the UI via `packages/host-bridge/src/TauriHostAdapter.ts` adhering strictly to IPC command aliases in `packages/host-bridge/src/commandAliases.ts`. Support zero-copy Arrow IPC decoding via `@apache-arrow/es2015-cjs` directly into SlickGrid models. Preserve dark theme and dynamic column wrap/resizing.
 
-### R4. Automated Unit, Stress Test Suites & Runner Integration
-Create automated test suites:
-- `tests/unit/test_project_files_table_wrap_resize.js` (15 test cases covering column width initialization, drag resize, minWidth clamping, double-click auto-fit, selection wrap, and collapse).
-- `tests/unit/test_datagrid_floating_wrap.js` (15 test cases covering SlickGrid double-click auto-fit, floating active cell expansion, z-index/shadow isolation, and scroll/Escape dismissal).
-- `tests/qa/test_grid_wrap_concurrency_stress.js` (10 test cases verifying 100K+ rows virtual scrolling concurrency, memory stability, > 55 scroll FPS, and coordinate preservation).
-Register all new test suites into `run_tests.js` so that `node run_tests.js --all` passes 100%.
+### R4. Automated Testing & Verification
+Implement and execute automated test suites as planned for Squad 1 and Squad 7:
+- Rust Core Unit & Command Tests (`cargo test --verbose` in `src-tauri`).
+- Frontend production build verification (`npm run build`).
+- Arrow IPC roundtrip integration tests (`node tests/test_tauri_arrow_ipc.js`).
+- 100K rows virtual scroll concurrency and memory stress tests (`node tests/test_grid_scroll_stress.js`).
 
-### R5. Release Packaging, VCS & Workspace Standards
-Enforce workspace standards: commit using Jujutsu (`jj`), author strictly `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, zero enterprise/organization credential leaks, and English-only public text. Compile TypeScript, run Webpack production build, execute packaging via `dist_package.ps1` and `package_release.ps1`, maintaining zero duplicate binaries and executable size < 75 MB.
+### R5. Production Portable Packaging & Release Audit
+Build packaging automation script `tauri/project/tools/package_portable.ps1`:
+- Compile optimized binary `Toad-2.5.1-x64-portable.exe` (< 50MB) and compressed archive `Toad-2.5.1-x64-portable.zip` into `tauri/project/releases/`.
+- Generate `SHA256SUMS.txt` and verify PE header metadata.
+- Strictly adhere to Zero-Duplicate Binary storage policy (no intermediate historical version duplicates).
 
 ## Acceptance Criteria
 
-### Unit and Stress Testing
-- [ ] `node tests/unit/test_project_files_table_wrap_resize.js` passes all 15 test cases.
-- [ ] `node tests/unit/test_datagrid_floating_wrap.js` passes all 15 test cases.
-- [ ] `node tests/qa/test_grid_wrap_concurrency_stress.js` passes all 10 stress test cases.
-- [ ] `node run_tests.js --all` executes all registered suites with 100% PASS.
+### Automated Test Verification
+- [ ] Rust Core unit tests pass with 100% success (`cargo test` in `src-tauri`).
+- [ ] Vite frontend build completes without errors (`npm run build`).
+- [ ] Arrow IPC binary stream integration test passes with 100% roundtrip accuracy.
+- [ ] 100K rows scroll stress test passes (FPS > 55, stable RAM delta < 25MB).
 
-### Functional & Interaction Criteria
-- [ ] Dragging header resizers in `ProjectFilesTable` resizes columns smoothly with minimum 45px width, and double-clicking auto-fits to content.
-- [ ] Clicking a row in `ProjectFilesTable` wraps text up to 180px with a scrollbar; clicking again, outside, or pressing `Escape` collapses it.
-- [ ] Double-clicking SlickGrid column header resizers auto-fits column width based on visible rows.
-- [ ] Selected active cells in `DataGrid` with overflowing text display floating expanded in-place without altering virtual scroll row coordinates, and dismiss on scroll or `Escape`.
-
-### Build & Release Verification
-- [ ] TypeScript compilation and Webpack production build succeed without errors.
-- [ ] `dist_package.ps1` and `package_release.ps1` produce canonical portable artifacts in `releases/` adhering to the zero-duplicate binary policy.
-- [ ] All commits are recorded with `jj` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+### Functional & Packaging Verification
+- [ ] Portable executable `Toad-2.5.1-x64-portable.exe` (< 50MB), archive `Toad-2.5.1-x64-portable.zip`, and `SHA256SUMS.txt` are created in `tauri/project/releases/`.
+- [ ] Launching `Toad-2.5.1-x64-portable.exe` opens window in < 300ms and creates portable `toadAppData_[id]` folder adjacent to the executable.
+- [ ] Drag-and-drop loading of CSV, Parquet, and EVTX files correctly renders table data in virtualized SlickGrid.
+- [ ] Jujutsu repository tracks clean commit history locally under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` without remote git push or GitHub API interactions.

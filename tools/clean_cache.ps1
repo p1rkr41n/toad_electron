@@ -18,9 +18,9 @@ foreach ($f in $oldFolders) {
     Remove-Item -Path $f.FullName -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-if (Test-Path "releases\toadAppData_uthyw") {
-    Write-Output "Removing temporary test profile folder releases\toadAppData_uthyw"
-    Remove-Item -Path "releases\toadAppData_uthyw" -Recurse -Force -ErrorAction SilentlyContinue
+Get-ChildItem -Directory -Path releases -Filter "toadAppData_*" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Output "Removing temporary test profile folder: $($_.FullName)"
+    Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Output "=== CLEANUP PHASE 2: Pruning build/ directory (7.6 GB) ==="

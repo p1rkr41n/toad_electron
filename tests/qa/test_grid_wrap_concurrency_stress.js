@@ -20,6 +20,29 @@ const path = require("path");
 
 const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "../..");
 
+const ts = require(path.resolve(ROOT_DIR, "tad-master/node_modules/typescript"));
+if (!require.extensions[".ts"]) {
+  require.extensions[".ts"] = function (module, filename) {
+    const content = fs.readFileSync(filename, "utf8");
+    const result = ts.transpileModule(content, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+        esModuleInterop: true,
+      },
+    });
+    module._compile(result.outputText, filename);
+  };
+}
+
+const {
+  calculateLineCount,
+  getHeightAndScrollState,
+} = require(path.resolve(
+  ROOT_DIR,
+  "tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts"
+));
+
 const BOLD = "\x1b[1m";
 const GREEN = "\x1b[32m";
 const RED = "\x1b[31m";
@@ -107,21 +130,28 @@ class Virtual100KDataView {
     if (!col) return;
 
     const val = String(item[col.field] || "");
-    const estWidth = Math.round(val.length * 7.5 + 24);
+    const lineCount = calculateLineCount(val, col.width - 16);
+    const heightState = getHeightAndScrollState(lineCount, 17, 8, 24);
 
-    // Overflow check (> 28 chars or text width exceeds column width)
-    if (val.length > 28 || estWidth > col.width) {
+    if (heightState.shouldExpand) {
       this.activeExpandedCell = {
         row,
         cell: cellIndex,
         colId: col.id,
         text: val,
+        lineCount,
+        heightState,
         top: 0,
         left: this.columns.slice(0, cellIndex).reduce((sum, c) => sum + c.width, 0),
         width: Math.max(col.width, 220),
-        maxHeight: 180,
+        height: heightState.height,
+        maxHeight: heightState.height,
+        overflowY: heightState.overflowY,
+        hasScrollbar: heightState.hasScrollbar,
         zIndex: 20,
       };
+    } else {
+      this.activeExpandedCell = null;
     }
   }
 
@@ -207,15 +237,33 @@ async function runTestSuite() {
       const randomRow = (i * 997) % 100000;
       const colIdx = 2 + (i % 3); // col 2 (provider), col 3 (message), or col 4 (payload)
 
+      // 1. Expand multi-line cell: verify dynamic N-line bounds
       grid.expandCell(randomRow, colIdx);
       if (grid.activeExpandedCell) {
         validExpansions++;
         assert.strictEqual(grid.activeExpandedCell.row, randomRow);
         assert.strictEqual(grid.activeExpandedCell.zIndex, 20);
-        assert.strictEqual(grid.activeExpandedCell.maxHeight, 180);
+
+        const { lineCount, height, overflowY, hasScrollbar } = grid.activeExpandedCell;
+        if (lineCount <= 1) {
+          assert.fail(`Cell with N <= 1 should not have expanded: got N=${lineCount}`);
+        } else if (lineCount <= 5) {
+          const expectedHeight = lineCount * 17 + 8;
+          assert.strictEqual(height, expectedHeight, `2 <= N <= 5 must fit exact height (N=${lineCount}, expected=${expectedHeight}px, got=${height}px)`);
+          assert.strictEqual(overflowY, "hidden", "2 <= N <= 5 must not have scrollbar (overflow-y: hidden)");
+          assert.strictEqual(hasScrollbar, false, "2 <= N <= 5 hasScrollbar must be false");
+        } else {
+          assert.strictEqual(height, 93, `N > 5 must cap height at 93px (got ${height}px)`);
+          assert.strictEqual(overflowY, "auto", "N > 5 must have overflow-y: auto");
+          assert.strictEqual(hasScrollbar, true, "N > 5 must have scrollbar enabled");
+        }
       }
       grid.collapseCell();
       assert.strictEqual(grid.activeExpandedCell, null);
+
+      // 2. Expand single-line cell (col 1: event_id, short number): verify N <= 1 flat contract
+      grid.expandCell(randomRow, 1);
+      assert.strictEqual(grid.activeExpandedCell, null, "N <= 1 cell must remain flat (activeExpandedCell == null)");
     }
 
     const t1 = process.hrtime.bigint();
@@ -397,7 +445,11 @@ async function runTestSuite() {
 
     assert(grid.activeExpandedCell !== null);
     assert.strictEqual(grid.activeExpandedCell.text.length, extremePayload.length);
-    assert.strictEqual(grid.activeExpandedCell.maxHeight, 180);
+    assert(grid.activeExpandedCell.lineCount > 5, "50KB payload must require > 5 lines");
+    assert.strictEqual(grid.activeExpandedCell.height, 93, "50KB payload height must be capped at 93px (5 lines)");
+    assert.strictEqual(grid.activeExpandedCell.maxHeight, 93, "maxHeight must be capped at 93px");
+    assert.strictEqual(grid.activeExpandedCell.overflowY, "auto", "Must have auto scrollbar for N > 5");
+    assert.strictEqual(grid.activeExpandedCell.hasScrollbar, true, "hasScrollbar must be true for N > 5");
 
     const t1 = process.hrtime.bigint();
     const durationMs = Number(t1 - t0) / 1e6;

@@ -1,100 +1,93 @@
-# BRIEFING — 2026-11-04T16:19:00Z
+# BRIEFING — 2026-11-04T18:30:00Z
 
 ## Mission
-Implement Column Resizing and Active Row Auto-Wrap across both the File Management Table and Main Data Grid in ToadViewer based on the approved 11-stream plan.
+Deploy a team of 20 engineers across 5 squads to implement intelligent line calculation & auto-wrap across all three tables, refactor Parse Columns dialog, and suppress background active cell highlights behind modal overlays in ToadViewer.
 
 ## 🔒 My Identity
 - Archetype: orchestrator
 - Roles: orchestrator, user_liaison, human_reporter, successor
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator
-- Original parent: parent (ID: 8d68b20b-d86f-42aa-8de6-a284fce8859a)
-- Original parent conversation ID: 8d68b20b-d86f-42aa-8de6-a284fce8859a
+- Original parent: parent (ID: b268bea6-87c9-43fa-bf35-9d706f4e4801)
+- Original parent conversation ID: b268bea6-87c9-43fa-bf35-9d706f4e4801
 
 ## 🔒 My Workflow
 - **Pattern**: Project
 - **Scope document**: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-1. **Decompose**: Survey full codebase using 3 parallel Explorers/Spec Miners, build feature inventory in PROJECT.md, decompose into independent milestone tracks.
+1. **Decompose**: Survey full codebase using 3 parallel Explorers/Spec Miners, build feature inventory in PROJECT.md, decompose into 5 squads / milestones according to the 20-engineer plan.
 2. **Dispatch & Execute**:
-   - Stream 1-6 UI & CSS & Interaction Implementation (ProjectFilesTable & DataGrid)
-   - Stream 7-10 Unit & Stress Tests & Test Runner Integration
-   - Stream 11 Packaging & Jujutsu VCS Conformance
-   - Gate verification: Reviewers, Challengers, Forensic Auditor
+   - Phase 0: Survey full requirements, files, and test infrastructure (Spec Miner + Table Explorer + QA Explorer) [COMPLETED].
+   - Milestone 1: Squad 1 Core Mathematical Engine & Foundation (`CellLineCalculator.ts`, `GridOverlayBus.ts`, `test_cell_line_calculator.js`) [COMPLETED].
+   - Milestone 2: Squad 2 Sidebar File Management Table (`ProjectFilesTable.tsx`, `sidebar.less`, `test_project_files_table_wrap_resize.js`) [COMPLETED].
+   - Milestone 3: Squad 3 Main SlickGrid Data Table (`DataGrid.tsx`, `slickgrid.scss`, `test_datagrid_floating_wrap.js`) [COMPLETED].
+   - Milestone 4: Squad 4 Parse Columns & Nested JSON Dialog (`RegexDialog.tsx`, `NestedFieldsTable.tsx`, `test_parse_dialog_nested_dropdown.js`) [COMPLETED].
+   - Milestone 5: Squad 5 Systems QA, Packaging & Release (`test_modal_cell_glow_suppression.js`, `test_grid_wrap_concurrency_stress.js`, `run_tests.js`, `dist_package.ps1`, `package_release.ps1`, Jujutsu) [IN_PROGRESS].
+   - Milestone 6: Gate Verification (2 Reviewers, 2 Challengers, 1 Forensic Auditor) [PLANNED].
 3. **On failure**: Retry -> Replace -> Skip -> Redistribute -> Redesign.
 4. **Succession**: Threshold 16 spawns.
 - **Work items**:
-  1. Survey and architecture mapping (Spec Miner + Sidebar/Grid Explorer + Test/Packaging Explorer) [completed]
+  1. Phase 0: Survey codebase and technical plan [completed]
   2. Synthesize PROJECT.md Feature Inventory & Architecture [completed]
-  3. Milestone 1: Sidebar Column Resizing & Active Row Auto-Wrap (Streams 1, 2, 5, 6) [completed]
-  4. Milestone 2: SlickGrid Double-Click Auto-Fit & Floating In-Place Active Cell Wrap (Streams 3, 4, 5, 6) [completed]
-  5. Milestone 3: Automated Unit, Stress Test Suites & Runner Integration (Streams 7, 8, 9, 10) [completed]
-  6. Milestone 4: Release Packaging & Jujutsu VCS Conformance (Stream 11) [completed]
-  7. Milestone 5: Gate Verification (Round 1: 3 APPROVE, 1 CLEAN, 1 REQUEST_CHANGES -> FAIL) [remediated]
-  8. Milestone 5 (Round 2): Remediation & Final Gate Sign-Off [completed - ALL GATES PASSED]
-- **Current phase**: Complete
-- **Current focus**: Writing final hard handoff and reporting results to parent
+  3. Milestone 1: Squad 1 Core Mathematical Engine & Foundation [completed]
+  4. Milestone 2: Squad 2 Sidebar File Management Table [completed]
+  5. Milestone 3: Squad 3 Main SlickGrid Data Table [completed]
+  6. Milestone 4: Squad 4 Parse Columns & Nested JSON Dialog [completed]
+  7. Milestone 5: Squad 5 Systems QA, Packaging & Release [in-progress]
+  8. Milestone 6: Gate Verification & Sign-Off [pending]
+- **Current phase**: Milestone 5: Squad 5 Systems QA, Packaging & Release
+- **Current focus**: Monitoring `worker_squad5`
 
 ## 🔒 Key Constraints
 - NEVER write source code directly.
 - NEVER run build/test commands yourself.
 - Follow Jujutsu (jj) VCS guidelines and Zero-Duplicate Binary Storage policy.
-- All new and existing test suites in run_tests.js must pass 100%.
-- Portable exe < 75 MB.
-- Minimum 45px width clamping for resizer handles.
-- Max-height 180px with overflow-y: auto for wrapped rows/cells.
-- Escape key and click-away dismissal.
-- SlickGrid virtual scrolling coordinates preserved (floating in-place overlay).
+- All new and existing test suites in run_tests.js must pass 100% (575+ tests).
+- Portable exe < 75 MB; root has only Toad.exe; releases/ has only Toad-2.5.1-x64-portable.exe and .zip.
+- Pure math line calculation with canvas & character heuristic fallback in CellLineCalculator.ts.
+- Height mapping contract:
+  - N <= 1: flat 24-25px, no elevation, no scrollbar
+  - 2 <= N <= 5: expand to N * 17px + 8px, overflow-y: hidden (no scrollbar)
+  - N > 5: expand to 5 * 17px + 8px (~93-95px), overflow-y: auto (slim 4px scrollbar)
+- Parse Columns: only [Visual] and [Regex] tabs in header; [Nested JSON] in format dropdown; auto-scan on select; #btn-switch-nested removed.
+- Modal active cell highlight suppression: dismiss floating cells, grid.resetActiveCell(), and suppress .slick-cell.active / .slick-row.active in body.bp4-overlay-open.
 
 ## Current Parent
-- Conversation ID: 8d68b20b-d86f-42aa-8de6-a284fce8859a
-- Updated: 2026-11-04T15:25:00Z
+- Conversation ID: b268bea6-87c9-43fa-bf35-9d706f4e4801
+- Updated: 2026-11-04T17:55:00Z
 
 ## Key Decisions Made
-- Iteration 1 Gate Results: 3 APPROVE, 1 CLEAN, 1 REQUEST_CHANGES (challenger_2 identified NaN delta width & missing onClick shield).
-- Iteration 2 Gate Results:
-  - `reviewer_fix`: APPROVE (handoff.md)
-  - `challenger_fix`: APPROVE (handoff.md: 24/24 sidebar stress PASS, 13/13 grid stress PASS, 1,176 hostile combinations PASS)
-  - `auditor_fix`: CLEAN (handoff.md: 0 integrity violations, 18/18 test suites PASS, 72.38 MB portable exe, jj commit 3403c963)
-- Gate Result: **PASS** unconditionally.
+- Milestones M1, M2, M3, M4 all completed cleanly with 100% test passage.
+- Dispatched Milestone M5 to worker_squad5 for full systems QA, registration in run_tests.js, packaging, and Jujutsu VCS commits.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
-|-------|------|-----------|--------|---------|
-| spec_miner_survey | teamwork_spec_miner | Survey: Spec mining from 11-stream plan & design spec | completed | 7f9e1849-1247-475d-bd22-0dfbe157d369 |
-| explorer_ui_table | teamwork_explorer | Survey: ProjectFilesTable & DataGrid architecture | completed | 6002a46c-1be6-4393-91c6-4512b02312b4 |
-| explorer_qa_packaging | teamwork_explorer | Survey: QA test runner, tests/ & packaging | completed | 9c719586-635b-44dc-8a32-78382080486e |
-| worker_m1 | teamwork_worker | M1: Sidebar Table Resizing & Auto-Wrap | completed | 098a50e9-ebb2-4c8c-8c44-5c706a4a0e7b |
-| worker_m2 | teamwork_worker | M2: Main DataGrid Auto-Fit & Floating Cell Wrap | completed | 59ad9b04-dc7a-4d06-9068-35a53c73fffa |
-| worker_m3_tests | teamwork_test_writer | M3: Automated Test Suites & Runner Integration | completed | 472e2b88-8a73-4132-b802-5028f225827f |
-| worker_m4_release | teamwork_worker | M4: Release Packaging & Jujutsu VCS Conformance | completed | 45359427-df0b-4d5f-837a-986e95248940 |
-| reviewer_1 | teamwork_reviewer | Gate R1: Functional & Code Quality Review | completed (APPROVE) | 4b1a9748-b776-46e2-aa6c-ba9c27434b4e |
-| reviewer_2 | teamwork_reviewer | Gate R1: CSS Theming & Master Regression Review | completed (APPROVE) | cb394db7-f3f2-4866-bf35-21094547c9c3 |
-| challenger_1 | teamwork_challenger | Gate R1: Adversarial Virtual Scroll Challenge | completed (APPROVE) | 220f4f96-5219-4ce6-9801-0d9f827c7ec2 |
-| challenger_2 | teamwork_challenger | Gate R1: Adversarial Sidebar Resizing Challenge | completed (REQUEST_CHANGES) | ea6bc36a-3ef7-424f-8edb-d7d38ee73007 |
-| auditor_1 | teamwork_auditor | Gate R1: Forensic Integrity Audit | completed (CLEAN) | 275f227e-6351-44a9-8b27-1bdd0efa0e1a |
-| worker_fix | teamwork_worker | Remediation: ProjectFilesTable NaN delta & onClick isolation | completed | 8450a02c-df14-45ec-8e88-412da9688b70 |
-| reviewer_fix | teamwork_reviewer | Gate R2: Review ProjectFilesTable Remediation | completed (APPROVE) | ddb34857-465f-49fc-a2d1-2b222fc0d46b |
-| challenger_fix | teamwork_challenger | Gate R2: Empirical Challenger Verification | completed (APPROVE) | 675bc9ec-4a80-414c-8385-68b367495982 |
-| auditor_fix | teamwork_auditor | Gate R2: Forensic Integrity Audit | completed (CLEAN) | a0e51194-0fd4-48bb-bf7d-019e7c8fd486 |
+|---|---|---|---|---|
+| spec_miner_survey_squads | teamwork_spec_miner | Survey: Spec mining from 20-engineer plan | completed | ca595706-c00c-4ab6-ad83-309c354baeda |
+| explorer_survey_tables | teamwork_explorer | Survey: Tables architecture & DOM | completed | 4322ce08-f7ca-4070-9828-fe67dd81ee9a |
+| explorer_survey_qa_release | teamwork_explorer | Survey: QA runner & packaging | completed | e365f2bb-e264-4251-8d94-29d31620169a |
+| worker_squad1 | teamwork_worker | M1: Squad 1 Foundation Implementation | completed | 25dc8fc4-a59e-4b90-bd8f-3ac962742195 |
+| worker_squad2 | teamwork_worker | M2: Squad 2 Sidebar Table & Wrap | completed | 7e3a8a5d-ec84-4a9c-a665-42f5c227b6b7 |
+| worker_squad3 | teamwork_worker | M3: Squad 3 DataGrid Floating Wrap | completed | a2de21b9-dfcc-43a9-a909-f12646b5ab9a |
+| worker_squad4 | teamwork_worker | M4: Squad 4 Parse Columns Refactor | completed | fc24d223-a3a1-47fa-942b-2ab947e4a59e |
+| worker_squad5 | teamwork_worker | M5: Squad 5 Systems QA & Packaging | in-progress | f5e9481c-66da-43bd-9bdd-fd30ab4cc79f |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 16 / 16
-- Pending subagents: none
+- Spawn count: 8 / 16
+- Pending subagents: f5e9481c-66da-43bd-9bdd-fd30ab4cc79f
 - Predecessor: none
-- Successor: not needed (all milestones completed and verified)
+- Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: cancelled
-- Safety timer: none
+- Heartbeat cron: be854d41-8a3e-4b29-a7b7-70b0d33d645a/task-28
+- Safety timer: be854d41-8a3e-4b29-a7b7-70b0d33d645a/task-223
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Original user request
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\DISPATCH.md — Dispatch instructions
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\BRIEFING.md — Persistent working memory
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\progress.md — Progress heartbeat
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\GATE_STATUS.md — Milestone 5 gate status tracking
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md — Master project and milestone plan
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\TEST_INFRA.md — Test infrastructure and coverage matrix
-- d:\Shared_UserData\Downloads\tad\TEST_READY.md — Published test suite ready signal
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md — Challenger 2 report with drop-in mitigation
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_fix\DISPATCH.md — Remediation task assignment
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad1\handoff.md — Squad 1 completion handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad2\handoff.md — Squad 2 completion handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad3\handoff.md — Squad 3 completion handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad4\handoff.md — Squad 4 completion handoff

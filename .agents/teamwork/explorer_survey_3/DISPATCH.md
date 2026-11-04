@@ -1,23 +1,32 @@
-# Dispatch for Explorer Survey 3
+## 2026-11-04T18:34:23Z
+You are an Explorer subagent in Phase 0 (Survey) of the Toad Tauri v2 porting project.
+Your working directory is: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3`
 
-You are assigned to investigate the testing and packaging pipeline for R5 implementation points.
-Working Directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\
-Original Request: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Reference Plan: C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\phuong_an_chi_tiet_file_table_search_va_project_rename_v2.4.3.md
-## 2026-11-03T03:05:53Z
-You are a teamwork_explorer. Your identity is explorer_survey_3.
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\
-You MUST read the authoritative request file at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Also reference:
-C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\phuong_an_chi_tiet_file_table_search_va_project_rename_v2.4.3.md
+MANDATORY INPUT:
+Read `ORIGINAL_REQUEST.md` at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
+Also reference the approved implementation plan at:
+`C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md`
 
-Your task:
-1. Explore the testing suite and build/release pipeline:
-   - Inspect tests/deep_integration_qa.js: check how suites AA to II are structured, assertions helper functions, mock models, project models, and how to append SUITE JJ (JJ.1 to JJ.7).
-   - Inspect build & release tools: package_release.ps1, tools/bump_version.js, dist_package.ps1, package.json in root and packages.
-   - Verify workspace rules: Jujutsu (jj), Zero-Duplicate Binary Storage policy, Auto 4th-Digit Patch Increment or explicit v2.4.3 release format.
-   - Check the exact node executable command: & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js.
-2. Produce a detailed report on test design for Suite JJ and the packaging/release process in:
-   d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\handoff.md
-3. Maintain your progress.md with heartbeat timestamps.
-4. When finished, send a message to orchestrator with summary and path to handoff.md.
+OBJECTIVE & SCOPE:
+Investigate Native Backend Engine, Forensics Ingestion, Packaging & Version Control infrastructure:
+1. Rust Core Engine & DuckDB:
+   - DuckDB 1.0 integration in Rust (`duckdb = { version = "1.0", features = ["bundled", "parquet"] }` or dynamic link).
+   - In-Process Tokio Async architecture: dual-engine driver (UI query connection vs ingestion connections).
+   - Apache Arrow IPC Stream binary serialization (`arrow` crate / `RecordBatch` / `StreamWriter`).
+   - QueryExp AST to SQL translation requirements.
+2. Ingestion Pipelines:
+   - RFC-4180 CSV/TSV with delimiter detection, compression (`flate2`).
+   - EVTX binary log parsing via `evtx` Rust crate with SIMD acceleration.
+   - JSONL/NDJSON streaming parser.
+   - Parquet State Ledger WAL (`toad_ledger.parquet`) and portable directory `toadAppData_[5chars]`.
+3. Packaging & Verification:
+   - Packaging script `tauri/project/tools/package_portable.ps1`, zero-duplicate binary policy, PE metadata branding (`HelloKittyXamKinLung`), `SHA256SUMS.txt`.
+   - Jujutsu (`jj`) configuration, root `.gitignore` setup to track `tauri/project` while ignoring build artifacts (`target/`, `node_modules/`, `dist/`).
+   - Test suites: unit tests in `src-tauri` (`cargo test`), Node.js verification tests (`test_tauri_arrow_ipc.js`, `test_grid_scroll_stress.js`).
+
+OUTPUT:
+Write your comprehensive survey report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\backend_infra_report.md`.
+Write your completion handoff report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\handoff.md`.
+Update `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\progress.md` with your progress and timestamp.
+When finished, send a message to orchestrator with context, content, and report paths.

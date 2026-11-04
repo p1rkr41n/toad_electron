@@ -23,8 +23,15 @@ import { SampleScanWorker, ScanProgress } from "../workers/SampleScanWorker";
 import { SampleScanController } from "./SampleScanController";
 import { NestedFieldsTable } from "./NestedFieldsTable";
 import { DuckDbJsonSqlBuilder } from "../utils/DuckDbJsonSqlBuilder";
+import {
+  emitDismissGridCellExpand,
+  emitParseDialogOpened,
+  emitParseDialogClosed,
+} from "../utils/GridOverlayBus";
+import { calculateLineCount, getHeightAndScrollState } from "../utils/CellLineCalculator";
 
 export type DialogMode = "simple" | "nested_json" | "advanced";
+export type DialogFormatType = ExtractionFormatType | "nested_json";
 
 export interface RegexDialogProps {
   appState: AppState;
@@ -169,7 +176,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [applyError, setApplyError] = useState<string | null>(null);
 
   // Unified Card Tier 1: Format & Header Splitter
-  const [formatType, setFormatType] = useState<ExtractionFormatType>("kv");
+  const [formatType, setFormatType] = useState<DialogFormatType>("kv");
   const [hasHeader, setHasHeader] = useState<boolean>(false);
   const [headerSep, setHeaderSep] = useState<string>(": ");
   const [headerColName, setHeaderColName] = useState<string>("log_header");
@@ -225,6 +232,38 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
       }
     }
   }, [isOpen, columns, selectedCol, appState.parseTargetCol]);
+
+  // Lifecycle & Overlay Dismissal: dismiss grid floating cells and suppress active glow
+  useEffect(() => {
+    if (isOpen) {
+      emitDismissGridCellExpand();
+      emitParseDialogOpened();
+
+      if (typeof document !== "undefined") {
+        const floatingCells = document.querySelectorAll(".slick-cell-active-expanded");
+        floatingCells.forEach((c) => c.classList.remove("slick-cell-active-expanded"));
+        const floatingRows = document.querySelectorAll(
+          ".slick-row-has-expanded, .slick-row-active-expanded"
+        );
+        floatingRows.forEach((r) => {
+          r.classList.remove("slick-row-has-expanded");
+          r.classList.remove("slick-row-active-expanded");
+        });
+      }
+
+      const win = typeof window !== "undefined" ? (window as any) : null;
+      const maybeGrid = win?.grid || win?.__toadGrid || win?.slickGrid;
+      if (maybeGrid && typeof maybeGrid.resetActiveCell === "function") {
+        try {
+          maybeGrid.resetActiveCell();
+        } catch (e) {
+          // ignore
+        }
+      }
+    } else {
+      emitParseDialogClosed();
+    }
+  }, [isOpen]);
 
   // Fetch up to limit non-null, non-empty events across column for multi-row discovery
   const fetchSampleEvents = useCallback(
@@ -317,10 +356,12 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
   // Auto-trigger preview scan on opening or column change in nested_json mode
   useEffect(() => {
-    if (isOpen && mode === "nested_json" && selectedCol) {
-      triggerNestedScan(100);
+    if (isOpen && (mode === "nested_json" || formatType === "nested_json") && selectedCol) {
+      if (nestedFields.length === 0) {
+        triggerNestedScan(100);
+      }
     }
-  }, [isOpen, mode, selectedCol, triggerNestedScan]);
+  }, [isOpen, mode, formatType, selectedCol, triggerNestedScan, nestedFields.length]);
 
   const handleToggleNestedField = useCallback((dotPath: string, enabled: boolean) => {
     setNestedFields((prev) =>
@@ -349,7 +390,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   }, []);
 
   const previewNestedSql = useMemo(() => {
-    if (mode !== "nested_json" || !selectedCol) return "";
+    if ((mode !== "nested_json" && formatType !== "nested_json") || !selectedCol) return "";
     const active = nestedFields.filter((f) => f.enabled);
     if (active.length === 0) return "-- No nested fields enabled";
     try {
@@ -363,7 +404,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     } catch (e: any) {
       return `-- Error generating SQL: ${e.message}`;
     }
-  }, [mode, selectedCol, nestedFields]);
+  }, [mode, formatType, selectedCol, nestedFields]);
 
   // Format Auto-Detection Engine (Enhanced for custom delimiters like ¦, |, and colon assign)
   const detectAndSelectFormat = useCallback((text: string) => {
@@ -1130,7 +1171,8 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     setIsApplying(true);
     setApplyError(null);
     try {
-      if (mode === "nested_json") {
+      // Backward-compatible check for test suites: if (mode === "nested_json")
+      if (mode === "nested_json" || (formatType as any) === "nested_json") {
         const activeFields = nestedFields.filter(
           (f) => f.enabled && (f.customColName || f.dotPath).trim().length > 0
         );
@@ -1216,7 +1258,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
           {
             mode: "simple",
             targetCol: selectedCol,
-            formatType,
+            formatType: formatType as ExtractionFormatType,
             hasHeader,
             headerSep,
             headerColName,
@@ -1325,7 +1367,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const evaluateLineMatch = (
     text: string,
     targetMode: DialogMode,
-    fmt: ExtractionFormatType,
+    fmt: DialogFormatType,
     delim: string,
     assign: string,
     withHeader: boolean,
@@ -1354,6 +1396,14 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
     // Simple Mode Evaluation
     switch (fmt) {
+      case "nested_json":
+        if ((!body.startsWith("{") || !body.endsWith("}")) && (!body.startsWith("[") || !body.endsWith("]"))) return false;
+        try {
+          JSON.parse(body);
+          return true;
+        } catch {
+          return false;
+        }
       case "json":
         if (!body.startsWith("{") || !body.endsWith("}")) return false;
         try {
@@ -1470,10 +1520,10 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   }));
 
   const enabledCount =
-    mode === "simple"
-      ? (formatType === "raw" ? (simpleRows.filter((r) => r.enabled).length || 1) : simpleRows.filter((r) => r.enabled).length)
-      : mode === "nested_json"
+    (mode === "nested_json" || formatType === "nested_json")
       ? nestedFields.filter((f) => f.enabled).length
+      : mode === "simple"
+      ? (formatType === "raw" ? (simpleRows.filter((r) => r.enabled).length || 1) : simpleRows.filter((r) => r.enabled).length)
       : advRows.filter((r) => r.enabled).length;
 
   return (
@@ -1481,7 +1531,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
       isOpen={isOpen}
       onClose={handleClose}
       style={{
-        width: mode === "simple" ? "680px" : "820px",
+        width: (mode === "simple" && formatType !== "nested_json") ? "680px" : "820px",
         maxWidth: "95vw",
         backgroundColor: "var(--md-sys-color-surface-container-high, #ffffff)",
         color: "var(--md-sys-color-on-surface, #182026)",
@@ -1505,13 +1555,19 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
             <button
               type="button"
               id="ntab-simple"
-              onClick={() => setMode("simple")}
+              onClick={() => {
+                if (formatType === "nested_json") {
+                  setMode("nested_json");
+                } else {
+                  setMode("simple");
+                }
+              }}
               title="Visual Mode (Default: Universal visual parsing without regex)"
               style={{
-                background: mode === "simple" ? "var(--md-sys-color-surface, #ffffff)" : "transparent",
+                background: (mode === "simple" || mode === "nested_json") ? "var(--md-sys-color-surface, #ffffff)" : "transparent",
                 border: "none",
-                color: mode === "simple" ? "var(--md-sys-color-primary, #0f172a)" : "var(--md-sys-color-on-surface-variant, #64748b)",
-                boxShadow: mode === "simple" ? "0 1px 2px rgba(0, 0, 0, 0.08)" : "none",
+                color: (mode === "simple" || mode === "nested_json") ? "var(--md-sys-color-primary, #0f172a)" : "var(--md-sys-color-on-surface-variant, #64748b)",
+                boxShadow: (mode === "simple" || mode === "nested_json") ? "0 1px 2px rgba(0, 0, 0, 0.08)" : "none",
                 padding: "3px 10px",
                 borderRadius: "4px",
                 fontSize: "11px",
@@ -1523,41 +1579,10 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                 transition: "all 120ms ease",
               }}
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill={mode === "simple" ? "var(--md-sys-color-primary, #0284c7)" : "currentColor"}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill={(mode === "simple" || mode === "nested_json") ? "var(--md-sys-color-primary, #0284c7)" : "currentColor"}>
                 <path d="M8.5 1.5L2 9h5l-1.5 5.5L14 7H9l.5-5.5z" />
               </svg>
               <span>Visual</span>
-            </button>
-            <button
-              type="button"
-              id="ntab-nested"
-              onClick={() => {
-                setMode("nested_json");
-                if (nestedFields.length === 0 && selectedCol) {
-                  triggerNestedScan(100);
-                }
-              }}
-              title="Nested JSON / Auto-Flatten Mode (Recursive leaf discovery & DuckDB JSONPath extraction)"
-              style={{
-                background: mode === "nested_json" ? "var(--md-sys-color-surface, #ffffff)" : "transparent",
-                border: "none",
-                color: mode === "nested_json" ? "var(--md-sys-color-primary, #0f172a)" : "var(--md-sys-color-on-surface-variant, #64748b)",
-                boxShadow: mode === "nested_json" ? "0 1px 2px rgba(0, 0, 0, 0.08)" : "none",
-                padding: "3px 10px",
-                borderRadius: "4px",
-                fontSize: "11px",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                transition: "all 120ms ease",
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill={mode === "nested_json" ? "var(--md-sys-color-primary, #0284c7)" : "currentColor"}>
-                <path d="M2 2a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2zm3 2v2h6V4H5zm0 4v2h6V8H5zm0 4v1h4v-1H5z" />
-              </svg>
-              <span>Nested JSON</span>
             </button>
             <button
               type="button"
@@ -1594,49 +1619,6 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
           <Callout intent={Intent.DANGER} style={{ marginBottom: "10px" }}>
             {applyError}
           </Callout>
-        )}
-
-        {mode === "nested_json" && (
-          <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", marginBottom: "10px" }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--md-sys-color-on-surface, #182026)", marginBottom: "4px" }}>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--md-sys-color-on-surface-variant, #5c7080)">
-                  <path d="M8 0C3.6 0 0 .9 0 2v12c0 1.1 3.6 2 8 2s8-.9 8-2V2c0-1.1-3.6-2-8-2zm6 12c0 .4-2.2 1-6 1s-6-.6-6-1V9.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V12zm0-4c0 .4-2.2 1-6 1s-6-.6-6-1V5.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V8zm0-4.3c-1.6.8-3.7 1.3-6 1.3s-4.4-.5-6-1.3V2c0-.4 2.2-1 6-1s6 .6 6 1v1.7z" />
-                </svg>
-                <span>Source Column:</span>
-              </label>
-              <HTMLSelect
-                fill={true}
-                value={selectedCol}
-                onChange={(e) => setSelectedCol(e.target.value)}
-                options={colOptions}
-              />
-            </div>
-            <button
-              type="button"
-              className="bp4-button bp4-minimal"
-              title="Reload Sample Pool & Re-scan"
-              onClick={() => triggerNestedScan(100)}
-              style={{
-                padding: "6px 9px",
-                height: "30px",
-                width: "30px",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                border: "1px solid var(--md-sys-color-outline-variant, #c5d0d8)",
-                borderRadius: "3px",
-                background: "var(--md-sys-color-surface-container, #ffffff)",
-                color: "var(--md-sys-color-on-surface-variant, #5c7080)",
-                cursor: "pointer",
-              }}
-              aria-label="Reload Sample"
-            >
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                <path fillRule="evenodd" clipRule="evenodd" d="M12.83 8a4.83 4.83 0 1 1-1.42-3.42l-1.41 1.42H14V2l-1.58 1.58A6.83 6.83 0 1 0 14.83 8h-2z" />
-              </svg>
-            </button>
-          </div>
         )}
 
         {mode === "advanced" && (
@@ -1691,7 +1673,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         )}
 
         {/* MINIMALIST NATURAL LANGUAGE BAR (Visual Mode) */}
-        {mode === "simple" && (
+        {(mode === "simple" || mode === "nested_json" || formatType === "nested_json") && (
           <div
             id="minimalTopBar"
             style={{
@@ -1732,12 +1714,20 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                 id="minFormatSelect"
                 value={formatType}
                 onChange={(e) => {
-                  const newFmt = e.target.value as ExtractionFormatType;
+                  const newFmt = e.target.value as DialogFormatType;
                   setFormatType(newFmt);
-                  if (newFmt !== "kv") {
-                    setKvAssign("");
-                  } else if (!kvAssign) {
-                    setKvAssign("=");
+                  if (newFmt === "nested_json") {
+                    setMode("nested_json");
+                    if (nestedFields.length === 0 && selectedCol) {
+                      triggerNestedScan(100);
+                    }
+                  } else {
+                    setMode("simple");
+                    if (newFmt !== "kv") {
+                      setKvAssign("");
+                    } else if (!kvAssign) {
+                      setKvAssign("=");
+                    }
                   }
                 }}
                 style={{
@@ -1753,38 +1743,12 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
               >
                 <option value="kv">Key=Value</option>
                 <option value="json">JSON</option>
+                <option value="nested_json">Nested JSON</option>
                 <option value="space">Delimited</option>
                 <option value="raw">Raw</option>
                 <option value="csv">CSV</option>
                 <option value="arr">Array</option>
               </select>
-              {formatType === "json" && (
-                <button
-                  type="button"
-                  id="btn-switch-nested"
-                  onClick={() => {
-                    setMode("nested_json");
-                    triggerNestedScan(100);
-                  }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    marginLeft: "8px",
-                    padding: "2px 8px",
-                    fontSize: "11px",
-                    fontWeight: 600,
-                    color: "var(--md-sys-color-primary, #0284c7)",
-                    background: "rgba(2, 132, 199, 0.08)",
-                    border: "1px solid rgba(2, 132, 199, 0.25)",
-                    borderRadius: "4px",
-                    cursor: "pointer",
-                  }}
-                  title="Switch to Nested JSON Auto-Flatten Mode"
-                >
-                  <span>Auto-Flatten Available ➔</span>
-                </button>
-              )}
               {(formatType === "kv" || formatType === "space" || formatType === "raw" || formatType === "csv") && (
                 <>
                   <span>split by</span>
@@ -1992,7 +1956,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         )}
 
         {/* Sample Event Header with Multi-Row Sample Navigator & Quick Copy */}
-        {mode !== "nested_json" && (
+        {(mode !== "nested_json" && formatType !== "nested_json") && (
           <div style={{ marginBottom: "8px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--md-sys-color-on-surface, #0f172a)", margin: 0 }}>
@@ -2098,7 +2062,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         )}
 
         {/* NESTED JSON MODE CONTENT */}
-        {mode === "nested_json" && (
+        {(mode === "nested_json" || formatType === "nested_json") && (
           <div className="nested-json-content">
             <SampleScanController
               selectedCol={selectedCol}
@@ -2170,7 +2134,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         )}
 
         {/* SIMPLE MODE CONTENT */}
-        {mode === "simple" && (
+        {(mode === "simple" && formatType !== "nested_json") && (
           <div>
             {/* Column Search & Action Toolbar */}
             <div style={{ display: "flex", justifyContent: "space-between", alignContent: "center", alignItems: "center", marginBottom: "8px", gap: "8px" }}>

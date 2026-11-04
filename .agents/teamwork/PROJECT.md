@@ -1,131 +1,184 @@
-# Project: Column Resizing and Active Row Auto-Wrap (ToadViewer)
+# Project: Intelligent Line Calculation, Dynamic Auto-Wrap & Parse Columns Refactor
 
 ## Architecture
-- **Sidebar File Management Table (`ProjectFilesTable.tsx` & `sidebar.less`)**:
+- **Squad 1: Core Mathematical Engine & Global Event Bus (`CellLineCalculator.ts`, `GridOverlayBus.ts`)**:
+  - Pure mathematical line calculation module (`calculateLineCount(text, colWidth, options)`):
+    - Uses Canvas 2D context (`measureText`) in browser environment.
+    - Uses deterministic character-width heuristic fallback ($C_w = 7.5\text{px}$ or $7.0\text{px}$) in headless Node.js CLI testing environments.
+    - Preserves explicit newlines (`\r\n|\r|\n`), handles null/undefined/empty string ($N=1$), numbers, timestamps, and unbroken strings.
+  - Height & Scroll State Mapper (`getHeightAndScrollState(N, lineHeight = 17, padding = 8, defaultHeight = 24)`):
+    - $N \le 1$: `{ shouldExpand: false, height: 24, overflowY: "hidden", hasScrollbar: false }` (flat single-line, no expansion, no scrollbar).
+    - $2 \le N \le 5$: `{ shouldExpand: true, height: N * 17 + 8, overflowY: "hidden", hasScrollbar: false }` (exact fit, no scrollbar).
+    - $N > 5$: `{ shouldExpand: true, height: 93, overflowY: "auto", hasScrollbar: true }` (capped at 5 lines, 4px slim scrollbar).
+  - Cross-Component Overlay Event Bus (`GridOverlayBus.ts`):
+    - Standardized events: `"dismiss-grid-cell-expand"`, `"parse-dialog-opened"`, `"parse-dialog-closed"`.
+    - Typed dispatch and subscription helpers with safe in-memory fallback for non-DOM test environments.
+
+- **Squad 2: Sidebar File Management Table (`ProjectFilesTable.tsx`, `sidebar.less`)**:
   - HTML table layout (`table-layout: fixed; width: 100%`).
-  - Draggable divider handles (`col-resizer-handle`) positioned on trailing edges of `<th>` (`name`, `dir`, `size`, `status`).
-  - Width state: `colWidths: ColWidths = { name, dir, size, status }`, clamped to `MIN_COL_WIDTH = 45px`.
-  - Double-click auto-fit: estimates width from longest visible text in column.
-  - Active row wrap: `.is-selected` activates `white-space: normal; word-break: break-all; overflow-wrap: anywhere; max-height: 180px; overflow-y: auto;` via custom slim scrollbars (4px, 2px radius).
-  - Collapse lifecycle: toggle re-click, outside click-away, and `Escape` key.
-  - Event isolation: `e.stopPropagation()` and `e.preventDefault()` on divider dragging; cleanup on `window.onblur` and `document.mouseleave`.
+  - Draggable divider handles (`col-resizer-handle`) on `name`, `dir`, `size`, `status` with $\ge 45\text{px}$ minWidth clamping.
+  - Double-click auto-fit calculates width from visible rows.
+  - Active Row Dynamic Auto-Wrap:
+    - Selected row receives `.is-selected` (strictly blue highlight, white text, compact 25px height, `nowrap`).
+    - When $N \ge 2$, row also receives `.is-expanded` and inline `height: heightState.height` and `overflow-y: heightState.overflowY`.
+    - `sidebar.less`: Removes unconditional `height: auto !important` and `max-height: 180px` from `.is-selected`.
+  - 4-Way Collapse Lifecycle: Re-click active row, click another file, click outside table, or press `Escape`.
 
-- **Main Data Grid (`DataGrid.tsx` & `slickgrid.scss`)**:
-  - Virtual scroll table (SlickGrid) with fixed row height (24px).
-  - Double-click auto-fit: intercept `dblclick` on `.slick-resizable-handle` in header row, calculate max string width across visible rows (`dataView.getItem(i)`), clamped between 60px and 500px, update `grid.setColumns` and `colWidthsMap`.
-  - Floating In-Place Active Cell Wrap: when active cell content overflows (`scrollWidth > clientWidth` or text length > 28), apply `.slick-cell-active-expanded` (`position: absolute; z-index: 20; contain: none !important; max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15)`).
-  - Parent row receives `.slick-row.slick-row-has-expanded` (`z-index: 25 !important; overflow: visible !important;`).
-  - Strict Virtual Invariant: Row coordinates remain $\text{top} = i \times 24\text{px}$.
-  - Dismissal: immediately dismissed on `grid.onScroll`, `grid.onViewportChanged`, and `Escape` key.
+- **Squad 3: Main SlickGrid Data Table (`DataGrid.tsx`, `slickgrid.scss`)**:
+  - Virtual scrolling table (SlickGrid) with fixed 24px row height invariant.
+  - Double-click header auto-fit: auto-fits column width on visible rows (clamped 60px to 500px).
+  - Floating In-Place Active Cell Dynamic Wrap:
+    - `tryExpandCell(row, cell)` calls `calculateLineCount`.
+    - $N \le 1$: Returns immediately (flat cell, no floating element, no `.slick-cell-active-expanded`).
+    - $2 \le N \le 5$: Applies inline `height = N * 17 + 8` and `overflowY = "hidden"`, `.slick-cell-active-expanded`.
+    - $N > 5$: Applies inline `height = 93px` and `overflowY = "auto"`, `.slick-cell-active-expanded`.
+    - Removes `max-height: 180px !important;` from `slickgrid.scss` so inline styles govern.
+  - 4-Way Dismissal Lifecycle: Re-click active cell, click another cell, click outside grid (`document.mousedown`), press `Escape`, or scroll viewport.
+  - Event Bus Integration: Listens for `"dismiss-grid-cell-expand"` to dismiss floating cells immediately.
+  - Modal Overlay Dimming: Adds `body.bp4-overlay-open` rules in `slickgrid.scss` suppressing `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected` (transparent background, transparent border, no shadow, no outline).
 
-- **Automated QA & Runner (`run_tests.js`, `tests/unit/`, `tests/qa/`)**:
-  - Headless Node.js testing harness using native `assert`.
-  - 15 unit tests for `ProjectFilesTable` wrap & resize.
-  - 15 unit tests for `DataGrid` floating wrap & auto-fit.
-  - 10 stress tests for 100K-row virtual scroll concurrency, FPS (> 55 FPS), coordinate preservation, and memory stability.
+- **Squad 4: Parse Columns & Nested JSON Dialog (`RegexDialog.tsx`, `NestedFieldsTable.tsx`)**:
+  - Header Mode Switcher: Removes `#ntab-nested`. Header displays strictly two tabs: `[Visual]` (`#ntab-simple`) and `[Regex]` (`#ntab-adv`).
+  - Unified Format Dropdown: Adds `<option value="nested_json">Nested JSON</option>` to `#minFormatSelect`.
+  - Removes redundant `#btn-switch-nested` (`Auto-Flatten Available ➔`).
+  - View Switch & Auto-Scan Trigger:
+    - When `nested_json` selected: triggers `triggerNestedScan(100)` if fields empty and switches body to Nested JSON view (`SampleScanController`, `NestedFieldsTable`, live DuckDB SQL preview).
+    - When any other format selected: reverts body to Visual sample view.
+  - `handleApply`: Supports both `formatType === "nested_json"` and `mode === "nested_json"`.
+  - Nested & Discovered Fields Tables: Adds column resizer handles and dynamic cell auto-wrap.
 
-- **Packaging & VCS Pipeline (`dist_package.ps1`, `package_release.ps1`, `jj`)**:
-  - TypeScript compilation & Webpack production bundling.
-  - Executable footprint < 75 MB, zero duplicate binaries.
-  - Jujutsu commits under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+- **Squad 5: Systems QA, Packaging & Release Pipeline (`tests/`, `dist_package.ps1`, `package_release.ps1`, `jj`)**:
+  - 3 New Test Suites:
+    - `tests/unit/test_cell_line_calculator.js`: 25 test cases for boundary line counts ($N=1,2,5,6,100$), widths ($45\text{px}-1200\text{px}$), special characters, and nested JSON.
+    - `tests/unit/test_parse_dialog_nested_dropdown.js`: 15 test cases verifying tab switcher, format dropdown switching, and auto-scan trigger.
+    - `tests/qa/test_modal_cell_glow_suppression.js`: 10 test cases verifying grid active cell reset and highlight suppression on modal open.
+  - Existing Test Suite Updates: Updates assertions in `test_project_files_table_wrap_resize.js`, `test_datagrid_floating_wrap.js`, and `test_grid_wrap_concurrency_stress.js` from static 180px to dynamic $N$-line boundaries.
+  - Runner Registration: Registers all 21 suites in `run_tests.js` (target 575+ tests, 100% PASS).
+  - Production Packaging: Clean cache via `tools/clean_cache.ps1`, compile TypeScript, build Webpack, package single `Toad.exe` at root and `Toad-2.5.1-x64-portable.*` in `releases/`.
+  - Jujutsu VCS: Commit under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with 100% professional English messages.
 
 ---
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| F1 | Sidebar Resizer Handles | Draggable handles on Name, DirPath, Size, Status in `ProjectFilesTable.tsx` with minWidth 45px clamping | M1 | Survey F1 |
-| F2 | Sidebar Double-Click Auto-Fit | Double-click header divider to auto-fit to longest visible text | M1 | Survey F2 |
-| F3 | Sidebar Active Row Auto-Wrap | Selected row expands height and wraps multiline file name / dir path with max-height 180px | M1 | Survey F3 |
-| F4 | Sidebar Row Collapse Lifecycle | Unselects / collapses expanded row on toggle click, click-away, or Escape key | M1 | Survey F4 |
-| F5 | Sidebar Styling & Themes | Blueprint Light & Dark styles in `sidebar.less`, custom 4px slim scrollbars, body `.col-resizing` | M1 | Survey F8, F9 |
-| F6 | Sidebar Event Isolation | `e.stopPropagation()` on resizer mousedown/dblclick, window blur/leave cleanup | M1 | Survey F10, F11 |
-| F7 | SlickGrid Double-Click Auto-Fit | Auto-fits column width on `.slick-resizable-handle` dblclick using visible rows (60px to 500px clamp) | M2 | Survey F5 |
-| F8 | SlickGrid Floating Cell Wrap | `.slick-cell-active-expanded` floating in-place with z-index 20, shadow, max-height 180px, contain none | M2 | Survey F6 |
-| F9 | SlickGrid Coordinate Invariance | Virtual scroll row coordinates strictly preserved (`top = i * 24px`) without layout disruption | M2 | Survey F6, Spec |
-| F10 | SlickGrid Floating Dismissal | Floating cell dismissed on `grid.onScroll`, `grid.onViewportChanged`, cell change, or Escape | M2 | Survey F7 |
-| F11 | SlickGrid Styling & Themes | Light & Dark styles in `slickgrid.scss`, divider highlight, custom slim scrollbar | M2 | Survey F8, F9 |
-| F12 | Unit Tests: File Table | 15 test cases in `tests/unit/test_project_files_table_wrap_resize.js` | M3 | Survey F12 |
-| F13 | Unit Tests: DataGrid | 15 test cases in `tests/unit/test_datagrid_floating_wrap.js` | M3 | Survey F12 |
-| F14 | Stress Tests: Virtual Concurrency | 10 test cases in `tests/qa/test_grid_wrap_concurrency_stress.js` (100K rows, >55 FPS, memory guard) | M3 | Survey F12 |
-| F15 | Test Runner Integration | Register suites in `run_tests.js` so that `node run_tests.js --all` passes 100% | M3 | Survey F12 |
-| F16 | Packaging & Zero-Duplicate Gate | Compile TypeScript, run Webpack, `dist_package.ps1`, `package_release.ps1`, size < 75 MB, jj commits | M4 | Survey F13 |
-| F17 | Gate Verification & Review | 2 Reviewers, 2 Challengers, 1 Forensic Auditor gate verification | M5 | Process |
+| F01 | Pure Math Line Calculator | Canvas 2D measurement + Node character heuristic ($C_w = 7.5\text{px}$) in `CellLineCalculator.ts` | M1 | Plan E01 |
+| F02 | Height & Scroll State Mapper | $N \le 1$ flat (24px), $2 \le N \le 5$ fit ($N \times 17 + 8$), $N > 5$ cap (93px) with scrollbar | M1 | Plan E02 |
+| F03 | Global Overlay Event Bus | Standardized `"dismiss-grid-cell-expand"` event dispatcher/subscriber in `GridOverlayBus.ts` | M1 | Plan E03 |
+| F04 | Unit Tests: Line Calculator | 25 test cases covering boundary counts, widths, JSON in `test_cell_line_calculator.js` | M1 | Plan E04 |
+| F05 | Sidebar Row Height & Wrap | `ProjectFilesTable.tsx` calculates line counts, applies `.is-expanded` and inline height | M2 | Plan E05 |
+| F06 | Sidebar Column Resizer Handles | Draggable divider handles with $\ge 45\text{px}$ minWidth clamping and double-click auto-fit | M2 | Plan E06 |
+| F07 | Sidebar Styles & Slim Scrollbar | `sidebar.less` separates `.is-selected` from `.is-expanded`, adds 4px slim scrollbar | M2 | Plan E07 |
+| F08 | Sidebar 4-Way Collapse & QA | Toggle click, other row, click outside, Escape; update `test_project_files_table_wrap_resize.js` | M2 | Plan E08 |
+| F09 | DataGrid Dynamic Floating Sizer | `tryExpandCell` in `DataGrid.tsx` calculates $N$ lines, applies exact fit or 5-line cap | M3 | Plan E09 |
+| F10 | DataGrid 4-Way Dismissal & Bus | Re-click collapse, outside click, Escape, scroll, `"dismiss-grid-cell-expand"` listener | M3 | Plan E10 |
+| F11 | DataGrid Styles & Overlay Dimming | `slickgrid.scss` removes 180px override, adds `body.bp4-overlay-open` highlight suppression | M3 | Plan E11 |
+| F12 | DataGrid Floating Wrap QA | Update `test_datagrid_floating_wrap.js` for dynamic $N$-line boundaries and coordinate invariance | M3 | Plan E12 |
+| F13 | Parse Dialog Header Switcher | In `RegexDialog.tsx`, remove `#ntab-nested`; tabs strictly `[Visual]` and `[Regex]` | M4 | Plan E13 |
+| F14 | Parse Dialog Format Dropdown | Add `nested_json` to `minFormatSelect`, remove `#btn-switch-nested`, auto-scan trigger | M4 | Plan E14 |
+| F15 | Parse Dialog Apply & Table Wrap | Support `formatType === "nested_json"` in `handleApply`; add resizers/wrap in `NestedFieldsTable` | M4 | Plan E15 |
+| F16 | Parse Dialog Dropdown QA | 15 test cases in `test_parse_dialog_nested_dropdown.js` for tabs, dropdown, auto-scan | M4 | Plan E16 |
+| F17 | Modal Cell Glow Suppression QA | 10 test cases in `test_modal_cell_glow_suppression.js` verifying active cell reset & suppression | M5 | Plan E17 |
+| F18 | Multi-Table Stress Testing | 10 test cases in `test_grid_wrap_concurrency_stress.js` (100K rows, memory guard, FPS) | M5 | Plan E18 |
+| F19 | Master Test Runner Integration | Register all 21 suites in `run_tests.js`, achieving 575+ tests 100% PASS | M5 | Plan E18 |
+| F20 | Production Packaging Pipeline | `clean_cache.ps1`, `dist_package.ps1`, `package_release.ps1`, zero-duplicate binaries | M5 | Plan E19 |
+| F21 | Final Release & Jujutsu Audit | Zero-duplicate binary check, Jujutsu commits under HelloKittyXamKinLung, 100% English | M5 | Plan E20 |
+| F22 | Gate Verification & Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor gate verification | M6 | Process |
 
 ---
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Sidebar Table Resizing & Auto-Wrap | `ProjectFilesTable.tsx`, `sidebar.less` (F1–F6) | none | DONE |
-| M2 | Main DataGrid Auto-Fit & Floating Wrap | `DataGrid.tsx`, `slickgrid.scss` (F7–F11) | none | DONE |
-| M3 | E2E Testing Track: Suites & Runner | 3 test suites (F12–F14) and `run_tests.js` (F15) | none | DONE |
-| M4 | Release Packaging & Jujutsu VCS | TypeScript build, Webpack, packaging scripts, jj (F16) | M1, M2 | DONE |
-| M5 | Final Milestone: Gate Verification | Full E2E verification, 2 Reviewers, 2 Challengers, 1 Auditor (F17) | M1, M2, M3, M4 | DONE |
+| M1 | Squad 1: Core Mathematical Engine & Foundation | `CellLineCalculator.ts`, `GridOverlayBus.ts`, `test_cell_line_calculator.js` (F01–F04) | none | DONE |
+| M2 | Squad 2: Sidebar File Management Table | `ProjectFilesTable.tsx`, `sidebar.less`, `test_project_files_table_wrap_resize.js` (F05–F08) | M1 | DONE |
+| M3 | Squad 3: Main SlickGrid Data Table | `DataGrid.tsx`, `slickgrid.scss`, `test_datagrid_floating_wrap.js` (F09–F12) | M1 | DONE |
+| M4 | Squad 4: Parse Columns & Nested JSON Dialog | `RegexDialog.tsx`, `NestedFieldsTable.tsx`, `test_parse_dialog_nested_dropdown.js` (F13–F16) | M1 | DONE |
+| M5 | Squad 5: Systems QA, Packaging & Release | `test_modal_cell_glow_suppression.js`, `test_grid_wrap_concurrency_stress.js`, `run_tests.js`, packaging, jj (F17–F21) | M2, M3, M4 | IN_PROGRESS |
+| M6 | Milestone 6: Gate Verification | Full test suite execution, 2 Reviewers, 2 Challengers, 1 Forensic Auditor (F22) | M5 | PLANNED |
 
 ---
 
 ## Interface Contracts
 
-### 1. `ProjectFilesTable.tsx` State & Interfaces
+### 1. `CellLineCalculator.ts` Contracts
 ```typescript
-export interface ColWidths {
-  name: number;
-  dir: number;
-  size: number;
-  status: number;
+export interface LineCalculationOptions {
+  charWidth?: number;       // Default: 7.5px (or 7.0px for proportional text)
+  padding?: number;         // Horizontal cell padding (default: 16px)
+  font?: string;            // Default: '11px sans-serif'
 }
 
-export const DEFAULT_COL_WIDTHS: ColWidths = {
-  name: 140,
-  dir: 120,
-  size: 70,
-  status: 60,
-};
+export interface CellHeightState {
+  shouldExpand: boolean;
+  lineCount: number;
+  height: number;
+  overflowY: "hidden" | "auto";
+  hasScrollbar: boolean;
+  className?: string;
+}
 
-export const MIN_COL_WIDTH = 45;
-export const MAX_COL_WIDTH = 400;
+export function calculateLineCount(
+  text: any,
+  colWidth: number,
+  options?: LineCalculationOptions
+): number;
+
+export function getHeightAndScrollState(
+  lineCount: number,
+  lineHeight?: number,      // Default: 17px
+  vertPadding?: number,     // Default: 8px
+  defaultHeight?: number    // Default: 24px (or 25px for sidebar)
+): CellHeightState;
 ```
-- `handleResizeMouseDown(col: TableSortCol, e: React.MouseEvent)`:
-  - Invokes `e.stopPropagation()` and `e.preventDefault()`.
-  - Attaches `mousemove` and `mouseup` to `document`.
-  - Adds `document.body.classList.add("col-resizing")`.
-  - Clamps: $w_{\text{new}} = \max(45, w_{\text{start}} + \Delta x)$.
-  - Cleans up on `mouseup` or `window.onblur`.
-- `handleAutoFit(col: TableSortCol, e: React.MouseEvent)`:
-  - Invokes `e.stopPropagation()` and `e.preventDefault()`.
-  - Measures visible rows, calculates $w_{\text{fit}} = \text{clamp}(45, 400, \text{round}(\text{maxLen} \times 7.0 + 24))$.
-- Row selection & wrap:
-  - Selected row gets `.is-selected`, wraps text up to `max-height: 180px; overflow-y: auto;`.
-  - Toggle click, click-away, and `Escape` reset selected row.
+- Mapping rules:
+  - $N \le 1$: `{ shouldExpand: false, lineCount, height: defaultHeight, overflowY: "hidden", hasScrollbar: false }`
+  - $2 \le N \le 5$: `{ shouldExpand: true, lineCount, height: N * lineHeight + vertPadding, overflowY: "hidden", hasScrollbar: false }`
+  - $N > 5$: `{ shouldExpand: true, lineCount, height: 5 * lineHeight + vertPadding, overflowY: "auto", hasScrollbar: true }`
 
-### 2. `DataGrid.tsx` Interfaces & SlickGrid Hooks
+### 2. `GridOverlayBus.ts` Contracts
 ```typescript
-const autoFitGridColumn = (grid: any, colId: string, props: DataGridProps) => void;
-```
-- Listens for `dblclick` on `.slick-resizable-handle` in header row.
-- Measures visible viewport rows ($v_{\text{top}}$ to $v_{\text{bottom}}$), clamps to $[60, 500]\text{px}$.
-- Floating Cell Lifecycle:
-  - `expandActiveCell(row, cell)`: attaches `.slick-cell-active-expanded` to cell and `.slick-row-has-expanded` to row.
-  - Coordinates: relative `left` offset unchanged, `top: 0`, `contain: none !important; z-index: 20; max-height: 180px; overflow-y: auto;`.
-  - `dismissFloatingCell()`: called on `grid.onScroll`, `grid.onViewportChanged`, active cell switch, and `Escape` key.
+export const EVENT_DISMISS_GRID_CELL_EXPAND = "dismiss-grid-cell-expand";
+export const EVENT_PARSE_DIALOG_OPENED = "parse-dialog-opened";
+export const EVENT_PARSE_DIALOG_CLOSED = "parse-dialog-closed";
 
-### 3. Test Suites & Runner Contracts
-- Each test file in `tests/unit/` and `tests/qa/` runs as a standalone Node script.
-- Must exit `0` on success and `1` on assertion failure.
-- `run_tests.js` registers:
-  - `tests/unit/test_project_files_table_wrap_resize.js` (15 test cases)
-  - `tests/unit/test_datagrid_floating_wrap.js` (15 test cases)
-  - `tests/qa/test_grid_wrap_concurrency_stress.js` (10 test cases)
+export function emitDismissGridCellExpand(): void;
+export function onDismissGridCellExpand(callback: () => void): () => void;
+
+export function emitParseDialogOpened(): void;
+export function onParseDialogOpened(callback: () => void): () => void;
+
+export function emitParseDialogClosed(): void;
+export function onParseDialogClosed(callback: () => void): () => void;
+```
+
+### 3. Modal Overlay Highlight Suppression Contract
+- When `body.bp4-overlay-open` is present:
+  - `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected`:
+    `background: transparent !important; box-shadow: none !important; outline: none !important; border-color: transparent !important;`
+  - `.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded`:
+    `display: none !important;`
+- In `RegexDialog.tsx` on `isOpen === true`:
+  - Calls `emitDismissGridCellExpand()`
+  - Removes `.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded` DOM elements
+  - Calls `grid.resetActiveCell()` if grid instance available.
 
 ---
 
 ## Code Layout
-- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`: Owned by M1 Worker
-- `tad-master/packages/toadviewer/less/sidebar.less`: Owned by M1 Worker
-- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`: Owned by M2 Worker
-- `tad-master/packages/toadviewer/src/slickgrid.scss`: Owned by M2 Worker
-- `tests/unit/test_project_files_table_wrap_resize.js`: Owned by M3 Test Writer
-- `tests/unit/test_datagrid_floating_wrap.js`: Owned by M3 Test Writer
-- `tests/qa/test_grid_wrap_concurrency_stress.js`: Owned by M3 Test Writer
-- `run_tests.js`: Owned by M3 Test Writer
+- `tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts`: Owned by Squad 1 (M1)
+- `tad-master/packages/toadviewer/src/utils/GridOverlayBus.ts`: Owned by Squad 1 (M1)
+- `tests/unit/test_cell_line_calculator.js`: Owned by Squad 1 (M1)
+- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`: Owned by Squad 2 (M2)
+- `tad-master/packages/toadviewer/less/sidebar.less`: Owned by Squad 2 (M2)
+- `tests/unit/test_project_files_table_wrap_resize.js`: Owned by Squad 2 (M2)
+- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`: Owned by Squad 3 (M3)
+- `tad-master/packages/toadviewer/src/slickgrid.scss`: Owned by Squad 3 (M3)
+- `tests/unit/test_datagrid_floating_wrap.js`: Owned by Squad 3 (M3)
+- `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`: Owned by Squad 4 (M4)
+- `tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`: Owned by Squad 4 (M4)
+- `tests/unit/test_parse_dialog_nested_dropdown.js`: Owned by Squad 4 (M4)
+- `tests/qa/test_modal_cell_glow_suppression.js`: Owned by Squad 5 (M5)
+- `tests/qa/test_grid_wrap_concurrency_stress.js`: Owned by Squad 5 (M5)
+- `run_tests.js`: Owned by Squad 5 (M5)
+- Packaging and Release Scripts (`dist_package.ps1`, `package_release.ps1`, `tools/clean_cache.ps1`): Owned by Squad 5 (M5)
