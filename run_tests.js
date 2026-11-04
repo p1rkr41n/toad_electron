@@ -54,6 +54,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "Preload 3 Pages & Dynamic PageSize (10 Tests)", file: "tests/test_preload_3_pages.js" });
   testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
   testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
+  testsToRun.push({ name: "Parse Columns DataGrid Refresh (18 Tests)", file: "tests/test_parse_columns_datagrid_refresh.js" });
   if (runAll) {
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
     testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });

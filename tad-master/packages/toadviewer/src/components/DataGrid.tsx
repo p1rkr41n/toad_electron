@@ -815,6 +815,13 @@ const getGridCols = (
   dataView: PagedDataView,
   displayColumns: string[]
 ) => {
+  const missingCols = displayColumns.filter((cid) => !gs.slickColMap[cid]);
+  if (missingCols.length > 0) {
+    console.warn(
+      `[DataGrid] Warning: ${missingCols.length} columns in displayColumns are missing from dataView schema:`,
+      missingCols
+    );
+  }
   let gridCols = displayColumns
     .map((cid) => gs.slickColMap[cid])
     .filter(Boolean);

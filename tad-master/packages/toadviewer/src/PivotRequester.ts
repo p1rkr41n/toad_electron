@@ -579,9 +579,17 @@ export class PivotRequester {
         );
       };
 
+      const curDv = viewState.dataView;
+      const dvHasAllDisplayCols =
+        curDv != null &&
+        curDv.schema != null &&
+        curDv.schema.columns != null &&
+        viewParams.displayColumns.every((c) => curDv.schema.columns.includes(c));
+
       if (
         !baseQueryChanged &&
         queryView != null &&
+        dvHasAllDisplayCols &&
         isOnlyDisplayOrderChange(prevViewParams, viewParams)
       ) {
         // Fast path (Toad v2.0.5): Only displayColumns order changed.
@@ -639,10 +647,12 @@ export class PivotRequester {
           const curVs = curState.viewState;
           const dv = curVs?.dataView;
           const vp = curVs?.viewParams;
+          const baseSchema = curVs?.baseSchema;
           const pSize = curVs?.pageSize || this.pageSize || 1000;
           const expectedLimit = Math.min(queryView.rowCount, pSize * 3);
 
           const canReusePreloadedBuffer =
+            !baseQueryChanged &&
             dv != null &&
             dv.rawData &&
             dv.rawData.length > 0 &&
@@ -650,7 +660,13 @@ export class PivotRequester {
             dv.currentPage === 1 &&
             dv.pageSize === pSize &&
             dv.rawData.length >= expectedLimit &&
-            (!vp || (vp.vpivots.length === 0 && vp.filterExp.opArgs.length === 0));
+            (!vp || (vp.vpivots.length === 0 && vp.filterExp.opArgs.length === 0)) &&
+            dv.schema &&
+            baseSchema &&
+            dv.schema.columns &&
+            baseSchema.columns &&
+            dv.schema.columns.length === baseSchema.columns.length &&
+            dv.schema.columns.every((c: string, i: number) => c === baseSchema.columns[i]);
 
           if (canReusePreloadedBuffer) {
             this.pendingDataRequest = null;
