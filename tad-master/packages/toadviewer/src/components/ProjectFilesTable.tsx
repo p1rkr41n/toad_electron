@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useMemo, useEffect, useReducer } from "react";
+import { useState, useMemo, useEffect, useReducer, useRef } from "react";
 import { Icon, IconName, Tooltip, Position, Spinner, Intent } from "@blueprintjs/core";
 import { StateRef, mutableGet } from "oneref";
 import { AppState } from "../AppState";
@@ -99,6 +99,27 @@ export const getFileFormatIcon = (fileName: string): React.ReactElement => {
 export type TableSortCol = "name" | "dir" | "size" | "status";
 export type TableSortDir = "asc" | "desc";
 
+export interface ColWidths {
+  name: number;
+  dir: number;
+  size: number;
+  status: number;
+}
+
+export const DEFAULT_COL_WIDTHS: ColWidths = {
+  name: 140,
+  dir: 120,
+  size: 70,
+  status: 60,
+};
+
+export const MIN_COL_WIDTH = 45;
+export const MAX_COL_WIDTH = 400;
+
+export const calculateAutoFitWidth = (maxLen: number): number => {
+  return Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, Math.round(maxLen * 7.0 + 24)));
+};
+
 export interface ProjectTableFileItem extends ProjectWorkspaceFile {
   relDir: string;
   effectiveStatus: string;
@@ -174,11 +195,53 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
   onOpenFile,
   stateRef,
 }) => {
+  const [colWidths, setColWidths] = useState<ColWidths>(DEFAULT_COL_WIDTHS);
+  const [selectedRowPath, setSelectedRowPath] = useState<string | null>(
+    activeFilePath || null
+  );
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef<{
+    col: TableSortCol;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
+
   const [sortCol, setSortCol] = useState<TableSortCol | null>(null);
   const [sortDir, setSortDir] = useState<TableSortDir>("asc");
   const [filterOpenCol, setFilterOpenCol] = useState<TableSortCol | null>(null);
   const [colFilters, setColFilters] = useState<{ [K in TableSortCol]?: string }>({});
   const [updateTick, forceUpdate] = useReducer((x) => x + 1, 0);
+
+  // Sync selectedRowPath if activeFilePath prop changes externally
+  useEffect(() => {
+    if (activeFilePath) {
+      setSelectedRowPath(activeFilePath);
+    }
+  }, [activeFilePath]);
+
+  // Click-away listener (outside .project-table-container) & Escape key listener
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (
+        tableContainerRef.current &&
+        !tableContainerRef.current.contains(e.target as Node)
+      ) {
+        setSelectedRowPath(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedRowPath(null);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.classList.remove("col-resizing");
+    };
+  }, []);
 
   // Subscribe to live status updates from MultipleLoadingManager
   useEffect(() => {
@@ -277,6 +340,81 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
     return sortFiles(filtered, sortCol, sortDir);
   }, [tableItems, colFilters, sortCol, sortDir]);
 
+  const handleResizeMouseDown = (col: TableSortCol, e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = colWidths[col];
+    draggingRef.current = { col, startX, startWidth };
+    document.body.classList.add("col-resizing");
+
+    const onMouseMove = (moveEvt: MouseEvent) => {
+      if (!draggingRef.current) return;
+      const delta = moveEvt.clientX - draggingRef.current.startX;
+      const newWidth = Math.max(MIN_COL_WIDTH, draggingRef.current.startWidth + delta);
+      setColWidths((prev) => ({
+        ...prev,
+        [draggingRef.current!.col]: newWidth,
+      }));
+    };
+
+    const cleanup = () => {
+      draggingRef.current = null;
+      document.body.classList.remove("col-resizing");
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", cleanup);
+      window.removeEventListener("blur", cleanup);
+      document.removeEventListener("mouseleave", cleanup);
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", cleanup);
+    window.addEventListener("blur", cleanup);
+    document.addEventListener("mouseleave", cleanup);
+  };
+
+  const handleAutoFit = (col: TableSortCol, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    let maxLen = 0;
+    if (col === "name") {
+      maxLen = "Name".length;
+      displayedFiles.forEach((f) => {
+        if (f.fileName && f.fileName.length > maxLen) maxLen = f.fileName.length;
+      });
+    } else if (col === "dir") {
+      maxLen = "DirPath".length;
+      displayedFiles.forEach((f) => {
+        if (f.relDir && f.relDir.length > maxLen) maxLen = f.relDir.length;
+      });
+    } else if (col === "size") {
+      maxLen = "Size".length;
+      displayedFiles.forEach((f) => {
+        const s = formatFileBytes(f.fileSizeBytes);
+        if (s.length > maxLen) maxLen = s.length;
+      });
+    } else if (col === "status") {
+      maxLen = "Status".length;
+      displayedFiles.forEach((f) => {
+        const st = f.effectiveStatus || "";
+        if (st.length > maxLen) maxLen = st.length;
+      });
+    }
+    const fitWidth = calculateAutoFitWidth(maxLen);
+    setColWidths((prev) => ({ ...prev, [col]: fitWidth }));
+  };
+
+  const handleRowClick = (f: ProjectWorkspaceFile) => {
+    if (selectedRowPath && normPath(selectedRowPath) === normPath(f.filePath)) {
+      setSelectedRowPath(null); // toggle collapse
+    } else {
+      setSelectedRowPath(f.filePath);
+      onOpenFile(f);
+    }
+  };
+
   const renderStatus = (status: string, percent?: number) => {
     const s = status.toUpperCase();
     if (s === "PROCESSING") {
@@ -332,11 +470,21 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
   };
 
   return (
-    <div className="project-table-container">
+    <div className="project-table-container" ref={tableContainerRef}>
       <table className="project-files-table">
+        <colgroup>
+          <col style={{ width: colWidths.name }} />
+          <col style={{ width: colWidths.dir }} />
+          <col style={{ width: colWidths.size }} />
+          <col style={{ width: colWidths.status }} />
+        </colgroup>
         <thead>
           <tr>
-            <th className="col-name" onClick={(e) => toggleColumnFilter("name", e)}>
+            <th
+              className="col-name"
+              style={{ width: colWidths.name }}
+              onClick={(e) => toggleColumnFilter("name", e)}
+            >
               <div className="th-content">
                 <span>Name</span>
                 <button
@@ -348,6 +496,12 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                   {getSortIcon("name")}
                 </button>
               </div>
+              <div
+                className="col-resizer-handle"
+                title="Drag to resize, double-click to auto-fit"
+                onMouseDown={(e) => handleResizeMouseDown("name", e)}
+                onDoubleClick={(e) => handleAutoFit("name", e)}
+              />
               {filterOpenCol === "name" && (
                 <input
                   className="col-filter-input"
@@ -366,7 +520,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               )}
             </th>
 
-            <th className="col-dir" onClick={(e) => toggleColumnFilter("dir", e)}>
+            <th
+              className="col-dir"
+              style={{ width: colWidths.dir }}
+              onClick={(e) => toggleColumnFilter("dir", e)}
+            >
               <div className="th-content">
                 <span>DirPath</span>
                 <button
@@ -378,6 +536,12 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                   {getSortIcon("dir")}
                 </button>
               </div>
+              <div
+                className="col-resizer-handle"
+                title="Drag to resize, double-click to auto-fit"
+                onMouseDown={(e) => handleResizeMouseDown("dir", e)}
+                onDoubleClick={(e) => handleAutoFit("dir", e)}
+              />
               {filterOpenCol === "dir" && (
                 <input
                   className="col-filter-input"
@@ -396,7 +560,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               )}
             </th>
 
-            <th className="col-size" onClick={(e) => toggleColumnFilter("size", e)}>
+            <th
+              className="col-size"
+              style={{ width: colWidths.size }}
+              onClick={(e) => toggleColumnFilter("size", e)}
+            >
               <div className="th-content">
                 <span>Size</span>
                 <button
@@ -408,6 +576,12 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                   {getSortIcon("size")}
                 </button>
               </div>
+              <div
+                className="col-resizer-handle"
+                title="Drag to resize, double-click to auto-fit"
+                onMouseDown={(e) => handleResizeMouseDown("size", e)}
+                onDoubleClick={(e) => handleAutoFit("size", e)}
+              />
               {filterOpenCol === "size" && (
                 <input
                   className="col-filter-input"
@@ -426,7 +600,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
               )}
             </th>
 
-            <th className="col-status" onClick={(e) => toggleColumnFilter("status", e)}>
+            <th
+              className="col-status"
+              style={{ width: colWidths.status }}
+              onClick={(e) => toggleColumnFilter("status", e)}
+            >
               <div className="th-content">
                 <span>Status</span>
                 <button
@@ -438,6 +616,12 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                   {getSortIcon("status")}
                 </button>
               </div>
+              <div
+                className="col-resizer-handle"
+                title="Drag to resize, double-click to auto-fit"
+                onMouseDown={(e) => handleResizeMouseDown("status", e)}
+                onDoubleClick={(e) => handleAutoFit("status", e)}
+              />
               {filterOpenCol === "status" && (
                 <input
                   className="col-filter-input"
@@ -464,14 +648,15 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
             </tr>
           ) : (
             displayedFiles.map((f) => {
-              const isSelected =
-                activeFilePath && normPath(activeFilePath) === normPath(f.filePath);
+              const isSelected = selectedRowPath
+                ? normPath(selectedRowPath) === normPath(f.filePath)
+                : false;
               const parentDir = getFullParentDir(f.filePath);
               return (
                 <tr
                   key={f.filePath}
                   className={`file-table-row ${isSelected ? "is-selected" : ""}`}
-                  onClick={() => onOpenFile(f)}
+                  onClick={() => handleRowClick(f)}
                   title={f.filePath}
                 >
                   <td className="cell-name" title={f.filePath}>
@@ -527,9 +712,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                       hoverOpenDelay={350}
                       popoverClassName="file-node-tooltip-popover"
                     >
-                      <span className="file-name-text" title={f.filePath}>
-                        {f.fileName}
-                      </span>
+                      <div className="file-name-wrap">
+                        <span className="file-name-text" title={f.filePath}>
+                          {f.fileName}
+                        </span>
+                      </div>
                     </Tooltip>
                   </td>
                   <td className="cell-dir" title={parentDir}>
@@ -553,9 +740,11 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                       hoverOpenDelay={350}
                       popoverClassName="file-node-tooltip-popover"
                     >
-                      <span className="file-dir-text" title={parentDir}>
-                        {f.relDir}
-                      </span>
+                      <div className="file-dir-wrap">
+                        <span className="file-dir-text" title={parentDir}>
+                          {f.relDir}
+                        </span>
+                      </div>
                     </Tooltip>
                   </td>
                   <td className="cell-size" title={`${formatFileBytes(f.fileSizeBytes)} (${(f.fileSizeBytes || 0).toLocaleString()} bytes)`}>

@@ -1020,6 +1020,14 @@
 /* ==========================================================================
    Toad v2.4.3: Interactive Project Files Table (Data-Dense 4-Column Layout)
    ========================================================================== */
+
+/* Global Cursor during column drag */
+body.col-resizing,
+body.col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
 .project-table-container {
   width: 100%;
   overflow-x: auto;
@@ -1034,6 +1042,7 @@
   table-layout: fixed;
 
   thead th {
+    position: relative; // required for absolute resizer handle
     padding: 3px 6px;
     font-size: 10px;
     font-weight: 700;
@@ -1067,6 +1076,33 @@
       }
     }
 
+    .col-resizer-handle {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 6px;
+      height: 100%;
+      cursor: col-resize;
+      user-select: none;
+      z-index: 10;
+
+      &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: 1px;
+        width: 2px;
+        background: transparent;
+        transition: background-color 0.15s ease;
+      }
+
+      &:hover::after,
+      &.is-resizing::after {
+        background-color: rgba(2, 132, 199, 0.75);
+      }
+    }
+
     .col-filter-input {
       width: 100%;
       height: 18px;
@@ -1087,10 +1123,10 @@
   }
 
   /* Column widths */
-  .col-name { width: 38%; }
-  .col-dir { width: 32%; }
-  .col-size { width: 18%; text-align: right; }
-  .col-status { width: 12%; text-align: center; }
+  .col-name { min-width: 45px; }
+  .col-dir { min-width: 45px; }
+  .col-size { min-width: 45px; text-align: right; }
+  .col-status { min-width: 45px; text-align: center; }
 
   tbody tr.file-table-row {
     height: 25px; // Data-dense 24-26px row height
@@ -1103,11 +1139,64 @@
     }
 
     &.is-selected {
+      height: auto !important;
       background-color: #0284c7 !important;
       color: #ffffff !important;
 
-      .file-name-text,
-      .cell-dir,
+      td {
+        white-space: normal !important;
+        word-break: break-all !important;
+        overflow-wrap: anywhere !important;
+        vertical-align: top !important;
+        padding-top: 5px !important;
+        padding-bottom: 5px !important;
+        color: #ffffff !important;
+      }
+
+      .cell-name {
+        height: auto !important;
+        min-height: 25px;
+        align-items: flex-start !important;
+
+        .bp4-popover-target {
+          white-space: normal !important;
+          overflow: visible !important;
+          display: block !important;
+          width: 100% !important;
+        }
+
+        .file-name-wrap,
+        .file-name-text {
+          white-space: normal !important;
+          word-break: break-all !important;
+          overflow-wrap: anywhere !important;
+          max-height: 180px;
+          overflow-y: auto;
+          display: block;
+          color: #ffffff !important;
+        }
+      }
+
+      .cell-dir {
+        .bp4-popover-target {
+          white-space: normal !important;
+          overflow: visible !important;
+          display: block !important;
+          width: 100% !important;
+        }
+
+        .file-dir-wrap,
+        .file-dir-text {
+          white-space: normal !important;
+          word-break: break-all !important;
+          overflow-wrap: anywhere !important;
+          max-height: 180px;
+          overflow-y: auto;
+          display: block;
+          color: #ffffff !important;
+        }
+      }
+
       .cell-size {
         color: #ffffff !important;
       }
@@ -1138,6 +1227,13 @@
       display: inline-block;
     }
 
+    .file-name-wrap {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
+    }
+
     .file-name-text {
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1157,6 +1253,13 @@
       white-space: nowrap;
       display: block;
       max-width: 100%;
+    }
+
+    .file-dir-wrap {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      width: 100%;
     }
 
     .file-dir-text {
@@ -1208,6 +1311,27 @@
     padding: 10px;
     font-style: italic;
   }
+
+  /* Custom Slim Scrollbars (4px, radius 2px) */
+  .file-name-wrap,
+  .file-name-text,
+  .file-dir-wrap,
+  .file-dir-text {
+    &::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.4);
+      border-radius: 2px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+  }
 }
 
 /* ==========================================================================
@@ -1253,6 +1377,13 @@
         }
       }
 
+      .col-resizer-handle {
+        &:hover::after,
+        &.is-resizing::after {
+          background-color: rgba(56, 189, 248, 0.85);
+        }
+      }
+
       .col-filter-input {
         background: #1e293b;
         color: #f8fafc;
@@ -1275,8 +1406,15 @@
         background-color: var(--md-sys-color-primary-container, #1f385c) !important;
         color: #ffffff !important;
 
+        td {
+          color: #ffffff !important;
+        }
+
         .file-name-text,
+        .file-name-wrap,
         .cell-dir,
+        .file-dir-text,
+        .file-dir-wrap,
         .cell-size {
           color: #ffffff !important;
         }
@@ -1290,6 +1428,19 @@
     .cell-dir,
     .cell-size {
       color: #94a3b8;
+    }
+
+    /* Custom Slim Scrollbars Dark Mode */
+    .file-name-wrap,
+    .file-name-text,
+    .file-dir-wrap,
+    .file-dir-text {
+      &::-webkit-scrollbar-thumb {
+        background: rgba(148, 163, 184, 0.3);
+      }
+      &::-webkit-scrollbar-thumb:hover {
+        background: rgba(148, 163, 184, 0.6);
+      }
     }
   }
 }

@@ -406,6 +406,139 @@ function escapeTabs(cellData: any): any {
   return cellData;
 }
 
+/**
+ * Auto-fit column width by measuring visible viewport rows (Stream 3).
+ * Formula: w_fit = clamp(60, 500, round(maxLen * 7.5 + 24))
+ */
+export const autoFitGridColumn = (
+  grid: any,
+  colId: string,
+  props?: DataGridProps
+): number => {
+  if (!grid || !colId) return MINCOLWIDTH;
+  if (colId === "_expand" || colId === "_id" || colId === "_parentId") {
+    return MINCOLWIDTH;
+  }
+
+  const curProps = props || (grid as any)._tadProps || {};
+  const dataView =
+    curProps.dataView || (typeof grid.getData === "function" ? grid.getData() : null);
+  if (!dataView) return MINCOLWIDTH;
+
+  const cols = typeof grid.getColumns === "function" ? [...grid.getColumns()] : [];
+  const targetColIdx = cols.findIndex((c: any) => c && c.id === colId);
+  if (targetColIdx === -1) return MINCOLWIDTH;
+  if (cols[targetColIdx].resizable === false) {
+    return cols[targetColIdx].width || MINCOLWIDTH;
+  }
+
+  const schema = dataView.schema;
+  const getColumnFormatter = curProps.getColumnFormatter;
+  let sf: (val: any) => string;
+  if (schema && getColumnFormatter) {
+    try {
+      const cf = getColumnFormatter(schema, colId);
+      sf = (val: any) =>
+        val != null && cf
+          ? cf(val) ?? val.toString()
+          : val != null
+          ? typeof val === "object"
+            ? JSON.stringify(val)
+            : val.toString()
+          : "";
+    } catch {
+      sf = (val: any) =>
+        val != null
+          ? typeof val === "object"
+            ? JSON.stringify(val)
+            : val.toString()
+          : "";
+    }
+  } else {
+    sf = (val: any) =>
+      val != null
+        ? typeof val === "object"
+          ? JSON.stringify(val)
+          : val.toString()
+        : "";
+  }
+
+  let maxLen = 0;
+  let displayName = colId;
+  try {
+    if (schema && typeof schema.displayName === "function") {
+      displayName = schema.displayName(colId) || colId;
+    } else if (cols[targetColIdx].name) {
+      displayName = cols[targetColIdx].name;
+    }
+  } catch {}
+  if (typeof displayName === "string") {
+    const cleanName = displayName.replace(/<[^>]*>?/gm, "").trim();
+    maxLen = Math.max(maxLen, cleanName.length);
+  }
+
+  const dataLength =
+    typeof dataView.getLength === "function"
+      ? dataView.getLength()
+      : Array.isArray(dataView)
+      ? dataView.length
+      : 0;
+  const vp = (typeof grid.getViewport === "function" && grid.getViewport()) || {
+    top: 0,
+    bottom: Math.min(100, Math.max(0, dataLength - 1)),
+  };
+
+  const startRow = Math.max(0, vp.top || 0);
+  const endRow = Math.min(
+    dataLength - 1,
+    Math.max(vp.bottom !== undefined ? vp.bottom : startRow + 50, startRow + 50)
+  );
+
+  for (let i = startRow; i <= endRow; i++) {
+    const item =
+      typeof dataView.getItem === "function"
+        ? dataView.getItem(i)
+        : Array.isArray(dataView)
+        ? dataView[i]
+        : null;
+    if (!item) continue;
+    const val = item[colId];
+    if (val != null) {
+      let str: string;
+      try {
+        str = sf(val);
+      } catch {
+        str = typeof val === "object" ? JSON.stringify(val) : String(val);
+      }
+      if (typeof str === "string") {
+        const lines = str.split("\n");
+        for (const l of lines) {
+          if (l.length > maxLen) maxLen = l.length;
+        }
+      }
+    }
+  }
+
+  const calculatedWidth = Math.min(500, Math.max(60, Math.round(maxLen * 7.5 + 24)));
+  cols[targetColIdx] = { ...cols[targetColIdx], width: calculatedWidth };
+
+  if (typeof grid.setColumns === "function") {
+    grid.setColumns(cols);
+  }
+
+  const tadProps = (grid as any)._tadProps;
+  if (tadProps?._gridState?.colWidthsMap) {
+    tadProps._gridState.colWidthsMap[colId] = calculatedWidth;
+  }
+  if ((grid as any)._gridState?.colWidthsMap) {
+    (grid as any)._gridState.colWidthsMap[colId] = calculatedWidth;
+  }
+  if (typeof grid.render === "function") {
+    grid.render();
+  }
+  return calculatedWidth;
+};
+
 /* Create grid from the specified set of columns */
 const createGrid = (
   containerId: string,
@@ -436,6 +569,94 @@ const createGrid = (
       if (col) col._grid = grid;
     });
   }
+
+  // Floating In-Place Active Cell Wrap state & lifecycle (Stream 4 & 6)
+  let currentExpandedCellNode: HTMLElement | null = null;
+  let currentExpandedRowNode: HTMLElement | null = null;
+
+  const dismissFloatingCell = () => {
+    if (currentExpandedCellNode) {
+      currentExpandedCellNode.classList.remove("slick-cell-active-expanded");
+      currentExpandedCellNode = null;
+    }
+    if (currentExpandedRowNode) {
+      currentExpandedRowNode.classList.remove("slick-row-has-expanded");
+      currentExpandedRowNode.classList.remove("slick-row-active-expanded");
+      currentExpandedRowNode = null;
+    }
+    const container =
+      (grid.getContainerNode && grid.getContainerNode()) ||
+      document.getElementById(containerId);
+    if (container) {
+      const cells = container.querySelectorAll(".slick-cell-active-expanded");
+      cells.forEach((c: Element) =>
+        c.classList.remove("slick-cell-active-expanded")
+      );
+      const rows = container.querySelectorAll(
+        ".slick-row-has-expanded, .slick-row-active-expanded"
+      );
+      rows.forEach((r: Element) => {
+        r.classList.remove("slick-row-has-expanded");
+        r.classList.remove("slick-row-active-expanded");
+      });
+    }
+  };
+
+  const tryExpandCell = (row: number, cell: number) => {
+    dismissFloatingCell();
+    if (
+      row === null ||
+      row === undefined ||
+      cell === null ||
+      cell === undefined ||
+      row < 0 ||
+      cell < 0
+    ) {
+      return;
+    }
+
+    const cols = typeof grid.getColumns === "function" ? grid.getColumns() : [];
+    if (!cols || !cols[cell]) return;
+    const colDef = cols[cell];
+    if (
+      colDef.id === "_expand" ||
+      colDef.id === "_id" ||
+      colDef.id === "_parentId"
+    ) {
+      return;
+    }
+
+    const cellNode =
+      typeof grid.getCellNode === "function"
+        ? (grid.getCellNode(row, cell) as HTMLElement)
+        : null;
+    if (!cellNode) return;
+
+    const textContent = (cellNode.textContent || "").trim();
+    const textLen = textContent.length;
+    // Overflow condition: scrollWidth > clientWidth or text length > 28
+    const isOverflowing =
+      cellNode.scrollWidth > cellNode.clientWidth || textLen > 28;
+
+    if (isOverflowing) {
+      cellNode.classList.add("slick-cell-active-expanded");
+      currentExpandedCellNode = cellNode;
+
+      const rowNode = (
+        cellNode.closest ? cellNode.closest(".slick-row") : cellNode.parentElement
+      ) as HTMLElement;
+      if (rowNode) {
+        rowNode.classList.add("slick-row-has-expanded");
+        rowNode.classList.add("slick-row-active-expanded");
+        currentExpandedRowNode = rowNode;
+      }
+    }
+  };
+
+  (grid as any).expandActiveCell = tryExpandCell;
+  (grid as any).dismissFloatingCell = dismissFloatingCell;
+  (grid as any).autoFitColumn = (colId: string) =>
+    autoFitGridColumn(grid, colId, (grid as any)._tadProps || props);
 
   const selectionModel = new CellSelectionModel();
   grid.setSelectionModel(selectionModel);
@@ -599,7 +820,9 @@ const createGrid = (
   });
 
   // Intercept header clicks in capture phase: only sort if sort button was clicked!
-  const containerElem = document.getElementById(containerId);
+  const containerElem =
+    (grid.getContainerNode && grid.getContainerNode()) ||
+    document.getElementById(containerId);
   if (containerElem) {
     containerElem.addEventListener(
       "click",
@@ -617,11 +840,57 @@ const createGrid = (
       },
       true // capture phase!
     );
+
+    // Double-click on header resizer handle auto-fits column width (Stream 3 & 6)
+    containerElem.addEventListener(
+      "dblclick",
+      (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (!target || !target.classList.contains("slick-resizable-handle")) return;
+
+        const headerCol = target.closest(".slick-header-column") as HTMLElement;
+        if (!headerCol) return;
+
+        const cols = grid.getColumns();
+        if (!cols || cols.length === 0) return;
+
+        const colDef =
+          (headerCol as any)._columnData ||
+          cols.find(
+            (c: any) =>
+              (headerCol.id &&
+                (headerCol.id === c.id || headerCol.id.endsWith(c.id))) ||
+              headerCol.getAttribute("data-id") === c.id
+          );
+
+        if (!colDef || colDef.id === "_expand" || colDef.resizable === false) return;
+
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+
+        const curProps = (grid as any)._tadProps || props;
+        autoFitGridColumn(grid, colDef.id, curProps);
+      },
+      true // capture phase to prevent sort triggering!
+    );
   }
 
   // Follow active row when Event Details sidebar is open, or immediately open when active cell is on _expand column
   grid.onActiveCellChanged.subscribe((e: any, args: any) => {
-    if (!args || args.row === null || args.row === undefined) return;
+    if (
+      !args ||
+      args.row === null ||
+      args.row === undefined ||
+      args.cell === null ||
+      args.cell === undefined
+    ) {
+      dismissFloatingCell();
+      return;
+    }
+
+    tryExpandCell(args.row, args.cell);
+
     const curProps = (grid as any)._tadProps || props;
     const cols = grid.getColumns();
     const isExpandCol = cols && cols[args.cell]?.id === "_expand";
@@ -643,8 +912,36 @@ const createGrid = (
     }
   });
 
-  // Enter or Space key toggles / opens Event Details for active row
+  // Dismiss floating cell on scroll or viewport changes (Stream 4 & 6)
+  grid.onScroll.subscribe(() => {
+    dismissFloatingCell();
+  });
+  grid.onViewportChanged.subscribe(() => {
+    dismissFloatingCell();
+  });
+
+  // Escape key dismisses floating active cell (Stream 4 & 6)
+  const handleGridEscape = (e: KeyboardEvent) => {
+    if (e.key === "Escape" || e.keyCode === 27) {
+      dismissFloatingCell();
+    }
+  };
+  window.addEventListener("keydown", handleGridEscape);
+
+  const origDestroy = grid.destroy;
+  grid.destroy = () => {
+    dismissFloatingCell();
+    window.removeEventListener("keydown", handleGridEscape);
+    if (origDestroy && typeof origDestroy === "function") {
+      origDestroy.call(grid);
+    }
+  };
+
+  // Enter or Space key toggles / opens Event Details for active row; Escape dismisses floating cell
   grid.onKeyDown.subscribe((e: any, args: any) => {
+    if (e.key === "Escape" || e.keyCode === 27) {
+      dismissFloatingCell();
+    }
     const curProps = (grid as any)._tadProps || props;
     if (
       e.key === "Enter" ||
@@ -872,6 +1169,10 @@ const updateGrid = (gs: GridState, props: DataGridProps) => {
   } = props;
 
   (gs.grid as any)._tadProps = props;
+  (gs.grid as any)._gridState = gs;
+  if (props) {
+    (props as any)._gridState = gs;
+  }
   gs.slickColMap = mkSlickColMap(
     dataView!.schema,
     getColumnFormatter,
@@ -974,6 +1275,12 @@ const createGridState = (
     displayColumns
   );
   gs.grid = createGrid(containerId, gridCols, dataView, props);
+  if (gs.grid) {
+    (gs.grid as any)._gridState = gs;
+    if ((gs.grid as any)._tadProps) {
+      (gs.grid as any)._tadProps._gridState = gs;
+    }
+  }
   return gs;
 };
 
