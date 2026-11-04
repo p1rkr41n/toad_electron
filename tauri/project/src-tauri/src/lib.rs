@@ -7,6 +7,7 @@
 //! - F06: Command dispatcher & aliases router
 
 pub mod commands;
+pub mod engine;
 pub mod logger;
 pub mod portable;
 pub mod state;

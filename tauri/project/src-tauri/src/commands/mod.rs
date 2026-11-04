@@ -6,11 +6,12 @@
 //! - Routes system requests to `commands::system` handlers with genuine plugin extension traits.
 //! - Provides clean typed DTO stubs for Query (M3), Ledger (M4), and Forensics (M5).
 
+pub mod query;
 pub mod system;
 
 use crate::state::AppState;
 use serde_json::{json, Value};
-use tauri::ipc::{Invoke, InvokeBody, Response};
+use tauri::ipc::{Invoke, InvokeBody};
 use tauri::Manager;
 
 /// Discrete actions supported by the Toad command dispatcher
@@ -271,32 +272,62 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
             }
 
             CommandAction::EvalQuery => {
-                let stream_marker = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00];
-                invoke.resolver.resolve(Response::new(stream_marker));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_eval_query(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::RowCount => {
-                invoke.resolver.resolve(json!({ "rowCount": 0 }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_row_count(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::Schema => {
-                invoke.resolver.resolve(json!({
-                    "columns": [],
-                    "columnTypes": {}
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_schema(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::RunSqlArrow => {
-                let stream_marker = vec![0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00];
-                invoke.resolver.resolve(Response::new(stream_marker));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_run_sql_arrow(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::GetTableName => {
-                invoke.resolver.resolve(json!("main_table"));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_get_table_name(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
