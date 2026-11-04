@@ -26,6 +26,9 @@ Dành cho nhà phát triển cá nhân (Indie Dev / Hacker / Security Researcher
    - Tác giả commit Jujutsu / Git & Metadata: `HelloKittyXamKinLung`
    - Email phát hành ẩn danh: `p1rkr41n@users.noreply.github.com`
    - Tuyệt đối không để lộ thông tin tổ chức/doanh nghiệp (như `VNCERT`) trong lịch sử commit, file build hay metadata phát hành.
+7. **Ngôn ngữ phát hành công khai (English-Only Public Language Policy):**
+   - Toàn bộ thông tin phát hành công khai (tiêu đề GitHub Release, nội dung Release Notes, Git commit messages, Git tags, tài sản phát hành, Winget manifest) bắt buộc phải sử dụng **100% tiếng Anh chuẩn mực, ngắn gọn, rành mạch và chuyên nghiệp**.
+   - Tuyệt đối không sử dụng ngôn ngữ địa phương trong các bản release hoặc thông điệp VCS công khai.
 
 ---
 
