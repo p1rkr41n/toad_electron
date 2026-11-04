@@ -31,6 +31,99 @@ interface ExtractionRow {
   fillRate: number;
   enabled: boolean;
   tokenIndex?: number;
+  jsonPath?: string;
+}
+
+export function buildDuckDbJsonPath(segments: (string | number)[]): string {
+  let path = "$";
+  for (const seg of segments) {
+    if (typeof seg === "number") {
+      path += `[${seg}]`;
+    } else {
+      if (/^[a-zA-Z0-9_]+$/.test(seg)) {
+        path += `.${seg}`;
+      } else {
+        path += `."${seg.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+      }
+    }
+  }
+  return path;
+}
+
+export interface DiscoveredJsonLeaf {
+  segments: (string | number)[];
+  dotPath: string;
+  jsonPath: string;
+  sampleVal: string;
+  inferredType: "VARCHAR" | "BIGINT" | "DOUBLE" | "TIMESTAMP" | "BOOLEAN";
+}
+
+export function traverseJsonLeaves(
+  obj: any,
+  segments: (string | number)[] = [],
+  results: Map<string, DiscoveredJsonLeaf> = new Map()
+): Map<string, DiscoveredJsonLeaf> {
+  if (obj === null || obj === undefined) return results;
+
+  if (typeof obj === "object" && !Array.isArray(obj)) {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) {
+      const dotPath = segments.join(".");
+      if (dotPath && !results.has(dotPath)) {
+        results.set(dotPath, {
+          segments,
+          dotPath,
+          jsonPath: buildDuckDbJsonPath(segments),
+          sampleVal: "{}",
+          inferredType: "VARCHAR"
+        });
+      }
+      return results;
+    }
+    for (const k of keys) {
+      traverseJsonLeaves(obj[k], [...segments, k], results);
+    }
+  } else if (Array.isArray(obj)) {
+    const dotPath = segments.join(".");
+    if (dotPath && !results.has(dotPath)) {
+      results.set(dotPath, {
+        segments,
+        dotPath,
+        jsonPath: buildDuckDbJsonPath(segments),
+        sampleVal: JSON.stringify(obj),
+        inferredType: "VARCHAR"
+      });
+    }
+  } else {
+    const dotPath = segments.join(".");
+    if (!results.has(dotPath)) {
+      let inferredType: "VARCHAR" | "BIGINT" | "DOUBLE" | "TIMESTAMP" | "BOOLEAN" = "VARCHAR";
+      if (typeof obj === "boolean") {
+        inferredType = "BOOLEAN";
+      } else if (typeof obj === "number") {
+        inferredType = Number.isInteger(obj) ? "BIGINT" : "DOUBLE";
+      } else if (typeof obj === "string") {
+        const strTrim = obj.trim();
+        if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}/.test(strTrim)) {
+          inferredType = "TIMESTAMP";
+        } else if (/^-?\d+$/.test(strTrim)) {
+          inferredType = "BIGINT";
+        } else if (/^-?\d+\.\d+$/.test(strTrim)) {
+          inferredType = "DOUBLE";
+        } else if (/^(true|false)$/i.test(strTrim)) {
+          inferredType = "BOOLEAN";
+        }
+      }
+      results.set(dotPath, {
+        segments,
+        dotPath,
+        jsonPath: buildDuckDbJsonPath(segments),
+        sampleVal: String(obj),
+        inferredType
+      });
+    }
+  }
+  return results;
 }
 
 export const RegexDialog: React.FC<RegexDialogProps> = ({
@@ -255,6 +348,16 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     }
   };
 
+  const handleScanDeepSchema = () => {
+    if (!selectedCol) return;
+    const samples = fetchSampleEvents(selectedCol, 1000);
+    if (samples.length > 0) {
+      setSampleList(samples);
+      setSampleIdx(0);
+      setSampleText(samples[0]);
+    }
+  };
+
   // Infer default DuckDB type from sample value
   const inferType = (val: string): "VARCHAR" | "BIGINT" | "DOUBLE" | "TIMESTAMP" | "BOOLEAN" => {
     if (!val) return "VARCHAR";
@@ -335,8 +438,9 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     const baseStrOffset = getMaxStrIndex(columns);
 
     if (formatType === "json") {
-      const keyCount = new Map<string, number>();
-      const keySampleVal = new Map<string, string>();
+      const leafCount = new Map<string, number>();
+      const leafDetails = new Map<string, DiscoveredJsonLeaf>();
+
       samplesToScan.forEach((line) => {
         let b = line.trim();
         const firstBrace = b.indexOf("{");
@@ -346,28 +450,27 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         }
         try {
           const parsed = JSON.parse(b);
-          if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            Object.keys(parsed).forEach((k) => {
-              keyCount.set(k, (keyCount.get(k) || 0) + 1);
-              if (!keySampleVal.has(k)) {
-                const rawVal = parsed[k];
-                keySampleVal.set(k, typeof rawVal === "object" ? JSON.stringify(rawVal) : String(rawVal));
-              }
-            });
+          const rowLeaves = traverseJsonLeaves(parsed);
+          for (const [dotPath, leaf] of rowLeaves.entries()) {
+            leafCount.set(dotPath, (leafCount.get(dotPath) || 0) + 1);
+            if (!leafDetails.has(dotPath)) {
+              leafDetails.set(dotPath, leaf);
+            }
           }
         } catch { }
       });
 
-      for (const [k, count] of keyCount.entries()) {
-        const val = keySampleVal.get(k) || "";
+      for (const [dotPath, leaf] of leafDetails.entries()) {
+        const count = leafCount.get(dotPath) || 1;
         candidates.push({
-          id: `json_${k}`,
-          sourceKeyOrIdx: k,
-          outputColName: k,
-          sampleVal: val,
-          colType: inferType(val),
+          id: `json_${dotPath}`,
+          sourceKeyOrIdx: dotPath,
+          outputColName: dotPath,
+          sampleVal: leaf.sampleVal,
+          colType: leaf.inferredType,
           fillRate: Math.round((count / samplesToScan.length) * 100),
           enabled: true,
+          jsonPath: leaf.jsonPath,
         });
       }
     } else if (formatType === "arr" || formatType === "json_array") {
@@ -758,7 +861,18 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
     if (formatType === "json") {
       const colClauses = activeItems.map((item) => {
-        const expr = `json_extract_string(${targetCol}, '$.${item.sourceKeyOrIdx}')`;
+        let jsonPath = item.jsonPath;
+        if (!jsonPath) {
+          const rawKey = String(item.sourceKeyOrIdx);
+          if (rawKey.startsWith("$")) {
+            jsonPath = rawKey;
+          } else {
+            const segs = rawKey.split(".");
+            jsonPath = buildDuckDbJsonPath(segs);
+          }
+        }
+        const escapedPath = jsonPath.replace(/'/g, "''");
+        const expr = `json_extract_string(${targetCol}, '${escapedPath}')`;
         if (item.colType !== "VARCHAR") {
           return `  TRY_CAST(${expr} AS ${item.colType}) AS "${item.outputColName}"`;
         }
@@ -1617,6 +1731,28 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                   <path d="M11 1H3c-1.1 0-2 .9-2 2v10h2V3h8V1zm3 4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 12H6V7h8v10z" />
                 </svg>
                 <span>{copiedSample ? "Copied!" : "Copy"}</span>
+              </button>
+              <button
+                type="button"
+                className="bp4-button bp4-minimal bp4-small"
+                onClick={handleScanDeepSchema}
+                style={{
+                  padding: "1px 6px",
+                  height: "20px",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: sampleList.length > 50 ? "var(--md-sys-color-primary, #0284c7)" : "var(--md-sys-color-on-surface-variant, #64748b)",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                  borderRadius: "4px",
+                  border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)",
+                  backgroundColor: sampleList.length > 50 ? "rgba(2, 132, 199, 0.08)" : "transparent"
+                }}
+                title="Scan up to 1,000 rows to discover complete nested schema and rare fields"
+              >
+                <span>{sampleList.length > 50 ? `Scanned ${sampleList.length} rows` : "Deep Scan (1,000 rows)"}</span>
               </button>
             </div>
           </div>
