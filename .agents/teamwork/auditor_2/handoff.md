@@ -1,195 +1,206 @@
-# Forensic Integrity Re-Audit Handoff Report — TOAD v2.4.8 Rebrand
+# Forensic Audit Report: Milestone 6 Gate Verification (Round 2)
 
-**Auditor:** Auditor 2 (Forensic Integrity Re-Auditor)  
-**Recipient:** Orchestrator (Conversation ID: `afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
-**Date:** 2026-11-03T13:00:00Z  
-**Verdict:** **CLEAN**  
-**Detailed Analysis:** `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\analysis.md`  
+**Work Product**: TOAD v2.5.1 Nested JSON Parser, Parquet Auto-Flattener & Milestone 6 Remediation Fixes  
+**Auditor**: auditor_2 (Forensic Integrity Auditor, critic, specialist)  
+**Date**: 2026-11-04  
+**Integrity Mode**: Development Mode (from `ORIGINAL_REQUEST.md`)  
+**Verdict**: **CLEAN**  
 
 ---
 
-## Forensic Audit Report
+## Forensic Audit Summary
 
-**Work Product**: TOAD v2.4.8 Rebrand & Worker Remediation Fixes  
-**Profile**: General Project (Development Mode per ORIGINAL_REQUEST.md)  
-**Verdict**: **CLEAN**  
-
-### Phase Results
-- **Hardcoded test results**: PASS — No hardcoded test results or mock shortcuts detected.
-- **Facade implementations**: PASS — Genuine logic implemented across `toad-app`, `toadviewer`, and `reltab-duckdb`.
-- **Fabricated verification outputs**: PASS — All tests independently executed live; zero pre-populated results accepted.
-- **Behavioral Verification (Full Test Suite)**: PASS — `node run_tests.js --all` exits with code 0 (Smoke Test PASS, Deep QA 222/222 PASS, Legacy Use Cases 19/19 PASS).
-- **Test E.2 Verification**: PASS — `tests/deep_integration_qa.js` Test E.2 passes in 29.47 ms (RAM Cache fetch latency: 0.015 ms, < 2ms budget). Total 222/222 PASS.
-- **Legacy Use Cases**: PASS — `tests/legacy_use_cases.js` passes 19/19 test cases across all 12 suites in 4.87s.
-- **Authenticity of Path Resolvers**: PASS — Verified `pathOrModuleExists` and `mapLegacyPath` in both test files perform genuine candidate extension checks (`.js`, `.ts`, etc.) and load real compiled modules without bypassing assertions.
-- **Version Synchronization**: PASS — Version `2.4.8` synchronized across 9 project manifests and source files (`toad-app`, `toadviewer`, `host-bridge`, `reltab-duckdb`, `RegexDialog.tsx`, `dist_package.ps1`, `package_release.ps1`, `README.md`, `HelloKittyXamKinLung.Toad.yaml`).
-- **File Association**: PASS — `"ext": "toad"` registered at line 164 of `toad-app/package.json` as primary editor format.
-- **Jujutsu VCS Health**: PASS — `tools/jj/jj.exe status` clean with zero OS Error 5 or junction corruption.
-- **Zero-Duplicate Binary Storage**: PASS — Single canonical `Toad.exe` in root; zero duplicate binary copies in scripts or releases.
+| Check Area | Description | Status | Verdict |
+|---|---|:---:|:---:|
+| **Check 1: Code Authenticity** | No hardcoded test results, mock tables, or dummy responses in `JsonStreamingFlattener.ts`, `csvimport.ts`, and test suites | PASS | **CLEAN** |
+| **Check 2: Parameter Validity** | Eliminated illegal `all_varchar = true`; adopted valid DuckDB v1.0.0 parameters (`sample_size`, `ignore_errors = true`, `maximum_object_size = 67108864`) | PASS | **CLEAN** |
+| **Check 3: Exception Safety** | `try...catch` wrappers prevent unhandled promise rejections on stream errors; `try...finally` guarantees disk cleanup of `tempJsonl` | PASS | **CLEAN** |
+| **Check 4: Fallthrough Protection** | Format guards prevent `.evtx` and JSON extensions from ever falling through into `read_csv()` | PASS | **CLEAN** |
+| **Check 5: VCS Identity** | Jujutsu & git commits authored strictly by `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` | PASS | **CLEAN** |
+| **Check 6: Language Standard** | 100% concise, professional English in commit messages, release notes, and Winget manifests | PASS | **CLEAN** |
+| **Check 7: Binary De-duplication** | Root has only `Toad.exe`; `releases/` has canonical v2.5.1 `.exe` and `.zip` matching SHA-256 manifests bit-for-bit | PASS | **CLEAN** |
+| **Check 8: Version Synchronization** | Core package manifests bumped to `2.5.1` | PASS | **CLEAN** |
+| **Check 9: Independent Test Execution** | 100% PASS across all unit, adversarial, EVTX parity, fuzzing, and master regression suites (14/14 suites, 486 tests) | PASS | **CLEAN** |
 
 ---
 
 ## 1. Observation
 
-1. **Empirical Unified Test Suite Execution (`node run_tests.js --all`)**:
-   - Command executed:
-     ```powershell
-     $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-     node run_tests.js --all
+### 1.1 Source Code Modifications & Authenticity
+1. **`tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`**:
+   - Lines 224–233: Parameter `all_varchar = true` was completely eliminated from `fallbackQuery`. Replaced with valid DuckDB v1.0.0 table function parameters:
+     ```typescript
+     COPY (
+       SELECT * FROM read_json_auto(
+         '${safeSrc}',
+         sample_size = ${sampleSize},
+         ignore_errors = true,
+         maximum_object_size = 67108864
+       )
+     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
      ```
-   - Verbatim summary output:
+   - Lines 235–249: Query execution wrapped in `try...catch (fbErr: any)` with contextual warning log and clean rethrow:
+     ```typescript
+     try {
+       await execQuery(dbConn, fallbackQuery);
+       const executionTimeMs = Date.now() - startTime;
+       log.info(`[JsonStreamingFlattener] Tier 2 fallback JSON streaming completed in ${executionTimeMs}ms.`);
+       return {
+         flattened: false,
+         hasStructColumns: false,
+         columnCount: introspection.columns.length,
+         finalColumnNames: introspection.columns.map((c) => c.columnName),
+         executionTimeMs,
+       };
+     } catch (fbErr: any) {
+       log.warn(`[JsonStreamingFlattener] Tier 2 fallback JSON streaming failed:`, fbErr?.message || fbErr);
+       throw fbErr;
+     }
      ```
-     ======================================================================
-                         OVERALL TEST EXECUTION SUMMARY                    
-     ======================================================================
-       ✔ [PASS] - Smoke Test (v2.1.6) (tests/smoke_test.js)
-       ✔ [PASS] - Deep Integration QA (133 Tests) (tests/deep_integration_qa.js)
-       ✔ [PASS] - Legacy Use Cases (19 Tests) (tests/legacy_use_cases.js)
-       Total Duration : 28.49s
-     ======================================================================
-       RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY)
-     ```
-   - Exit code: 0.
+   - Static search across `tad-master/packages/reltab-duckdb/src/json/`: 0 occurrences of `all_varchar`.
+   - Zero hardcoded test outputs, zero canned returns, zero mock tables.
 
-2. **Empirical Standalone Deep Integration QA (`node tests/deep_integration_qa.js`)**:
-   - Command executed:
-     ```powershell
-     node tests/deep_integration_qa.js
-     ```
-   - Verbatim Test E.2 output:
-     ```
-       RAM First-Page Micro-Cache Fetch Latency: 0.015 ms
-       ✓ [PASS] E.2 RAM First-Page Micro-Cache returns 1000 rows in < 2ms with 0 Disk I/O (29.47 ms)
-     ```
-   - Verbatim summary output:
-     ```
-     ======================================================================
-       DEEP INTEGRATION QA TEST SUITE SUMMARY (Toad v2.0.2 Dual Engine, RAM Cache & Multi-Format Extractor)
-     ======================================================================
-       Total Test Cases : 222
-       Passed           : 222
-       Failed           : 0
-       Total Duration   : 16.16s
-     ======================================================================
-     ```
-   - Exit code: 0.
+2. **`tad-master/packages/reltab-duckdb/src/csvimport.ts`**:
+   - Lines 3011–3025: Added `try...catch` and `log.warn` around `streamFlattenedJsonToParquet` in `streamJsonToParquet`.
+   - Lines 3516–3524: Wrapped `await streamJsonToParquet(dbConn, tempJsonl, targetParquetPath, cfg)` in `try...finally` to ensure `fs.unlinkSync(tempJsonl)` executes upon both success and error.
+   - Lines 3640–3662: Format-specific fallback guards in `nativeCSVImport`:
+     - `.evtx`: immediately throws `Failed to ingest EVTX file...`.
+     - `[".json", ".jsonl", ".ndjson"]`: attempts in-memory JSON fallback (`CREATE OR REPLACE TABLE ... AS SELECT * FROM read_json_auto('${safePath}', ignore_errors = true)`). If this also fails, throws `Failed to parse JSON file...`.
+     - CSV parsing block at line 3684 is completely unreachable for JSON/EVTX files.
 
-3. **Empirical Standalone Legacy Use Cases (`node tests/legacy_use_cases.js`)**:
-   - Command executed:
-     ```powershell
-     node tests/legacy_use_cases.js
-     ```
-   - Verbatim summary output:
-     ```
-     ======================================================================
-       QA TEST SUITE SUMMARY (Toad v2.0.0 Dual DuckDB Engine)
-     ======================================================================
-       Total Test Cases : 19
-       Passed           : 19
-       Failed           : 0
-       Total Duration   : 4.87s
-     ======================================================================
-     ```
-   - Exit code: 0.
+### 1.2 Package Build Verification
+- Command:
+  ```powershell
+  cmd.exe /c "set PATH=D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;%PATH% && cd tad-master\packages\reltab-duckdb && npm run build"
+  ```
+- Result: Exit code 0, 0 TypeScript compilation errors (`tsc -p tsconfig-build.json`).
 
-4. **Authenticity of Path Resolution Code**:
-   - In `tests/deep_integration_qa.js:26-55` and `tests/legacy_use_cases.js:84-113`:
-     `pathOrModuleExists` checks candidate file extensions (`.js`, `.ts`, `.json`, `.node`) and directory indices (`index.js`, `index.ts`).
-   - In `tests/deep_integration_qa.js:73-86` and `tests/legacy_use_cases.js:131-144`:
-     `Module._resolveFilename` intercepts unresolvable legacy requests and redirects them to the mapped `toad-*` paths.
-   - Test E.2 imports the authentic `MultipleLoadingManager` from `toadviewer/dist/MultipleLoadingManager.js` and exercises real cache insertion, cache hit checks, and latency measurement against 1,000 real rows.
-   - In `tests/legacy_use_cases.js:148-177`: Package paths are dynamically resolved to `toad-app` and `toadviewer`, loading `portableAppData` and `MultipleLoadingManager` directly.
+### 1.3 Jujutsu VCS & Git Identity Conformance
+- Executed `tools/jj/jj.exe log --template builtin_log_detailed -n 10`:
+  - Author: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`
+  - Committer: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`
+  - Verified 0 enterprise or organizational identity leaks in recent commit series.
+  - Commit descriptions in 100% professional, concise English:
+    - `feat(release): update finalized v2.5.1 checksums and resilience in dist_package.ps1`
+    - `feat(json): add modular schema introspector, flattener and comprehensive QA test suites`
+    - `chore(release): bump version to 2.5.0.5 and package nested JSON leaf parser`
+    - `feat(json): implement nested JSON leaf extraction and two-phase Parquet auto-flattening`
+    - `chore(release): bump version to 2.5.0.4 and add context menu parse shortcut`
 
-5. **Version Synchronization (v2.4.8)**:
-   - `tad-master/packages/toad-app/package.json`: `"version": "2.4.8"` (line 3)
-   - `tad-master/packages/toadviewer/package.json`: `"version": "2.4.8"` (line 3)
-   - `tad-master/packages/host-bridge/package.json`: `"version": "2.4.8"` (line 3)
-   - `tad-master/packages/reltab-duckdb/package.json`: `"version": "2.4.8"` (line 3)
-   - `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`: line 1178 contains `v2.4.8`
-   - `dist_package.ps1`: lines 55-64 assert `v2.4.8`
-   - `package_release.ps1`: line 3 defines `[string]$Version = "2.4.8"`
-   - `README.md`: line 1 `# Toad (v2.4.8)` and line 5 badge `Version-2.4.8`
-   - `releases/HelloKittyXamKinLung.Toad.yaml`: line 3 `PackageVersion: 2.4.8`
+### 1.4 Binary De-duplication & Manifest Checksum Conformance
+- Root Directory: Contains only `Toad.exe` (75,884,628 bytes ~ 72.37 MB), well within the < 75 MB budget.
+- Releases Directory:
+  - `Toad-2.5.1-x64-portable.exe`: 75,888,518 bytes (~ 72.37 MB)
+  - `Toad-2.5.1-x64-portable.zip`: 75,893,725 bytes (~ 72.38 MB)
+  - Zero duplicate historical binaries (no `Toad 2.0.x.exe`, `Toad 2.1.x.exe`, etc.).
+- Bit-for-bit SHA-256 verification:
+  - `Toad-2.5.1-x64-portable.exe`: `C01E535B3DFB98063C62C4BF8EF67E71182D18FC0F34812C1CF9F70FF4A54B2A`
+  - `Toad-2.5.1-x64-portable.zip`: `90EB0123AF83817DA25993760675ECC4712AE11CE933B2A72EE464D675DC7797`
+  - Matches `releases/SHA256SUMS.txt` and `releases/HelloKittyXamKinLung.Toad.yaml` 100% bit-for-bit.
 
-6. **Desktop File Associations**:
-   - `tad-master/packages/toad-app/package.json:163-172`:
-     `{"ext": "toad", "name": "Toad Saved Workspace", "role": "Editor"}` registered as primary workspace format immediately preceding `{"ext": "tad", ...}`.
+### 1.5 Version Bumping Verification
+Verified `version: "2.5.1"` across all core packages:
+- `tad-master/package.json`: `2.5.1`
+- `tad-master/packages/toad-app/package.json`: `2.5.1`
+- `tad-master/packages/host-bridge/package.json`: `2.5.1`
+- `tad-master/packages/reltab-duckdb/package.json`: `2.5.1`
+- `tad-master/packages/toadviewer/package.json`: `2.5.1`
+- `releases/HelloKittyXamKinLung.Toad.yaml`: `PackageVersion: 2.5.1`
 
-7. **VCS & Binary Storage Compliance**:
-   - `tools/jj/jj.exe status`: Clean working copy tracking without OS Error 5 or corruption.
-   - Root directory contains only `Toad.exe` (75.6 MB).
-   - Zero duplicate historical binaries (`Toad 2.0.x.exe`, `Toad 2.1.x.exe`, etc.) created.
+### 1.6 Independent Empirical Test Suite Execution
+1. **Adversarial Challenger 2 Test Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_extreme_adversarial_challenger2.js`
+   - Output: `Empirical Challenger 2 Summary: 61 Passed, 0 Failed` (100% PASS, Exit code 0).
+   - Confirmed Section 4.4.1 DuckDB parameter rejection of `all_varchar`, Section 7.1.1 0 unhandled promise rejections, and Section 7.1.2 0 uncaught exceptions.
+2. **Adversarial DuckDB SQL Injection Test Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_adversarial_duckdb.js`
+   - Output: `CHALLENGER 1 SUMMARY: 53 Passed, 0 Failed` (100% PASS, Exit code 0).
+3. **JSON Streaming Flattener Unit Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js`
+   - Output: `Total tests: 46 | Passed: 46 | Failed: 0` (100% PASS, Exit code 0).
+4. **Real-World EVTX JSON Parity QA Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js`
+   - Output: `EVTX Parity QA Summary: 35 Passed, 0 Failed` (100% PASS, Exit code 0).
+5. **Adversarial Robustness & Fuzzing Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js`
+   - Output: `Adversarial QA Summary: 40 Passed, 0 Failed` (100% PASS, Exit code 0).
+6. **Master Unified Regression Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe run_tests.js --all`
+   - Output: `RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY)` across all 14 suites in 46.37s (Exit code 0).
 
 ---
 
 ## 2. Logic Chain
 
-1. **Remediation Directly Resolves Prior Failures (Observations 1, 2, 3)**:
-   - Auditor 1 rejected the work product because `tests/deep_integration_qa.js` failed Test E.2 with `Cannot find module ... MultipleLoadingManager`, `tests/legacy_use_cases.js` failed on startup with `Cannot find module ... portableAppData`, and `run_tests.js --all` exited with code 1.
-   - Auditor 2's empirical execution proves that all 3 test commands now pass 100% cleanly with Exit Code 0.
-   - Test E.2 passes in 29.47 ms with 0.015 ms RAM fetch latency. Deep Integration QA passes 222/222 tests. Legacy Use Cases passes 19/19 tests. The unified test runner passes all suites with 0 failures in 28.49s.
-
-2. **Authenticity of Implementation Confirmed (Observation 4)**:
-   - Code inspection of `deep_integration_qa.js` and `legacy_use_cases.js` confirms that `pathOrModuleExists` and `Module._resolveFilename` hook perform authentic filesystem resolution for extensionless module imports.
-   - No assertions were deleted, commented out, or mocked with fake returns.
-   - Tests execute against live compiled modules and real in-memory DuckDB instances.
-
-3. **All Rebrand Constraints Satisfied (Observations 5, 6, 7)**:
-   - Version manifests are fully synchronized at `2.4.8`.
-   - File associations register `.toad` as primary editor format.
-   - Zero-Duplicate Binary Storage policy is strictly upheld.
-   - Jujutsu VCS status is completely healthy and cleanly tracked.
-
-4. **Integrity Forensics Criteria Met**:
-   - Under Development Mode (and even under Demo and Benchmark criteria), zero prohibited patterns exist: no hardcoded test results, no dummy facades, and no fabricated logs.
-   - Therefore, the work product meets all acceptance criteria.
+1. **Step 1 (Parameter Validity & Binder Integrity)**:
+   - Observation 1.1 shows `all_varchar = true` was replaced with `sample_size = ${sampleSize}`, `ignore_errors = true`, and `maximum_object_size = 67108864`.
+   - Observation 1.6 shows `test_extreme_adversarial_challenger2.js` confirms DuckDB v1.0.0 accepts Tier 2 fallback queries without binder errors, and 12MB+ large objects stream successfully within the 64MB buffer limit.
+2. **Step 2 (Unhandled Rejection Elimination)**:
+   - Observation 1.1 shows `await execQuery(dbConn, fallbackQuery)` wrapped in `try...catch`.
+   - Observation 1.6 confirms 0 unhandled promise rejections and 0 uncaught exceptions across all test runs.
+3. **Step 3 (Guaranteed Resource Cleanup)**:
+   - Observation 1.1 shows EVTX `tempJsonl` deletion enclosed in a `finally` block in `createViewFromParquet`.
+   - Ingestion failures guarantee intermediate JSONL files are unlinked, preventing disk leakage.
+4. **Step 4 (Format Isolation & CSV Fallthrough Guard)**:
+   - Observation 1.1 shows format checks throwing immediately on `.evtx` errors and routing JSON files to in-memory JSON fallback.
+   - Non-CSV files never reach `read_csv()`, preventing column delimiter corruption.
+5. **Step 5 (VCS & Packaging Compliance)**:
+   - Observations 1.3, 1.4, and 1.5 demonstrate strict compliance with `HelloKittyXamKinLung` identity, English-only public communications, zero duplicate binaries, and bit-for-bit SHA-256 integrity.
+6. **Step 6 (Comprehensive Empirical Verification)**:
+   - Observation 1.6 demonstrates that all 14 test suites and all 486 automated test cases pass with 100% success on the live system.
 
 ---
 
 ## 3. Caveats
 
-- No caveats. All tests and checks were verified through direct empirical command execution and source code inspection.
+- Tests were run headless in the Windows x64 environment using Node.js v18.20.4; interactive UI visual inspection relies on automated component tests (`RegexDialog`, `SampleScanWorker`, `NestedFieldsTable`) and headless bootstrap smoke test.
+- No other caveats.
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: CLEAN (ACCEPTED)**
+The work product across Milestone 1 through Milestone 6 Fix is **AUTHENTIC, ROBUST, AND STRICTLY COMPLIANT** with all technical and repository standards. Zero integrity violations were found.
 
-The TOAD v2.4.8 work product and post-remediation fixes successfully satisfy all requirements in `ORIGINAL_REQUEST.md` and `PROJECT.md`. All automated regression tests (222/222 Deep QA, 19/19 Legacy Use Cases, Smoke Test) execute cleanly with Exit Code 0, manifests are synchronized at `2.4.8`, file associations are in place, VCS status is clean, and the binary de-duplication policy is strictly observed.
+**Verdict**: **CLEAN**
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce this verification:
+To independently reproduce this forensic audit:
 
-1. **Run Unified Automated Test Suite**:
+1. **Build `reltab-duckdb`**:
    ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node run_tests.js --all
-   # Expected: RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY), Exit Code 0
+   cmd.exe /c "set PATH=D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;%PATH% && cd tad-master\packages\reltab-duckdb && npm run build"
    ```
+   *Expected*: Exits with code 0.
 
-2. **Run Standalone Deep Integration QA**:
+2. **Run Adversarial & Unit Test Suites**:
    ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node tests/deep_integration_qa.js
-   # Expected: Total Test Cases: 222, Passed: 222, Failed: 0, Exit Code 0
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_extreme_adversarial_challenger2.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_adversarial_duckdb.js
+   .\node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js
    ```
+   *Expected*: 100% of tests pass with exit code 0.
 
-3. **Run Standalone Legacy Use Cases**:
+3. **Run Master Unified Regression Suite**:
    ```powershell
-   $env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;" + $env:PATH
-   node tests/legacy_use_cases.js
-   # Expected: Total Test Cases: 19, Passed: 19, Failed: 0, Exit Code 0
+   .\node-v18.20.4-win-x64\node.exe run_tests.js --all
    ```
+   *Expected*: `RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY)` (14/14 suites pass).
 
-4. **Verify Jujutsu Status**:
+4. **Verify SHA-256 Checksums and Binary De-duplication**:
    ```powershell
-   tools\jj\jj.exe status
-   # Expected: Clean working copy tracking without OS Error 5
+   Get-FileHash Toad.exe, releases/Toad-2.5.1-x64-portable.exe, releases/Toad-2.5.1-x64-portable.zip | Format-List
+   Get-Content releases/SHA256SUMS.txt
    ```
+   *Expected*: Hashes match `SHA256SUMS.txt` bit-for-bit. Root contains single `Toad.exe`.
 
-### Invalidation Conditions:
-Any test failure in `run_tests.js --all` or non-zero exit code.
+5. **Verify Jujutsu Identity**:
+   ```powershell
+   tools/jj/jj.exe log --template builtin_log_detailed -n 10
+   ```
+   *Expected*: Author and Committer are `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`. All commit messages in concise English.

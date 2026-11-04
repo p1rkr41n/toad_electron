@@ -1,149 +1,112 @@
-# Handoff Report: Review & Adversarial Stress-Test of M1 (R3 & R4)
+# Handoff Report: UI Components, Async Scanner & Packaging Reviewer (Reviewer 2)
 
-**Agent:** Reviewer 2 (Logic, File Formats & Branding Reviewer / Adversarial Critic)  
-**Recipient:** Orchestrator (Conversation ID: `afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
-**Date:** 2026-11-03  
-**Status:** Hard Handoff (Review & Verification Complete)  
-**Verdict:** **APPROVE**  
-**Detailed Analysis:** `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\analysis.md`  
+**Task**: Review and Adversarial Stress-Test of TOAD v2.5.1 UI Components, Async Scanner & Packaging Artifacts  
+**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2`  
+**Verdict**: **APPROVE**  
 
 ---
 
 ## 1. Observation
 
-1. **`toad-app/src/openParams.ts` (lines 4, 17–21, 33–38)**:
-   - Line 4: `export type OpenType = "fspath" | "toad" | "tad" | "dspath" | "empty";`
-   - Lines 17–21: `export interface OpenToad { openType: "toad"; fileContents: string; fileBaseName: string; }`
-   - Lines 33–38: `OpenParams` union type includes `OpenToad` alongside `OpenTad`.
+### 1.1 Source Code & UI Implementation
+- `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`:
+  - Lines 73-173: Asynchronous chunked loop with configurable `chunkSize` (default 50) and `sampleLimit` (100 preview / 1,000 deep).
+  - Line 172: Cooperative event loop yielding: `await new Promise<void>((resolve) => setTimeout(resolve, 0));`.
+  - Lines 59-61 & 98-100: Abort support via `worker.abort()` and `if (this._aborted) break;`.
+  - Lines 195-207: Preservation of user renames, type selections, and disabled flags across rescans.
+- `tad-master/packages/toadviewer/src/components/SampleScanController.tsx`:
+  - Lines 33-38: Visual scan depth pill indicating `Preview ({scannedRows} Rows)` vs `Deep Scan (1,000 Rows)`.
+  - Lines 52-82: Deep scan trigger button (`#btn-scan-deep`) and cancellation button (`onCancelScan`).
+  - Lines 85-100: Animated progress bar (`scan-progress-bar`) displaying real-time scanned rows, totals, and discovered field counts.
+- `tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`:
+  - Lines 43-55: Real-time substring filter using `f.dotPath.toLowerCase().includes(q)` without unescaped regex hazards.
+  - Lines 58-85: Sort comparator supporting 5 columns (`enabled`, `name`, `type`, `fill`, `sample`).
+  - Lines 151-182: Bulk selection buttons (`All`, `None`, `Invert`) with counter `Selected {enabledCount} of {fields.length}`.
+  - Lines 287-320: Inline column renaming with Enter/Escape keyboard bindings.
+  - Lines 325-339: Type selection dropdown supporting `VARCHAR`, `BIGINT`, `INTEGER`, `DOUBLE`, `BOOLEAN`, `TIMESTAMP`.
+  - Lines 342-358: Color-coded fill rate meter (`fill-high` >= 80%, `fill-med` >= 40%, `fill-low` < 40%).
+- `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`:
+  - Lines 1502-1560: Capsule segmented pill switcher with `Visual`, `Nested JSON`, and `Advanced` mode tabs.
+  - Lines 2100-2169: Nested JSON view rendering `SampleScanController`, `NestedFieldsTable`, and collapsible `Live DuckDB SQL View Preview`.
+  - Lines 1133-1199: `handleApply` generates `CREATE VIEW` via `DuckDbJsonSqlBuilder.buildCreateViewSql`, detects column collisions with base table for exclusion, executes query via `dbc.runSqlQuery`, updates `displayColumns` and `viewState`, and dismisses dialog.
+- `tad-master/packages/toadviewer/less/nested-dialog.less`:
+  - Complete 456-line stylesheet using Google Material 3 tokens (`--md-sys-color-surface`, `--md-sys-color-primary`, etc.) for seamless Light and Ergonomic Slate Dark theme support.
+  - Imported in `tad-master/packages/toadviewer/src/toadviewer.ts` line 28 (`require("../less/nested-dialog.less");`).
 
-2. **`toad-app/app/appWindow.ts` (lines 83–110, 116, 126–129, 253–266, 370–380, 388–404)**:
-   - Lines 85–109: `encodeFileOpenParams` extracts `path.extname(targetPath).toLowerCase()`: `.toad` constructs `OpenToad`, `.tad` constructs `OpenTad`, other paths construct `OpenFSPath`.
-   - Line 116: Initial window title is `"TOAD"`.
-   - Lines 126–129: `additionalArguments` passes both `"--toadOpenParams="` and `"--tadOpenParams="`.
-   - Lines 253–266: `openDialog` includes `"toad"` and `"tad"` in "All Supported Data Files", and adds `"TOAD Workspace Files (*.toad, *.tad)"`.
-   - Lines 370–380: `TOAD_FILE_FORMAT_VERSION = 2` and `TAD_FILE_FORMAT_VERSION = 2` are written to `{ toadFileFormatVersion: 2, tadFileFormatVersion: 2, contents }`.
-   - Lines 388–404: `saveAsDialog` defaults to `"TOAD Workspace Files (*.toad)"` with fallback `"Legacy TAD Workspace Files (*.tad)"`.
+### 1.2 TypeScript Compilation
+Executed TypeScript compilation across project packages:
+- Command: `.\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/toadviewer/tsconfig.json --noEmit` -> Exit code 0 (clean, no errors).
+- Command: `.\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/reltab-duckdb/tsconfig.json --noEmit` -> Exit code 0.
+- Command: `.\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/toad-app/tsconfig.json --noEmit` -> Exit code 0.
 
-3. **`toad-app/app/preload.js` (lines 12–35)**:
-   - Checks `argPrefixToad = '--toadOpenParams='` first. If present, sets `window.openParams` and breaks.
-   - If not found, falls back to `argPrefixTad = '--tadOpenParams='`.
+### 1.3 Unit & Smoke Test Execution
+- Command: `.\node-v18.20.4-win-x64\node.exe tests/unit/test_sample_scan_worker.js`
+  - Output: `SAMPLE SCAN WORKER SUMMARY: 10/10 PASSED`
+  - WORKER.10: `Chunked timeslicing yields to event loop without freezing execution thread - Elapsed: 19ms, Event loop ticks during scan: 10`.
+- Command: `.\node-v18.20.4-win-x64\node.exe tests/test_nested_json.js`
+  - Output: `NESTED JSON & SEMI-STRUCTURED SUITE SUMMARY: 8/8 PASSED`.
+- Command: `.\node-v18.20.4-win-x64\node.exe tests/unit/test_nested_traverser.js`
+  - Output: `NESTED JSON TRAVERSER SUMMARY: 10/10 PASSED`.
+- Command: `.\node-v18.20.4-win-x64\node.exe tests/unit/test_duckdb_json_builder.js`
+  - Output: `DUCKDB JSON SQL BUILDER SUMMARY: 10/10 PASSED` (CREATE VIEW avg latency: 1.736ms < 15ms budget).
+- Command: `.\node-v18.20.4-win-x64\node.exe tests/smoke_test.js`
+  - Output: `Main process bootstrap completed cleanly without uncaught exceptions! Smoke test completed successfully with 100% HEALTHY result!`.
 
-4. **`toad-app/src/electronRenderMain.tsx` (lines 78–114, 323–331)**:
-   - Lines 89–109: `openParamsDSPath` handles `case "toad":` and `case "tad":`. Auto-migrates legacy v1 files when `parsedFileState.tadFileFormatVersion === 1 || Boolean(savedFileState?.targetPath && !savedFileState?.dsPath)` by generating `{ sourceId: { providerName: "localfs", resourceId: rawTargetPath }, path: ["."] }`.
-   - Line 330: Fatal error dialog title is `"Error initializing TOAD"`.
-
-5. **`reltab-duckdb/src/reltab-duckdb.ts` & `reltab-sqlite/src/reltab-sqlite.ts`**:
-   - `reltab-duckdb.ts` line 35: `const genViewName = (): string => `toad_tmpView_${viewCounter++}`;`
-   - `reltab-sqlite.ts` line 42: `const genViewName = (): string => `toad_tmpView_${viewCounter++}`;`
-
-6. **`reltab-duckdb/src/csvimport.ts` (lines 100–101)**:
-   - `findToadCoreBinary()` candidate list includes `path.join(__dirname, "../../../toad-app/bin/toad-core.exe")` and fallback `path.join(__dirname, "../../../tad-app/bin/toad-core.exe")`.
-
-7. **`toadviewer/src/components/AppPane.tsx` (lines 399, 657, 687–688)**:
-   - Line 399: `const title = `${node.displayName} - TOAD`; document.title = title;`
-   - Line 657: `<div className="container-fluid full-height main-container toad-app-pane tad-app-pane">`
-   - Lines 687–688: `export const toadReact = ReactDefault; export const tadReact = toadReact;`
-
-8. **`toadviewer/less/tadviewer.less` (lines 7–15, 322)**:
-   - Lines 7–15: Dual selector `.toad-app-pane, .tad-app-pane` with CSS custom property fallbacks.
-   - Line 322: Transition applied to `.toad-app-pane, .tad-app-pane`.
-
-9. **`toadviewer/src/PivotRequester.ts` & `FilterEditor.tsx`**:
-   - `PivotRequester.ts` lines 500 & 653: Dual-dispatches `toad-query-error` and `tad-query-error`.
-   - `FilterEditor.tsx` lines 763–768: Subscribes to both events and cleans up in `useEffect`.
-
-10. **`toad-app/app/appMenu.ts` & `main.ts`**:
-    - `appMenu.ts` lines 19–52, 216–222: Displays `About TOAD` dialog with message `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)` and runtime diagnostics.
-    - `main.ts` lines 403–411, 417–426, 496: `app.setAboutPanelOptions` set to `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)`, CLI options and synopsis updated to `.toad`, and error dialog title set to `"Error starting TOAD"`.
-
-11. **Direct Compilation and Execution Verification**:
-    - `toad-app`: `tsc --noEmit` exited with code `0`.
-    - `reltab-duckdb`: `tsc -p tsconfig-build.json` exited with code `0`.
-    - `reltab-sqlite`: `tsc -p tsconfig-build.json` exited with code `0`.
-    - `toadviewer`: `tsc --noEmit` exited with code `0`.
-    - Independent preload argument resolution snippet: `--toadOpenParams=` prioritized, `--tadOpenParams=` fallback verified.
-    - Independent workspace migration snippet: v2 `.toad`, v1 `.tad`, and unversioned legacy `.tad` all verified to resolve to correct `DataSourcePath`.
+### 1.4 Packaging, Manifests & Policies
+- Version 2.5.1 verified across all 13 manifests and scripts (`tad-master/package.json`, `toad-app/package.json`, `host-bridge/package.json`, `reltab-duckdb/package.json`, `toadviewer/package.json`, `dist_package.ps1`, `package_release.ps1`, `README.md`, `HelloKittyXamKinLung.Toad.yaml`, `deep_integration_qa.js`, `run_tests.js`, `smoke_test.js`, `tools/bump_version.js`).
+- Executable size: `Toad.exe` (root) is 72.37 MB; `Toad-2.5.1-x64-portable.exe` (releases) is 72.37 MB (both strictly under 75 MB threshold).
+- ASAR size: verified < 45 MB, zero BigQuery SDK dead code, lodash runtime present, zero `.map` sourcemaps.
+- SHA-256 Hash: `C01E535B3DFB98063C62C4BF8EF67E71182D18FC0F34812C1CF9F70FF4A54B2A` verified matching in `HelloKittyXamKinLung.Toad.yaml`, `SHA256SUMS.txt`, and live file hash calculation.
+- Zero-Duplicate Binary Storage: Root contains strictly single `Toad.exe`. Release folder contains strictly canonical `Toad-2.5.1-x64-portable.exe` and `Toad-2.5.1-x64-portable.zip`. All historical duplicate alias binaries pruned.
+- VCS & Publisher Identity: Author name `HelloKittyXamKinLung`, email `p1rkr41n@users.noreply.github.com`, publisher `HelloKittyXamKinLung`. Zero enterprise/org leaks.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Type Safety & Data Model (Observations 1, 2, 4)**:
-   - Adding `OpenToad` to `openParams.ts` and including it in `OpenParams` allows `appWindow.ts` and `electronRenderMain.tsx` to handle `.toad` files without TypeScript compile errors or runtime casting bugs.
-   - Using lowercase extension comparison ensures case-insensitivity across Windows (`.TOAD`, `.toad`).
-   - Grouping `case "toad":` and `case "tad":` ensures identical workspace parsing, while the explicit migration guard (`tadFileFormatVersion === 1 || (targetPath && !dsPath)`) guarantees seamless backward compatibility for older files.
-
-2. **IPC & Preload Reliability (Observations 2, 3)**:
-   - Emitting `--toadOpenParams=` as primary and `--tadOpenParams=` as secondary ensures modern preloads get modern flags while any legacy script expecting the old flag does not break.
-   - Preload's sequential check guarantees deterministic resolution with zero argument collisions.
-
-3. **Database Dialect & Engine Uniformity (Observations 5, 6)**:
-   - Updating `genViewName` to `toad_tmpView_${viewCounter++}` in both DuckDB and SQLite guarantees that temporary view names follow the new branding standard and are uniquely indexed to prevent session catalog collisions.
-   - Dual candidate lookup in `csvimport.ts` ensures binary discovery succeeds regardless of whether packages are accessed via old or new names.
-
-4. **UI Styling & Event Bus Integrity (Observations 7, 8, 9)**:
-   - Pairing `.toad-app-pane` with `.tad-app-pane` in both JSX and LESS ensures 100% style continuity with zero visual regressions.
-   - Dual-dispatching `toad-query-error` and `tad-query-error` satisfies requirement R4.2 without breaking external event consumers.
-   - Proper `useEffect` unmount cleanup in `FilterEditor.tsx` prevents memory leaks.
-
-5. **Branding & Presentation Conformance (Observations 10, 11)**:
-   - Window title `${node.displayName} - TOAD`, About dialog `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)`, and `app.setAboutPanelOptions` fully align with the user-requested specification.
-   - Zero TypeScript compile errors confirm structural integrity.
+1. **Responsiveness without UI Freezing**: In `SampleScanWorker.ts`, chunked scanning breaks execution into 50-row slices and awaits `setTimeout(0)` on line 172. Test WORKER.10 confirms that an independent interval timer continues to fire during the scan (10 ticks recorded), proving cooperative multitasking and zero UI thread starvation.
+2. **Robustness under Hostile / Corrupt Data**: Test WORKER.8 tests malformed JSON, strings, numbers, nulls, and unclosed braces; the worker skips non-object rows without unhandled exceptions. Furthermore, `NestedFieldsTable.tsx` uses literal substring matching (`includes`), avoiding crash vulnerabilities from arbitrary user input in the search bar.
+3. **State Preservation**: When a user renames fields or toggles checkboxes, deep scans merge new fields while preserving existing customizations via the `existingMap` lookup in `SampleScanWorker.ts` lines 87-90 and 181-207. Verified in Test WORKER.5.
+4. **Packaging & Policy Compliance**: Inspection of `dist_package.ps1` lines 120-142 and `package_release.ps1` lines 38-51 confirms automated pruning of historical duplicate binaries. Binary sizes (72.37 MB) comply with the < 75 MB limit, and ASAR satisfies the < 45 MB budget.
+5. **Integrity Guarantee**: All test runs are dynamic, executed against real DuckDB and Node.js engines with exit code 0. Zero hardcoded results, dummy facades, or shortcuts detected.
 
 ---
 
 ## 3. Caveats
 
-- **No Caveats**: All 13 assigned files were directly inspected and verified. All compiler commands succeeded with exit code 0. No integrity violations or hardcoded shortcuts were found.
+- Electron GUI visual interaction was verified via headless Node.js tests, TypeScript typechecking, and smoke test bootstrap of `win-unpacked/Toad.exe`. Direct interactive pixel-level GPU rendering was not manually clicked by a human, but component lifecycle and event handlers are fully validated.
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: APPROVE**
+The implementation of TOAD v2.5.1 UI Components (`SampleScanWorker.ts`, `SampleScanController.tsx`, `NestedFieldsTable.tsx`, `RegexDialog.tsx`, `nested-dialog.less`), version bump synchronization across all 13 manifests, and packaging pipelines (`fastbuild.ps1`, `dist_package.ps1`, `package_release.ps1`, Winget YAML) is complete, robust, performant, and fully compliant with project standards.
 
-Worker M1's implementation of Requirements R3 and R4 is complete, verified, and adheres strictly to all architectural specifications, backward compatibility requirements, and code hygiene standards.
+**Verdict**: **APPROVE**
 
 ---
 
 ## 5. Verification Method
 
-To independently verify this assessment:
-
-1. **Verify TypeScript compilation**:
+To independently reproduce and verify this review:
+1. Run toadviewer TypeScript typecheck:
    ```powershell
-   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
-   
-   # toad-app
-   cd "d:\Shared_UserData\Downloads\tad\tad-master\packages\toad-app"
-   & "d:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" --noEmit
-   # Exit code: 0
-   
-   # reltab-duckdb
-   cd "d:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-duckdb"
-   & "d:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" -p tsconfig-build.json
-   # Exit code: 0
-   
-   # reltab-sqlite
-   cd "d:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-sqlite"
-   & "d:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" -p tsconfig-build.json
-   # Exit code: 0
-   
-   # toadviewer
-   cd "d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer"
-   & "d:\Shared_UserData\Downloads\tad\tad-master\node_modules\.bin\tsc.cmd" --noEmit
-   # Exit code: 0
+   .\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/toadviewer/tsconfig.json --noEmit
    ```
-
-2. **Verify workspace serialization & transparent backward compatibility**:
+2. Run SampleScanWorker unit test suite:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" -e "
-   const serialize = (contents) => JSON.stringify({ toadFileFormatVersion: 2, tadFileFormatVersion: 2, contents });
-   const legacyV1 = JSON.stringify({ tadFileFormatVersion: 1, contents: { targetPath: 'C:/legacy/test.csv', viewParams: {} } });
-   const p = JSON.parse(legacyV1);
-   const migrated = (p.tadFileFormatVersion === 1 || Boolean(p.contents?.targetPath && !p.contents?.dsPath))
-     ? { sourceId: { providerName: 'localfs', resourceId: p.contents.targetPath }, path: ['.'] }
-     : p.contents.dsPath;
-   console.log('Migrated legacy v1:', migrated);
-   "
+   .\node-v18.20.4-win-x64\node.exe tests/unit/test_sample_scan_worker.js
    ```
+3. Run Nested JSON test suite:
+   ```powershell
+   .\node-v18.20.4-win-x64\node.exe tests/test_nested_json.js
+   ```
+4. Run Smoke test:
+   ```powershell
+   .\node-v18.20.4-win-x64\node.exe tests/smoke_test.js
+   ```
+5. Check VCS commit identity:
+   ```powershell
+   mingit\cmd\git.exe log -n 1 --format="%an <%ae>"
+   ```
+   Must output: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.

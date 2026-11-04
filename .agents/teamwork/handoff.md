@@ -1,30 +1,52 @@
-# Handoff Report — Project Sentinel
+# Handoff Report — Project Sentinel (TOAD v2.5.1 Nested JSON Parser & Auto-Flattening)
 
 ## 1. Observation
-- Orchestrator (`afba7d24-e2ed-4eb2-89cc-f35d592f6de8`) executed the approved task prompt for the full rebrand of TAD to TOAD at version `v2.4.8`.
-- Parallel subagent swarms carried out Phase 0 (survey), Phase 1 (parallel implementation across Workers M1, M2, M3), Phase 2 (review, challenge, audit with adversarial remediation loop), and Phase 3 (build, test, and portable release packaging via Worker M5).
-- Following victory claim by the orchestrator, independent `teamwork_victory_auditor` (`cb89da14-8be6-4a1b-86cc-7c29aaa114c5`) conducted a post-victory audit across Timeline, Integrity/Anti-Cheating, and Independent Execution.
-- The Victory Auditor issued a clean `VICTORY CONFIRMED` verdict matching 100% of acceptance criteria.
+The user requested the full implementation of nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytics Desktop) for Windows Event Log (EVTX) JSON representations and complex JSON/JSONL logs containing deeply nested fields and special characters (`#attributes`, `#text`, `@xmlns`, dots, spaces, slashes, quotes).
+
+The task interview process produced an approved task prompt detailing requirements R1–R5:
+- **R1**: Interactive extraction in Parse Columns dialog (`RegexDialog.tsx`, `NestedFieldsTable.tsx`, `SampleScanWorker.ts`, sub-15ms DuckDB view creation, 100 preview / 1,000 deep scan).
+- **R2**: Direct file ingestion auto-flattening (`JsonSchemaIntrospector.ts`, `JsonStreamingFlattener.ts`, `csvimport.ts`).
+- **R3**: Safe character handling and SQL escaping.
+- **R4**: Modular architecture and interface contracts (`NestedJsonContracts.ts`).
+- **R5**: Version bump to TOAD v2.5.1, clean Jujutsu VCS history, English-only policy, author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, and Zero-Duplicate Binary Storage policy.
 
 ## 2. Logic Chain
-1. **Task Interview & Routing**: Received user approval from caller; routed to General Project Orchestrator (`teamwork_orchestrator`) per Routing Decision Table. Recorded verbatim intent in `ORIGINAL_REQUEST.md`.
-2. **Sentinel Governance**: Maintained dual-cron monitoring (`Cron 1: Progress Reporting` every 8 min, `Cron 2: Liveness Check` every 10 min) while orchestrator drove swarm execution.
-3. **Quality & Remediation Loop**: Challenger and Auditor caught edge-case path mismatches in legacy test suites; orchestrator looped back to remediation worker, successfully reaching 100% test pass rate.
-4. **Independent Post-Victory Verification**: Dispatched `teamwork_victory_auditor` with zero shared context. All 222+ tests passed independently, portable binary validity verified, asar limit compliance verified (< 45 MB), and Zero-Duplicate Binary Storage policy enforced.
-5. **Teardown**: Killed all active cron tasks and retired subagent swarm.
+1. **Routing & Dispatch**: The Sentinel evaluated the approved request and routed it to the General path (`teamwork_orchestrator`). ORIGINAL_REQUEST.md was recorded verbatim and active monitoring crons were established.
+2. **Phase 0 & Milestones M1–M5**: The Project Orchestrator dispatched parallel exploration tracks, synthesized `PROJECT.md` and `TEST_INFRA.md`, and managed worker implementations across M1 (Core Contracts & Traversal), M2 (Direct Ingestion Dynamic Projection), M3 (Interactive UI Discovered Fields & Scanner), M4 (Version Bump & Packaging), and M5 (EVTX Parity & Adversarial Fuzzing).
+3. **Iteration 1 Gate & Remediation**: During Phase 6 Gate Verification, Challenger 2 identified a latent DuckDB 1.0.0 binder error with `all_varchar` in Tier 2 fallback. The orchestrator initiated an immediate remediation track: three explorers determined the exact DuckDB auto-stream options (`maximum_object_size = 67108864`, `ignore_errors = true`), and `worker_m6_fix` applied the code changes and resource guards.
+4. **Round 2 Gate Sign-Off**: The 5 Round 2 verification subagents re-tested the remediated codebase, yielding unanimous APPROVE and CLEAN verdicts.
+5. **Independent Post-Victory Audit**: Upon orchestrator victory claim, the Sentinel spawned `teamwork_victory_auditor` (`4f3c025b-7ec5-44d3-8b20-713e2f497a92`) in blocking mode. The auditor executed a 3-phase audit (Timeline, Cheating Detection, Independent Test Execution), confirming 100% genuine code authenticity, bit-for-bit release hash matching, and 14/14 test suites (486 tests) passing cleanly, rendering **VICTORY CONFIRMED**.
+6. **Cleanup**: Both monitoring crons were cancelled via `manage_task`, and all subagents terminated via `manage_subagents(kill_all)`.
 
 ## 3. Caveats
-- Windows desktop file association `.toad` will register natively upon running the newly built application or installer; legacy `.tad` files open seamlessly via transparent format version 1 to 2 schema migration.
-- `app.asar` size is 25.46 MB, comfortably below the 45.0 MB threshold.
+- Direct JSON auto-flattening unpacks all nested `STRUCT` columns into columnar dot-notated Parquet fields. Arrays (`[...]`) remain serialized as JSON strings by design to avoid combinatorial row-explosion.
+- When ingesting non-default EVTX files with complex binary structures, decoding performance is governed by `toad-core.exe evtx-dump`.
 
 ## 4. Conclusion
-- TOAD v2.4.8 rebrand, monorepo restructuring, webpack bundling, backward compatibility, QA testing, and portable packaging are 100% complete and certified with `VICTORY CONFIRMED`.
+All requirements (R1–R5) and acceptance criteria have been achieved, verified through adversarial testing, forensic integrity analysis, and independent post-victory audit. Release artifacts for TOAD v2.5.1 are packaged, cryptographically checksummed, and ready for deployment.
 
 ## 5. Verification Method
-- Independent Victory Auditor executed:
-  - `node run_tests.js --all` -> PASS (0 failures, 29.55s)
-  - `node tests/deep_integration_qa.js` -> PASS (222/222 passed, 16.25s)
-  - `node tests/smoke_test.js` -> 100% HEALTHY (exit code 0)
-  - `node tests/test_pipeline_challenge.js` -> 46/46 PASSED (exit code 0)
-  - Binary header validation: `releases/Toad-2.4.8-x64-portable.exe` (72.10 MB, valid MZ/PE executable, SHA-256 confirmed in `releases/SHA256SUMS.txt`).
-  - Jujutsu VCS status: clean commit `klqlvyzy d4a6c743` ("release: TOAD v2.4.8 full rebrand and portable packaging").
+To independently reproduce and verify the deliverables:
+1. **Master Regression Test Suite**:
+   ```powershell
+   & ".\node-v18.20.4-win-x64\node.exe" run_tests.js --all
+   ```
+   *Expected Outcome*: 14/14 suites PASS (486/486 assertions, 100% HEALTHY).
+2. **Real-World EVTX Parity QA**:
+   ```powershell
+   & ".\node-v18.20.4-win-x64\node.exe" tests/qa/test_realworld_evtx_json.js
+   ```
+   *Expected Outcome*: 35/35 assertions PASS (exact leaf extraction for RecordID 93937 from `System.evtx`).
+3. **Adversarial Fuzzing & SQL Injection Stress**:
+   ```powershell
+   & ".\node-v18.20.4-win-x64\node.exe" tests/qa/test_json_adversarial_fuzz.js
+   & ".\node-v18.20.4-win-x64\node.exe" tests/qa/test_extreme_adversarial_challenger2.js
+   ```
+   *Expected Outcome*: All test cases pass with 0 crashes, 0 binder errors, and 0 SQL injection vulnerabilities.
+4. **Release Artifact Footprint & Cryptographic Hash Verification**:
+   ```powershell
+   Get-FileHash releases/Toad-2.5.1-x64-portable.exe, releases/Toad-2.5.1-x64-portable.zip -Algorithm SHA256
+   ```
+   *Expected Hashes*:
+   - `Toad-2.5.1-x64-portable.exe`: `C01E535B3DFB98063C62C4BF8EF67E71182D18FC0F34812C1CF9F70FF4A54B2A`
+   - `Toad-2.5.1-x64-portable.zip`: `90EB0123AF83817DA25993760675ECC4712AE11CE933B2A72EE464D675DC7797`

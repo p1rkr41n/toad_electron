@@ -1,33 +1,40 @@
-## 2026-11-03T12:54:37Z
-You are Auditor 2 (Forensic Integrity Re-Auditor).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2
+# Dispatch: Forensic Auditor 2 (Integrity & Conformance Audit)
 
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You MUST read Auditor 1's previous failure report at:
-   - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md`
-   And Worker Remediation's fix report at:
-   - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_remediation\handoff.md`
-   - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_remediation\changes.md`
+## Identity
+- Archetype: teamwork_auditor
+- Role: Forensic Integrity Auditor
+- Working Directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2
+- Parent Conversation ID: aad28923-4697-407e-9b0b-76e49e020103
 
-YOUR FORENSIC RE-AUDIT CHECKS:
-1. **Behavioral Verification**:
-   - Run the full test suite live: `node run_tests.js --all`.
-   - Run `node tests/deep_integration_qa.js`. Verify Test E.2 passes and total 222/222 test cases pass.
-   - Run `node tests/legacy_use_cases.js`. Verify 19/19 test cases pass.
-   - Confirm exit code 0 across all test suites.
-2. **Authenticity & Integrity**:
-   - Inspect the changes in `tests/deep_integration_qa.js` and `tests/legacy_use_cases.js`. Confirm the path resolver changes are authentic resolution improvements, NOT fake test skips or bypasses.
-   - Check version bump: verify `node tools/bump_version.js` was executed and manifests are at `2.4.8`.
-   - Check `toad-app/package.json`: verify `"ext": "toad"` is registered in `fileAssociations`.
-   - Check Jujutsu (`jj status`): confirm clean working copy without OS errors or corruption.
-   - Check Zero-Duplicate Binary Storage policy.
+## Context
+Milestone 6 Gate Verification (Round 2).
+Audit all code changes across Milestone 1 to Milestone 6 Fix for authenticity, genuine execution, VCS standards, and binary storage compliance.
 
-DELIVERABLES:
-Write a comprehensive forensic evidence report in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\analysis.md`
-and a self-contained handoff with an unambiguous binary verdict (**CLEAN** or **INTEGRITY VIOLATION**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+Refer to:
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md` (MUST READ)
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m6_fix\handoff.md`
+
+## Task
+1. Perform forensic integrity checks:
+   - Check for hardcoded test results, facade implementations, mock bypasses in test suites (`tests/qa/`, `tests/unit/`).
+   - Verify genuine DuckDB queries and execution in `JsonStreamingFlattener.ts` and `csvimport.ts`.
+   - Verify that `read_json_auto` is executed natively without dummy responses.
+2. Verify VCS and packaging standards:
+   - Check Jujutsu (`jj log`) and git log: author identity must strictly be `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+   - Verify English-only commit messages and release notes.
+   - Verify Zero-Duplicate Binary Storage policy: check `releases/` and repository root for duplicate executables.
+   - Check that `package.json` across packages are at version `2.5.1`.
+3. Provide a clear verdict: `CLEAN` or `INTEGRITY VIOLATION`.
+4. Write report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\handoff.md`.
+5. Send a message to parent orchestrator with your verdict.
+
+
+## 2026-11-04T09:46:02Z
+You are assigned to Milestone 6 Gate Verification (Round 2) as auditor_2.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\.
+Read your dispatch instructions in d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\DISPATCH.md.
+You MUST read d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md before beginning work.
+Perform comprehensive forensic integrity analysis: check for hardcoded results, mock tables, facade bypasses; verify authentic DuckDB execution, verify Jujutsu/git identity (HelloKittyXamKinLung), English-only public language standard, and Zero-Duplicate Binary Storage policy.
+Write your handoff report to d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_2\handoff.md with an explicit verdict (CLEAN or INTEGRITY VIOLATION).
+Notify your parent orchestrator (conversation ID: aad28923-4697-407e-9b0b-76e49e020103) via send_message with your verdict and key findings.

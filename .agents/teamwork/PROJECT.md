@@ -43,12 +43,12 @@
 | 7 | Discovered Fields UI Component | `packages/toadviewer/src/components/NestedFieldsTable.tsx` with real-time search, inline column name editing, type selection, fill rate meter | M3 | Completed |
 | 8 | Asynchronous Sample Scanner | `packages/toadviewer/src/workers/SampleScanWorker.ts` & `SampleScanController.tsx` (100 preview + 1,000 async deep scan without UI freezing) | M3 | Completed |
 | 9 | RegexDialog Integration | `packages/toadviewer/src/components/RegexDialog.tsx` & `nested-dialog.less` with segmented mode pill `[Nested JSON]`, wiring table, scanner and SQL builder | M3 | Completed |
-| 10 | Version Bump to v2.5.1 | Synchronize SemVer 3-digit `2.5.1` across all metadata files via `node tools/bump_version.js 2.5.1` | M4 | PLANNED |
-| 11 | Packaging & Release Verification | Verify `fastbuild.ps1`, `package_release.ps1`, ASAR < 45MB, portable exe < 75MB, zero duplicate historical binaries | M4 | PLANNED |
-| 12 | Windows EVTX Parity QA | `tests/qa/test_realworld_evtx_json.js` verifying 100% extraction of RecordID 93937 from `System.evtx` (#attributes, #text) | M5 | PLANNED |
-| 13 | Adversarial & Fuzzing Test Suite | `tests/qa/test_json_adversarial_fuzz.js` testing corrupted JSON, deep recursion, unicode, quotes, spaces, SQL injection resistance | M5 | PLANNED |
-| 14 | Full Regression QA Gate | `node run_tests.js --all` passing 100% across all test suites with zero regressions | M5 | PLANNED |
-| 15 | Adversarial Verification Gate | 2 Reviewers, 2 Challengers, and 1 Forensic Auditor (`teamwork_auditor`) gate check | M6 | PLANNED |
+| 10 | Version Bump to v2.5.1 | Synchronize SemVer 3-digit `2.5.1` across all metadata files via `node tools/bump_version.js 2.5.1` | M4 | Completed |
+| 11 | Packaging & Release Verification | Verify `fastbuild.ps1`, `package_release.ps1`, ASAR < 45MB, portable exe < 75MB, zero duplicate historical binaries | M4 | Completed |
+| 12 | Windows EVTX Parity QA | `tests/qa/test_realworld_evtx_json.js` verifying 100% extraction of RecordID 93937 from `System.evtx` (#attributes, #text) | M5 | Completed |
+| 13 | Adversarial & Fuzzing Test Suite | `tests/qa/test_json_adversarial_fuzz.js` testing corrupted JSON, deep recursion, unicode, quotes, spaces, SQL injection resistance | M5 | Completed |
+| 14 | Full Regression QA Gate | `node run_tests.js --all` passing 100% across all test suites with zero regressions | M5 | DONE |
+| 15 | Adversarial Verification Gate | 2 Reviewers, 2 Challengers, and 1 Forensic Auditor (`teamwork_auditor`) gate check | M6 | DONE |
 
 ## Milestones
 | # | Name | Scope & Files Owned | Dependencies | Status |
@@ -56,9 +56,9 @@
 | M1 | Core Contracts & Traversal/SQL Engine | `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`<br/>`tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`<br/>`tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`<br/>`tests/unit/test_nested_traverser.js`<br/>`tests/unit/test_duckdb_json_builder.js` | none | DONE (`5c070185-4355-4490-a986-abb327855850`, 20/20 unit tests PASS, tsc clean) |
 | M2 | Direct Ingestion Dynamic Projection Pipeline | `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`<br/>`tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`<br/>`tad-master/packages/reltab-duckdb/src/csvimport.ts`<br/>`tests/unit/test_json_schema_introspect.js`<br/>`tests/unit/test_json_streaming_flattener.js` | none | DONE (`0c93082f-f29f-4b1f-9ed2-b45aac72db39`, 96/96 assertions PASS) |
 | M3 | Interactive UI Discovered Fields & Async Scanner | `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`<br/>`tad-master/packages/toadviewer/src/components/SampleScanController.tsx`<br/>`tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`<br/>`tad-master/packages/toadviewer/less/nested-dialog.less`<br/>`tad-master/packages/toadviewer/src/components/RegexDialog.tsx`<br/>`tad-master/packages/toadviewer/src/toadviewer.ts` | M1 | DONE (`3c614888-9c7e-41d1-9659-e952f4066bc0`, 10/10 unit tests PASS, tsc clean) |
-| M4 | Version Bump v2.5.1 & Packaging Staging | `tools/bump_version.js`<br/>`package.json` manifests<br/>`dist_package.ps1`<br/>`package_release.ps1` | M1, M2 | DONE (Metadata verified 100% via `tools/verify_version_bump.js`) |
-| M5 | Comprehensive E2E QA, EVTX Parity & Adversarial Fuzzing | `tests/qa/test_realworld_evtx_json.js`<br/>`tests/qa/test_json_adversarial_fuzz.js`<br/>`run_tests.js` | M1, M2, M3, M4 | DONE (100% PASS across all QA and fuzzing suites) |
-| M6 | Independent Review, Challenger & Forensic Audit Gate | Gate verification: 2 Reviewers, 2 Challengers, 1 Forensic Auditor | M1-M5 | DONE (VICTORY CONFIRMED, 100% HEALTHY) |
+| M4 | Version Bump v2.5.1 & Packaging Staging | `tools/bump_version.js`<br/>`package.json` manifests<br/>`dist_package.ps1`<br/>`package_release.ps1` | M1, M2 | DONE (`ec73da2d-3d40-4efb-b282-3ab48fd30b5b`, 276/276 quick tests PASS, asar 28.15MB, exe 72.37MB) |
+| M5 | Comprehensive E2E QA, EVTX Parity & Adversarial Fuzzing | `tests/qa/test_realworld_evtx_json.js`<br/>`tests/qa/test_json_adversarial_fuzz.js`<br/>`run_tests.js` | M1, M2, M3, M4 | DONE (`33762bed-cf9a-4267-bf33-17939c738490`, 100% PASS across 14 suites, 486 tests) |
+| M6 | Independent Review, Challenger & Forensic Audit Gate | Gate verification: 2 Reviewers, 2 Challengers, 1 Forensic Auditor | M1-M5 | DONE (Iteration 2: 5 independent agents APPROVE & CLEAN, 100% tests PASS) |
 
 ## Interface Contracts
 - Detailed in `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`

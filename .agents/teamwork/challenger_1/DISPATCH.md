@@ -1,27 +1,40 @@
-## 2026-11-03T12:28:04Z
-You are Challenger 1 (Automated Test Suite Challenger).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1
+# Dispatch: Challenger 1 (DuckDB Special Characters & SQL Injection Verification)
 
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You are an empirical, code-executing verifier. Run the test suites live and verify actual outcomes.
+## Objective
+Empirically stress-test the DuckDB JSON path extraction and auto-flattening engine:
+1. Write adversarial test scripts testing bizarre column names and JSON keys:
+   - `#attributes`, `#text`, `@xmlns`
+   - SQL keywords: `SELECT`, `FROM`, `WHERE`, `DROP`, `TABLE`
+   - Injection payloads: `' OR 1=1; --`, `"; DROP TABLE...`
+   - Quotes, double quotes, backslashes, periods in keys, emojis
+2. Execute against live DuckDB instance via `DuckDbJsonSqlBuilder` and `csvimport.ts`.
+3. Verify that 100% of adversarial cases are handled gracefully without syntax errors or SQL injection.
+4. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
 
-YOUR CHALLENGE SCOPE:
-1. Run the entire automated test suite:
-   Execute `node run_tests.js --all` and/or `node tests/deep_integration_qa.js`.
-2. Inspect test output line by line:
-   - Verify that all 222+ integration test cases pass cleanly (0 failures).
-   - Verify that smoke tests pass cleanly (100% healthy).
-   - Verify that legacy use case tests pass cleanly.
-3. Test backward compatibility empirically:
-   - Create a test script in your directory to parse both a legacy `.tad` workspace (`tadFileFormatVersion: 1`) and a new `.toad` workspace (`toadFileFormatVersion: 2`). Verify both serialize/deserialize as expected without error.
-4. Check for any broken path or import references caused by package renaming (`toad-app`, `toadviewer`).
+Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md`.
+## 2026-11-04T09:03:25Z
+You are challenger_1, the DuckDB JSON Path & SQL Injection Adversarial Challenger for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1.
 
-DELIVERABLES:
-Write a comprehensive empirical verification report in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\analysis.md`
-and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+Before starting, you MUST read the authoritative original request and project documents:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\DISPATCH.md
+
+Your challenge mission:
+Empirically stress-test the DuckDB JSON path extraction, quoting mechanics, and SQL generation:
+1. Write and execute adversarial test scripts against live DuckDB (via `DuckDbJsonSqlBuilder.ts`, `NestedJsonTraverser.ts`, and `csvimport.ts`):
+   - Malicious column keys containing SQL injection payloads: `' OR 1=1; DROP TABLE users; --`, `"; DROP TABLE sensitive_data; --`, `1); DROP TABLE ...`
+   - EVTX special tags: `#attributes`, `#text`, `@xmlns`
+   - Reserved SQL keywords as JSON keys: `SELECT`, `FROM`, `WHERE`, `GROUP`, `ORDER`, `BY`, `TABLE`, `VIEW`
+   - Strings with unescaped double quotes, single quotes, backslashes, forward slashes, dots (`a.b.c`), spaces, and Unicode emojis
+2. Verify that:
+   - 100% of adversarial keys are safely escaped via double quotes (`escapeIdentifier`) and single quotes (`escapeSqlStringLiteral`).
+   - ZERO SQL injection succeeds; no secondary statements are executed; no database state is corrupted.
+   - DuckDB `CREATE VIEW` executes without syntax or binder errors.
+3. Review and run the official fuzzing suite:
+   - `node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js`
+
+Write your empirical challenge report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
+Notify me via send_message with your verdict and empirical findings.

@@ -1,79 +1,49 @@
-# Dispatch for Forensic Auditor 1
+# Dispatch: Forensic Auditor (Integrity Verification)
 
-Working Directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\
-Original Request: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Master Plan: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-Worker Handoffs:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\test_writer_jj\handoff.md
-## 2026-11-03T03:35:22Z
-You are a teamwork_auditor. Your identity is auditor_1.
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\
-You MUST read the authoritative request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Also review:
+## Objective
+Perform forensic integrity verification of all TOAD v2.5.1 code changes:
+1. Verify ZERO CHEATING:
+   - No hardcoded test results or expected answers in source files.
+   - No mock/dummy/facade implementations returning canned outputs.
+   - Check `NestedJsonTraverser.ts`, `DuckDbJsonSqlBuilder.ts`, `JsonSchemaIntrospector.ts`, `JsonStreamingFlattener.ts`, `SampleScanWorker.ts`, `RegexDialog.tsx`.
+2. Verify genuine execution:
+   - DuckDB queries actually execute against the database.
+   - Views actually created and verified.
+   - Parquet streaming flattener actually creates valid Parquet files.
+3. Verify binary and VCS conformance:
+   - Check `releases/` for zero duplicate historical binaries.
+   - Check `tools/jj/jj.exe log` and `git log` for zero VNCERT/corporate leaks.
+   - Check author identity `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+4. Deliver binary verdict: `CLEAN` or `INTEGRITY VIOLATION`.
+
+Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md`.
+
+## 2026-11-04T09:04:07Z
+You are auditor_1, the Forensic Integrity Auditor for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1.
+
+Before starting, you MUST read the authoritative original request and project documents:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\test_writer_jj\handoff.md
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\DISPATCH.md
 
-FORENSIC INTEGRITY AUDIT INSTRUCTIONS:
-Perform deep static analysis, runtime verification, and execution forensics across all newly created/modified code:
-- `tad-master/packages/tad-app/app/appMenu.ts`
-- `tad-master/packages/tad-app/src/electronRenderMain.tsx`
-- `tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx`
-- `tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx`
-- `tad-master/packages/tadviewer/less/sidebar.less`
-- `tests/deep_integration_qa.js`
+Your audit mission (ZERO TOLERANCE INTEGRITY AUDIT):
+1. Code Authenticity Audit:
+   - Audit `packages/toadviewer/src/utils/NestedJsonTraverser.ts`, `packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`, `packages/toadviewer/src/workers/SampleScanWorker.ts`, `packages/toadviewer/src/components/RegexDialog.tsx`, `packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`, `packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`, `packages/reltab-duckdb/src/csvimport.ts`.
+   - Verify: NO hardcoded test results, NO dummy/facade implementations returning canned strings or hardcoded mock tables, NO test-specific shortcuts.
+2. Runtime Execution Audit:
+   - Verify that DuckDB views are truly created and queried via the live DuckDB engine.
+   - Verify that `toad-core.exe evtx-dump` actually extracted real data from `D:\Shared_UserData\Downloads\data_sample\System.evtx`.
+   - Verify that Parquet streaming dynamic projection actually creates valid Parquet files with dot-notated columns.
+3. Binary & VCS Conformance Audit:
+   - Inspect `releases/` and root directory: strictly verify ZERO DUPLICATE HISTORICAL BINARIES. Only canonical root `Toad.exe` and release `Toad-2.5.1-x64-portable.exe` / `.zip`.
+   - Inspect Jujutsu commit history (`tools/jj/jj.exe log`): verify author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, English-only messages, and zero corporate/VNCERT identity leaks.
+4. Independent Test Execution Audit:
+   - Execute `node-v18.20.4-win-x64\node.exe run_tests.js --all` and inspect exit code and results.
+   - Execute `node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js` and verify output.
+   - Execute `node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js` and verify output.
 
-Forensic Checks:
-1. CHEATING / HARDCODING CHECK:
-   - Are any test results hardcoded?
-   - Are there dummy or facade implementations that return pre-baked outputs without genuine logic?
-   - In `tests/deep_integration_qa.js`, do assertions genuinely test real logic or do they always return true?
-2. REPETITION & LEAKAGE CHECK:
-   - Does `DataSourceSidebar.tsx` have genuine file-name filtering without `projMatches`?
-   - Does `getRelativeParentDir` compute real relative paths, or does it return hardcoded values?
-   - Does `renameProject` genuinely update Parquet ledger metadata?
-3. RUNTIME EXECUTION VALIDATION:
-   - Execute the test suite directly:
-     & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-   - Verify all 200 assertions run genuine code paths.
-
-Determine verdict:
-If any cheating, dummy facades, or hardcoded shortcuts are found: report INTEGRITY VIOLATION.
-If all implementations are genuine, authentic, and verified: report CLEAN.
-
-Write your forensic audit report to d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md and send message to orchestrator.
-
-## 2026-11-03T12:28:22Z
-You are Auditor 1 (Forensic Integrity Auditor).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1
-
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You are a FORENSIC INTEGRITY AUDITOR. Your job is adversarial verification of code authenticity, genuine implementation, and zero cheating.
-
-FORENSIC AUDIT CHECKS:
-1. **No Hardcoded Test Bypasses / Cheating**:
-   - Inspect git / jujutsu diffs across all modified files (`git diff` or `jj diff`).
-   - Check if any tests were modified to trivially return true, skip real checks, or bypass required functionality.
-   - Verify that test assertions in `tests/deep_integration_qa.js` test the genuine system behavior.
-2. **Authentic Implementation**:
-   - Verify that `packages/toad-app` and `packages/toadviewer` are genuine directories with actual source code, not dummy facades or empty stubs.
-   - Verify that `.toad` and `.tad` backward compatibility in `openParams.ts`, `appWindow.ts`, and `electronRenderMain.tsx` has genuine deserialization and migration logic.
-   - Verify that `reltab-duckdb.ts` genuinely produces `toad_tmpView_${viewCounter++}` views.
-   - Verify that `toadapp.bundle.js` is a genuine compiled webpack bundle from the TypeScript source.
-3. **Packaging & Policy Forensics**:
-   - Check compliance with the Zero-Duplicate Binary Storage policy in `AGENTS.md`.
-   - Verify that no duplicate historical binaries were created in the root or scripts.
-   - Check Jujutsu (`jj`) status for clean version control tracking.
-
-DELIVERABLES:
-Write a comprehensive forensic evidence report in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\analysis.md`
-and a self-contained handoff with an unambiguous binary verdict (**CLEAN** or **INTEGRITY VIOLATION**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+Your verdict must be strictly binary: CLEAN or INTEGRITY VIOLATION.
+Write your complete forensic report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md`.
+Notify me via send_message with your verdict and verified evidence.

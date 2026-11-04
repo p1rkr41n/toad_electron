@@ -23,25 +23,44 @@ const runAll = args.includes("--all");
 const smokeOnly = args.includes("--smoke");
 const qaOnly = args.includes("--qa");
 const legacyOnly = args.includes("--legacy");
+const fuzzOnly = args.includes("--fuzz");
+const unitOnly = args.includes("--unit");
 
 const testsToRun = [];
 
 if (smokeOnly) {
   testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
 } else if (qaOnly) {
-  testsToRun.push({ name: "Deep Integration QA (222 Tests)", file: "tests/deep_integration_qa.js" });
+  testsToRun.push({ name: "Deep Integration QA (223 Tests)", file: "tests/deep_integration_qa.js" });
+  testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
+  testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
 } else if (legacyOnly) {
   testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
+} else if (fuzzOnly) {
+  testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
+} else if (unitOnly) {
+  testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });
+  testsToRun.push({ name: "DuckDB JSON Builder Unit (10 Tests)", file: "tests/unit/test_duckdb_json_builder.js" });
+  testsToRun.push({ name: "JSON Schema Introspect Unit (50 Tests)", file: "tests/unit/test_json_schema_introspect.js" });
+  testsToRun.push({ name: "JSON Streaming Flattener Unit (46 Tests)", file: "tests/unit/test_json_streaming_flattener.js" });
+  testsToRun.push({ name: "Sample Scan Worker Unit (10 Tests)", file: "tests/unit/test_sample_scan_worker.js" });
 } else {
-  // Default: Smoke Test + Arrow IPC + EVTX Parsing + Deep Integration QA + Preload 3 Pages
+  // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites
   testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
   testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (15 Tests)", file: "tests/test_arrow_ipc_stream.js" });
   testsToRun.push({ name: "EVTX Parsing & Schema Validation (6 Tests)", file: "tests/test_evtx_parsing_schema.js" });
   testsToRun.push({ name: "Nested JSON & Semi-Structured Ingestion (6 Tests)", file: "tests/test_nested_json.js" });
   testsToRun.push({ name: "Deep Integration QA (223 Tests)", file: "tests/deep_integration_qa.js" });
   testsToRun.push({ name: "Preload 3 Pages & Dynamic PageSize (10 Tests)", file: "tests/test_preload_3_pages.js" });
+  testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
+  testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
   if (runAll) {
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
+    testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });
+    testsToRun.push({ name: "DuckDB JSON Builder Unit (10 Tests)", file: "tests/unit/test_duckdb_json_builder.js" });
+    testsToRun.push({ name: "JSON Schema Introspect Unit (50 Tests)", file: "tests/unit/test_json_schema_introspect.js" });
+    testsToRun.push({ name: "JSON Streaming Flattener Unit (46 Tests)", file: "tests/unit/test_json_streaming_flattener.js" });
+    testsToRun.push({ name: "Sample Scan Worker Unit (10 Tests)", file: "tests/unit/test_sample_scan_worker.js" });
   }
 }
 

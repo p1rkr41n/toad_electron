@@ -1,24 +1,45 @@
-## 2026-11-03T12:27:47Z
-You are Reviewer 1 (Packages, Webpack & HTML Reviewer).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1
+# Dispatch: Reviewer 1 (Code Quality, Contracts & Ingestion Review)
 
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You MUST read Worker M2's handoff report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md` and changes report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\changes.md`
+## Objective
+Perform an objective, rigorous review of the TOAD v2.5.1 Nested JSON Parser & Auto-Flattening implementation:
+1. Examine `packages/toadviewer/src/types/NestedJsonContracts.ts`
+2. Examine `packages/toadviewer/src/utils/NestedJsonTraverser.ts`
+3. Examine `packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`
+4. Examine `packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`
+5. Examine `packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`
+6. Examine `packages/reltab-duckdb/src/csvimport.ts`
+7. Run the test suite: `node-v18.20.4-win-x64\node.exe run_tests.js --all` and unit tests.
+8. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
 
-YOUR REVIEW SCOPE (R1 & R2):
-- Check directory existence: `tad-master/packages/toad-app` and `tad-master/packages/toadviewer`. Confirm old `tad-app` and `tadviewer` are migrated.
-- Check manifests: `toad-app/package.json` (`"name": "toad-app"`, `"toadviewer": "^0.12.0"`, `build:toadviewer-assets`, asar exclusion `!**/node_modules/toadviewer/**`), `toadviewer/package.json` (`"name": "toadviewer"`, `"main": "dist/toadviewer.js"`), `lerna.json` (`"toad-app"`).
-- Check imports: search for any lingering `"tadviewer"` imports in `toad-app` source files.
-- Check Webpack configs: `toad-app/webpack.config.js` entry `toadapp` -> output `toadapp.bundle.js`; `toadviewer/webpack.config.js` dual entry emitting both `toadviewer.js` and `tadviewer.js`.
-- Check HTML: `toad-app/html/index.html` line 11 loads `<script src="toadapp.bundle.js"></script>`. Confirm no blank screen crash risk.
-- Check NTFS junctions in `node_modules` for `toadviewer` and `tadviewer`.
-- Run verification command: compile/typecheck `toad-app` (`tsc --noEmit`) to verify.
+Read `ORIGINAL_REQUEST.md` and `PROJECT.md` for requirements.
+Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md`.
 
-DELIVERABLES:
-Write a thorough review report in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\analysis.md`
-and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+## 2026-11-04T09:03:10Z
+You are reviewer_1, the Code Quality, Contracts & Ingestion Reviewer for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1.
+
+Before starting, you MUST read the authoritative original request and project documents:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\DISPATCH.md
+
+Your assigned review tasks:
+1. Review implementation and design of contracts:
+   - `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
+   - `tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`
+   - `tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`
+2. Review backend ingestion dynamic projection pipeline:
+   - `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`
+   - `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`
+   - `tad-master/packages/reltab-duckdb/src/csvimport.ts`
+3. Execute and verify unit and integration tests:
+   - `node-v18.20.4-win-x64\node.exe run_tests.js --all`
+   - `node-v18.20.4-win-x64\node.exe tests/unit/test_nested_traverser.js`
+   - `node-v18.20.4-win-x64\node.exe tests/unit/test_duckdb_json_builder.js`
+   - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_schema_introspect.js`
+   - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js`
+4. Verify code quality, memory safety, error handling, and interface conformance.
+
+Write your complete review report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
+Notify me via send_message with your verdict and summary.

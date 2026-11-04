@@ -1,51 +1,37 @@
-## 2026-11-03T03:35:15Z
-You are a teamwork_challenger. Your identity is challenger_2.
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\
-You MUST read the authoritative request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Also review:
+# Dispatch: Challenger 2 (Deep Recursion, Polymorphism & Fuzzing Verification)
+
+## Objective
+Empirically stress-test boundary and extreme corner cases:
+1. Deeply nested JSON (objects nested 150+ levels deep) to test stack safety.
+2. Huge JSON lines with 5,000+ fields in a single record.
+3. Heavily polymorphic fields (same field alternating between scalar number, string, array, and nested object across rows).
+4. Invalid/corrupted JSON lines interleaved with valid logs.
+5. Verify that `NestedJsonTraverser`, `JsonSchemaIntrospector`, and `SampleScanWorker` handle all cases without unhandled exceptions.
+6. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
+
+Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md`.
+
+
+## 2026-11-04T09:03:56Z
+You are challenger_2, the Deep Recursion, Polymorphism & Fuzzing Adversarial Challenger for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2.
+
+Before starting, you MUST read the authoritative original request and project documents:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\test_writer_jj\handoff.md
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\DISPATCH.md
 
-Empirical Challenge Tasks:
-1. Challenge the test suite completeness in `tests/deep_integration_qa.js`:
-   - Inspect SUITE JJ (JJ.1 to JJ.8) for test flakiness, race conditions, false positives, or unhandled promise rejections.
-   - Run the complete integration QA test suite:
-     & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-   - Verify all 200 test cases pass deterministically.
-2. Verify package & release pre-flight:
-   - Check `tools/bump_version.js` syntax and dry-run compatibility.
-   - Check `package_release.ps1` and `dist_package.ps1` compatibility.
-   - Verify that Zero-Duplicate Binary Storage policy is honored.
-3. Determine verdict: APPROVE or REQUEST_CHANGES.
-4. Write handoff report to d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md and send message to orchestrator.
-## 2026-11-03T12:28:13Z
-You are Challenger 2 (Build Scripts & Packaging Stress Challenger).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2
+Your challenge mission:
+Empirically stress-test boundary, corner, and extreme workload cases:
+1. Deeply nested JSON structures (objects nested 120+ to 200+ levels deep) to test recursion safety, call stack integrity, and graceful truncation (`maxDepth`).
+2. High-volume wide JSON lines with 2,000+ fields in a single line.
+3. Heavily polymorphic fields (same column key flapping between integer, float, string, boolean, object, array, and null across consecutive lines).
+4. Corrupted, truncated, and binary-garbage lines interleaved with valid JSON.
+5. Real-world EVTX System log parity against `D:\Shared_UserData\Downloads\data_sample\System.evtx`:
+   - Run `node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js`
+   - Confirm 100% leaf field extraction parity for RecordID 93937.
+6. Verify that `NestedJsonTraverser`, `JsonSchemaIntrospector`, `JsonStreamingFlattener`, and `SampleScanWorker` execute with zero unhandled rejections or crashes.
 
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You are an empirical, code-executing verifier. Test the build and packaging pipeline.
-
-YOUR CHALLENGE SCOPE:
-1. Validate PowerShell build and release scripts:
-   - Check `fastbuild.ps1`, `dist_package.ps1`, `package_release.ps1` for syntax correctness and path resolution to `toad-app`, `toadviewer`, and `toadapp.bundle.js`.
-   - Verify that `tools/bump_version.js` executes and correctly resolves target package paths.
-2. Verify Webpack bundle and assets:
-   - Confirm `tad-master/packages/toad-app/dist/toadapp.bundle.js` exists, is non-empty, and valid JS.
-   - Confirm `tad-master/packages/toad-app/html/index.html` loads `<script src="toadapp.bundle.js"></script>`.
-   - Confirm `tad-master/packages/toadviewer/dist/toadviewer.js` and `dist/tadviewer.js` exist.
-3. Check Asar packaging footprint rules:
-   - In `toad-app/package.json`, confirm asar exclusion rule is `!**/node_modules/toadviewer/**`.
-   - Check that the packed asar size expectation is under 45 MB.
-4. Verify Jujutsu (`jj`) VCS cleanliness and the Zero-Duplicate Binary Storage policy in `AGENTS.md`.
-
-DELIVERABLES:
-Write a comprehensive empirical verification report in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\analysis.md`
-and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+Write your empirical challenge report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
+Notify me via send_message with your verdict and empirical findings.

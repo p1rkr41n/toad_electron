@@ -1,60 +1,49 @@
-## 2026-11-03T03:35:04Z
-You are a teamwork_reviewer. Your identity is reviewer_2.
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\
-You MUST read the authoritative request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Also review:
+# Dispatch: Reviewer 2 (UI Integration, Async Scanner & Packaging Review)
+
+## Objective
+Perform an objective, rigorous review of the UI components and packaging pipeline for TOAD v2.5.1:
+1. Examine `packages/toadviewer/src/workers/SampleScanWorker.ts`
+2. Examine `packages/toadviewer/src/components/SampleScanController.tsx`
+3. Examine `packages/toadviewer/src/components/NestedFieldsTable.tsx`
+4. Examine `packages/toadviewer/src/components/RegexDialog.tsx`
+5. Examine `packages/toadviewer/less/nested-dialog.less`
+6. Verify packaging & release files: `fastbuild.ps1`, `package_release.ps1`, `releases/HelloKittyXamKinLung.Toad.yaml`, `README.md`.
+7. Verify TypeScript compilation: `node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/toadviewer/tsconfig.json --noEmit`.
+8. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
+
+Read `ORIGINAL_REQUEST.md` and `PROJECT.md` for requirements.
+Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md`.
+
+## 2026-11-04T09:03:17Z
+You are reviewer_2, the UI Components, Async Scanner & Packaging Reviewer for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2.
+
+Before starting, you MUST read the authoritative original request and project documents:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\test_writer_jj\handoff.md
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\DISPATCH.md
 
-Inspect the code changes in:
-- tad-master/packages/tad-app/app/appMenu.ts
-- tad-master/packages/tad-app/src/electronRenderMain.tsx
-- tad-master/packages/tadviewer/src/components/ProjectFilesTable.tsx
-- tad-master/packages/tadviewer/src/components/DataSourceSidebar.tsx
-- tad-master/packages/tadviewer/less/sidebar.less
-- tests/deep_integration_qa.js
+Your assigned review tasks:
+1. Review frontend UI components and asynchronous chunked timeslicing:
+   - `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`
+   - `tad-master/packages/toadviewer/src/components/SampleScanController.tsx`
+   - `tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`
+   - `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`
+   - `tad-master/packages/toadviewer/less/nested-dialog.less`
+2. Verify TypeScript compilation:
+   - `node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/bin/tsc --project tad-master/packages/toadviewer/tsconfig.json --noEmit`
+3. Review version bump and packaging artifacts:
+   - `tools/bump_version.js` (2.5.1 synchronization across all 13 manifests)
+   - `fastbuild.ps1`
+   - `dist_package.ps1`
+   - `package_release.ps1`
+   - `releases/HelloKittyXamKinLung.Toad.yaml`
+   - `README.md`
+4. Run sample scan unit tests and verify 0 UI freezing:
+   - `node-v18.20.4-win-x64\node.exe tests/unit/test_sample_scan_worker.js`
+   - `node-v18.20.4-win-x64\node.exe tests/test_nested_json.js`
+5. Verify Zero-Duplicate Binary Storage policy and VCS author identity (`HelloKittyXamKinLung`).
 
-Review tasks:
-1. Verify architecture, robustness, and non-functional requirements:
-   - State management: MobX/React state flow in ProjectFilesTable, proper unmounting/listeners cleanup, no memory leaks.
-   - Parquet Ledger integrity: verify renameProject operates on metadata only, 0 disk I/O, immutable projectId.
-   - Edge case handling in getRelativeParentDir across Windows/POSIX paths, root drives, subdirs.
-   - Styling robustness in sidebar.less: Light mode, Dark mode, CSS cascade, no overflow breaks.
-2. Run tests:
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-3. Determine verdict: APPROVE or REQUEST_CHANGES.
-4. Write handoff report with your explicit verdict to d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md and send message to orchestrator.
-
-## 2026-11-03T12:27:55Z
-You are Reviewer 2 (Logic, File Formats & Branding Reviewer).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2
-
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You MUST read Worker M1's handoff report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md` and changes report at: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\changes.md`
-
-YOUR REVIEW SCOPE (R3 & R4):
-- File formats and backward compatibility:
-  - Check `toad-app/src/openParams.ts`: `OpenToad` interface, `OpenType`, `OpenParams`.
-  - Check `toad-app/app/appWindow.ts`: `.toad` and `.tad` support, default window title `"TOAD"`, `--toadOpenParams=` / `--tadOpenParams=`, openDialog and saveAsDialog filters (`.toad` default), workspace serialization `toadFileFormatVersion: 2`.
-  - Check `toad-app/app/preload.js`: parses `--toadOpenParams=` with fallback to `--tadOpenParams=`.
-  - Check `toad-app/src/electronRenderMain.tsx`: handles `"toad"` and `"tad"`, transparent migration of legacy v1 `targetPath` to `DataSourcePath`, error dialog string.
-- SQL Internal Views & Plugins:
-  - Check `reltab-duckdb/src/reltab-duckdb.ts` & `reltab-sqlite/src/reltab-sqlite.ts`: `toad_tmpView_${viewCounter++}` view prefix.
-  - Check `reltab-duckdb/src/csvimport.ts`: `toad-app/bin/toad-core.exe` candidate.
-- UI Classes, Events & Branding:
-  - Check `toadviewer/src/components/AppPane.tsx`: container class `.toad-app-pane`, title `${node.displayName} - TOAD`, exported `toadReact`.
-  - Check `toadviewer/less/tadviewer.less`: `.toad-app-pane` styling.
-  - Check `PivotRequester.ts` & `FilterEditor.tsx`: `toad-query-error` event.
-  - Check `appMenu.ts` & `main.ts`: About TOAD dialog handler and `app.setAboutPanelOptions` with `TOAD - Tabular OLAP Analytics Desktop (v2.4.8)`.
-- Run verification command: compile/typecheck `toad-app` (`tsc --noEmit`), `reltab-duckdb`, and `toadviewer`.
-
-DELIVERABLES:
-Write a thorough review report in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\analysis.md`
-and a self-contained handoff with explicit verdict (**APPROVE** or **REQUEST_CHANGES**) in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your verdict.
+Write your complete review report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
+Notify me via send_message with your verdict and summary.

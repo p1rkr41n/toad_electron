@@ -1,118 +1,151 @@
-# Handoff Report — Challenger 2 (Build Scripts & Packaging Stress Challenger)
+# Handoff Report: Deep Recursion, Polymorphism & Fuzzing Adversarial Challenge
 
-**Recipient**: Orchestrator (`afba7d24-e2ed-4eb2-89cc-f35d592f6de8`)  
-**Role**: Empirical Challenger (critic, specialist)  
-**Date**: 2026-11-03  
+**Agent**: Challenger 2 (Empirical Adversarial Challenger)  
+**Date**: 2026-11-04  
+**Target Milestone**: TOAD v2.5.1 Nested JSON Parser & Auto-Flattening (Milestone 6 Independent Challenger Gate)  
 **Verdict**: **REQUEST_CHANGES**  
-**Detailed Analysis**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\analysis.md`  
 
 ---
 
 ## 1. Observation
 
-Direct empirical observations from test executions, file audits, and script evaluations:
+1. **Dedicated Empirical Challenger Harness**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_extreme_adversarial_challenger2.js`
+   - Result: Exit code 0, **61 Passed, 0 Failed**.
+   - Verified:
+     - 200 and 350 nested object levels traversed without `RangeError` (V8 stack overflow).
+     - Circular references (`circularObj.loop = circularObj` and mutual `A <-> B`) terminated safely with sampleValue `[Circular]`.
+     - High-volume wide JSON with 2,500 distinct fields traversed in 7ms; SQL view generated in 14ms; DuckDB compiled and queried view in 177ms; streamed to Parquet with 2,501 columns.
+     - 1,000 heavily polymorphic rows flapping cyclically across 8 types (BIGINT, DOUBLE, VARCHAR, BOOLEAN, object, array, null, TIMESTAMP string) yielded exact fill rate 0.875 and executed cleanly in DuckDB `TRY_CAST`.
+     - 16 corrupted/binary payloads (PE headers `MZ\x90`, raw null-byte buffers, 50KB strings, unclosed brackets) survived without uncaught exceptions.
+     - `SampleScanWorker` aborted mid-scan (at 30% progress), stopping cleanly at row 600/2,000 with `aborted: true` and zero dangling promises.
+     - Process-level listeners recorded **0 unhandled promise rejections** and **0 uncaught exceptions**.
 
-1. **PowerShell Script Syntax & Path Resolution**:
-   - `fastbuild.ps1`, `dist_package.ps1`, `package_release.ps1`, and `.agents/skills/releases/scripts/package_release.ps1` all compile cleanly with `[scriptblock]::Create` with 0 syntax errors.
-   - `fastbuild.ps1` lines 45–48 and `dist_package.ps1` lines 9–12 prioritize `toad-app` over `tad-app`.
-   - `fastbuild.ps1` lines 79–82 and `dist_package.ps1` lines 34–37 prioritize `toadviewer` over `tadviewer`.
-   - `fastbuild.ps1` lines 115–118 and `dist_package.ps1` lines 48–53 prioritize `toadapp.bundle.js` over `tadapp.bundle.js`.
-   - `dist_package.ps1` line 55 whitelist checks for `v2.4.8`, `v2.4.7`, ..., `v2.1.0`.
-   - `package_release.ps1` sets default parameter `$Version = "2.4.8"`.
+2. **EVTX Parity QA Suite**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js`
+   - Result: Exit code 0, **35 Passed, 0 Failed**.
+   - Verbatim leaf extraction from `D:\Shared_UserData\Downloads\data_sample\System.evtx` for RecordID 93937:
+     - `Event.System.EventID.#text`: `7036` (BIGINT)
+     - `Event.System.EventID.#attributes.Qualifiers`: `16384` (BIGINT)
+     - `Event.EventData.param1`: `"Microsoft Passport Container"` (VARCHAR)
+     - `Event.EventData.param2`: `"stopped"` (VARCHAR)
+     - `Event.EventData.Binary`: `"4E0067006300430074006E0072005300760063002F0031000000"` (VARCHAR)
+     - `Event.System.TimeCreated.#attributes.SystemTime`: `"2026-10-27T14:44:08.819818Z"` (TIMESTAMP)
+     - `Event.System.Provider.#attributes.Name`: `"Service Control Manager"` (VARCHAR)
+     - `Event.System.Computer`: `"WIN-3MJ9DEQ5B94"` (VARCHAR)
 
-2. **`tools/bump_version.js` Execution & Target Resolution**:
-   - Running `tools/bump_version.js` without arguments safely exits with code 1 and usage help.
-   - All 9 target files resolve and exist on disk:
-     - `tad-master/packages/toad-app/package.json` (version: `2.4.7`)
-     - `tad-master/packages/host-bridge/package.json` (version: `2.4.7`)
-     - `tad-master/packages/reltab-duckdb/package.json` (version: `2.4.7`)
-     - `tad-master/packages/toadviewer/package.json` (version: `2.4.7`)
-     - `tad-master/packages/toadviewer/src/components/RegexDialog.tsx` (matches `/v\d+\.\d+\.\d+(?:\.\d+)?/`)
-     - `dist_package.ps1` (matches `/Toad-\d+\.\d+\.\d+(?:\.\d+)?-x64-portable\.exe/`)
-     - `package_release.ps1` (matches `/\[string\]\$Version = "[^"]+"/`)
-     - `README.md` (matches title and badge regexes)
-     - `releases/HelloKittyXamKinLung.Toad.yaml` (matches `/PackageVersion: [\d\.]+/`)
+3. **Master Regression Test Runner**:
+   - Command: `.\node-v18.20.4-win-x64\node.exe run_tests.js --all`
+   - Result: Exit code 0 across 14 test suites, **486 tests passed (100% HEALTHY)** in 35.87s.
 
-3. **Webpack Bundles & HTML Assets**:
-   - `tad-master/packages/toad-app/dist/toadapp.bundle.js` exists (5,186,273 bytes, ~4.95 MiB), contains valid JavaScript (`new vm.Script(code)` passed), and contains `padStart(3` for `str001`.
-   - `tad-master/packages/toad-app/html/index.html` line 11 and `dist/index.html` line 11 load `<script src="toadapp.bundle.js"></script>`.
-   - `tad-master/packages/toadviewer/dist/toadviewer.js` (2,891,952 bytes) and `dist/tadviewer.js` (2,891,951 bytes) both exist and contain valid JavaScript.
+4. **Latent Ingestion Defect Observed in `JsonStreamingFlattener.ts`**:
+   - File: `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts:223-235`
+   - Code:
+     ```typescript
+     // Tier 2 Fallback: all_varchar = true
+     const allVarcharQuery = `
+     COPY (
+       SELECT * FROM read_json_auto(
+         '${safeSrc}',
+         sample_size = ${sampleSize},
+         ignore_errors = true,
+         all_varchar = true
+       )
+     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+     `.trim();
 
-4. **Asar Footprint & Zero-Duplicate Binary Policies**:
-   - `toad-app/package.json` lines 140–141 specify `"!**/node_modules/toadviewer/**"` and `"!**/node_modules/tadviewer/**"`.
-   - Current unpacked asar at `tad-master/packages/toad-app/release/win-unpacked/resources/app.asar` is **25.45 MB**, well below the 45.0 MB ceiling.
-   - Root contains only single executable `Toad.exe`.
-   - `releases/` contains exactly 9 canonical portable executables (`Toad-2.3.5-x64-portable.exe` to `Toad-2.4.7-x64-portable.exe`); zero duplicate aliases exist.
-   - Dedicated challenge harness `tests/test_pipeline_challenge.js` passed **46/46 tests** (exit code 0).
-
-5. **Empirical Regression Failure in `node run_tests.js --all`**:
-   - Executing `& "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all` exited with code 1:
-     - `tests/deep_integration_qa.js`: 221 passed, 1 failed:
-       `✗ [FAIL] E.2 RAM First-Page Micro-Cache returns 1000 rows in < 2ms with 0 Disk I/O`
-       `Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tadviewer\dist\MultipleLoadingManager'`
-     - `tests/legacy_use_cases.js`: Crashed on startup:
-       `Error: Cannot find module 'D:\Shared_UserData\Downloads\tad\tad-master\packages\tad-app\app_dist\portableAppData'`
-   - In `tests/deep_integration_qa.js:33`, `origExistsSync(redirected)` returns `false` when `targetPath` lacks an explicit extension (like `.js`), failing to redirect `require(".../tadviewer/dist/MultipleLoadingManager")`.
-   - In `toad-app/package.json:164`, `fileAssociations` lists `"ext": "tad"`, but is missing `"ext": "toad"`.
+     await execQuery(dbConn, allVarcharQuery);
+     ```
+   - Verbatim DuckDB error when executing `read_json_auto(..., all_varchar = true)`:
+     `Binder Error: Invalid named parameter "all_varchar" for function read_json_auto`
+   - Verbatim DuckDB Node.js exception:
+     `[Error: Invalid Error: ...] { errno: -1, code: 'DUCKDB_NODEJS_ERROR', errorType: 'Invalid' }`
+   - Missing error handler: `await execQuery(dbConn, allVarcharQuery)` on line 235 has NO `try ... catch` block.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Validation of Build & Packaging Scripts (Observation 1, 2, 3, 4)**:
-   The core build pipeline (`fastbuild.ps1`), release packaging script (`dist_package.ps1`), version bumper (`bump_version.js`), and asset references (`toadapp.bundle.js`, `toadviewer.js`, `index.html`) are structurally synchronized to the renamed `toad-app` and `toadviewer` packages, honoring all footprint and zero-duplicate policies.
-
-2. **Test Suite Resolution Regression (Observation 5)**:
-   - When packages were renamed from `tad-*` to `toad-*`, Worker M3 added `mapLegacyPath` in `deep_integration_qa.js` to redirect legacy path references.
-   - However, because `mapLegacyPath` tests `origExistsSync(redirected)` against paths without file extensions, Node requires to modules without explicit `.js` extensions fail to redirect.
-   - Furthermore, `tests/legacy_use_cases.js` does not have this hook and directly requires `tad-app/app_dist/portableAppData`.
-   - Because no NTFS junctions were placed at `tad-master/packages/tad-app` and `tad-master/packages/tadviewer`, both suites fail under `run_tests.js --all`.
-   - Acceptance Criterion R5.4 ("All 222+ test suite cases pass cleanly") is therefore violated.
+1. **Observation 1** establishes that `NestedJsonTraverser.ts`, `DuckDbJsonSqlBuilder.ts`, `JsonSchemaIntrospector.ts`, and `SampleScanWorker.ts` are exceptionally robust under extreme stress workloads: deep recursion (up to 350 levels), wide schemas (2,500 columns), 1,000-row polymorphic flapping, and corrupted line fuzzing all pass with zero crashes.
+2. **Observation 2** establishes that RecordID 93937 from real-world `System.evtx` satisfies 100% leaf parity across all special character paths (`#text`, `#attributes.Qualifiers`).
+3. **Observation 3** establishes that all 14 baseline test suites pass 100%.
+4. **Observation 4** reveals that `JsonStreamingFlattener.ts` defines a 2-tier fallback strategy for streaming JSON to Parquet:
+   - Tier 0: Dynamic projection of STRUCT columns.
+   - Tier 1: Standard `read_json_auto(..., ignore_errors = true)`.
+   - Tier 2: `all_varchar = true` fallback.
+5. In DuckDB, `all_varchar` is a valid parameter for `read_csv`, but is **strictly rejected** by `read_json_auto` (`Binder Error: Invalid named parameter "all_varchar"`).
+6. Because line 235 (`await execQuery(dbConn, allVarcharQuery)`) lacks a `try ... catch` block, any corrupt or irregular JSON file where Tier 1 fails triggers Tier 2, which immediately throws a Binder Error and rejects the promise, crashing the ingestion worker rather than recovering.
+7. Therefore, while core components are robust, Tier 2 in `JsonStreamingFlattener.ts` is broken and requires a 3-line correction before release.
 
 ---
 
 ## 3. Caveats
 
-- **No Caveats**: All findings are empirically verified with executable tests. Zero speculative claims.
+- **Normal JSON Ingestion Stability**: In normal, non-pathological JSON and EVTX ingestion, Tier 0 (dynamic struct projection) or Tier 1 (standard stream with `ignore_errors = true`) succeeds, so Tier 2 is not reached under ordinary circumstances.
+- **Scope Limit**: Review-only constraint strictly observed; Challenger 2 did NOT modify `JsonStreamingFlattener.ts` directly, adhering to role boundaries.
+- **DuckDB Version**: Tested against embedded DuckDB v0.10.x/v1.0.x in `tad-master/node_modules/duckdb`.
 
 ---
 
 ## 4. Conclusion
 
-**Verdict: REQUEST_CHANGES**
+- **Verdict**: **REQUEST_CHANGES**
+- **Action Required**: Apply the following drop-in correction in `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`:
+  1. Replace `all_varchar = true` with `format = 'newline_delimited'` (or remove it).
+  2. Wrap `await execQuery(dbConn, allVarcharQuery)` in a `try ... catch` block to log a warning and prevent unhandled promise rejection.
 
-The build scripts, packaging configurations, Webpack bundles, and binary de-duplication rules are verified and robust. However, release gates cannot be cleared until the two test resolution regressions and the missing file association are addressed:
+```typescript
+// Proposed fix for tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts:223-246
+  // Tier 2 Fallback: format = 'newline_delimited', ignore_errors = true
+  const fallbackQuery = `
+COPY (
+  SELECT * FROM read_json_auto(
+    '${safeSrc}',
+    sample_size = ${sampleSize},
+    ignore_errors = true,
+    format = 'newline_delimited'
+  )
+) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
+`.trim();
 
-1. **Fix `tests/deep_integration_qa.js` line 33**: Allow extension resolution in `mapLegacyPath` (`origExistsSync(redirected + ".js")`) so test E.2 resolves `MultipleLoadingManager.js`.
-2. **Fix `tests/legacy_use_cases.js`**: Update require statements or add NTFS directory junctions at `tad-master/packages/tad-app` and `tadviewer`.
-3. **Fix `toad-app/package.json`**: Add `"ext": "toad"` to `fileAssociations`.
+  try {
+    await execQuery(dbConn, fallbackQuery);
+    const executionTimeMs = Date.now() - startTime;
+    log.info(`[JsonStreamingFlattener] Fallback JSON streaming completed in ${executionTimeMs}ms.`);
+    return {
+      flattened: false,
+      hasStructColumns: false,
+      columnCount: introspection.columns.length,
+      finalColumnNames: introspection.columns.map((c) => c.columnName),
+      executionTimeMs,
+    };
+  } catch (fbErr: any) {
+    log.warn(`[JsonStreamingFlattener] Fallback JSON streaming failed:`, fbErr?.message || fbErr);
+    throw fbErr;
+  }
+```
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce and verify these findings:
-
-1. **Verify Challenger Harness (Build & Packaging Pipeline)**:
+1. Run the dedicated Challenger 2 empirical stress test harness:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\test_pipeline_challenge.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_extreme_adversarial_challenger2.js
    ```
-   *Result*: 46/46 PASSED (100% of packaging rules satisfied).
-
-2. **Reproduce Deep Integration QA Failure (Test E.2)**:
+   *Expected*: All 61 assertions PASS with exit code 0.
+2. Run the Real-World EVTX QA Parity test:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js
    ```
-   *Expected Failure*: `✗ [FAIL] E.2 ... Cannot find module '...tadviewer/dist/MultipleLoadingManager'` (221 passed, 1 failed).
-
-3. **Reproduce Legacy Use Cases Failure**:
+   *Expected*: All 35 assertions PASS with exit code 0.
+3. Run the Adversarial & Fuzzing QA suite:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\legacy_use_cases.js
+   .\node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js
    ```
-   *Expected Failure*: `Cannot find module '...tad-app/app_dist/portableAppData'`.
-
-4. **Reproduce Overall Test Runner Failure**:
+   *Expected*: All 40 assertions PASS with exit code 0.
+4. Run the master unified test runner:
    ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" run_tests.js --all
+   .\node-v18.20.4-win-x64\node.exe run_tests.js --all
    ```
-   *Expected Failure*: Exits with code 1, `RESULT: ONE OR MORE TEST SUITES FAILED!`.
+   *Expected*: All 14 suites PASS (100% HEALTHY).
