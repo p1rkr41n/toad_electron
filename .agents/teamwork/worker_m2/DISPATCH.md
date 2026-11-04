@@ -1,48 +1,81 @@
-## 2026-11-04T07:48:15Z
-You are teamwork_worker. Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2.
+# DISPATCH — Worker Milestone 2: Main DataGrid Auto-Fit & Floating Cell Wrap
 
-MANDATORY FIRST STEP:
-Read d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md.
+Read `ORIGINAL_REQUEST.md` at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
+Read the architecture and contracts in:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`
+Read the survey handoffs at:
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_table\handoff.md` (Sections 1.3, 1.4, 4.3, 4.4, 4.5)
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey\handoff.md` (Streams 3, 4, 5, 6)
 
-MANDATORY INTEGRITY WARNING:
+## MANDATORY INTEGRITY WARNING
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-SCOPE & EXCLUSIVE FILE OWNERSHIP:
-You exclusively own and may modify ONLY these files:
-- tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts
-- tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts
-- tad-master/packages/reltab-duckdb/src/csvimport.ts
-- tests/unit/test_json_schema_introspect.js
-- tests/unit/test_json_streaming_flattener.js
-Do NOT modify any files outside this list.
+## Write Ownership
+You EXCLUSIVELY own and modify:
+- `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\DataGrid.tsx`
+- `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\slickgrid.scss`
+DO NOT touch any other files.
 
-RELEVANT ARCHITECTURE & REPORTS TO READ:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_json_survey\spec_report.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_backend_json\backend_report.md
+## Detailed Requirements
+1. **Double-Click Auto-Fit Column Width (Stream 3)**:
+   - Intercept `dblclick` on `.slick-resizable-handle` in the header container (`containerElem`).
+   - Find target column from `closest(".slick-header-column")`.
+   - Read visible viewport rows (`grid.getViewport()`), measure longest formatted string using `getColumnFormatter(schema, colId)`.
+   - Calculate width: $w_{\text{fit}} = \text{clamp}(60, 500, \text{round}(\text{maxLen} \times 7.5 + 24))$.
+   - Apply `grid.setColumns(updatedCols)` and update `tadProps._gridState.colWidthsMap[colId]`.
+2. **Floating In-Place Active Cell Wrap (Stream 4)**:
+   - Critical Caveat: `.slick-cell` has `contain: strict;`. You MUST override with `contain: none !important;`!
+   - In `grid.onActiveCellChanged`: check if active cell text overflows (`scrollWidth > clientWidth || textLen > 28`).
+   - If overflowing: attach `.slick-cell-active-expanded` to cell and `.slick-row-has-expanded` to parent row.
+   - CSS rules in `slickgrid.scss`:
+     ```scss
+     .slick-row.slick-row-has-expanded {
+       overflow: visible !important;
+       z-index: 25 !important;
+     }
+     .slick-cell.slick-cell-active-expanded {
+       position: absolute !important;
+       z-index: 20 !important;
+       contain: none !important;
+       height: auto !important;
+       min-height: 24px !important;
+       max-height: 180px !important;
+       overflow-y: auto !important;
+       white-space: normal !important;
+       word-break: break-word !important;
+       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+     }
+     ```
+   - Coordinate Preservation: Row top positions remain strictly invariant (`top = i * 24px`).
+   - Dismissal: Subscribe to `grid.onScroll`, `grid.onViewportChanged`, active cell change, and `Escape` key to immediately remove `.slick-cell-active-expanded`.
+3. **CSS Design System & Themes (Stream 5)**:
+   - Resizer handle hover/drag line: `rgba(2, 132, 199, 0.75)` in Light theme; `rgba(56, 189, 248, 0.85)` in Dark theme.
+   - Custom slim scrollbars (4px, 2px radius) on expanded cells.
+4. **Event Isolation & Cleanup (Stream 6)**:
+   - Ensure header resizer dblclick does not trigger sort.
+   - `Escape` key dismisses floating active cell.
 
-TASKS FOR MILESTONE 2:
-1. Implement `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`:
-   - Runs Phase 1 introspection: `DESCRIBE SELECT * FROM read_json_auto('${safePath}', sample_size = 2048) LIMIT 0;` using dbConn.all().
-   - Parses DuckDB column types. If `STRUCT(...)` columns are found, recursively parses the structural definition into leaf projections. Handles nested structs, special characters in field names (`#attributes`, `#text`, `@xmlns`, dots, spaces, quotes).
-   - Identifies whether any `STRUCT` columns exist.
-2. Implement `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`:
-   - Generates Phase 2 dynamic projection SQL:
-     If `STRUCT` columns exist, generates:
-     `COPY (SELECT "primitive_col", "Event"."System"."EventID"."#text" AS "Event.System.EventID.#text", ... FROM read_json_auto('${safePath}', sample_size = 2048, ignore_errors = true)) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression});`
-     Ensures every column alias and field identifier is safely double-quoted.
-     If no `STRUCT` columns exist, falls back gracefully to standard `SELECT * FROM read_json_auto(...)`.
-3. Integrate into `tad-master/packages/reltab-duckdb/src/csvimport.ts`:
-   - Update `streamJsonToParquet` (around line 2968) to execute the two-phase dynamic projection.
-   - Ensures that directly imported `.json`, `.jsonl`, `.ndjson` files AND decoded EVTX JSONL files are automatically flattened into columnar dot-notated Parquet files.
-4. Implement unit tests:
-   - `tests/unit/test_json_schema_introspect.js`: verifies DuckDB `DESCRIBE` parsing of complex nested structs with special characters.
-   - `tests/unit/test_json_streaming_flattener.js`: verifies Parquet creation with flattened dot-notated columns and data integrity.
-5. Execute unit tests using `node-v18.20.4-win-x64\node.exe tests/unit/test_json_schema_introspect.js` and `node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js`. Ensure 100% PASS.
+## Verification
+- Compile TypeScript / verify no syntax errors (`npx tsc --noEmit` in `packages/toadviewer`).
+- Write complete implementation handoff to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md`.
 
-OUTPUT:
-Write your implementation report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md` with:
-- Files modified/created
-- Test execution commands and outputs
-- Verification results
-When complete, send a message to orchestrator (`aad28923-4697-407e-9b0b-76e49e020103`) with a summary and path to your handoff.md.
+
+## 2026-11-04T15:37:32Z
+You are the teamwork_worker for Milestone 2 (Main DataGrid Auto-Fit & Floating Cell Wrap).
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2
+Read your task dispatch file at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\DISPATCH.md
+Read the authoritative user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+Read the project master plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+Read the detailed survey blueprints at:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_table\handoff.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey\handoff.md
+
+Implement Streams 3, 4, 5, 6 for the Main DataGrid in:
+- tad-master/packages/toadviewer/src/components/DataGrid.tsx
+- tad-master/packages/toadviewer/src/slickgrid.scss
+
+Pay special attention to overriding `contain: strict;` on `.slick-cell-active-expanded` with `contain: none !important;` and ensuring virtual row coordinate invariance.
+Follow all instructions in DISPATCH.md strictly. Ensure genuine implementation and verify type safety.
+Write your complete handoff report to: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
+When finished, notify me using send_message.

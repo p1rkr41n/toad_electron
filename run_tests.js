@@ -34,6 +34,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "Deep Integration QA (223 Tests)", file: "tests/deep_integration_qa.js" });
   testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
   testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
+  testsToRun.push({ name: "Grid Wrap Concurrency Stress (10 Tests)", file: "tests/qa/test_grid_wrap_concurrency_stress.js" });
 } else if (legacyOnly) {
   testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
 } else if (fuzzOnly) {
@@ -44,8 +45,10 @@ if (smokeOnly) {
   testsToRun.push({ name: "JSON Schema Introspect Unit (50 Tests)", file: "tests/unit/test_json_schema_introspect.js" });
   testsToRun.push({ name: "JSON Streaming Flattener Unit (46 Tests)", file: "tests/unit/test_json_streaming_flattener.js" });
   testsToRun.push({ name: "Sample Scan Worker Unit (10 Tests)", file: "tests/unit/test_sample_scan_worker.js" });
+  testsToRun.push({ name: "Project Files Table Wrap & Resize Unit (15 Tests)", file: "tests/unit/test_project_files_table_wrap_resize.js" });
+  testsToRun.push({ name: "DataGrid Floating Wrap Unit (15 Tests)", file: "tests/unit/test_datagrid_floating_wrap.js" });
 } else {
-  // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites
+  // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites + Table/Grid Wrap Suites
   testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
   testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (15 Tests)", file: "tests/test_arrow_ipc_stream.js" });
   testsToRun.push({ name: "EVTX Parsing & Schema Validation (6 Tests)", file: "tests/test_evtx_parsing_schema.js" });
@@ -55,6 +58,9 @@ if (smokeOnly) {
   testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
   testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
   testsToRun.push({ name: "Parse Columns DataGrid Refresh (18 Tests)", file: "tests/test_parse_columns_datagrid_refresh.js" });
+  testsToRun.push({ name: "Grid Wrap Concurrency Stress (10 Tests)", file: "tests/qa/test_grid_wrap_concurrency_stress.js" });
+  testsToRun.push({ name: "Project Files Table Wrap & Resize Unit (15 Tests)", file: "tests/unit/test_project_files_table_wrap_resize.js" });
+  testsToRun.push({ name: "DataGrid Floating Wrap Unit (15 Tests)", file: "tests/unit/test_datagrid_floating_wrap.js" });
   if (runAll) {
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
     testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });

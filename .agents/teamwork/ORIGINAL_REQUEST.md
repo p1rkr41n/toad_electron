@@ -1,47 +1,51 @@
 # Original User Request
 
-## Initial Request — 2026-11-04T07:28:22Z
+## Initial Request — 2026-11-04T15:21:28Z
 
-Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytics Desktop) for Windows Event Log (EVTX) JSON representations and complex JSON/JSONL logs containing deeply nested fields and special characters.
+Use a full team of subagents to implement Column Resizing and Active Row Auto-Wrap across both the File Management Table and Main Data Grid in ToadViewer based on the approved 11-stream plan.
 
-Working directory: d:\Shared_UserData\Downloads\tad
 Integrity mode: development
 
 Reference material:
-- Implementation Plan: `C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\ke_hoach_phat_trien_nested_json_parser.md`
-- Parallel Execution & Testing Plan: `C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\phuong_an_trien_khai_va_kiem_thu_song_song_nested_json.md`
+- Plan: `C:/Users/huydq/.gemini/antigravity/brain/489b863f-84dc-4fd6-bbfb-142488ba4d23/ke_hoach_trien_khai_auto_wrap_va_keo_dan_cot_song_song.md`
+- Design Spec: `C:/Users/huydq/.gemini/antigravity/brain/489b863f-84dc-4fd6-bbfb-142488ba4d23/thiet_ke_tinh_nang_auto_wrap_va_keo_dan_cot.md`
 
 ## Requirements
 
-### R1. Interactive Extraction in Parse Columns Dialog
-In `packages/toadviewer/src/components/RegexDialog.tsx` (and supporting UI components), support extracting from columns containing nested JSON. Recursively traverse objects down to leaf nodes (primitives: string, number, boolean, null) while preserving arrays as JSON strings by default. Generate safe DuckDB bracket paths (`$["path"]["segment"]`) immune to special characters (`#`, `@`, dots, spaces, quotes). Provide a Discovered Fields table with editable column names (defaulting to hierarchical dot notation like `Event.System.EventID.#text`), data type selection, search filtering, and sample scanning with a 100-row initial preview and an asynchronous deep scan option (up to 1,000 rows). Generate and execute DuckDB `CREATE VIEW` statements with safe double-quoted column identifiers in < 15ms.
+### R1. File Management Table Column Resizing & Active Row Auto-Wrap
+Implement draggable column header divider resizers (`col-resizer-handle`) between headers (`Name`, `DirPath`, `Size`, `Status`) in `ProjectFilesTable.tsx` with minWidth clamping (45px) and double-click auto-fit based on longest visible text. Implement active row auto-wrap on click (`is-selected`) expanding dynamically (`white-space: normal; word-break: break-all; overflow-wrap: anywhere; max-height: 180px; overflow-y: auto;`) while unselected rows stay compact single-line. Collapse on clicking another row, toggle clicking selected row, clicking outside table, or pressing `Escape`.
 
-### R2. Direct File Ingestion Auto-Flattening
-In `packages/reltab-duckdb/src/csvimport.ts` (and supporting ingestion modules), implement two-phase dynamic projection for directly ingested `.json` and `.jsonl` files. In Phase 1, introspect the schema via DuckDB (`DESCRIBE SELECT * FROM read_json_auto(path, sample_size = 2048) LIMIT 0;`). In Phase 2, if `STRUCT` columns are present, recursively unpack all nested fields into flattened dot-notated columns and write directly to Parquet (`COPY (SELECT ... FROM read_json_auto(...)) TO 'dst.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);`). If no nested `STRUCT` columns exist, preserve standard ingestion.
+### R2. Main Data Grid Double-Click Auto-Fit & Floating In-Place Active Cell Wrap
+In `DataGrid.tsx` (SlickGrid), implement double-click on header resizer handles to calculate max string length on visible rows and auto-fit column width. Implement Floating In-Place Wrap on active/selected cell/row (`.slick-cell-active-expanded`, `z-index: 20`, light border, soft shadow `0 4px 14px rgba(0, 0, 0, 0.15)`, `max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word;`) without distorting SlickGrid virtual scroll coordinates. Dismiss expanded cell on grid scroll or pressing `Escape`.
 
-### R3. Safe Character Handling and SQL Escaping
-Ensure 100% immunity to SQL parsing and identifier errors when JSON keys contain special characters including `#attributes`, `#text`, `@xmlns`, periods, spaces, slashes, and quotes, across both DuckDB JSON extraction paths (`json_extract_string`) and DuckDB column aliases.
+### R3. CSS Design System, Blueprint Theme & Keyboard Accessibility
+Standardize visual styling in `sidebar.less` and `slickgrid.scss` for Light and Dark themes, including custom slim scrollbars (4px, `border-radius: 2px`), subtle divider line on hover/drag (`rgba(2, 132, 199, 0.75)`), and `.col-resizing` cursor management. Isolate events to prevent row selection when dragging column dividers (`e.stopPropagation()`), handle `window.onblur`/`mouseleave` to cancel unfinished dragging, and support `Escape` key to collapse wrapped rows/cells.
 
-### R4. Modular Architecture and Interface Contracts
-Organize work across modular boundaries adhering to shared interface definitions (`packages/toadviewer/src/types/NestedJsonContracts.ts`). The team may decide whether to include Stream 7 (Rust native SIMD flattener for >5GB files) or focus on the DuckDB dynamic projection and TypeScript pipeline.
+### R4. Automated Unit, Stress Test Suites & Runner Integration
+Create automated test suites:
+- `tests/unit/test_project_files_table_wrap_resize.js` (15 test cases covering column width initialization, drag resize, minWidth clamping, double-click auto-fit, selection wrap, and collapse).
+- `tests/unit/test_datagrid_floating_wrap.js` (15 test cases covering SlickGrid double-click auto-fit, floating active cell expansion, z-index/shadow isolation, and scroll/Escape dismissal).
+- `tests/qa/test_grid_wrap_concurrency_stress.js` (10 test cases verifying 100K+ rows virtual scrolling concurrency, memory stability, > 55 scroll FPS, and coordinate preservation).
+Register all new test suites into `run_tests.js` so that `node run_tests.js --all` passes 100%.
 
-### R5. Workspace Guidelines and Release Standards
-Increment release version to TOAD v2.5.1 via `node tools/bump_version.js 2.5.1`. Maintain Git/Jujutsu history cleanly without committing intermediate artifacts, binaries, or duplicate historical executables. All commit messages, release notes, and public artifacts must strictly follow the English-Only Public Language Policy and author identity standard (`HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`).
+### R5. Release Packaging, VCS & Workspace Standards
+Enforce workspace standards: commit using Jujutsu (`jj`), author strictly `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, zero enterprise/organization credential leaks, and English-only public text. Compile TypeScript, run Webpack production build, execute packaging via `dist_package.ps1` and `package_release.ps1`, maintaining zero duplicate binaries and executable size < 75 MB.
 
 ## Acceptance Criteria
 
-### Correctness and Parity
-- [ ] Recursively extracts 100% of leaf fields from real-world Windows EVTX JSON (RecordID 93937 from `D:\Shared_UserData\Downloads\data_sample\System.evtx`), including `#attributes` and `#text` fields.
-- [ ] DuckDB bracket path extraction (`$["Event"]["System"]["EventID"]["#text"]`) executes without syntax or escaping errors.
-- [ ] Directly ingested nested JSON/JSONL files with `STRUCT` columns are automatically flattened into columnar dot-notated Parquet files.
+### Unit and Stress Testing
+- [ ] `node tests/unit/test_project_files_table_wrap_resize.js` passes all 15 test cases.
+- [ ] `node tests/unit/test_datagrid_floating_wrap.js` passes all 15 test cases.
+- [ ] `node tests/qa/test_grid_wrap_concurrency_stress.js` passes all 10 stress test cases.
+- [ ] `node run_tests.js --all` executes all registered suites with 100% PASS.
 
-### UI and Performance
-- [ ] Interactive Parse Columns dialog renders discovered fields table with editable column names and search filtering.
-- [ ] DuckDB VIEW creation from extracted fields completes in < 15ms.
-- [ ] Scanning 1,000 sample rows executes asynchronously without freezing the UI.
+### Functional & Interaction Criteria
+- [ ] Dragging header resizers in `ProjectFilesTable` resizes columns smoothly with minimum 45px width, and double-clicking auto-fits to content.
+- [ ] Clicking a row in `ProjectFilesTable` wraps text up to 180px with a scrollbar; clicking again, outside, or pressing `Escape` collapses it.
+- [ ] Double-clicking SlickGrid column header resizers auto-fits column width based on visible rows.
+- [ ] Selected active cells in `DataGrid` with overflowing text display floating expanded in-place without altering virtual scroll row coordinates, and dismiss on scroll or `Escape`.
 
-### Test Suites and Quality
-- [ ] Adversarial and fuzzing test suite passes with corrupted JSON, special characters, and deep recursion.
-- [ ] Existing full test suite (`node run_tests.js --all`) passes 100% with zero regressions.
-- [ ] Version is updated to 2.5.1 and packaging builds without duplicate historical binaries.
-
+### Build & Release Verification
+- [ ] TypeScript compilation and Webpack production build succeed without errors.
+- [ ] `dist_package.ps1` and `package_release.ps1` produce canonical portable artifacts in `releases/` adhering to the zero-duplicate binary policy.
+- [ ] All commits are recorded with `jj` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.

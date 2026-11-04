@@ -1,73 +1,131 @@
-# Project: TOAD v2.5.1 Nested JSON Parser & Auto-Flattening
+# Project: Column Resizing and Active Row Auto-Wrap (ToadViewer)
 
-## Architecture & Data Flow
+## Architecture
+- **Sidebar File Management Table (`ProjectFilesTable.tsx` & `sidebar.less`)**:
+  - HTML table layout (`table-layout: fixed; width: 100%`).
+  - Draggable divider handles (`col-resizer-handle`) positioned on trailing edges of `<th>` (`name`, `dir`, `size`, `status`).
+  - Width state: `colWidths: ColWidths = { name, dir, size, status }`, clamped to `MIN_COL_WIDTH = 45px`.
+  - Double-click auto-fit: estimates width from longest visible text in column.
+  - Active row wrap: `.is-selected` activates `white-space: normal; word-break: break-all; overflow-wrap: anywhere; max-height: 180px; overflow-y: auto;` via custom slim scrollbars (4px, 2px radius).
+  - Collapse lifecycle: toggle re-click, outside click-away, and `Escape` key.
+  - Event isolation: `e.stopPropagation()` and `e.preventDefault()` on divider dragging; cleanup on `window.onblur` and `document.mouseleave`.
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            TOAD GUI / CLI Layer                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-          │                                                    │
-          ▼                                                    ▼
-┌───────────────────────────────────┐        ┌────────────────────────────────┐
-│   Luồng 1: Parse Columns Dialog   │        │   Luồng 2: Direct Ingestion   │
-│         (Interactive UI)          │        │    (.json, .jsonl, .evtx)      │
-├───────────────────────────────────┤        ├────────────────────────────────┤
-│ 1. SampleScanWorker               │        │ 1. streamJsonToParquet         │
-│    - 100 rows preview (RAM)       │        │    - csvimport.ts line 2968    │
-│    - 1,000 deep scan (timesliced) │        │                                │
-│ 2. NestedJsonTraverser            │        │ 2. JsonSchemaIntrospector      │
-│    - Recursive leaf extraction    │        │    - DESCRIBE read_json_auto   │
-│    - Safe bracket/quoted dot path │        │    - Detect STRUCT columns     │
-│ 3. NestedFieldsTable (UI)         │        │ 3. JsonStreamingFlattener      │
-│    - Search, type picker, rename  │        │    - Dynamic unpack projection │
-│ 4. DuckDbJsonSqlBuilder           │        │    - COPY (SELECT ...) TO      │
-│    - CREATE VIEW < 15ms           │        │      Parquet (ZSTD)            │
-└───────────────────────────────────┘        └────────────────────────────────┘
-          │                                                    │
-          ▼                                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                  DuckDB Engine & Columnar Parquet Storage                   │
-│         (100% immune to #attributes, #text, @xmlns, dots, spaces)           │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+- **Main Data Grid (`DataGrid.tsx` & `slickgrid.scss`)**:
+  - Virtual scroll table (SlickGrid) with fixed row height (24px).
+  - Double-click auto-fit: intercept `dblclick` on `.slick-resizable-handle` in header row, calculate max string width across visible rows (`dataView.getItem(i)`), clamped between 60px and 500px, update `grid.setColumns` and `colWidthsMap`.
+  - Floating In-Place Active Cell Wrap: when active cell content overflows (`scrollWidth > clientWidth` or text length > 28), apply `.slick-cell-active-expanded` (`position: absolute; z-index: 20; contain: none !important; max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15)`).
+  - Parent row receives `.slick-row.slick-row-has-expanded` (`z-index: 25 !important; overflow: visible !important;`).
+  - Strict Virtual Invariant: Row coordinates remain $\text{top} = i \times 24\text{px}$.
+  - Dismissal: immediately dismissed on `grid.onScroll`, `grid.onViewportChanged`, and `Escape` key.
+
+- **Automated QA & Runner (`run_tests.js`, `tests/unit/`, `tests/qa/`)**:
+  - Headless Node.js testing harness using native `assert`.
+  - 15 unit tests for `ProjectFilesTable` wrap & resize.
+  - 15 unit tests for `DataGrid` floating wrap & auto-fit.
+  - 10 stress tests for 100K-row virtual scroll concurrency, FPS (> 55 FPS), coordinate preservation, and memory stability.
+
+- **Packaging & VCS Pipeline (`dist_package.ps1`, `package_release.ps1`, `jj`)**:
+  - TypeScript compilation & Webpack production bundling.
+  - Executable footprint < 75 MB, zero duplicate binaries.
+  - Jujutsu commits under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+
+---
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Frozen Interface Contracts | `packages/toadviewer/src/types/NestedJsonContracts.ts` defining `InferredDuckDbType`, `DiscoveredLeafField`, `JsonScanOptions`, `JsonSqlGenerationResult` | M1 | Completed |
-| 2 | Core Leaf Traversal & Bracket Path Engine | `packages/toadviewer/src/utils/NestedJsonTraverser.ts` recursive traversal, primitives leaf extraction, JSON arrays as strings, safe path expressions | M1 | Completed |
-| 3 | DuckDB SQL Generator | `packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts` generating safe `CREATE VIEW` with double-quoted aliases and `TRY_CAST` primitive types (<15ms) | M1 | Completed |
-| 4 | Direct Ingestion Schema Introspector | `packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts` running DuckDB `DESCRIBE` on `read_json_auto(sample_size=2048) LIMIT 0` to parse `STRUCT` trees | M2 | Completed |
-| 5 | Streaming Dynamic Projection Flattener | `packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts` generating recursive unpack `SELECT` expressions into dot-notated columns | M2 | Completed |
-| 6 | Ingestion Pipeline Integration | `packages/reltab-duckdb/src/csvimport.ts` integrating two-phase projection into `streamJsonToParquet` for `.json`, `.jsonl`, `.ndjson`, and decoded EVTX | M2 | Completed |
-| 7 | Discovered Fields UI Component | `packages/toadviewer/src/components/NestedFieldsTable.tsx` with real-time search, inline column name editing, type selection, fill rate meter | M3 | Completed |
-| 8 | Asynchronous Sample Scanner | `packages/toadviewer/src/workers/SampleScanWorker.ts` & `SampleScanController.tsx` (100 preview + 1,000 async deep scan without UI freezing) | M3 | Completed |
-| 9 | RegexDialog Integration | `packages/toadviewer/src/components/RegexDialog.tsx` & `nested-dialog.less` with segmented mode pill `[Nested JSON]`, wiring table, scanner and SQL builder | M3 | Completed |
-| 10 | Version Bump to v2.5.1 | Synchronize SemVer 3-digit `2.5.1` across all metadata files via `node tools/bump_version.js 2.5.1` | M4 | Completed |
-| 11 | Packaging & Release Verification | Verify `fastbuild.ps1`, `package_release.ps1`, ASAR < 45MB, portable exe < 75MB, zero duplicate historical binaries | M4 | Completed |
-| 12 | Windows EVTX Parity QA | `tests/qa/test_realworld_evtx_json.js` verifying 100% extraction of RecordID 93937 from `System.evtx` (#attributes, #text) | M5 | Completed |
-| 13 | Adversarial & Fuzzing Test Suite | `tests/qa/test_json_adversarial_fuzz.js` testing corrupted JSON, deep recursion, unicode, quotes, spaces, SQL injection resistance | M5 | Completed |
-| 14 | Full Regression QA Gate | `node run_tests.js --all` passing 100% across all test suites with zero regressions | M5 | DONE |
-| 15 | Adversarial Verification Gate | 2 Reviewers, 2 Challengers, and 1 Forensic Auditor (`teamwork_auditor`) gate check | M6 | DONE |
+| F1 | Sidebar Resizer Handles | Draggable handles on Name, DirPath, Size, Status in `ProjectFilesTable.tsx` with minWidth 45px clamping | M1 | Survey F1 |
+| F2 | Sidebar Double-Click Auto-Fit | Double-click header divider to auto-fit to longest visible text | M1 | Survey F2 |
+| F3 | Sidebar Active Row Auto-Wrap | Selected row expands height and wraps multiline file name / dir path with max-height 180px | M1 | Survey F3 |
+| F4 | Sidebar Row Collapse Lifecycle | Unselects / collapses expanded row on toggle click, click-away, or Escape key | M1 | Survey F4 |
+| F5 | Sidebar Styling & Themes | Blueprint Light & Dark styles in `sidebar.less`, custom 4px slim scrollbars, body `.col-resizing` | M1 | Survey F8, F9 |
+| F6 | Sidebar Event Isolation | `e.stopPropagation()` on resizer mousedown/dblclick, window blur/leave cleanup | M1 | Survey F10, F11 |
+| F7 | SlickGrid Double-Click Auto-Fit | Auto-fits column width on `.slick-resizable-handle` dblclick using visible rows (60px to 500px clamp) | M2 | Survey F5 |
+| F8 | SlickGrid Floating Cell Wrap | `.slick-cell-active-expanded` floating in-place with z-index 20, shadow, max-height 180px, contain none | M2 | Survey F6 |
+| F9 | SlickGrid Coordinate Invariance | Virtual scroll row coordinates strictly preserved (`top = i * 24px`) without layout disruption | M2 | Survey F6, Spec |
+| F10 | SlickGrid Floating Dismissal | Floating cell dismissed on `grid.onScroll`, `grid.onViewportChanged`, cell change, or Escape | M2 | Survey F7 |
+| F11 | SlickGrid Styling & Themes | Light & Dark styles in `slickgrid.scss`, divider highlight, custom slim scrollbar | M2 | Survey F8, F9 |
+| F12 | Unit Tests: File Table | 15 test cases in `tests/unit/test_project_files_table_wrap_resize.js` | M3 | Survey F12 |
+| F13 | Unit Tests: DataGrid | 15 test cases in `tests/unit/test_datagrid_floating_wrap.js` | M3 | Survey F12 |
+| F14 | Stress Tests: Virtual Concurrency | 10 test cases in `tests/qa/test_grid_wrap_concurrency_stress.js` (100K rows, >55 FPS, memory guard) | M3 | Survey F12 |
+| F15 | Test Runner Integration | Register suites in `run_tests.js` so that `node run_tests.js --all` passes 100% | M3 | Survey F12 |
+| F16 | Packaging & Zero-Duplicate Gate | Compile TypeScript, run Webpack, `dist_package.ps1`, `package_release.ps1`, size < 75 MB, jj commits | M4 | Survey F13 |
+| F17 | Gate Verification & Review | 2 Reviewers, 2 Challengers, 1 Forensic Auditor gate verification | M5 | Process |
+
+---
 
 ## Milestones
-| # | Name | Scope & Files Owned | Dependencies | Status |
-|---|------|---------------------|-------------|--------|
-| M1 | Core Contracts & Traversal/SQL Engine | `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`<br/>`tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`<br/>`tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`<br/>`tests/unit/test_nested_traverser.js`<br/>`tests/unit/test_duckdb_json_builder.js` | none | DONE (`5c070185-4355-4490-a986-abb327855850`, 20/20 unit tests PASS, tsc clean) |
-| M2 | Direct Ingestion Dynamic Projection Pipeline | `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`<br/>`tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`<br/>`tad-master/packages/reltab-duckdb/src/csvimport.ts`<br/>`tests/unit/test_json_schema_introspect.js`<br/>`tests/unit/test_json_streaming_flattener.js` | none | DONE (`0c93082f-f29f-4b1f-9ed2-b45aac72db39`, 96/96 assertions PASS) |
-| M3 | Interactive UI Discovered Fields & Async Scanner | `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`<br/>`tad-master/packages/toadviewer/src/components/SampleScanController.tsx`<br/>`tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`<br/>`tad-master/packages/toadviewer/less/nested-dialog.less`<br/>`tad-master/packages/toadviewer/src/components/RegexDialog.tsx`<br/>`tad-master/packages/toadviewer/src/toadviewer.ts` | M1 | DONE (`3c614888-9c7e-41d1-9659-e952f4066bc0`, 10/10 unit tests PASS, tsc clean) |
-| M4 | Version Bump v2.5.1 & Packaging Staging | `tools/bump_version.js`<br/>`package.json` manifests<br/>`dist_package.ps1`<br/>`package_release.ps1` | M1, M2 | DONE (`ec73da2d-3d40-4efb-b282-3ab48fd30b5b`, 276/276 quick tests PASS, asar 28.15MB, exe 72.37MB) |
-| M5 | Comprehensive E2E QA, EVTX Parity & Adversarial Fuzzing | `tests/qa/test_realworld_evtx_json.js`<br/>`tests/qa/test_json_adversarial_fuzz.js`<br/>`run_tests.js` | M1, M2, M3, M4 | DONE (`33762bed-cf9a-4267-bf33-17939c738490`, 100% PASS across 14 suites, 486 tests) |
-| M6 | Independent Review, Challenger & Forensic Audit Gate | Gate verification: 2 Reviewers, 2 Challengers, 1 Forensic Auditor | M1-M5 | DONE (Iteration 2: 5 independent agents APPROVE & CLEAN, 100% tests PASS) |
+| # | Name | Scope | Dependencies | Status |
+|---|------|-------|-------------|--------|
+| M1 | Sidebar Table Resizing & Auto-Wrap | `ProjectFilesTable.tsx`, `sidebar.less` (F1–F6) | none | DONE |
+| M2 | Main DataGrid Auto-Fit & Floating Wrap | `DataGrid.tsx`, `slickgrid.scss` (F7–F11) | none | DONE |
+| M3 | E2E Testing Track: Suites & Runner | 3 test suites (F12–F14) and `run_tests.js` (F15) | none | DONE |
+| M4 | Release Packaging & Jujutsu VCS | TypeScript build, Webpack, packaging scripts, jj (F16) | M1, M2 | DONE |
+| M5 | Final Milestone: Gate Verification | Full E2E verification, 2 Reviewers, 2 Challengers, 1 Auditor (F17) | M1, M2, M3, M4 | PLANNED |
+
+---
 
 ## Interface Contracts
-- Detailed in `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
-- Functions: `NestedJsonTraverser.ts`, `DuckDbJsonSqlBuilder.ts`, `JsonSchemaIntrospector.ts`, `JsonStreamingFlattener.ts`
+
+### 1. `ProjectFilesTable.tsx` State & Interfaces
+```typescript
+export interface ColWidths {
+  name: number;
+  dir: number;
+  size: number;
+  status: number;
+}
+
+export const DEFAULT_COL_WIDTHS: ColWidths = {
+  name: 140,
+  dir: 120,
+  size: 70,
+  status: 60,
+};
+
+export const MIN_COL_WIDTH = 45;
+export const MAX_COL_WIDTH = 400;
+```
+- `handleResizeMouseDown(col: TableSortCol, e: React.MouseEvent)`:
+  - Invokes `e.stopPropagation()` and `e.preventDefault()`.
+  - Attaches `mousemove` and `mouseup` to `document`.
+  - Adds `document.body.classList.add("col-resizing")`.
+  - Clamps: $w_{\text{new}} = \max(45, w_{\text{start}} + \Delta x)$.
+  - Cleans up on `mouseup` or `window.onblur`.
+- `handleAutoFit(col: TableSortCol, e: React.MouseEvent)`:
+  - Invokes `e.stopPropagation()` and `e.preventDefault()`.
+  - Measures visible rows, calculates $w_{\text{fit}} = \text{clamp}(45, 400, \text{round}(\text{maxLen} \times 7.0 + 24))$.
+- Row selection & wrap:
+  - Selected row gets `.is-selected`, wraps text up to `max-height: 180px; overflow-y: auto;`.
+  - Toggle click, click-away, and `Escape` reset selected row.
+
+### 2. `DataGrid.tsx` Interfaces & SlickGrid Hooks
+```typescript
+const autoFitGridColumn = (grid: any, colId: string, props: DataGridProps) => void;
+```
+- Listens for `dblclick` on `.slick-resizable-handle` in header row.
+- Measures visible viewport rows ($v_{\text{top}}$ to $v_{\text{bottom}}$), clamps to $[60, 500]\text{px}$.
+- Floating Cell Lifecycle:
+  - `expandActiveCell(row, cell)`: attaches `.slick-cell-active-expanded` to cell and `.slick-row-has-expanded` to row.
+  - Coordinates: relative `left` offset unchanged, `top: 0`, `contain: none !important; z-index: 20; max-height: 180px; overflow-y: auto;`.
+  - `dismissFloatingCell()`: called on `grid.onScroll`, `grid.onViewportChanged`, active cell switch, and `Escape` key.
+
+### 3. Test Suites & Runner Contracts
+- Each test file in `tests/unit/` and `tests/qa/` runs as a standalone Node script.
+- Must exit `0` on success and `1` on assertion failure.
+- `run_tests.js` registers:
+  - `tests/unit/test_project_files_table_wrap_resize.js` (15 test cases)
+  - `tests/unit/test_datagrid_floating_wrap.js` (15 test cases)
+  - `tests/qa/test_grid_wrap_concurrency_stress.js` (10 test cases)
+
+---
 
 ## Code Layout
-- Frontend contracts: `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
-- Frontend logic: `tad-master/packages/toadviewer/src/utils/` and `src/workers/`
-- Frontend UI: `tad-master/packages/toadviewer/src/components/` and `less/`
-- Backend logic: `tad-master/packages/reltab-duckdb/src/json/` and `src/csvimport.ts`
-- Tests: `tests/unit/`, `tests/qa/`, and `run_tests.js`
-- Packaging: `tools/bump_version.js`, `fastbuild.ps1`, `package_release.ps1`
+- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`: Owned by M1 Worker
+- `tad-master/packages/toadviewer/less/sidebar.less`: Owned by M1 Worker
+- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`: Owned by M2 Worker
+- `tad-master/packages/toadviewer/src/slickgrid.scss`: Owned by M2 Worker
+- `tests/unit/test_project_files_table_wrap_resize.js`: Owned by M3 Test Writer
+- `tests/unit/test_datagrid_floating_wrap.js`: Owned by M3 Test Writer
+- `tests/qa/test_grid_wrap_concurrency_stress.js`: Owned by M3 Test Writer
+- `run_tests.js`: Owned by M3 Test Writer
