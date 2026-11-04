@@ -18,6 +18,39 @@ import * as child_process from "child_process";
 import { Connection, Database } from "duckdb-async";
 import * as prettyHRTime from "pretty-hrtime";
 import { initS3 } from "./s3utils";
+import {
+  introspectJsonSchema,
+  parseStructFields,
+  isStructType,
+  extractLeafProjections,
+  buildDynamicProjection,
+  DuckDbStructField,
+  IngestDynamicProjectionResult,
+  LeafProjection,
+  SchemaIntrospectionResult,
+} from "./json/JsonSchemaIntrospector";
+import {
+  streamFlattenedJsonToParquet,
+  generateDynamicProjectionSql,
+  JsonFlattenerOptions,
+  JsonStreamResult,
+} from "./json/JsonStreamingFlattener";
+
+export {
+  introspectJsonSchema,
+  parseStructFields,
+  isStructType,
+  extractLeafProjections,
+  buildDynamicProjection,
+  DuckDbStructField,
+  IngestDynamicProjectionResult,
+  LeafProjection,
+  SchemaIntrospectionResult,
+  streamFlattenedJsonToParquet,
+  generateDynamicProjectionSql,
+  JsonFlattenerOptions,
+  JsonStreamResult,
+};
 
 let electron: any = null;
 try {
@@ -2962,27 +2995,8 @@ export async function streamCsvToParquet(
   log.info("[Ingest Tier 3] Raw Event Ingest Thanh cong!");
 }
 
-function traverseStructLeaves(obj: any, segments: string[] = [], leaves: Set<string>): Set<string> {
-  if (obj === null || obj === undefined) return leaves;
-  if (typeof obj === "object" && !Array.isArray(obj)) {
-    const keys = Object.keys(obj);
-    if (keys.length === 0) {
-      if (segments.length > 0) leaves.add(JSON.stringify(segments));
-      return leaves;
-    }
-    for (const k of keys) {
-      traverseStructLeaves(obj[k], [...segments, k], leaves);
-    }
-  } else {
-    if (segments.length > 0) {
-      leaves.add(JSON.stringify(segments));
-    }
-  }
-  return leaves;
-}
-
 /**
- * Streaming JSON (.json, .jsonl, .ndjson) sang Parquet:
+ * Streaming JSON (.json, .jsonl, .ndjson) and decoded EVTX JSONL sang Parquet:
  * Tự động phát hiện cấu trúc lồng nhau (STRUCT) và bung phẳng hai pha (Two-Phase Auto-Flatten).
  */
 async function streamJsonToParquet(
@@ -2991,85 +3005,16 @@ async function streamJsonToParquet(
   parquetPath: string,
   cfg: IngestConfig
 ): Promise<void> {
-  const safeSrc = escapeSqlPath(filePath);
-  const safeDst = escapeSqlPath(parquetPath);
-  const compression = cfg.compression.toUpperCase();
-  const rowGroupSize = cfg.row_group_size;
+  const compression = (cfg.compression || "snappy").toUpperCase();
+  const rowGroupSize = cfg.row_group_size || 100000;
 
-  try {
-    log.info("[Ingest JSON] Khao sat schema JSON (Phase 1: Introspect)...");
-    const descRows: any[] = await dbConn.all(`DESCRIBE SELECT * FROM read_json_auto('${safeSrc}', sample_size = 2048) LIMIT 0;`);
-    const hasStruct = descRows && descRows.some((r) => r.column_type && r.column_type.includes("STRUCT"));
-
-    if (hasStruct) {
-      log.info("[Ingest JSON] Phat hien cau truc long nhau (STRUCT), khoi dong Phase 2: Dynamic Auto-Flatten...");
-      const sampleRows: any[] = await dbConn.all(`SELECT * FROM read_json_auto('${safeSrc}', sample_size = 2048) LIMIT 100;`);
-      const leafSet = new Set<string>();
-      if (sampleRows && sampleRows.length > 0) {
-        for (const row of sampleRows) {
-          traverseStructLeaves(row, [], leafSet);
-        }
-      }
-
-      if (leafSet.size > 0) {
-        const selectProjections: string[] = [];
-        for (const leafStr of leafSet) {
-          const segments: string[] = JSON.parse(leafStr);
-          const sqlExpr = segments.map((s) => `"${String(s).replace(/"/g, '""')}"`).join(".");
-          const colAlias = segments.join(".").replace(/"/g, '""');
-          selectProjections.push(`  ${sqlExpr} AS "${colAlias}"`);
-        }
-
-        const flattenQuery = `
-          COPY (
-            SELECT 
-${selectProjections.join(",\n")}
-            FROM read_json_auto(
-              '${safeSrc}',
-              ignore_errors = true,
-              timestampformat = '%Y-%m-%dT%H:%M:%S.%fZ'
-            )
-          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-        `;
-        log.info(`[Ingest JSON Auto-Flatten] Bung phang ${selectProjections.length} cot sang Parquet...`);
-        await dbConn.exec(flattenQuery);
-        log.info("[Ingest JSON Auto-Flatten] Thanh cong!");
-        return;
-      }
-    }
-  } catch (flattenErr) {
-    log.warn("[Ingest JSON Auto-Flatten] Warning during two-phase flatten introspection, fallback to standard stream:", flattenErr);
-  }
-
-  const query = `
-    COPY (
-      SELECT * FROM read_json_auto(
-        '${safeSrc}',
-        ignore_errors = true,
-        timestampformat = '%Y-%m-%dT%H:%M:%S.%fZ'
-      )
-    ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-  `;
-
-  try {
-    log.info("[Ingest JSON] Dang streaming JSON sang Parquet...");
-    await dbConn.exec(query);
-    log.info("[Ingest JSON] Thanh cong!");
-  } catch (err) {
-    // Fallback: all_varchar
-    const fallbackQuery = `
-      COPY (
-        SELECT * FROM read_json_auto(
-          '${safeSrc}',
-          ignore_errors = true,
-          all_varchar = true
-        )
-      ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-    `;
-    log.warn("[Ingest JSON] Loi, thu lai...", err);
-    await dbConn.exec(fallbackQuery);
-    log.info("[Ingest JSON Fallback] Thanh cong!");
-  }
+  await streamFlattenedJsonToParquet(dbConn, filePath, parquetPath, {
+    compression,
+    rowGroupSize,
+    sampleSize: 2048,
+    ignoreErrors: true,
+    timestampFormat: "%Y-%m-%dT%H:%M:%S.%fZ",
+  });
 }
 
 /**
