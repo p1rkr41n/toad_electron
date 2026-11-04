@@ -73,3 +73,51 @@ When done, send a message back to the orchestrator with your results.
 **Context**: Milestone 1 implementation check.
 **Content**: Checking in on progress for R3/R4 code changes across the 13 assigned files.
 **Action**: Please report your current progress and status.
+
+## 2026-11-04T07:48:00Z
+You are teamwork_worker. Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1.
+
+MANDATORY FIRST STEP:
+Read d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md.
+
+MANDATORY INTEGRITY WARNING:
+DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
+
+SCOPE & EXCLUSIVE FILE OWNERSHIP:
+You exclusively own and may modify ONLY these files:
+- tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts
+- tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts
+- tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts
+- tests/unit/test_nested_traverser.js
+- tests/unit/test_duckdb_json_builder.js
+Do NOT modify any files outside this list.
+
+RELEVANT ARCHITECTURE & REPORTS TO READ:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_json_survey\spec_report.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_json\ui_report.md
+
+TASKS FOR MILESTONE 1:
+1. Create `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts` with all frozen interfaces: `InferredDuckDbType`, `DiscoveredLeafField`, `JsonScanOptions`, `JsonSqlGenerationResult`.
+2. Implement `tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`:
+   - Recursive traversal of JSON objects down to leaf nodes (primitives: string, number, boolean, null).
+   - JSON arrays preserved as JSON strings by default (`JSON.stringify(arr)`).
+   - Generates safe bracket paths `$["path"]["segment"]` AND safe DuckDB paths `$."path"."segment"` / arrow syntax.
+   - DuckDB type inference (`inferType`): BIGINT for integers, DOUBLE for floats, BOOLEAN for booleans, TIMESTAMP for ISO 8601 strings, VARCHAR for general strings.
+   - Computes fill rate across sample events.
+3. Implement `tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`:
+   - Generates safe `CREATE VIEW "target_view" AS SELECT *, ... FROM "source_table"` SQL statements.
+   - Uses `TRY_CAST(json_extract_string(col, path) AS TYPE) AS "alias"` or arrow syntax.
+   - 100% immune to special characters (`#attributes`, `#text`, `@xmlns`, dots, spaces, slashes, quotes) by double-quoting all aliases and using safe path expressions.
+   - Performance budget: execution must complete in < 15ms.
+4. Implement unit tests:
+   - `tests/unit/test_nested_traverser.js`
+   - `tests/unit/test_duckdb_json_builder.js`
+5. Execute unit tests using `node-v18.20.4-win-x64\node.exe tests/unit/test_nested_traverser.js` and `node-v18.20.4-win-x64\node.exe tests/unit/test_duckdb_json_builder.js`. Ensure 100% PASS.
+
+OUTPUT:
+Write your implementation report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md` with:
+- Files modified/created
+- Test execution commands and outputs
+- Verification results
+When complete, send a message to orchestrator (`aad28923-4697-407e-9b0b-76e49e020103`) with a summary and path to your handoff.md.

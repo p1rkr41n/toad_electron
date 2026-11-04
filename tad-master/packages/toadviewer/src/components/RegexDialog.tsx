@@ -171,7 +171,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [inlineEditVal, setInlineEditVal] = useState<string>("");
 
-  // 1,000-Row Real-Data Validation State (Toad v2.5.0.4)
+  // 1,000-Row Real-Data Validation State (Toad v2.5.0.5)
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [hasTested, setHasTested] = useState<boolean>(false);
   const [realTotalRows, setRealTotalRows] = useState<number>(0);
@@ -369,7 +369,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     return "VARCHAR";
   };
 
-  // Lexicographical Column Naming Helpers (v2.5.0.4)
+  // Lexicographical Column Naming Helpers (v2.5.0.5)
   const formatStrColName = (idx: number): string => {
     if (idx <= 0) idx = 1;
     if (idx <= 999) {
@@ -1291,7 +1291,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
               Parse Columns
             </h4>
             <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--md-sys-color-primary, #0369a1)", background: "rgba(138, 180, 248, 0.12)", border: "1px solid rgba(138, 180, 248, 0.28)", padding: "1px 6px", borderRadius: "10px" }}>
-              v2.5.0.4
+              v2.5.0.5
             </span>
           </div>
           {/* Linear-style Capsule Segmented Switch */}
@@ -2452,6 +2452,6 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   );
 };
 
-// Toad v2.5.0.4: Canonical ParseDialog export with backward-compatible RegexDialog alias
+// Toad v2.5.0.5: Canonical ParseDialog export with backward-compatible RegexDialog alias
 export const ParseDialog = RegexDialog;
 

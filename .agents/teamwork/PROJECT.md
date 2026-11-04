@@ -1,122 +1,120 @@
-# Project: TOAD v2.5.0 IPC Architectural Migration
+# Project: TOAD v2.5.1 Nested JSON Parser & Auto-Flattening
 
-## Architecture
-- **Renderer Process**: Runs with `contextIsolation: true` and `nodeIntegration: false`. Accesses backend exclusively via `window.toadBridge.invoke(command, payload)` and receives direct `MessagePort` data channel from Main.
-- **Preload Script (`packages/toad-app/app/preload.js`)**: Bridges `openParams`, `toadBridge.invoke()`, and forwards `MessagePort` from Main process to Renderer window via `window.postMessage`.
-- **Host Bridge Layer (`packages/host-bridge/`)**:
-  - `IHostBridge.ts`: Interface declaring `invoke(cmd, payload)`, dialogs, clipboard, and engine status events.
-  - `V8HostAdapter.ts`: Consumes `window.toadBridge` in Electron renderer.
-  - `HeadlessNodeAdapter.ts`: In-process/worker-thread bridge for headless Node.js CLI test runners (`run_tests.js`).
-- **Main Process Supervisor (`packages/toad-app/app/engineSupervisor.ts`)**:
-  - Spawns `engineService` via `utilityProcess.fork()`.
-  - Creates `MessageChannelMain`, transfers `port1` to Renderer webContents and `port2` to `engineService`.
-  - Monitors child lifecycle (`exit` event, heartbeat ping/pong).
-  - Auto-restarts child process in < 500ms on unexpected exit, triggers view replay from `toad_ledger.parquet` in < 5ms, and notifies Renderer via `engine:restored`.
-- **Dedicated Engine Service (`packages/backend/src/engineService.ts`)**:
-  - Runs in Electron `utilityProcess`.
-  - Manages DuckDB connection pool, Parquet Write-Ahead Ledger (`toad_ledger.parquet`), and data ingestion.
-  - Implements **Hybrid Data Protocol**: JSON for metadata/schema/rowCount + zero-copy Transferable `ArrayBuffer` for table data blocks.
-- **Dual-Mode Engine Flag**: `runtime.engine = "utility" | "legacy"` in `config.ini` and `portableAppData.ts`, allowing instant fallback.
+## Architecture & Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            TOAD GUI / CLI Layer                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+          │                                                    │
+          ▼                                                    ▼
+┌───────────────────────────────────┐        ┌────────────────────────────────┐
+│   Luồng 1: Parse Columns Dialog   │        │   Luồng 2: Direct Ingestion   │
+│         (Interactive UI)          │        │    (.json, .jsonl, .evtx)      │
+├───────────────────────────────────┤        ├────────────────────────────────┤
+│ 1. SampleScanWorker               │        │ 1. streamJsonToParquet         │
+│    - 100 rows preview (RAM)       │        │    - csvimport.ts line 2968    │
+│    - 1,000 deep scan (timesliced) │        │                                │
+│ 2. NestedJsonTraverser            │        │ 2. JsonSchemaIntrospector      │
+│    - Recursive leaf extraction    │        │    - DESCRIBE read_json_auto   │
+│    - Safe bracket/quoted dot path │        │    - Detect STRUCT columns     │
+│ 3. NestedFieldsTable (UI)         │        │ 3. JsonStreamingFlattener      │
+│    - Search, type picker, rename  │        │    - Dynamic unpack projection │
+│ 4. DuckDbJsonSqlBuilder           │        │    - COPY (SELECT ...) TO      │
+│    - CREATE VIEW < 15ms           │        │      Parquet (ZSTD)            │
+└───────────────────────────────────┘        └────────────────────────────────┘
+          │                                                    │
+          ▼                                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  DuckDB Engine & Columnar Parquet Storage                   │
+│         (100% immune to #attributes, #text, @xmlns, dots, spaces)           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | R1.1 Version Bump to v2.5.0 | Bump SemVer to `2.5.0` via `node tools/bump_version.js 2.5.0` across 9 project metadata files | M1 | ORIGINAL_REQUEST.md |
-| 2 | R1.2 Dual-Mode Engine Configuration | Add `[runtime] engine = utility | legacy` in `portableAppData.ts` & `config.ini` | M1 | ORIGINAL_REQUEST.md |
-| 3 | R2.1 Host Bridge Standardization | Standardize `IHostBridge` with `invoke(cmd, payload)` and update `V8HostAdapter.ts` | M1 | ORIGINAL_REQUEST.md |
-| 4 | R2.2 Preload contextBridge Exposure | Enable `contextIsolation: true` / `nodeIntegration: false` in `appWindow.ts` and expose `window.toadBridge` in `preload.js` | M1 | ORIGINAL_REQUEST.md |
-| 5 | R2.3 HeadlessNodeAdapter | Implement `HeadlessNodeAdapter` in `packages/host-bridge` ensuring 100% pass for all 168+ CLI tests | M1 | ORIGINAL_REQUEST.md |
-| 6 | R3.1 Engine Service Utility Process | Implement `packages/backend/src/engineService.ts` executing on Electron `utilityProcess` with DuckDB & Parquet WAL | M2 | ORIGINAL_REQUEST.md |
-| 7 | R3.2 Hybrid Data Protocol | Implement JSON metadata + zero-copy transferable `ArrayBuffer` table data blocks over MessagePort | M2 | ORIGINAL_REQUEST.md |
-| 8 | R4.1 Engine Supervisor in Main | Implement `packages/toad-app/app/engineSupervisor.ts` for lifecycle management, heartbeat & MessagePort pairing | M3 | ORIGINAL_REQUEST.md |
-| 9 | R4.2 Crash Supervision & Auto-Restart | Auto-restart `utilityProcess` in < 500ms upon unexpected exit (SIGSEGV, OOM, exit != 0) | M3 | ORIGINAL_REQUEST.md |
-| 10 | R4.3 Instant Parquet State Recovery | Re-register views from `toad_ledger.parquet` in < 5ms via `CREATE VIEW ... AS SELECT * FROM parquet_scan(...)` | M3 | ORIGINAL_REQUEST.md |
-| 11 | R4.4 Self-Healing UI Toast | Display BlueprintJS toast *"Động cơ phân tích vừa được tự động phục hồi"* and re-query active view in `AppPane.tsx` | M3 | ORIGINAL_REQUEST.md |
-| 12 | R5.1 Webpack Bundle for Engine Service | Configure Webpack with `target: "node"` to compile `engineService.bundle.js` with node externals | M4 | ORIGINAL_REQUEST.md |
-| 13 | R5.2 Native Binary & Packaging Gates | Pack `duckdb.node` in `app.asar.unpacked`, verify `app.asar` < 45 MB, portable exe < 75 MB, zero duplicate binaries | M4 | ORIGINAL_REQUEST.md |
-| 14 | R5.3 Headless Engine Service Test Suite | Implement `tests/test_engine_service.js` executing 1,000 queries over MessagePort with verified data integrity | M5 | ORIGINAL_REQUEST.md |
-| 15 | R5.4 Crash Resilience Test Suite | Implement `tests/test_engine_crash_recovery.js` asserting < 500ms restart and state recovery | M5 | ORIGINAL_REQUEST.md |
-| 16 | R5.5 Unified Test Suite Execution | Execute `node run_tests.js --all` verifying 100% pass across Smoke, Deep QA, Preload 3 Pages, Legacy Use Cases | M5 | ORIGINAL_REQUEST.md |
-| 17 | R5.6 FastBuild & Release Verification | Execute `fastbuild.ps1` and verify packaging scripts generate canonical portable release | M5 | ORIGINAL_REQUEST.md |
+| 1 | Frozen Interface Contracts | `packages/toadviewer/src/types/NestedJsonContracts.ts` defining `InferredDuckDbType`, `DiscoveredLeafField`, `JsonScanOptions`, `JsonSqlGenerationResult` | M1 | R4 |
+| 2 | Core Leaf Traversal & Bracket Path Engine | `packages/toadviewer/src/utils/NestedJsonTraverser.ts` recursive traversal, primitives leaf extraction, JSON arrays as strings, safe path expressions | M1 | R1, R3 |
+| 3 | DuckDB SQL Generator | `packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts` generating safe `CREATE VIEW` with double-quoted aliases and `TRY_CAST` primitive types (<15ms) | M1 | R1, R3 |
+| 4 | Direct Ingestion Schema Introspector | `packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts` running DuckDB `DESCRIBE` on `read_json_auto(sample_size=2048) LIMIT 0` to parse `STRUCT` trees | M2 | R2 |
+| 5 | Streaming Dynamic Projection Flattener | `packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts` generating recursive unpack `SELECT` expressions into dot-notated columns | M2 | R2, R3 |
+| 6 | Ingestion Pipeline Integration | `packages/reltab-duckdb/src/csvimport.ts` integrating two-phase projection into `streamJsonToParquet` for `.json`, `.jsonl`, `.ndjson`, and decoded EVTX | M2 | R2 |
+| 7 | Discovered Fields UI Component | `packages/toadviewer/src/components/NestedFieldsTable.tsx` with real-time search, inline column name editing, type selection, fill rate meter | M3 | R1 |
+| 8 | Asynchronous Sample Scanner | `packages/toadviewer/src/workers/SampleScanWorker.ts` & `SampleScanController.tsx` (100 preview + 1,000 async deep scan without UI freezing) | M3 | R1 |
+| 9 | RegexDialog Integration | `packages/toadviewer/src/components/RegexDialog.tsx` & `nested-dialog.less` with segmented mode pill `[Nested JSON]`, wiring table, scanner and SQL builder | M3 | R1 |
+| 10 | Version Bump to v2.5.1 | Synchronize SemVer 3-digit `2.5.1` across all metadata files via `node tools/bump_version.js 2.5.1` | M4 | R5 |
+| 11 | Packaging & Release Verification | Verify `fastbuild.ps1`, `package_release.ps1`, ASAR < 45MB, portable exe < 75MB, zero duplicate historical binaries | M4 | R5 |
+| 12 | Windows EVTX Parity QA | `tests/qa/test_realworld_evtx_json.js` verifying 100% extraction of RecordID 93937 from `System.evtx` (#attributes, #text) | M5 | R1, R3 |
+| 13 | Adversarial & Fuzzing Test Suite | `tests/qa/test_json_adversarial_fuzz.js` testing corrupted JSON, deep recursion, unicode, quotes, spaces, SQL injection resistance | M5 | R3 |
+| 14 | Full Regression QA Gate | `node run_tests.js --all` passing 100% across all test suites with zero regressions | M5 | R5 |
+| 15 | Adversarial Verification Gate | 2 Reviewers, 2 Challengers, and 1 Forensic Auditor (`teamwork_auditor`) gate check | M6 | Gate |
 
 ## Milestones
-| # | Name | Scope | Dependencies | Status |
-|---|------|-------|-------------|--------|
-| M1 | Version Bump, Dual-Mode & Host Bridge Abstraction | R1.1, R1.2, R2.1, R2.2, R2.3 (`bump_version.js`, `IHostBridge`, `HeadlessNodeAdapter`, `preload.js`, `appWindow.ts`) | Survey | DONE |
-| M2 | Dedicated Engine Service & Hybrid Data Protocol | R3.1, R3.2 (`engineService.ts`, hybrid MessagePort protocol, zero-copy `ArrayBuffer` transfer) | M1 | DONE |
-| M3 | Engine Supervisor, Crash Recovery & AppPane Toast | R4.1, R4.2, R4.3, R4.4 (`engineSupervisor.ts`, <500ms restart, Parquet replay, `AppPane.tsx` toast) | M2 | DONE |
-| M4 | Webpack Bundling, Packaging & Size Conformance | R5.1, R5.2 (`webpack.config.js`, `engineService.bundle.js`, `dist_package.ps1`, asar < 45MB) | M2, M3 | DONE |
-| M5 | Comprehensive Verification & Dual-Track E2E QA | R5.3, R5.4, R5.5, R5.6 (1,000 query test, crash recovery test, 168+ CLI tests, fastbuild) | M1, M2, M3, M4 | DONE |
-
-## Code Layout & Write Boundaries
-- **M1 Worker**:
-  - `tools/bump_version.js`
-  - `tad-master/packages/toad-app/app/portableAppData.ts`
-  - `tad-master/packages/toad-app/app/appWindow.ts`
-  - `tad-master/packages/toad-app/app/preload.js`
-  - `tad-master/packages/host-bridge/src/IHostBridge.ts`
-  - `tad-master/packages/host-bridge/src/V8HostAdapter.ts`
-  - `tad-master/packages/host-bridge/src/HeadlessNodeAdapter.ts` (NEW)
-  - `tad-master/packages/host-bridge/src/index.ts`
-- **M2 Worker**:
-  - `tad-master/packages/backend/src/engineService.ts` (NEW) or `tad-master/packages/reltab/src/remote/engineService.ts`
-  - `tad-master/packages/reltab/src/remote/hybridProtocol.ts` (NEW)
-  - `tad-master/packages/reltab/src/remote/server.ts`
-  - `tad-master/packages/reltab/src/remote/Connection.ts`
-- **M3 Worker**:
-  - `tad-master/packages/toad-app/app/engineSupervisor.ts` (NEW)
-  - `tad-master/packages/toad-app/app/main.ts`
-  - `tad-master/packages/toad-app/src/electronRenderMain.tsx`
-  - `tad-master/packages/toadviewer/src/components/AppPane.tsx`
-- **M4 Worker**:
-  - `tad-master/packages/toad-app/webpack.config.js`
-  - `package.json` & `tad-master/packages/toad-app/package.json`
-  - `fastbuild.ps1`, `dist_package.ps1`
-- **M5 Worker**:
-  - `tests/test_engine_service.js` (NEW)
-  - `tests/test_engine_crash_recovery.js` (NEW)
-  - `run_tests.js`
-  - `tests/deep_integration_qa.js`
+| # | Name | Scope & Files Owned | Dependencies | Status |
+|---|------|---------------------|-------------|--------|
+| M1 | Core Contracts & Traversal/SQL Engine | `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`<br/>`tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`<br/>`tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`<br/>`tests/unit/test_nested_traverser.js`<br/>`tests/unit/test_duckdb_json_builder.js` | none | IN_PROGRESS (`5c070185-4355-4490-a986-abb327855850`) |
+| M2 | Direct Ingestion Dynamic Projection Pipeline | `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`<br/>`tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`<br/>`tad-master/packages/reltab-duckdb/src/csvimport.ts`<br/>`tests/unit/test_json_schema_introspect.js`<br/>`tests/unit/test_json_streaming_flattener.js` | none | IN_PROGRESS (`0c93082f-f29f-4b1f-9ed2-b45aac72db39`) |
+| M3 | Interactive UI Discovered Fields & Async Scanner | `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`<br/>`tad-master/packages/toadviewer/src/components/SampleScanController.tsx`<br/>`tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`<br/>`tad-master/packages/toadviewer/less/nested-dialog.less`<br/>`tad-master/packages/toadviewer/src/components/RegexDialog.tsx`<br/>`tad-master/packages/toadviewer/src/toadviewer.ts` | M1 | PLANNED |
+| M4 | Version Bump v2.5.1 & Packaging Staging | `tools/bump_version.js`<br/>`package.json` manifests<br/>`dist_package.ps1`<br/>`package_release.ps1` | M1, M2 | PLANNED |
+| M5 | Comprehensive E2E QA, EVTX Parity & Adversarial Fuzzing | `tests/qa/test_realworld_evtx_json.js`<br/>`tests/qa/test_json_adversarial_fuzz.js`<br/>`run_tests.js` | M1, M2, M3, M4 | PLANNED |
+| M6 | Independent Review, Challenger & Forensic Audit Gate | Gate verification: 2 Reviewers, 2 Challengers, 1 Forensic Auditor | M1-M5 | PLANNED |
 
 ## Interface Contracts
-### 1. `window.toadBridge.invoke(command, payload)`
+
+### `packages/toadviewer/src/types/NestedJsonContracts.ts`
 ```typescript
-export interface IHostBridge {
-  engineName: "utility" | "legacy" | "v8" | "headless";
-  invoke(functionName: string, req: any): Promise<any>;
-  invokeCmd<T = any>(command: string, payload?: any): Promise<T>;
-  onEvent(event: string, callback: (...args: any[]) => void): () => void;
-  onEngineRestored?(callback: () => void): () => void;
+export type InferredDuckDbType = 
+  | "BIGINT" 
+  | "INTEGER" 
+  | "DOUBLE" 
+  | "BOOLEAN" 
+  | "TIMESTAMP" 
+  | "VARCHAR";
+
+export interface DiscoveredLeafField {
+  /** Hierarchical path segments: ["Event", "System", "EventID", "#text"] */
+  readonly pathSegments: string[];
+  
+  /** Hierarchical dot notation name: "Event.System.EventID.#text" */
+  readonly dotPath: string;
+  
+  /** Editable user-defined column name */
+  customColName: string;
+  
+  /** Safe JSON path expression: '$."Event"."System"."EventID"."#text"' or '$["Event"]["System"]...' */
+  readonly jsonPathExpr: string;
+  
+  /** Sample value string */
+  readonly sampleValue: string;
+  
+  /** Inferred DuckDB column type */
+  inferredType: InferredDuckDbType;
+  
+  /** Occurrence rate across sample pool (0.0 to 1.0) */
+  readonly fillRate: number;
+  
+  /** Extraction checkbox status */
+  enabled: boolean;
+}
+
+export interface JsonScanOptions {
+  sampleLimit: number;          // 100 (initial) or 1000 (deep)
+  flattenArrays: boolean;       // false: keep array as JSON string
+  maxDepth?: number;            // recursion guard (default: 50)
+}
+
+export interface JsonSqlGenerationResult {
+  readonly createViewSql: string;
+  readonly activeColumnCount: number;
+  readonly columnMappings: Array<{ sourcePath: string; outputColumn: string }>;
 }
 ```
 
-### 2. Hybrid Data Protocol Wire Format (MessagePort)
-- **Request**:
-```typescript
-interface EngineQueryReq {
-  id: number;
-  cmd: "evalQuery" | "rowCount" | "getTableSchema" | "runSqlQuery" | "initLedger";
-  payload: any;
-}
-```
-- **Response**:
-  - Metadata / Small JSON:
-    `{ id: number, ok: true, data: { schema: Schema, rowCount: number } }`
-  - Large Table Block:
-    `{ id: number, ok: true, binary: true, metadata: TableMeta }`
-    Transfer List: `[tableBuffer.buffer]` (Zero-copy Transferable ArrayBuffer)
-
-### 3. Supervisor Restored Event
-```typescript
-// Main -> Renderer via webContents.send or MessagePort
-{ type: "engine:restored", timestamp: number, restoredViewsCount: number }
-```
-In `AppPane.tsx`:
-```typescript
-AppToaster.show({
-  message: "Động cơ phân tích vừa được tự động phục hồi",
-  intent: Intent.SUCCESS,
-  icon: "refresh",
-  timeout: 4000
-});
-```
+## Code Layout
+- Frontend contracts: `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
+- Frontend logic: `tad-master/packages/toadviewer/src/utils/` and `src/workers/`
+- Frontend UI: `tad-master/packages/toadviewer/src/components/` and `less/`
+- Backend logic: `tad-master/packages/reltab-duckdb/src/json/` and `src/csvimport.ts`
+- Tests: `tests/unit/`, `tests/qa/`, and `run_tests.js`
+- Packaging: `tools/bump_version.js`, `fastbuild.ps1`, `package_release.ps1`
