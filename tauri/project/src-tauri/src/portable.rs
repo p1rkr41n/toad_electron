@@ -228,7 +228,12 @@ pub fn parse_ini(content: &str) -> HashMap<String, HashMap<String, String>> {
         }
         if let Some((k, v)) = trimmed.split_once('=') {
             let key = k.trim().to_lowercase();
-            let val = v.trim().to_string();
+            let comment_idx = v.find('#').into_iter().chain(v.find(';')).min();
+            let raw_val = match comment_idx {
+                Some(idx) => &v[..idx],
+                None => v,
+            };
+            let val = raw_val.trim().to_string();
             map.entry(current_section.clone())
                 .or_default()
                 .insert(key, val);

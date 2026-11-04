@@ -9,7 +9,7 @@ fn main() {
 mod tests {
     use std::fs;
     use std::sync::Arc;
-    use toad_lib::commands::system;
+    use toad_lib::commands::{route_command, system, CommandAction};
     use toad_lib::logger::{init_logger, ErrorResponse};
     use toad_lib::portable::{
         clean_temp_dir, detect_or_create_app_data_dir, ensure_portable_environment,
@@ -257,22 +257,98 @@ temp_cleanup = false
 
     #[test]
     fn test_command_alias_routing_coverage() {
-        // Verify canonical and legacy alias mapping sets
+        // Genuine unit test asserting routing normalization through `toad_lib::commands::route_command`
         let commands = [
-            ("toad:init_main", "initMain"),
-            ("toad:get_config", "getToadConfig"),
-            ("toad:eval_query", "evalQuery"),
-            ("toad:row_count", "rowCount"),
-            ("toad:schema", "getTableSchema"),
-            ("toad:new_window", "newWindowFromDSPath"),
-            ("project:get_workspace", "get_workspace"),
-            ("project:get_files", "get_files"),
-            ("engine:get_status", "engine_status"),
+            ("toad:init_main", "initMain", CommandAction::InitMain),
+            ("toad:get_config", "getToadConfig", CommandAction::GetConfig),
+            ("toad:eval_query", "evalQuery", CommandAction::EvalQuery),
+            ("toad:row_count", "rowCount", CommandAction::RowCount),
+            ("toad:schema", "getTableSchema", CommandAction::Schema),
+            ("toad:new_window", "newWindowFromDSPath", CommandAction::NewWindow),
+            ("toad:open_file_dialog", "dialog:showOpenDialog", CommandAction::OpenFileDialog),
+            ("toad:write_clipboard", "clipboard:writeText", CommandAction::WriteClipboard),
+            ("toad:open_url", "shell:openExternal", CommandAction::OpenUrl),
+            ("project:get_workspace", "get_workspace", CommandAction::ProjectGetWorkspace),
+            ("project:get_files", "get_files", CommandAction::ProjectGetFiles),
+            ("engine:get_status", "engine_status", CommandAction::EngineGetStatus),
         ];
 
-        for (canonical, legacy) in commands {
-            assert!(!canonical.is_empty());
-            assert!(!legacy.is_empty());
+        for (canonical, legacy, expected_action) in commands {
+            assert_eq!(
+                route_command(canonical),
+                expected_action,
+                "Canonical command '{}' must route to {:?}",
+                canonical,
+                expected_action
+            );
+            assert_eq!(
+                route_command(legacy),
+                expected_action,
+                "Legacy alias '{}' must route to {:?}",
+                legacy,
+                expected_action
+            );
         }
+
+        // CRITICAL: Verify native Tauri plugin commands are NEVER hijacked and ALWAYS pass through
+        let plugin_commands = [
+            "plugin:dialog|open",
+            "plugin:dialog|save",
+            "plugin:dialog|message",
+            "plugin:clipboard-manager|write_text",
+            "plugin:clipboard-manager|read_text",
+            "plugin:clipboard|write_text",
+            "plugin:opener|open_url",
+            "plugin:opener|open_path",
+            "plugin:opener|reveal_item_in_dir",
+            "plugin:fs|read_file",
+            "plugin:fs|write_file",
+            "plugin:window-state|save",
+        ];
+
+        for plugin_cmd in plugin_commands {
+            assert_eq!(
+                route_command(plugin_cmd),
+                CommandAction::PluginPassthrough,
+                "Plugin command '{}' must pass through to native Tauri plugins",
+                plugin_cmd
+            );
+        }
+
+        assert_eq!(
+            route_command("nonexistent:command"),
+            CommandAction::PluginPassthrough
+        );
+    }
+
+    #[tokio::test]
+    async fn test_app_state_atomicity_on_io_failure() {
+        let temp_dir = std::env::temp_dir().join("toad_test_state_atomicity");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir).unwrap();
+
+        let cfg = ToadConfig::default();
+        let invalid_config_dir = temp_dir.join("sub_dir_target");
+        fs::create_dir_all(&invalid_config_dir).unwrap();
+
+        let state = AppState {
+            portable_dir: temp_dir.clone(),
+            config_path: invalid_config_dir,
+            config: Arc::new(tokio::sync::RwLock::new(cfg)),
+            duckdb_engine: Arc::new(tokio::sync::RwLock::new(Default::default())),
+            parquet_ledger: Arc::new(tokio::sync::RwLock::new(Default::default())),
+            ingest_queue: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        };
+
+        let res = state
+            .update_config(|c| {
+                c.general.page_size = 8888;
+            })
+            .await;
+
+        assert!(res.is_err());
+        assert_eq!(state.get_config().await.general.page_size, 1000);
+
+        let _ = fs::remove_dir_all(&temp_dir);
     }
 }

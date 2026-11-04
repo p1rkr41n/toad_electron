@@ -59,16 +59,20 @@ impl AppState {
         self.config.read().await.clone()
     }
 
-    /// Update configuration in memory and persist to config.ini on disk
+    /// Update configuration in memory and persist to config.ini on disk with atomic rollback safety.
+    ///
+    /// Evaluates the update on a candidate clone and persists to disk FIRST.
+    /// In-memory state is only committed if disk I/O succeeds, preventing memory/disk drift on failure.
     pub async fn update_config<F>(&self, update_fn: F) -> std::io::Result<ToadConfig>
     where
         F: FnOnce(&mut ToadConfig),
     {
         let mut cfg = self.config.write().await;
-        update_fn(&mut cfg);
-        let snapshot = cfg.clone();
-        save_config(&self.config_path, &snapshot)?;
-        Ok(snapshot)
+        let mut candidate = cfg.clone();
+        update_fn(&mut candidate);
+        save_config(&self.config_path, &candidate)?;
+        *cfg = candidate.clone();
+        Ok(candidate)
     }
 }
 
