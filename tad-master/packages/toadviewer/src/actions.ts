@@ -1471,7 +1471,8 @@ export const applyColumnExtraction = async (
     .set("baseQuery", newBaseQuery)
     .set("baseSchema", newBaseSchema)
     .set("viewParams", nextViewParams)
-    .set("initialViewParams", nextViewParams);
+    .set("initialViewParams", nextViewParams)
+    .set("dataView", null);
 
   await awaitableUpdate_(
     stateRef,

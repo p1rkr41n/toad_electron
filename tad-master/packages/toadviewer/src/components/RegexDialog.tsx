@@ -1192,7 +1192,8 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
           .set("baseQuery", newBaseQuery)
           .set("baseSchema", newBaseSchema)
           .set("viewParams", nextViewParams)
-          .set("initialViewParams", nextViewParams);
+          .set("initialViewParams", nextViewParams)
+          .set("dataView", null);
 
         actions.setRegexDialogOpen(false, stateRef);
         update(stateRef, (st: AppState): AppState => st.set("viewState", nextViewState) as AppState);
