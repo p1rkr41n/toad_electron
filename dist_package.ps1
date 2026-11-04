@@ -21,6 +21,8 @@ if (Test-Path "$appDir\release\win-unpacked") {
 }
 if (Test-Path "$appDir\release") {
     Remove-Item -Force "$appDir\release\*.exe" -ErrorAction SilentlyContinue
+    Remove-Item -Force "$appDir\release\*.7z" -ErrorAction SilentlyContinue
+    Remove-Item -Force "$appDir\release\*.blockmap" -ErrorAction SilentlyContinue
 }
 
 Write-Output "=== STEP 0.1: Building host-bridge ==="
@@ -69,6 +71,7 @@ Write-Output ">>> Bundle Verification SUCCESS: contains v2.5.0, engineService.bu
 
 Write-Output "=== STEP 4: Packaging Electron App with electron-builder (Maximum Compression) ==="
 & npm.cmd run dist
+& npm.cmd run pack
 
 Write-Output "=== STEP 4.1: Verifying Footprint & Size Assertion Gate ==="
 $asarPath = "$appDir\release\win-unpacked\resources\app.asar"
