@@ -1095,11 +1095,20 @@ let regexViewSeq = 1;
 
 export const setRegexDialogOpen = (
   open: boolean,
-  stateRef: StateRef<AppState>
+  stateRef: StateRef<AppState>,
+  targetCol?: string
 ) => {
   update(
     stateRef,
-    (st: AppState): AppState => st.set("regexDialogOpen", open) as AppState
+    (st: AppState): AppState => {
+      let next = st.set("regexDialogOpen", open) as AppState;
+      if (open && targetCol !== undefined) {
+        next = next.set("parseTargetCol", targetCol) as AppState;
+      } else if (!open) {
+        next = next.set("parseTargetCol", null) as AppState;
+      }
+      return next;
+    }
   );
 };
 // Toad v2.0.7: Parse alias for setRegexDialogOpen

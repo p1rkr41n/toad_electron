@@ -69,6 +69,7 @@ export interface AppStateProps {
 
   viewState: ViewState | null;
   regexDialogOpen: boolean;
+  parseTargetCol: string | null;
   exportBeginDialogOpen: boolean;
   exportProgressDialogOpen: boolean;
   exportFormat: ExportFormat;
@@ -92,6 +93,7 @@ const defaultAppStateProps: AppStateProps = {
   rtc: null,
   viewState: null,
   regexDialogOpen: false,
+  parseTargetCol: null,
   exportBeginDialogOpen: false,
   exportProgressDialogOpen: false,
   exportFormat: "parquet",
@@ -116,6 +118,7 @@ export class AppState extends Immutable.Record(defaultAppStateProps) {
 
   public readonly viewState!: ViewState;
   public readonly regexDialogOpen!: boolean;
+  public readonly parseTargetCol!: string | null;
   public readonly exportBeginDialogOpen!: boolean;
   public readonly exportProgressDialogOpen!: boolean;
   public readonly exportFormat!: ExportFormat;

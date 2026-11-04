@@ -104,11 +104,13 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   // Auto-select first column when modal opens or columns change
   useEffect(() => {
     if (isOpen && columns.length > 0) {
-      if (!selectedCol || !columns.includes(selectedCol)) {
+      if (appState.parseTargetCol && columns.includes(appState.parseTargetCol)) {
+        setSelectedCol(appState.parseTargetCol);
+      } else if (!selectedCol || !columns.includes(selectedCol)) {
         setSelectedCol(columns[0]);
       }
     }
-  }, [isOpen, columns, selectedCol]);
+  }, [isOpen, columns, selectedCol, appState.parseTargetCol]);
 
   // Fetch up to limit non-null, non-empty events across column for multi-row discovery
   const fetchSampleEvents = useCallback(
