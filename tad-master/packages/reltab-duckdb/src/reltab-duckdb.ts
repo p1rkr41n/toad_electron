@@ -203,6 +203,39 @@ export class DuckDBDriver implements DbDriver {
     return ret;
   }
 
+  async runSqlQueryArrow(query: string): Promise<Uint8Array | null> {
+    const conn = await this.connPool.take();
+    try {
+      log.info("runSqlQueryArrow:\n", query);
+      const rawConn = (conn as any).conn || (conn as any)._conn || conn;
+      if (rawConn && typeof rawConn.arrowIPCAll === "function") {
+        const cleanQuery = query.trim().replace(/;+$/, "");
+        return await new Promise<Uint8Array>((resolve, reject) => {
+          rawConn.arrowIPCAll(cleanQuery, (err: any, result: any[]) => {
+            if (err) return reject(err);
+            if (!result || result.length === 0) {
+              return resolve(new Uint8Array(0));
+            }
+            const valid = result.filter(
+              (b) => b != null && (b.length > 0 || b.byteLength > 0)
+            );
+            if (valid.length === 0) {
+              return resolve(new Uint8Array(0));
+            }
+            const buf = Buffer.concat(valid);
+            resolve(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
+          });
+        });
+      }
+      return null;
+    } catch (e) {
+      log.warn("runSqlQueryArrow fallback to standard query:", e);
+      return null;
+    } finally {
+      this.connPool.giveBack(conn);
+    }
+  }
+
   async getDisplayName(): Promise<string> {
     return this.displayName;
   }
@@ -275,6 +308,11 @@ const loadExtensions = async (db: Database): Promise<void> => {
   } catch (err) {
     log.error("caught exception loading extensions: ", err);
     log.error("(ignoring unloadable extensions...)");
+  }
+  try {
+    await db.exec(`INSTALL 'arrow'; LOAD 'arrow'`);
+  } catch (err) {
+    log.warn("caught notice loading arrow extension: ", err);
   }
 };
 

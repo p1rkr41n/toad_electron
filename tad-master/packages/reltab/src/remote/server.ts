@@ -407,7 +407,9 @@ export async function dispatchEngineCommand(
   const conn = await getConnection(engineId);
 
   switch (normalizedCmd) {
-    case "evalQuery": {
+    case "evalQuery":
+    case "toad:query":
+    case "toad:eval_query": {
       const queryStr =
         typeof payload?.queryStr === "string"
           ? payload.queryStr
@@ -420,9 +422,25 @@ export async function dispatchEngineCommand(
         limit: payload?.limit ?? null,
         options: payload?.options ?? { showQueries: false },
       };
+      if (typeof (conn as any).evalQueryArrow === "function") {
+        try {
+          const arrowBuf = await (conn as any).evalQueryArrow(
+            deserializeQueryReq(req.queryStr),
+            req.offset,
+            req.limit,
+            req.options
+          );
+          if (arrowBuf && arrowBuf.byteLength > 0) {
+            return arrowBuf;
+          }
+        } catch (arrowErr) {
+          log.warn("evalQueryArrow fallback to dbConnEvalQuery:", arrowErr);
+        }
+      }
       return await dbConnEvalQuery(conn, req);
     }
-    case "rowCount": {
+    case "rowCount":
+    case "toad:row_count": {
       const queryStr =
         typeof payload?.queryStr === "string"
           ? payload.queryStr
@@ -493,6 +511,23 @@ export async function handleEngineQueryReq(
     if (result instanceof TableRep) {
       const { buffer, metadata } = encodeTableRepBinary(result);
       return { id, ok: true, binary: true, metadata, buffer };
+    }
+    if (
+      result instanceof Uint8Array ||
+      result instanceof ArrayBuffer ||
+      (typeof Buffer !== "undefined" && Buffer.isBuffer(result))
+    ) {
+      const raw: any = result;
+      const arrayBuffer: ArrayBuffer =
+        raw instanceof ArrayBuffer
+          ? raw
+          : raw.byteOffset === 0 && raw.byteLength === raw.buffer.byteLength
+          ? raw.buffer
+          : raw.buffer.slice(
+              raw.byteOffset,
+              raw.byteOffset + raw.byteLength
+            );
+      return { id, ok: true, binary: true, buffer: arrayBuffer };
     }
     return { id, ok: true, data: result };
   } catch (err: any) {

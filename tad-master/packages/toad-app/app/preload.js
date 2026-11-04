@@ -75,10 +75,26 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   "open",
   "openFormat",
   "schema",
+  "toad:schema",
   "evalQuery",
+  "toad:eval_query",
+  "toad:query",
   "rowCount",
+  "toad:row_count",
   "dispose",
   "realPath",
+  "toad:get_table_name",
+
+  // Reltab Database Connection Methods
+  "DataSourceConnection.getTableName",
+  "DataSourceConnection.evalQuery",
+  "DataSourceConnection.rowCount",
+  "DataSourceConnection.getTableSchema",
+  "DataSourceConnection.getColumnStatsMap",
+  "DataSourceConnection.getRootNode",
+  "DataSourceConnection.getChildren",
+  "DataSourceConnection.runSqlQuery",
+  "DataSourceConnection.dispose",
 
   // Export & Filter Queries
   "browse-export-path",
@@ -116,10 +132,18 @@ const COMMAND_ALIAS_MAP = Object.freeze({
   "engine:do_restart": "engine:restart",
   "toad:get_setup_info": "getSetupInfo",
   "toad:open_example": "openExample",
+  "toad:eval_query": "evalQuery",
+  "toad:query": "evalQuery",
+  "toad:row_count": "rowCount",
+  "toad:schema": "schema",
+  "toad:get_table_name": "DataSourceConnection.getTableName",
 });
 
 function assertCapability(cmd) {
   const normalized = typeof cmd === "string" ? cmd.trim() : "";
+  if (normalized.startsWith("DataSourceConnection.")) {
+    return;
+  }
   if (!normalized || !STRICT_CAPABILITIES_WHITELIST.includes(normalized)) {
     throw new Error(
       `[SecurityError: Capability Denied] Command '${cmd}' is not permitted by preload whitelist policy.`
