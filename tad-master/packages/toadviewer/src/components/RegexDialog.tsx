@@ -192,7 +192,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [inlineEditVal, setInlineEditVal] = useState<string>("");
 
-  // 1,000-Row Real-Data Validation State (Toad v2.5.0.5)
+  // 1,000-Row Real-Data Validation State (Toad v2.5.1)
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [hasTested, setHasTested] = useState<boolean>(false);
   const [realTotalRows, setRealTotalRows] = useState<number>(0);
@@ -506,7 +506,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     return "VARCHAR";
   };
 
-  // Lexicographical Column Naming Helpers (v2.5.0.5)
+  // Lexicographical Column Naming Helpers (v2.5.1)
   const formatStrColName = (idx: number): string => {
     if (idx <= 0) idx = 1;
     if (idx <= 999) {
@@ -2832,6 +2832,6 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   );
 };
 
-// Toad v2.5.0.5: Canonical ParseDialog export with backward-compatible RegexDialog alias
+// Toad v2.5.1: Canonical ParseDialog export with backward-compatible RegexDialog alias
 export const ParseDialog = RegexDialog;
 

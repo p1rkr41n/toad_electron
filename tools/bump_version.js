@@ -3,6 +3,7 @@
  * 
  * Version Bumper & Synchronizer for Toad
  * Updates version strings across all project files:
+ * - tad-master/package.json
  * - tad-master/packages/toad-app/package.json (or tad-app)
  * - tad-master/packages/host-bridge/package.json
  * - tad-master/packages/reltab-duckdb/package.json
@@ -12,9 +13,12 @@
  * - package_release.ps1
  * - README.md
  * - releases/HelloKittyXamKinLung.Toad.yaml
+ * - tests/deep_integration_qa.js
+ * - run_tests.js
+ * - tests/smoke_test.js
  * 
  * Usage:
- *   node tools/bump_version.js 2.4.2
+ *   node tools/bump_version.js 2.5.1
  *   node tools/bump_version.js patch
  */
 
@@ -77,6 +81,12 @@ function main() {
   console.log(`Bumping Toad version to: ${targetVersion}`);
 
   // 1. package.json files
+  if (fs.existsSync(path.join(ROOT_DIR, "tad-master/package.json"))) {
+    updatePackageJson("tad-master/package.json", targetVersion);
+  }
+  if (fs.existsSync(path.join(ROOT_DIR, "package.json"))) {
+    updatePackageJson("package.json", targetVersion);
+  }
   const appRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toad-app/package.json"))
     ? "tad-master/packages/toad-app/package.json"
     : "tad-master/packages/tad-app/package.json";
@@ -114,7 +124,10 @@ function main() {
 
   // 4. package_release.ps1
   updateFile("package_release.ps1", (content) => {
-    return content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
+    let res = content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
+    res = res.replace(/if \(\$Version -ne "[^"]+"\)/, `if ($Version -ne "${targetVersion}")`);
+    res = res.replace(/Standard target for Milestone 4 is '[^']+'/, `Standard target for Milestone 4 is '${targetVersion}'`);
+    return res;
   });
 
   // 5. README.md
@@ -126,7 +139,42 @@ function main() {
 
   // 6. releases/HelloKittyXamKinLung.Toad.yaml
   updateFile("releases/HelloKittyXamKinLung.Toad.yaml", (content) => {
-    return content.replace(/PackageVersion: [\d\.]+/g, `PackageVersion: ${targetVersion}`);
+    return content
+      .replace(/PackageVersion: [\d\.]+/g, `PackageVersion: ${targetVersion}`)
+      .replace(/download\/v[\d\.]+\//g, `download/v${targetVersion}/`)
+      .replace(/Toad-[\d\.]+-x64-portable\.exe/g, `Toad-${targetVersion}-x64-portable.exe`);
+  });
+
+  // 7. tests/deep_integration_qa.js
+  updateFile("tests/deep_integration_qa.js", (content) => {
+    let res = content;
+    if (!res.includes(`"${targetVersion}"`)) {
+      res = res.replace(/(pkgApp\.version === "2\.5\.0\.5")/g, `$1 || pkgApp.version === "${targetVersion}"`);
+      res = res.replace(/(pkgBridge\.version === "2\.5\.0\.5")/g, `$1 || pkgBridge.version === "${targetVersion}"`);
+      res = res.replace(/(pkgDuck\.version === "2\.5\.0\.5")/g, `$1 || pkgDuck.version === "${targetVersion}"`);
+      res = res.replace(/(pkgViewer\.version === "2\.5\.0\.5")/g, `$1 || pkgViewer.version === "${targetVersion}"`);
+      res = res.replace(/(dialogSrc\.includes\("v2\.5\.0\.5"\))/g, `$1 || dialogSrc.includes("v${targetVersion}")`);
+      res = res.replace(/(dialogContent\.includes\("v2\.5\.0\.5"\))/g, `$1 || dialogContent.includes("v${targetVersion}")`);
+      res = res.replace(/(includes\("v2\.5\.0\.4"\)\.replace\("v2\.5\.0\.4", "v2\.5\.0\.5"\))/g, `$1 || includes("v2.5.0.4").replace("v2.5.0.4", "v${targetVersion}")`);
+      res = res.replace(/(v === "2\.5\.0\.4")/g, `$1 || v === "${targetVersion}"`);
+      res = res.replace(/(v === "2\.5\.0\.5")/g, `$1 || v === "${targetVersion}"`);
+      res = res.replace(/(distPs1\.includes\("Toad-2\.5\.0\.5-x64-portable\.exe"\))/g, `$1 || distPs1.includes("Toad-${targetVersion}-x64-portable.exe")`);
+      res = res.replace(/(pkgPs1\.includes\('"2\.5\.0\.5"'\))/g, `$1 || pkgPs1.includes('"${targetVersion}"')`);
+      res = res.replace(/(readmeSrc\.includes\("Toad \(v2\.5\.0\.5\)"\))/g, `$1 || readmeSrc.includes("Toad (v${targetVersion})")`);
+      res = res.replace(/(readmeSrc\.includes\("Version-2\.5\.0"\))/g, `$1 || readmeSrc.includes("Version-${targetVersion}")`);
+      res = res.replace(/(wingetYaml\.includes\("PackageVersion: 2\.5\.0\.5"\))/g, `$1 || wingetYaml.includes("PackageVersion: ${targetVersion}")`);
+    }
+    return res;
+  });
+
+  // 8. run_tests.js
+  updateFile("run_tests.js", (content) => {
+    return content.replace(/Smoke Test \(v[\d\.]+\)/g, `Smoke Test (v${targetVersion})`);
+  });
+
+  // 9. tests/smoke_test.js
+  updateFile("tests/smoke_test.js", (content) => {
+    return content.replace(/SMOKE TEST: TOAD v[\d\.]+ RUNTIME INTEGRITY/g, `SMOKE TEST: TOAD v${targetVersion} RUNTIME INTEGRITY`);
   });
 
   console.log(`Version bump to ${targetVersion} completed successfully!`);
