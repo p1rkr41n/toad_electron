@@ -31,11 +31,16 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   "project:remove_file": "project:removeFile",
   "project:move_orphan_files": "project:moveOrphanFiles",
 
-  // Engine Commands
+  // Engine & Query Commands
   "engine:get_status": "engine:status",
   "engine:do_restart": "engine:restart",
   "toad:get_setup_info": "getSetupInfo",
   "toad:open_example": "openExample",
+  "toad:eval_query": "evalQuery",
+  "toad:query": "evalQuery",
+  "toad:row_count": "rowCount",
+  "toad:schema": "schema",
+  "toad:get_table_name": "DataSourceConnection.getTableName",
 };
 
 /**

@@ -19,5 +19,8 @@
   "scripts": {
     "bootstrap": "lerna bootstrap --ci --hoist --force-local --ignore-prepublish",
     "bootstrap-no-drivers-no-app": "lerna bootstrap --ignore reltab-* --ignore tad --ci --hoist --force-local --ignore-prepublish"
+  },
+  "dependencies": {
+    "@apache-arrow/es2015-cjs": "^16.1.0"
   }
 }

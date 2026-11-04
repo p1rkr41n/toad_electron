@@ -184,6 +184,29 @@ export class DbDataSource implements DataSourceConnection {
     return ret;
   }
 
+  async evalQueryArrow(
+    query: QueryExp,
+    offset?: number,
+    limit?: number,
+    options?: EvalQueryOptions
+  ): Promise<Uint8Array | null> {
+    if (typeof (this.db as any).runSqlQueryArrow !== "function") {
+      return null;
+    }
+    const sqlQuery = await this.getSqlForQuery(query, offset, limit);
+    const trueOptions = options ? options : defaultEvalQueryOptions;
+
+    if (trueOptions.showQueries) {
+      log.info("evalQueryArrow: evaluating:\n" + sqlQuery);
+    }
+
+    const rawArrowBuf = await (this.db as any).runSqlQueryArrow(sqlQuery);
+    if (!rawArrowBuf || rawArrowBuf.byteLength === 0) {
+      return null;
+    }
+    return rawArrowBuf;
+  }
+
   async rowCount(query: QueryExp, options?: EvalQueryOptions): Promise<number> {
     await this.ensureLeafDeps(query);
 

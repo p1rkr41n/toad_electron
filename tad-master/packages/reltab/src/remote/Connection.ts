@@ -249,14 +249,29 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
     limit?: number,
     options?: EvalQueryOptions
   ): Promise<TableRep> {
+    const payload = {
+      engine: this.sourceId,
+      queryStr: JSON.stringify(query, safeJsonReplacer),
+      offset: offset ? offset : null,
+      limit: limit ? limit : null,
+      options: options ? options : defaultEvalQueryOptions,
+    };
+    if (
+      this.tconn &&
+      typeof (this.tconn as any).invokeBinary === "function" &&
+      (this.tconn as any).dataPort
+    ) {
+      try {
+        const u8 = await (this.tconn as any).invokeBinary("evalQuery", payload);
+        if (u8 && u8.byteLength > 0) {
+          return decodeTableRepBinary(u8);
+        }
+      } catch (err) {
+        console.warn("[RemoteConnection] invokeBinary evalQuery failed, falling back:", err);
+      }
+    }
     if (this.portTransport) {
-      const res = await this.portTransport.request("evalQuery", {
-        engine: this.sourceId,
-        queryStr: JSON.stringify(query, safeJsonReplacer),
-        offset: offset ? offset : null,
-        limit: limit ? limit : null,
-        options: options ? options : defaultEvalQueryOptions,
-      });
+      const res = await this.portTransport.request("evalQuery", payload);
       if (res instanceof TableRep) {
         return res;
       }
