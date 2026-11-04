@@ -1,60 +1,54 @@
-## 2026-11-03T11:56:14Z
-You are Worker M3 (Build Scripts, Version Bump & Test Whitelist Worker).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3
+## 2026-11-04T07:58:30Z
+You are teamwork_worker. Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3.
+
+MANDATORY FIRST STEP:
+Read d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md.
 
 MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-MANDATORY INSTRUCTIONS:
-1. You MUST read the original user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-2. You MUST read the master project plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-3. You MUST read Explorer 3's detailed handoff and analysis at:
-   - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_3\handoff.md`
-   - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_3\analysis.md`
+SCOPE & EXCLUSIVE FILE OWNERSHIP:
+You exclusively own and may modify ONLY these files:
+- tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts
+- tad-master/packages/toadviewer/src/components/SampleScanController.tsx
+- tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx
+- tad-master/packages/toadviewer/less/nested-dialog.less
+- tad-master/packages/toadviewer/src/components/RegexDialog.tsx
+- tad-master/packages/toadviewer/src/toadviewer.ts
+- tests/unit/test_sample_scan_worker.js
+Do NOT modify any files outside this list.
 
-EXCLUSIVE FILE OWNERSHIP (You own ONLY these files, DO NOT touch files in tad-master/packages/):
-- `fastbuild.ps1`
-- `dist_package.ps1`
-- `package_release.ps1`
-- `tools/bump_version.js`
-- `tests/deep_integration_qa.js`
-- `tests/smoke_test.js`
+RELEVANT ARCHITECTURE & REPORTS TO READ:
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md (Note that Milestone 1 completed NestedJsonContracts.ts, NestedJsonTraverser.ts, and DuckDbJsonSqlBuilder.ts)
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_json\ui_report.md
 
-TASK REQUIREMENTS (R5 & Version Synchronization):
-1. `fastbuild.ps1`:
-   - Update `$appDir` path check to accept either `toad-app` or fallback to `tad-app` (so it works seamlessly both during and after package rename).
-   - Update `tadviewer` build steps to check `toadviewer` with fallback to `tadviewer`.
-   - Update bundle check: verify `toadapp.bundle.js` (or fallback `tadapp.bundle.js`).
-2. `dist_package.ps1`:
-   - Synchronize `$appDir` to `toad-app` (with fallback).
-   - Synchronize viewer path to `toadviewer` (with fallback).
-   - Update bundle verification: check `$bundlePath = "$appDir\dist\toadapp.bundle.js"` (fallback to `tadapp.bundle.js`).
-   - Add `"v2.4.8"` to `$bundleContent.Contains("v2.4.8")` in line 44.
-   - Maintain strict Zero-Duplicate Binary Storage policy: canonical binaries are solely `releases/Toad-2.4.8-x64-portable.exe` and `Toad.exe`.
-3. `package_release.ps1`:
-   - Update default `$Version` to `"2.4.8"`.
-4. `tools/bump_version.js`:
-   - Update `pkgAppPath` to check `toad-app/package.json` with fallback to `tad-app/package.json`.
-   - Update viewer path to check `toadviewer/package.json` with fallback to `tadviewer/package.json`.
-   - Update `RegexDialog.tsx` path check to support `toadviewer` or `tadviewer`.
-5. `tests/deep_integration_qa.js`:
-   - Update version whitelists (e.g. lines 5173, 1234, 1477, and wherever versions 2.4.2..2.4.6 were asserted) to accept `"2.4.7"` and `"2.4.8"`.
-   - Update package path references where appropriate (or add dynamic resolution so tests look for `toad-app` or `tad-app`, and `toadviewer` or `tadviewer`).
-   - Ensure bundle assertions check for `toadapp.bundle.js` or `tadapp.bundle.js`.
+TASKS FOR MILESTONE 3:
+1. Implement `tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts`:
+   - Asynchronous chunked timeslicer (50-row chunks yielding to event loop via setTimeout(0)) scanning sample rows without freezing UI.
+   - Uses `traverseJsonLeaves` from `../utils/NestedJsonTraverser`.
+   - Supports initial 100 rows preview and 1,000 rows deep scan with progress callback `{ scanned, total, discoveredCount }`.
+2. Implement `tad-master/packages/toadviewer/src/components/SampleScanController.tsx`:
+   - Renders scan status, deep scan button ("Scan 1,000 Rows"), progress bar, discovery count badge ("+N new fields discovered").
+3. Implement `tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`:
+   - Renders discovered fields: Checkbox (`enabled`), Editable column name (`customColName` defaulting to `dotPath`), Sample value, Inferred data type dropdown, Fill rate bar/percentage.
+   - Real-time search filter filtering field names and sample values.
+   - Bulk action buttons: `[All]`, `[None]`, `[Invert]`.
+4. Create `tad-master/packages/toadviewer/less/nested-dialog.less` and require it in `packages/toadviewer/src/toadviewer.ts`:
+   - Clean styling for nested JSON table, search input, scan controls, fill rate meters conforming to Toad's Material 3 / dark / light themes.
+5. Integrate into `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`:
+   - Add segmented mode pill `[Nested JSON]` (`mode = "simple" | "nested_json" | "advanced"`).
+   - In `nested_json` mode: render `SampleScanController` and `NestedFieldsTable`.
+   - On `Apply`, use `DuckDbJsonSqlBuilder` to generate safe `CREATE VIEW` statement and execute via existing `actions.applyColumnExtraction(...)` / `dbc.runSqlQuery(...)`.
+6. Implement unit test `tests/unit/test_sample_scan_worker.js`:
+   - Verifies chunked scanning, deep scan up to 1,000 rows, cancellation, and field discovery.
+7. Execute tests and TypeScript verification:
+   - Run `node-v18.20.4-win-x64\node.exe tests/unit/test_sample_scan_worker.js`.
+   - Run `node-v18.20.4-win-x64\node.exe ./node-v18.20.4-win-x64/node_modules/typescript/bin/tsc --project packages/toadviewer/tsconfig.json --noEmit` (or equivalent tsc command). Ensure 100% clean compilation.
 
-VERIFICATION:
-- Verify PowerShell script syntax: run `Get-Command` or syntax check on modified `.ps1` scripts.
-- Run `node tools/bump_version.js --help` or verify syntax.
-- Verify `deep_integration_qa.js` runs without syntax errors.
-
-DELIVERABLES:
-Write a detailed report in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\changes.md`
-and self-contained handoff in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\handoff.md`.
-Update `progress.md` before finishing.
-When done, send a message back to the orchestrator with your results.
-
-
-## 2026-11-03T12:07:11Z
-**Context**: Milestone 3 implementation check.
-**Content**: Checking in on progress for build scripts, version bump, and test whitelist synchronization.
-**Action**: Please report your current progress and status.
+OUTPUT:
+Write your implementation report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\handoff.md` with:
+- Files modified/created
+- Test execution commands and outputs
+- Verification results
+When complete, send a message to orchestrator (`aad28923-4697-407e-9b0b-76e49e020103`) with a summary and path to your handoff.md.

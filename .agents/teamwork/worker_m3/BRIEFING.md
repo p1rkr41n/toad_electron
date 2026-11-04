@@ -1,70 +1,56 @@
-# BRIEFING — 2026-11-03T12:14:00Z
+# BRIEFING — 2026-11-04T07:58:30Z
 
 ## Mission
-Update build scripts, release packaging, bump_version tool, and test whitelists to support Toad renaming (toad-app, toadviewer, toadapp.bundle.js) with tad-* fallback and version 2.4.8 compatibility.
+Implement Milestone 3: SampleScanWorker, SampleScanController, NestedFieldsTable, nested-dialog.less, RegexDialog integration, and unit tests.
 
 ## 🔒 My Identity
-- Archetype: worker
+- Archetype: implementer
 - Roles: implementer, qa, specialist
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3
-- Original parent: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
-- Milestone: Milestone 3 - Build Scripts, Version Bump & Test Whitelist
+- Original parent: aad28923-4697-407e-9b0b-76e49e020103
+- Milestone: Milestone 3 - Nested JSON UI, SampleScanWorker & Integration
 
 ## 🔒 Key Constraints
-- EXCLUSIVE FILE OWNERSHIP:
-  - fastbuild.ps1
-  - dist_package.ps1
-  - package_release.ps1
-  - tools/bump_version.js
-  - tests/deep_integration_qa.js
-  - tests/smoke_test.js
-- DO NOT touch files in tad-master/packages/
-- Zero-Duplicate Binary Storage policy: canonical binaries are solely releases/Toad-2.4.8-x64-portable.exe and Toad.exe
-- Backward-compatibility/fallback: accept both toad-* and tad-* package names / bundle names
-- Genuine implementations only, no cheat/hardcoding test skips
+- Exclusively own and may modify ONLY:
+  - tad-master/packages/toadviewer/src/workers/SampleScanWorker.ts
+  - tad-master/packages/toadviewer/src/components/SampleScanController.tsx
+  - tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx
+  - tad-master/packages/toadviewer/less/nested-dialog.less
+  - tad-master/packages/toadviewer/src/components/RegexDialog.tsx
+  - tad-master/packages/toadviewer/src/toadviewer.ts
+  - tests/unit/test_sample_scan_worker.js
+- DO NOT modify any files outside this list.
+- Integrity: no hardcoding, genuine logic.
+- .agents/teamwork/ holds only metadata.
+- Zero non-English in public artifacts.
 
 ## Current Parent
-- Conversation ID: afba7d24-e2ed-4eb2-89cc-f35d592f6de8
-- Updated: 2026-11-03T12:07:11Z
+- Conversation ID: aad28923-4697-407e-9b0b-76e49e020103
+- Updated: 2026-11-04T07:58:30Z
 
 ## Task Summary
-- **What to build**: Support `toad-app`, `toadviewer`, `toadapp.bundle.js` with fallback in build/pack scripts, update version bump tool, update version whitelists and path checks in tests to include 2.4.7/2.4.8 and renamed packages.
-- **Success criteria**:
-  - fastbuild.ps1, dist_package.ps1, package_release.ps1 support new names with fallback (PASSED).
-  - tools/bump_version.js handles both package locations (PASSED).
-  - tests/deep_integration_qa.js accepts versions up to 2.4.8 and handles toad-app/toadviewer (PASSED, 222/222).
-  - All PowerShell scripts pass syntax verification (PASSED).
-  - bump_version and test scripts run without syntax errors (PASSED).
-- **Interface contracts**: PROJECT.md, ORIGINAL_REQUEST.md, explorer_3 analysis/handoff
-- **Code layout**: Root repo scripts and test suite
+- **What to build**: SampleScanWorker, SampleScanController, NestedFieldsTable, nested-dialog.less, RegexDialog integration, unit tests.
+- **Success criteria**: Clean TypeScript compilation (`tsc --noEmit`), test_sample_scan_worker.js passing, responsive chunked scanner (50-row slicing yielding to event loop), full UI/UX controls and DuckDB JSON SQL extraction integration.
+- **Interface contracts**: PROJECT.md, NestedJsonContracts.ts
+- **Code layout**: packages/toadviewer/src/
 
 ## Key Decisions Made
-- Prioritize `toad-*` / `toadapp*` before falling back to `tad-*` / `tadapp*`.
-- Add dynamic path hooks to `deep_integration_qa.js` so all tests resolve transparently across package renames.
-- Extend all version whitelists in `deep_integration_qa.js` to include `2.4.7` and `2.4.8`.
+- Initializing task setup and briefing.
 
 ## Artifact Index
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\DISPATCH.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\BRIEFING.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\progress.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\changes.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3\handoff.md
+- DISPATCH.md — Dispatch instructions from orchestrator
+- BRIEFING.md — Situational awareness
+- progress.md — Liveness and execution progress tracker
 
 ## Change Tracker
-- **Files modified**:
-  - `fastbuild.ps1`: Dynamic toad-app/toadviewer and toadapp.bundle.js checks with fallback.
-  - `dist_package.ps1`: Dynamic package resolution, v2.4.8 bundle assertion, Zero-Duplicate policy compliance.
-  - `package_release.ps1`: Default Version updated to 2.4.8.
-  - `tools/bump_version.js`: Supports toad-app and toadviewer paths with tad-* fallback.
-  - `tests/smoke_test.js`: Dynamic toad-app resolution, v2.4.8 header.
-  - `tests/deep_integration_qa.js`: Dynamic path hooks, v2.4.7/v2.4.8 version whitelists extended (222/222 PASS).
-- **Build status**: All syntax and test suites PASS (242/242 tests passing).
-- **Pending issues**: None.
+- **Files modified**: None yet
+- **Build status**: Not run yet
+- **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: 100% PASS (Smoke Test PASS, Deep Integration QA 222/222 PASS, Legacy 19/19 PASS).
-- **Lint status**: Clean.
-- **Tests added/modified**: `tests/deep_integration_qa.js` and `tests/smoke_test.js` updated.
+- **Build/test result**: Pending initial run
+- **Lint status**: Pending
+- **Tests added/modified**: Pending
 
 ## Loaded Skills
-- Ponytail lazy-minimalist principles applied.
+- None
