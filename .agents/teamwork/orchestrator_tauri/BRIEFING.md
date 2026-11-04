@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T19:03:30Z
+# BRIEFING — 2026-11-04T19:24:00Z
 
 ## Mission
 Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Windows on Tauri v2 at tauri/project and package portable release.
@@ -16,20 +16,21 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 1. **Decompose**: Survey codebase and requirements -> Decompose into 7 squads / milestones per approved plan -> Setup PROJECT.md (Completed)
 2. **Dispatch & Execute**:
    - Implementation Track: Sequential milestones M1 through M7.
-   - Dual Track: E2E Testing Track executing in parallel.
+   - Dual Track: E2E Testing Track executing in parallel (TEST_READY.md Certified).
 3. **On failure**: Retry -> Replace -> Skip -> Redistribute -> Redesign
 4. **Succession**: At 16 spawns, write handoff.md, spawn successor
 - **Work items**:
   1. Survey & Architecture Specification [done]
-  2. Scaffolding & Toolchain (Squad 1 / M1) [in-progress]
-  3. E2E Testing Track (Tiers 1-4) [done - TEST_READY.md certified]
-  4. Core Rust Engine & DuckDB (Squad 2 & Squad 3 / M2, M3) [pending]
-  5. Parquet Ledger & Workspace (Squad 4 / M4) [pending]
-  6. Ingestion & Forensics Pipelines (Squad 5 / M5) [pending]
-  7. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
-  8. Final Verification & Packaging (Squad 7 / M7) [pending]
-- **Current phase**: 1 (Scaffolding & Manifests)
-- **Current focus**: Awaiting worker_m1 cargo check and handoff delivery
+  2. Scaffolding & Toolchain (Squad 1 / M1) [DONE - Gate PASSED]
+  3. E2E Testing Track (Tiers 1-4) [DONE - TEST_READY.md certified]
+  4. Core Rust Engine & DuckDB (Squad 2 / M2) [in-progress]
+  5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [pending]
+  6. Parquet Ledger & Workspace (Squad 4 / M4) [pending]
+  7. Ingestion & Forensics Pipelines (Squad 5 / M5) [pending]
+  8. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
+  9. Final Verification & Packaging (Squad 7 / M7) [pending]
+- **Current phase**: 2 (Milestone 2 Implementation)
+- **Current focus**: worker_m2 implementing AppState, portable environment, and Tauri command router
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -44,12 +45,8 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - Updated: not yet
 
 ## Key Decisions Made
-- Project pattern selected with 7 squads matching approved implementation plan.
-- Phase 0 Survey completed by 3 parallel subagents.
-- PROJECT.md generated with 33 features mapped to 7 milestones, contracts, and layout.
-- Milestone 1 (M1) and E2E Testing Track dispatched in parallel.
-- `test_writer_e2e` completed: `TEST_INFRA.md` authored, 55/55 tests passed (100%), and `TEST_READY.md` certified.
-- `worker_m1` actively running `cargo check on tauri/project/src-tauri`.
+- Milestone 1 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M1 marked DONE.
+- Milestone 2 (M2: Rust Core Engine & OS Plugins) dispatched to worker_m2.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -57,24 +54,30 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | explorer_survey_1 | teamwork_explorer | Frontend Host Bridge Explorer | completed | 5fa7eb5b-f7f7-4908-beeb-668274a42832 |
 | specminer_survey_2 | teamwork_spec_miner | Tauri v2 Spec Miner | completed | fe261d5e-4c7e-4046-9a52-b254565b91b8 |
 | explorer_survey_3 | teamwork_explorer | Backend Infra Explorer | completed | d46896dd-e33f-41cf-b954-54bdd7b281be |
-| worker_m1 | teamwork_worker | Milestone 1 Implementation | in-progress (cargo check) | 3fe1e288-4db6-4a82-bdc5-4644cedd75a3 |
+| worker_m1 | teamwork_worker | Milestone 1 Implementation | completed | 3fe1e288-4db6-4a82-bdc5-4644cedd75a3 |
 | test_writer_e2e | teamwork_test_writer | E2E Testing Track Suites | completed | cd4ba0c0-aaaa-4ebd-b15a-0c7e221a5bfe |
+| reviewer_m1_1 | teamwork_reviewer | Scaffolding Reviewer 1 | completed | e51722a5-850b-4b7d-a4a4-d8e35cb02f40 |
+| reviewer_m1_2 | teamwork_reviewer | Scaffolding Reviewer 2 | completed | 10cc72ec-1411-4899-bd8b-27499b3053ff |
+| challenger_m1_1 | teamwork_challenger | Scaffolding Challenger 1 | completed | 8d89427b-9fc5-47ca-bb0f-43f9ccd42cf8 |
+| challenger_m1_2 | teamwork_challenger | Scaffolding Challenger 2 | completed | 261ee656-ffc7-446f-9e42-1b7b7a500efd |
+| auditor_m1_1 | teamwork_auditor | Forensic Integrity Auditor | completed | b93a6dc1-c21f-4937-b96e-4e8e6c46ad7c |
+| worker_m2 | teamwork_worker | Milestone 2 Implementation | in-progress | abc0cce1-ac3a-47cb-b6e1-b40d78eadd77 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 5 / 16
-- Pending subagents: 3fe1e288-4db6-4a82-bdc5-4644cedd75a3
+- Spawn count: 11 / 16
+- Pending subagents: abc0cce1-ac3a-47cb-b6e1-b40d78eadd77
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-18
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-162
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-443
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request
 - d:\Shared_UserData\Downloads\tad\PROJECT.md — Global architecture, 33-feature inventory, 7 milestones
 - d:\Shared_UserData\Downloads\tad\TEST_INFRA.md — E2E Test Infrastructure Specification
 - d:\Shared_UserData\Downloads\tad\TEST_READY.md — Certified E2E Test Readiness
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator_tauri\DISPATCH.md — Dispatch log
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator_tauri\GATE_STATUS.md — Milestone gate tracking
 - C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md — Approved 50-engineer plan

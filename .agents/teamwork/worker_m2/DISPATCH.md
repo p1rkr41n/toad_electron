@@ -1,81 +1,85 @@
-# DISPATCH — Worker Milestone 2: Main DataGrid Auto-Fit & Floating Cell Wrap
+## 2026-11-04T19:23:25Z
+You are Worker M2 (Squad 2: Rust Core Engine & OS Plugins) for the Toad Tauri v2 migration project.
+Your working directory is: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2`
 
-Read `ORIGINAL_REQUEST.md` at:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
-Read the architecture and contracts in:
-`d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`
-Read the survey handoffs at:
-- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_table\handoff.md` (Sections 1.3, 1.4, 4.3, 4.4, 4.5)
-- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey\handoff.md` (Streams 3, 4, 5, 6)
+MANDATORY INPUTS (You MUST read before starting work):
+- `ORIGINAL_REQUEST.md`: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
+- `PROJECT.md`: `d:\Shared_UserData\Downloads\tad\PROJECT.md`
+- Approved Plan: `C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md`
+- Mined Spec: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\specminer_survey_2\tauri_spec_report.md`
+- Reviewer 1 & 2 Handoffs:
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_m1_1\handoff.md`
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_m1_2\handoff.md`
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_m1_1\handoff.md`
 
-## MANDATORY INTEGRITY WARNING
+MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-## Write Ownership
-You EXCLUSIVELY own and modify:
-- `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\DataGrid.tsx`
-- `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\slickgrid.scss`
-DO NOT touch any other files.
+EXCLUSIVE WRITE OWNERSHIP:
+You own exclusively:
+- `tauri/project/src-tauri/Cargo.toml`
+- `tauri/project/src-tauri/build.rs`
+- `tauri/project/src-tauri/icons/`
+- `tauri/project/src-tauri/src/portable.rs`
+- `tauri/project/src-tauri/src/state.rs`
+- `tauri/project/src-tauri/src/logger.rs`
+- `tauri/project/src-tauri/src/commands/mod.rs`
+- `tauri/project/src-tauri/src/commands/system.rs`
+- `tauri/project/src-tauri/src/lib.rs`
+- `tauri/project/src-tauri/src/main.rs`
 
-## Detailed Requirements
-1. **Double-Click Auto-Fit Column Width (Stream 3)**:
-   - Intercept `dblclick` on `.slick-resizable-handle` in the header container (`containerElem`).
-   - Find target column from `closest(".slick-header-column")`.
-   - Read visible viewport rows (`grid.getViewport()`), measure longest formatted string using `getColumnFormatter(schema, colId)`.
-   - Calculate width: $w_{\text{fit}} = \text{clamp}(60, 500, \text{round}(\text{maxLen} \times 7.5 + 24))$.
-   - Apply `grid.setColumns(updatedCols)` and update `tadProps._gridState.colWidthsMap[colId]`.
-2. **Floating In-Place Active Cell Wrap (Stream 4)**:
-   - Critical Caveat: `.slick-cell` has `contain: strict;`. You MUST override with `contain: none !important;`!
-   - In `grid.onActiveCellChanged`: check if active cell text overflows (`scrollWidth > clientWidth || textLen > 28`).
-   - If overflowing: attach `.slick-cell-active-expanded` to cell and `.slick-row-has-expanded` to parent row.
-   - CSS rules in `slickgrid.scss`:
-     ```scss
-     .slick-row.slick-row-has-expanded {
-       overflow: visible !important;
-       z-index: 25 !important;
-     }
-     .slick-cell.slick-cell-active-expanded {
-       position: absolute !important;
-       z-index: 20 !important;
-       contain: none !important;
-       height: auto !important;
-       min-height: 24px !important;
-       max-height: 180px !important;
-       overflow-y: auto !important;
-       white-space: normal !important;
-       word-break: break-word !important;
-       box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+TASK OBJECTIVES (Features F03, F04, F05, F06):
+1. Build script & Assets:
+   - Add `[build-dependencies]` with `tauri-build = { version = "2", features = [] }` to `Cargo.toml`.
+   - Create `src-tauri/build.rs` calling `tauri_build::build()`.
+   - Copy or ensure `src-tauri/icons/icon.ico` (from `tad-master/resources/toad.ico` or create standard 32x32/16x16 icon) so Tauri's Windows resource compiler succeeds.
+2. Portable Environment & Config (`src-tauri/src/portable.rs`):
+   - Determine executable directory using `std::env::current_exe()`.
+   - Detect or generate `toadAppData_[5chars]` (e.g. hash of machine or path).
+   - Create subdirectories: `temp/`, `logs/`.
+   - Load and parse `config.ini` (with default settings: threads, memory limit, log level).
+   - Implement `clean_temp_dir()` to clean up dangling temporary parquet caches on startup.
+3. Concurrency AppState & Panic Guard (`src-tauri/src/state.rs` & `logger.rs`):
+   - Implement `AppState`:
+     ```rust
+     pub struct AppState {
+         pub portable_dir: std::path::PathBuf,
+         pub config: std::sync::Arc<tokio::sync::RwLock<ToadConfig>>,
+         // Stubs/placeholders ready for DuckDB, Ledger, and IngestQueue in M3-M5
      }
      ```
-   - Coordinate Preservation: Row top positions remain strictly invariant (`top = i * 24px`).
-   - Dismissal: Subscribe to `grid.onScroll`, `grid.onViewportChanged`, active cell change, and `Escape` key to immediately remove `.slick-cell-active-expanded`.
-3. **CSS Design System & Themes (Stream 5)**:
-   - Resizer handle hover/drag line: `rgba(2, 132, 199, 0.75)` in Light theme; `rgba(56, 189, 248, 0.85)` in Dark theme.
-   - Custom slim scrollbars (4px, 2px radius) on expanded cells.
-4. **Event Isolation & Cleanup (Stream 6)**:
-   - Ensure header resizer dblclick does not trigger sort.
-   - `Escape` key dismisses floating active cell.
+   - Set up `logger.rs` using `tracing-subscriber` logging to both stdout and `toadAppData/logs/toad.log`.
+   - Implement structured error response DTOs (`ErrorResponse { code, message, details }`).
+4. Native Plugins Registration (`src-tauri/src/lib.rs`):
+   - Register `tauri_plugin_single_instance::init` FIRST on `tauri::Builder` (forwarding CLI args via event `toad:single-instance-open`).
+   - Register `tauri_plugin_window_state::Builder::default().build()`.
+   - Register `tauri_plugin_dialog::init()`.
+   - Register `tauri_plugin_opener::init()`.
+   - Register `tauri_plugin_clipboard_manager::init()`.
+   - Register `tauri_plugin_fs::init()`.
+5. Command Dispatcher & Aliases (`src-tauri/src/commands/mod.rs` & `system.rs`):
+   - Register handlers for:
+     - `toad:init_main`
+     - `toad:get_config`
+     - `toad:open_file_dialog` / `plugin:dialog|open`
+     - `toad:write_clipboard` / `plugin:clipboard|write_text`
+     - `toad:open_url` / `plugin:opener|open_url`
+     - Query and project stubs responding with clear typed DTOs until M3/M4 hook them up.
+   - Support both namespaced (`toad:eval_query`) and direct aliases (`evalQuery`).
+6. Verification & Version Control:
+   - Run `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml` and verify 100% pass.
+   - Run `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml`.
+   - Check status and commit via `C:\Users\huydq\.cargo\bin\jj.exe commit -m "feat(core): implement AppState, portable environment, and Tauri command router"` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
 
-## Verification
-- Compile TypeScript / verify no syntax errors (`npx tsc --noEmit` in `packages/toadviewer`).
-- Write complete implementation handoff to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md`.
+OUTPUT:
+Write your completion handoff report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md`.
+Update `progress.md` after each step.
+Notify orchestrator when complete.
 
-
-## 2026-11-04T15:37:32Z
-You are the teamwork_worker for Milestone 2 (Main DataGrid Auto-Fit & Floating Cell Wrap).
-Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2
-Read your task dispatch file at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\DISPATCH.md
-Read the authoritative user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-Read the project master plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-Read the detailed survey blueprints at:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_ui_table\handoff.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey\handoff.md
-
-Implement Streams 3, 4, 5, 6 for the Main DataGrid in:
-- tad-master/packages/toadviewer/src/components/DataGrid.tsx
-- tad-master/packages/toadviewer/src/slickgrid.scss
-
-Pay special attention to overriding `contain: strict;` on `.slick-cell-active-expanded` with `contain: none !important;` and ensuring virtual row coordinate invariance.
-Follow all instructions in DISPATCH.md strictly. Ensure genuine implementation and verify type safety.
-Write your complete handoff report to: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md
-When finished, notify me using send_message.
+## 2026-11-04T19:44:01Z
+**Context**: Milestone 2 Unit Test Verification Support
+**Content**: Checking in on your verification progress. If running unit tests on the full Tauri builder requires a live GUI window or WebView runtime, remember that:
+1. `portable::ensure_portable_environment` and config parsing can be tested in standard headless unit tests.
+2. Command dispatching and JSON serialization can be tested via pure unit tests on handlers.
+3. `cargo check` and headless unit tests verify 100% of the Rust core logic.
+**Action**: Please update progress.md with your current status or finalize your handoff.

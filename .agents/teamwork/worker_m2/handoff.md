@@ -1,123 +1,136 @@
-# Handoff Report: Milestone 2 — Main DataGrid Auto-Fit Column Width & Floating In-Place Active Cell Wrap (Streams 3, 4, 5, 6)
+# Handoff Report: Milestone 2 — Rust Core Engine & OS Plugins (Features F03, F04, F05, F06)
 
 ## 1. Observation
 
 Direct observations from the codebase, modifications, and verification commands:
 
-1. **Target Files Exclusively Owned & Modified**:
-   - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\DataGrid.tsx`
-   - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\slickgrid.scss`
+1. **Exclusively Owned Targets Created and Implemented**:
+   - `tauri/project/src-tauri/Cargo.toml`:
+     - Added `tauri-build = { version = "2", features = [] }` under `[build-dependencies]`.
+     - Configured `[lib]` with `crate-type = ["staticlib", "rlib"]` and `test = false` to eliminate Windows 16-bit PE exported symbol overflow (123,176 symbols on `cdylib`) and route test execution through native binary harnesses.
+     - Enabled features `["env-filter", "fmt"]` on `tracing-subscriber`.
+   - `tauri/project/src-tauri/build.rs`:
+     - Invokes `tauri_build::build()`.
+     - Appends `cargo:rustc-link-arg=--delayload=comctl32.dll` to prevent Windows Common-Controls entrypoint lookup hazards on headless CLI and test executions.
+   - `tauri/project/src-tauri/icons/`:
+     - Populated standard multi-resolution Windows icon assets (`icon.ico` - 132,230 bytes; `icon.png` - 88,596 bytes) sourced from `tad-master/packages/toad-app/buildRes/`.
+   - `tauri/project/src-tauri/src/portable.rs`:
+     - Implemented `resolve_portable_dir` with support for optional base paths and fallback to current executable directory via `std::env::current_exe()`.
+     - Implemented deterministic `toadAppData_[5chars]` path detection and generation using MD5 hashing of canonical paths with collision-resistant reuse.
+     - Created directory tree initialization: `temp/`, `logs/`, `config.ini`.
+     - Implemented full INI parser (`parse_ini`) and serializer (`serialize_ini`) handling sections, comments, whitespace, and typed values.
+     - Implemented config auto-healing in `load_or_create_config` that recovers from missing, corrupted, or invalid configuration files with standard defaults.
+     - Implemented `clean_temp_dir()` which cleans up dangling temporary `.parquet` and `.tmp` caches on startup while strictly preserving critical persistent files such as `toad_ledger.parquet`.
+   - `tauri/project/src-tauri/src/state.rs`:
+     - Implemented `AppState` holding `portable_dir: PathBuf`, `config: Arc<RwLock<ToadConfig>>`, and prepared placeholder fields for DuckDB session manager (`duckdb_session`), ledger storage (`ledger`), and ingestion queue (`ingest_queue`).
+     - Implemented thread-safe `get_config()` and `update_config()` with atomic file persistence to `config.ini`.
+   - `tauri/project/src-tauri/src/logger.rs`:
+     - Implemented `init_logger()` configuring dual-target tracing subscriber (simultaneous non-blocking output to `stdout` and rotating log file at `toadAppData/logs/toad.log`).
+     - Installed global panic hook logging unhandled panic traces to `toadAppData/logs/panic.log` before aborting.
+     - Implemented standard structured error DTO `ErrorResponse` with code, message, optional details JSON, and convenience constructors (`new`, `with_details`, `not_implemented`, `invalid_argument`, `io_error`, `internal_error`).
+   - `tauri/project/src-tauri/src/commands/system.rs`:
+     - Implemented system handlers: `handle_init_main`, `handle_get_config`, `handle_open_file_dialog`, `handle_write_clipboard`, `handle_open_url`, `handle_new_window`.
+   - `tauri/project/src-tauri/src/commands/mod.rs`:
+     - Implemented central command router `dispatch_invoke()` supporting both namespaced commands (`toad:*`, `project:*`, `engine:*`) and backward-compatible legacy aliases (`initMain`, `getToadConfig`, `evalQuery`, `rowCount`, `getTableSchema`, `runSqlQueryArrow`, `newWindowFromDSPath`, etc.).
+     - Implemented DTO stubs returning Arrow IPC continuation stream markers (`0xFFFFFFFF00000000`), workspace metadata, cache metrics, and engine status ready for Milestones M3-M5.
+   - `tauri/project/src-tauri/src/lib.rs`:
+     - Configured Tauri v2 application builder registering native plugins in strict order:
+       1. `tauri_plugin_single_instance::init` (first; forwards CLI arguments via `toad:single-instance-open` event and focuses window).
+       2. `tauri_plugin_window_state::Builder::default().build()`.
+       3. `tauri_plugin_dialog::init()`.
+       4. `tauri_plugin_opener::init()`.
+       5. `tauri_plugin_clipboard_manager::init()`.
+       6. `tauri_plugin_fs::init()`.
+     - Attached managed `AppState` and custom `invoke_handler(commands::dispatch_invoke())`.
+   - `tauri/project/src-tauri/src/main.rs`:
+     - Configured Windows release subsystem (`windows_subsystem = "windows"`).
+     - Embedded 10 comprehensive unit tests covering all M2 subsystems.
+   - `tauri/project/src-tauri/tests/core_tests.rs`:
+     - Added 6 integration tests verifying portable environment, suffix hashing, INI round-trip, config healing, logger initialization, and multithreaded concurrency.
 
-2. **Containment & CSS Rules in `slickgrid.scss`**:
-   - Baseline `.slick-cell` at line 68 previously had `contain: strict;` which clipped all visual overflows.
-   - Added styles for `.slick-header-column .slick-resizable-handle` with hover/drag divider line (`rgba(2, 132, 199, 0.75)` in Light theme and `rgba(56, 189, 248, 0.85)` in Dark theme).
-   - Added `body.col-resizing` cursor rule (`cursor: col-resize !important; user-select: none !important;`).
-   - Added `.slick-row.slick-row-has-expanded` and `.slick-row.slick-row-active-expanded` with `overflow: visible !important; z-index: 25 !important;`.
-   - Added `.slick-cell.slick-cell-active-expanded` with `position: absolute !important; z-index: 20 !important; contain: none !important; height: auto !important; min-height: 24px !important; max-height: 180px !important; overflow-y: auto !important; white-space: normal !important; word-break: break-word !important; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;`.
-   - Added custom slim scrollbars (4px, 2px radius) for expanded cells in both Light and Dark themes.
+2. **Verification Command Results**:
+   - `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml`:
+     ```
+     Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.74s
+     (0 errors, 0 warnings)
+     ```
+   - `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml`:
+     ```
+     Running unittests src\main.rs (tauri\project\src-tauri\target\debug\deps\toad-24b8527855390756.exe)
 
-3. **Auto-Fit & Lifecycle Hooks in `DataGrid.tsx`**:
-   - Implemented `export const autoFitGridColumn = (grid: any, colId: string, props?: DataGridProps): number => { ... }` scanning visible rows between `vp.top` and `vp.bottom`, formatting values with `getColumnFormatter`, and calculating $w_{\text{fit}} = \text{clamp}(60, 500, \text{round}(\text{maxLen} \times 7.5 + 24))$.
-   - In `createGrid`, attached `dblclick` listener on `containerElem` in capture phase (`true`) checking `target.classList.contains("slick-resizable-handle")`, stopping propagation (`e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();`) so column sorting is not triggered.
-   - Implemented floating cell expansion lifecycle: `tryExpandCell(row, cell)` triggers when `scrollWidth > clientWidth || textLen > 28`, attaching `.slick-cell-active-expanded` to cell and `.slick-row-has-expanded` to row.
-   - Implemented `dismissFloatingCell()` subscribed to `grid.onScroll`, `grid.onViewportChanged`, `grid.onActiveCellChanged`, and window/grid `Escape` key event (`e.key === "Escape"`).
-   - Attached methods `expandActiveCell`, `dismissFloatingCell`, and `autoFitColumn` to grid instance.
-   - Preserved virtual scroll coordinate invariance: row DOM positions remain `top = i * 24px` with zero drift.
+     running 10 tests
+     test tests::test_command_alias_routing_coverage ... ok
+     test tests::test_ini_parser_and_serializer_roundtrip ... ok
+     test tests::test_app_data_detection_and_creation ... ok
+     test tests::test_system_command_handlers ... ok
+     test tests::test_ensure_portable_environment_complete_tree ... ok
+     test tests::test_logger_initialization_and_error_dto ... ok
+     test tests::test_portable_directory_resolution ... ok
+     test tests::test_clean_temp_dir_preserves_ledger ... ok
+     test tests::test_app_state_concurrency ... ok
+     test tests::test_config_load_and_auto_healing ... ok
 
-4. **Verification Command Results**:
-   - `cd tad-master/packages/toadviewer; npx tsc --noEmit`:
+     test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\core_tests.rs (tauri\project\src-tauri\target\debug\deps\core_tests-47905282ae5d496c.exe)
+
+     running 6 tests
+     test test_suffix_generation ... ok
+     test test_error_response_dto ... ok
+     test test_clean_temp_preserves_ledger ... ok
+     test test_ini_roundtrip ... ok
+     test test_logger_setup ... ok
+     test test_app_state_concurrency ... ok
+
+     test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Doc-tests toad_lib
+
+     running 0 tests
+
+     test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
      ```
-     Command exited with code 0.
-     No output from the command.
-     ```
-   - `node tests/unit/test_datagrid_floating_wrap.js`:
-     ```
-     ======================================================================
-       UNIT TEST: DataGrid Double-Click Auto-Fit & Floating Cell Wrap     
-     ======================================================================
-       ✔ [PASS] TEST 2.1: SlickGrid Resizer Handle Double-Click Binding (stops propagation to sort)
-       ✔ [PASS] TEST 2.2: Auto-Fit Column Width Math from visible viewport (round(maxLen * 7.5 + 24))
-       ✔ [PASS] TEST 2.3: Header Title Width Protection (preserves column title without truncation)
-       ✔ [PASS] TEST 2.4: Lower Bound Clamping (MINCOLWIDTH = 60px strictly enforced)
-       ✔ [PASS] TEST 2.5: Upper Bound Clamping (MAXCOLWIDTH = 500px strictly enforced)
-       ✔ [PASS] TEST 2.6: Floating Active Cell Expansion Trigger (.slick-cell-active-expanded applied)
-       ✔ [PASS] TEST 2.7: Non-Overflowing Cell Clean Selection (short text stays standard single-line)
-       ✔ [PASS] TEST 2.8: Layer Isolation (z-index: 20 & contain: none !important override)
-       ✔ [PASS] TEST 2.9: Visual Prominence & Blueprint Theme (border & shadow 0 4px 14px rgba(0,0,0,0.15))
-       ✔ [PASS] TEST 2.10: Dynamic Text Wrap Formatting (white-space: normal, word-break: break-word)
-       ✔ [PASS] TEST 2.11: Max-Height (180px) & Scrollability (max-height: 180px & overflow-y: auto)
-       ✔ [PASS] TEST 2.12: Virtual Scroll Coordinate Invariance (top = rowIndex * 24px strictly constant)
-       ✔ [PASS] TEST 2.13: Grid Scroll Dismissal (grid.onScroll immediately collapses floating cell)
-       ✔ [PASS] TEST 2.14: Escape Key Dismissal (Escape keydown collapses floating expanded cell)
-       ✔ [PASS] TEST 2.15: Active Cell Navigation Dismissal (arrow keys / click switches collapse previous cell)
-     ======================================================================
-       DATAGRID FLOATING WRAP SUITE SUMMARY: 15/15 PASSED
-     ======================================================================
-     ```
-   - `node tests/qa/test_grid_wrap_concurrency_stress.js`:
-     ```
-     ======================================================================
-        QA CONCURRENCY STRESS SUITE: 100K Rows Virtual Scroll & Grid Wrap  
-     ======================================================================
-       ✔ [PASS] TEST 3.1: 100K Rows In-Memory Virtual Viewport stability (O(1) access across 100K rows) - 0.241ms
-       ✔ [PASS] TEST 3.2: Absolute Coordinate Grid Invariance (top = i * 24px strictly constant across 100K rows) - 0px drift across 10K samples
-       ✔ [PASS] TEST 3.3: Rapid Random Cell Expansion Stress (100 random cells expanded/collapsed without drift) - 100 expanded in 0.77ms
-       ✔ [PASS] TEST 3.4: Viewport High-Speed Scroll Under Active Expansion (1,000 scroll jumps with instant dismissal) - 0 orphans detected
-       ✔ [PASS] TEST 3.5: Virtual Scroll Latency & FPS Target Benchmark (> 55 FPS target) - Avg Latency: 0.009ms | FPS: 114930.6
-       ✔ [PASS] TEST 3.6: Concurrent Column Resizing During Active Virtual Scroll (200 cycles concurrent resize)
-       ✔ [PASS] TEST 3.7: Memory Leak Guard (< 25 MB heap delta over 1,000 cycles) - Delta: 0.51 MB
-       ✔ [PASS] TEST 3.8: Multi-Column Long Text Isolation (only active cell expands, neighbors remain compact)
-       ✔ [PASS] TEST 3.9: Extreme Payload Cell Wrap Stress (50KB payload wrapped in < 16ms budget) - Completed in 0.007ms
-       ✔ [PASS] TEST 3.10: Zero Unhandled Exceptions Audit (0 errors across 100K stress operations)
-     ======================================================================
-       GRID WRAP CONCURRENCY STRESS SUMMARY: 10/10 PASSED
-     ======================================================================
-     ```
-   - `node tests/test_parse_columns_datagrid_refresh.js`: 18/18 PASSED cleanly.
-   - `node run_tests.js --unit`: 126/126 PASSED cleanly across all 5 unit suites.
+     **Summary: 16/16 tests passed (100% pass rate).**
 
 ---
 
 ## 2. Logic Chain
 
-1. **Auto-Fit Viewport Calculation (Observation 3)**:
-   - SlickGrid header column resizers render `.slick-resizable-handle`.
-   - Intercepting `dblclick` in capture phase isolates the event from SlickGrid's default sort behavior (`e.stopPropagation(); e.preventDefault()`).
-   - Querying `grid.getViewport()` restricts calculation to visible rows ($v_{\text{top}}$ to $v_{\text{bottom}}$), guaranteeing $O(\text{viewport})$ complexity (< 1ms even on 100K-row datasets).
-   - Clamping rule $\text{clamp}(60, 500, \text{round}(\text{maxLen} \times 7.5 + 24))$ ensures columns never collapse below 60px or exceed 500px.
-   - Updating `grid.setColumns` and `colWidthsMap` persists the new width across renders without triggering a full canvas DOM rebuild.
+1. **Portable Directory & Auto-Healing**:
+   - `resolve_portable_dir` uses `std::env::current_exe()` to find the host executable path and resolves `toadAppData_[5chars]` adjacent to it.
+   - Deterministic 5-character suffix calculation ensures multiple runs in the same folder reuse the identical configuration and cache directory without generating redundant folders.
+   - If `config.ini` is missing or corrupted, `load_or_create_config` catches parse errors, instantiates defaults, and writes a clean config file, preventing startup crashes.
+   - Startup cleanup in `clean_temp_dir()` iterates through `temp/` and unlinks `.parquet` and `.tmp` files but specifically checks file names to guarantee `toad_ledger.parquet` is never removed.
 
-2. **Containment Override and Floating Wrap (Observation 2 & 3)**:
-   - SlickGrid's `.slick-cell` employs `contain: strict;` for virtual canvas rendering performance, which enforces paint containment and clips overflowing content at 24px.
-   - Adding `.slick-cell.slick-cell-active-expanded` with `contain: none !important;` explicitly overrides paint containment for the active cell.
-   - Setting `.slick-row.slick-row-has-expanded` to `overflow: visible !important; z-index: 25 !important;` allows the floating card to pop out of row boundaries and render over subsequent rows with soft shadow (`0 4px 14px rgba(0, 0, 0, 0.15)`).
-   - Text overflows wrap cleanly with `white-space: normal !important; word-break: break-word !important; max-height: 180px !important; overflow-y: auto !important;` with 4px custom slim scrollbars.
+2. **Concurrency & Thread Safety**:
+   - `AppState` wraps `ToadConfig` in `Arc<RwLock<ToadConfig>>` with Tokio asynchronous locks.
+   - Multiple concurrent tasks can read configuration simultaneously while atomic updates serialize disk writes without blocking worker threads.
 
-3. **Virtual Row Coordinate Preservation (Observation 3 & 4)**:
-   - The DOM row height and inline style `top = i * 24px` remain unchanged because the active cell is positioned with `position: absolute !important; top: 0;`.
-   - Scrolling coordinates remain strictly invariant, eliminating jitter, displacement, or drift across virtual scroll buffers.
+3. **Linker & Windows Architecture Root Cause Resolution**:
+   - Problem 1: `crate-type = ["cdylib"]` combined DuckDB, Arrow, and Tauri into 123,176 exported symbols, exceeding Windows PE 16-bit export limit (65,535). Switching to `["staticlib", "rlib"]` resolved symbol overflow.
+   - Problem 2: `tauri-plugin-dialog` pulls `rfd`, which links `comctl32.dll` importing `TaskDialogIndirect`. Without Comctl32 v6 manifest loaded on startup, Windows NT dynamic loader raised `STATUS_ENTRYPOINT_NOT_FOUND` (`0xc0000139`).
+   - Resolution: Added `--delayload=comctl32.dll` in `build.rs` via `cargo:rustc-link-arg=--delayload=comctl32.dll`. This prevents Windows NT loader from resolving `TaskDialogIndirect` on binary launch, allowing 100% of headless unit tests and CLI executions to run cleanly and instantly without requiring live GUI dialog initialization.
 
-4. **Dismissal Lifecycle (Observation 3 & 4)**:
-   - Fast $O(1)$ removal of `.slick-cell-active-expanded` and `.slick-row-has-expanded` on `grid.onScroll` (< 0.01ms latency, > 55 FPS verified) ensures the floating card never detaches or leaves orphaned overlays during fast scrolling.
-   - Escape key listeners on both the grid and `window` ensure accessibility and collapse on keyboard navigation.
+4. **Backward-Compatible Command Dispatching**:
+   - The invoke dispatcher in `commands/mod.rs` normalizes commands so frontend calls using either canonical namespaced identifiers (`toad:eval_query`) or legacy Tad Electron names (`DataSourceConnection.evalQuery`, `evalQuery`) reach the same handlers without frontend code breakage.
 
 ---
 
 ## 3. Caveats
 
-- **Smoke Test `app.asar` Dependency**: The standalone `tests/smoke_test.js` checks for unpacked release asset `win-unpacked/resources/app.asar`. In unpacked development mode prior to Milestone 4 packaging, that file is not present. All 40 unit and concurrency stress tests in `test_datagrid_floating_wrap.js`, `test_grid_wrap_concurrency_stress.js`, and `test_project_files_table_wrap_resize.js` operate independently and pass 100%.
-- **No other caveats**: Implementation satisfies all interface contracts and architectural invariants without side effects.
+- **Full WebView Runtime in Unit Tests**: Unit tests operate in headless mode and verify portable file systems, configuration auto-healing, concurrency, error responses, and command alias routing. End-to-end WebView rendering requires an interactive desktop session.
+- **Milestone M3-M5 Engine Stubs**: Database query evaluation, project worksheet CRUD, and event forensic log ingestion currently return compliant DTO stubs until squads M3, M4, and M5 hook their respective engine implementations.
 
 ---
 
 ## 4. Conclusion
 
-Milestone 2 (Main DataGrid Auto-Fit & Floating Cell Wrap) is 100% complete:
-- Streams 3, 4, 5, and 6 are fully implemented in `DataGrid.tsx` and `slickgrid.scss`.
-- `contain: strict;` is properly overridden with `contain: none !important;` on `.slick-cell-active-expanded`.
-- Virtual scroll coordinate invariance (`top = i * 24px`) is strictly preserved under 100K-row stress testing.
-- Event isolation prevents sort triggering during resizer double-clicks, and Escape key / scroll dismissal functions flawlessly.
-- Zero TypeScript compiler errors and 100% test pass rate achieved across unit and stress test suites.
+Milestone M2 (Squad 2: Rust Core Engine & OS Plugins) is **100% COMPLETE**:
+- Portable directory resolution, `config.ini` management, and temp cleanup are fully operational.
+- Concurrency `AppState`, panic logging, and dual-target tracing subscriber are established.
+- All required native Tauri v2 plugins are registered in correct priority order with single-instance registered first.
+- Complete command dispatcher with canonical routing and legacy aliases is wired up.
+- All 16 unit and integration tests pass with 0 errors and 0 warnings.
 
 ---
 
@@ -125,28 +138,20 @@ Milestone 2 (Main DataGrid Auto-Fit & Floating Cell Wrap) is 100% complete:
 
 To independently verify this milestone:
 
-1. **Verify TypeScript Compilation**:
+1. **Verify Rust Core Compilation**:
    ```powershell
-   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
-   cd tad-master\packages\toadviewer
-   npx tsc --noEmit
+   cargo check --manifest-path tauri/project/src-tauri/Cargo.toml
    ```
-   *Expected*: Exit code 0, 0 errors.
+   *Expected outcome*: Exits with code 0, 0 errors, 0 warnings.
 
-2. **Run DataGrid Floating Wrap Unit Suite (15 Test Cases)**:
+2. **Verify Full Unit & Integration Test Suite**:
    ```powershell
-   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
-   node tests/unit/test_datagrid_floating_wrap.js
+   cargo test --manifest-path tauri/project/src-tauri/Cargo.toml
    ```
-   *Expected*: `DATAGRID FLOATING WRAP SUITE SUMMARY: 15/15 PASSED`.
+   *Expected outcome*: Exits with code 0, 16 passed, 0 failed.
 
-3. **Run 100K Rows Virtual Scroll Concurrency Stress Suite (10 Test Cases)**:
+3. **Verify Version Control Status**:
    ```powershell
-   $env:PATH = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"
-   node tests/qa/test_grid_wrap_concurrency_stress.js
+   & 'C:\Users\huydq\.cargo\bin\jj.exe' status
    ```
-   *Expected*: `GRID WRAP CONCURRENCY STRESS SUMMARY: 10/10 PASSED`.
-
-4. **Verify Files Modified**:
-   - `tad-master/packages/toadviewer/src/components/DataGrid.tsx`
-   - `tad-master/packages/toadviewer/src/slickgrid.scss`
+   *Expected outcome*: All modified files tracked in working copy under commit parent `cd863254`.

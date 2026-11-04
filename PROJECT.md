@@ -52,8 +52,8 @@ Toad v2.5.1 is an enterprise-grade forensic data analysis and log exploration to
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Scaffolding, Toolchain & Jujutsu Setup | F01, F02 | none | IN_PROGRESS |
-| M2 | Rust Core Engine & OS Plugins | F03, F04, F05, F06 | M1 | PLANNED |
+| M1 | Scaffolding, Toolchain & Jujutsu Setup | F01, F02 | none | DONE |
+| M2 | Rust Core Engine & OS Plugins | F03, F04, F05, F06 | M1 | IN_PROGRESS |
 | M3 | DuckDB Engine & Arrow IPC Protocol | F07, F08, F09, F10, F11, F12 | M2 | PLANNED |
 | M4 | Parquet State Ledger WAL & Workspace | F13, F14, F15, F16, F17 | M2, M3 | PLANNED |
 | M5 | Forensics & Ingestion Pipelines | F18, F19, F20, F21, F22 | M3, M4 | PLANNED |

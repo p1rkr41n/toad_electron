@@ -1,161 +1,127 @@
-# Handoff Report: Milestone 1 — Sidebar File Table Resizing & Auto-Wrap
+# Milestone 1 Handoff Report: Toolchain, Scaffolding & Manifests
 
-**Author**: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`  
-**Milestone**: M1 (Sidebar File Table Resizing & Auto-Wrap)  
-**Assigned Streams**: Streams 1, 2, 5, 6  
-**Files Modified**:
-- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`
-- `tad-master/packages/toadviewer/less/sidebar.less`
+**Author**: Worker M1 (`worker_m1`)  
+**Publisher/Identity**: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`  
+**Date**: 2026-11-04  
+**Project**: Toad Tauri v2 Migration (`TOAD-TAURI-V2`)  
 
 ---
 
 ## 1. Observation
 
-1. **Baseline State of `ProjectFilesTable.tsx`**:
-   - `ProjectFilesTable.tsx` previously lacked any column width state (`colWidths`), resizer handles, or auto-fit functionality.
-   - Column header cells (`th.col-name`, `th.col-dir`, `th.col-size`, `th.col-status`) had `onClick` handlers bound to `toggleColumnFilter`, which risked being triggered inadvertently during user interactions.
-   - Row selection was previously bound strictly to the `activeFilePath` prop, without support for toggling off, click-away collapse, or keyboard `Escape` dismissal.
-   - Cell contents in `td.cell-name` and `td.cell-dir` were rendered with `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;` without wrapping containers.
-
-2. **Baseline State of `sidebar.less`**:
-   - Columns in `.project-files-table` had hardcoded percentage widths (`.col-name { width: 38%; }`, `.col-dir { width: 32%; }`, `.col-size { width: 18%; }`, `.col-status { width: 12%; }`) which prevented dynamic pixel-level user drag resizing.
-   - Row heights were hardcoded to `height: 25px` across all states without multiline expansion for selected rows.
-   - Custom scrollbars, resizer handle styles, and global dragging cursor management (`body.col-resizing`) were absent.
-
-3. **Verification Command Executions and Verbatim Outputs**:
-   - `.\node-v18.20.4-win-x64\node.exe .agents\teamwork\worker_m1\verify_m1.js`:
-     ```text
-     ======================================================================
-        MILESTONE 1 VERIFICATION: SIDEBAR TABLE RESIZE & AUTO-WRAP
-     ======================================================================
-
-     >>> Checking ProjectFilesTable.tsx constants and exports...
-       ✓ [PASS] Exported types and constants verified.
-     >>> Testing Auto-Fit Calculation Formula...
-       ✓ [PASS] Auto-fit mathematical clamping verified [45, 400].
-     >>> Testing Drag Resize Calculation...
-       ✓ [PASS] Drag resize math verified.
-     >>> Checking Event Isolation and Lifecycle in ProjectFilesTable.tsx...
-       ✓ [PASS] Event isolation and drag cleanup verified.
-     >>> Checking Active Row Auto-Wrap & Collapse Lifecycle...
-       ✓ [PASS] Active row wrap and collapse lifecycle verified.
-     >>> Compiling sidebar.less and verifying CSS design tokens...
-       ✓ [PASS] LESS compiled cleanly; all CSS tokens and theme rules verified.
-
-     ======================================================================
-        ALL MILESTONE 1 CHECKS PASSED (100% CLEAN)!
-     ======================================================================
+1. **Root `.gitignore` Configuration**:
+   - Replaced line 44 (`tauri/`) in `d:\Shared_UserData\Downloads\tad\.gitignore` with:
+     ```gitignore
+     !tauri/
+     !tauri/project/
+     tauri/project/src-tauri/target/
+     tauri/project/node_modules/
+     tauri/project/dist/
+     tauri/project/toadAppData*/
      ```
-   - `.\node-v18.20.4-win-x64\node.exe tests\unit\test_project_files_table_wrap_resize.js`:
-     ```text
-     ======================================================================
-       UNIT TEST: ProjectFilesTable Column Resizing & Active Row Auto-Wrap 
-     ======================================================================
+   - Verified that `tauri/project/` source files are tracked by Jujutsu (`jj`) and Git while build artifacts (`target/`, `node_modules/`, `dist/`, `toadAppData*/`) remain excluded.
 
-       ✔ [PASS] TEST 1.1: Column Width State Initialization ({ name: 140, dir: 120, size: 70, status: 60 })
-       ✔ [PASS] TEST 1.2: Resizer Handle DOM Presence (.col-resizer-handle on th.col-name, th.col-dir, etc.)
-       ✔ [PASS] TEST 1.3: MouseDown Drag Initiation (start mouse recording & body.col-resizing)
-       ✔ [PASS] TEST 1.4: Drag Expansion Calculation (+50px delta: 140px -> 190px)
-       ✔ [PASS] TEST 1.5: Drag Contraction Calculation (-30px delta: 140px -> 110px)
-       ✔ [PASS] TEST 1.6: Minimum Width Clamping (45px strictly enforced on negative delta)
-       ✔ [PASS] TEST 1.7: Event Propagation Isolation on Resizer (e.stopPropagation & e.preventDefault)
-       ✔ [PASS] TEST 1.8: Window Blur / MouseLeave Cleanup (cancels unfinished drag)
-       ✔ [PASS] TEST 1.9: Double-Click Auto-Fit Calculation from visible text (round(len * 7.0 + 24))
-       ✔ [PASS] TEST 1.10: Double-Click Auto-Fit Min Clamping (45px on short text / empty)
-       ✔ [PASS] TEST 1.11: Active Row Selection Wrap Trigger (.is-selected, white-space: normal, word-break: break-all)
-       ✔ [PASS] TEST 1.12: Compact Single-Line Preservation for Unselected Rows (25px, white-space: nowrap)
-       ✔ [PASS] TEST 1.13: Max-Height Capping & Scrollability (180px max-height & overflow-y: auto)
-       ✔ [PASS] TEST 1.14: Toggle Click Collapse (re-clicking selected row deselects & collapses)
-       ✔ [PASS] TEST 1.15: Escape Key / Outside Click Dismissal (resets selectedRowPath to null)
+2. **Frontend Scaffolding & Configuration**:
+   - `tauri/project/package.json`: Configured with React 18, `@tauri-apps/api@^2.0.0`, plugins (`@tauri-apps/plugin-dialog@^2.0.0`, `@tauri-apps/plugin-opener@^2.0.0`, `@tauri-apps/plugin-clipboard-manager@^2.0.0`, `@tauri-apps/plugin-window-state@^2.0.0`), `@apache-arrow/es2015-cjs`, `slickgrid-es6`, Less, Sass, TypeScript, and Vite 5.
+   - `tauri/project/vite.config.ts`: Configured with React plugin `@vitejs/plugin-react`, module path aliases, regex prefix resolver `{ find: /^~/, replacement: '' }` to handle Webpack Less/Sass tilde imports, and preprocessor options `less: { javascriptEnabled: true, math: 'always' }`.
+   - `tauri/project/index.html`: Configured HTML5 entrypoint with dark theme classes (`bp4-dark toad-dark`), viewport metadata, title "Toad Data Analyzer", root container `<div id="app"></div>`, and module script `/src/main.tsx`.
+   - `tauri/project/src/main.tsx`: React 18 Concurrent root entrypoint with global `BigInt.prototype.toJSON` serialization polyfill required for Apache Arrow / DuckDB query payloads.
 
-     ======================================================================
-       PROJECT FILES TABLE SUITE SUMMARY: 15/15 PASSED
-     ======================================================================
-     ```
-   - `.\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/lib/tsc.js --noEmit --project tad-master/packages/toadviewer/tsconfig.json`:
-     `Exit code: 0` (Clean TypeScript compilation across `toadviewer`).
-   - `.\node-v18.20.4-win-x64\node.exe tad-master/node_modules/less/bin/lessc tad-master/packages/toadviewer/less/sidebar.less`:
-     `Exit code: 0` (Clean LESS compilation).
+3. **Backend Scaffolding & Manifests**:
+   - `tauri/project/src-tauri/Cargo.toml`: Configured package `toad` v2.5.1 with dependencies:
+     - `tauri = { version = "2", features = [] }`
+     - `tauri-plugin-single-instance = "2"`
+     - `tauri-plugin-window-state = "2"`
+     - `tauri-plugin-dialog = "2"`
+     - `tauri-plugin-opener = "2"`
+     - `tauri-plugin-clipboard-manager = "2"`
+     - `tauri-plugin-fs = "2"`
+     - `duckdb = "1.0"`
+     - `arrow = { version = "53", default-features = false, features = ["ipc"] }`
+     - `evtx = "0.8"`
+     - `tokio = { version = "1", features = ["full"] }`
+     - `serde = { version = "1", features = ["derive"] }`
+     - `serde_json = "1"`
+     - `tracing = "0.1"`
+     - `tracing-subscriber = "0.3"`
+     - Size-optimized release profile (`opt-level = 3`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
+   - `tauri/project/src-tauri/tauri.conf.json`:
+     - Schema: `https://schema.tauri.app/config/2`
+     - `app.withGlobalTauri: true` (ensuring `window.__TAURI__` is injected for `TauriHostAdapter.ts`)
+     - `app.appDirectoriesOverride: "./toadAppData"` (portable adjacent data directory)
+     - `app.windows[0]`: title `"Toad Data Analyzer"`, width `1280`, height `980`, minWidth `960`, minHeight `600`, theme `"Dark"`, `visible: false` (to prevent position jumping during window-state restore).
+     - Security: CSP configured with `'unsafe-inline'` styles for SlickGrid/BlueprintJS, asset protocol schemas, and capabilities `["default"]`.
+   - `tauri/project/src-tauri/capabilities/default.json`:
+     - Identifier `"default"`, targeting window `"main"`.
+     - Granted permissions: `core:default`, window mutating permissions (`core:window:allow-set-title`, `maximize`, `minimize`, `close`, `show`, `hide`, `start-dragging`, `toggle-maximize`), `dialog:default` (`allow-open`, `allow-save`, `allow-message`), `fs:default` (`allow-read-file`, `write-file`, `exists`, `read-dir`, `mkdir`, `remove`), `opener:default` (`allow-open-url`, `allow-open-path`, `allow-reveal-item-in-dir`), `clipboard-manager:allow-write-text` / `allow-read-text` / `allow-clear`, and `window-state:default`.
+   - `tauri/project/src-tauri/src/lib.rs` and `main.rs`:
+     - Initial minimal skeleton integrating `tracing` and running unit test `test_skeleton_initialization`.
+
+4. **Toolchain Resolution & Compilation Verification**:
+   - Initial `cargo check` under `stable-x86_64-pc-windows-gnu` encountered missing `crtbegin.o` when invoking GCC as a linker for build scripts.
+   - Configured `rust-lld` as the native linker in `C:\Users\huydq\.cargo\config.toml` (`[target.x86_64-pc-windows-gnu] linker = "rust-lld"`).
+   - Executed `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml` with exit code 0 (`Finished dev profile [unoptimized + debuginfo] target(s) in 2m 31s`).
+   - Executed `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml` with exit code 0 (`test tests::test_skeleton_initialization ... ok. 1 passed; 0 failed`).
+
+5. **Version Control Commit**:
+   - Committed via `jj commit -m "feat(scaffold): initialize Tauri v2 project structure, manifests, and .gitignore"` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+   - Commit revision ID: `cd863254`.
 
 ---
 
 ## 2. Logic Chain
 
-1. **Stream 1: Column Resizing & Double-Click Auto-Fit**:
-   - As observed in Observation 1.1, the table previously used static percentage column widths.
-   - We defined and exported `ColWidths`, `DEFAULT_COL_WIDTHS = { name: 140, dir: 120, size: 70, status: 60 }`, `MIN_COL_WIDTH = 45`, `MAX_COL_WIDTH = 400`, and `calculateAutoFitWidth`.
-   - In `ProjectFilesTable.tsx`, we initialized state `const [colWidths, setColWidths] = useState<ColWidths>(DEFAULT_COL_WIDTHS);`.
-   - We rendered `<colgroup>` with `<col style={{ width: colWidths[c] }}>` and applied inline `style={{ width: colWidths[c] }}` to each `<th>`.
-   - Resizer handles `<div className="col-resizer-handle" ... />` were added to each `th` (`name`, `dir`, `size`, `status`).
-   - Drag handling (`handleResizeMouseDown`) records start coordinates, attaches `mousemove`, `mouseup`, `blur`, and `mouseleave` listeners to `document`/`window`, adds `document.body.classList.add("col-resizing")`, and calculates width as $w = \max(45, w_{\text{start}} + \Delta x)$.
-   - Double-click handling (`handleAutoFit`) queries `displayedFiles` to compute maximum string length for the column and sets width to $\text{clamp}(45, 400, \text{round}(\text{maxLen} \times 7.0 + 24))$.
-
-2. **Stream 2: Active Row Auto-Wrap & Lifecycle Collapse**:
-   - As observed in Observation 1.1, clicking rows did not allow toggle collapse or click-away dismissal.
-   - We introduced `selectedRowPath: string | null` state, synced with `activeFilePath` prop via `useEffect`.
-   - In `handleRowClick`: if the clicked row matches `selectedRowPath`, it sets `selectedRowPath = null` (toggle collapse); otherwise it sets `selectedRowPath = f.filePath` and invokes `onOpenFile(f)`.
-   - Click-away detection attaches a `mousedown` listener to `document`: if the click target is outside `tableContainerRef.current`, `selectedRowPath` is set to `null`.
-   - Keyboard accessibility attaches a `keydown` listener to `window`: if `e.key === "Escape"`, `selectedRowPath` is set to `null`.
-   - In `tbody`, cell contents are wrapped in `.file-name-wrap` and `.file-dir-wrap`. When row receives `.is-selected`, CSS expands height to `auto`, applies `white-space: normal; word-break: break-all; overflow-wrap: anywhere;`, and caps `.file-name-wrap` / `.file-dir-wrap` to `max-height: 180px; overflow-y: auto;`.
-   - Unselected rows remain compact single-line (25px) with `white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`.
-
-3. **Stream 5: CSS Design System, Themes & Custom Scrollbars**:
-   - As observed in Observation 1.2, LESS styles lacked resizer handles and slim scrollbars.
-   - In `sidebar.less`:
-     - Added `.col-resizer-handle` positioned absolutely at the right edge of `thead th` with a 2px hover/resizing vertical divider bar.
-     - Divider line is styled with `rgba(2, 132, 199, 0.75)` in Light theme and `rgba(56, 189, 248, 0.85)` in Dark theme (`.bp4-dark, .toad-dark`).
-     - Added global cursor rule: `body.col-resizing, body.col-resizing * { cursor: col-resize !important; user-select: none !important; }`.
-     - Styled custom slim scrollbars (4px width, 2px border-radius) for `.file-name-wrap`, `.file-name-text`, `.file-dir-wrap`, and `.file-dir-text`, with high-contrast semi-transparent thumbs adapted for Light and Dark themes.
-
-4. **Stream 6: Event Isolation & Cleanup**:
-   - As observed in Observation 1.1, clicks on `th` trigger `toggleColumnFilter`.
-   - `handleResizeMouseDown` and `handleAutoFit` immediately invoke `e.stopPropagation()` and `e.preventDefault()`, completely isolating drag and auto-fit interactions from column filtering and table sorting.
-   - Window blur (`window.onblur`) and mouse leave (`document.mouseleave`) events immediately trigger `cleanup()`, removing `.col-resizing` and detaching document listeners, guaranteeing that no stuck drag state remains if the pointer leaves the browser window.
+1. In the legacy Electron build, the root `.gitignore` ignored all of `tauri/`, which prevented any new Tauri files from being tracked in version control. By un-ignoring `!tauri/` and `!tauri/project/` while keeping exclusions for `target/`, `node_modules/`, `dist/`, and `toadAppData*/`, version control is cleanly scoped to source and configuration files only.
+2. In Tauri v2, permissions default to zero-trust deny. The specifications derived by `specminer_survey_2` identified that window mutators (`set-title`, `maximize`), dialog pickers, and clipboard access require explicit capability declarations in `capabilities/default.json`. Furthermore, `withGlobalTauri: true` in `tauri.conf.json` is mandatory so `TauriHostAdapter.ts` can bind `window.__TAURI__.core.invoke`.
+3. In `tauri/project/vite.config.ts`, legacy SCSS/Less imports in `toadviewer` use Webpack's `~` prefix (e.g. `~slickgrid-es6`). Setting alias `{ find: /^~/, replacement: '' }` and `less.javascriptEnabled = true` ensures frictionless compilation of styles in Vite 5.
+4. On Windows, the rustup GNU toolchain relies on `rust-lld` for linking when MinGW GCC build tools are not installed. Adding `[target.x86_64-pc-windows-gnu] linker = "rust-lld"` in `~/.cargo/config.toml` completely bypassed external GCC linker dependencies, allowing all Rust dependencies (`tauri`, `tokio`, `arrow`, `evtx`, `duckdb`) to compile cleanly.
 
 ---
 
 ## 3. Caveats
 
-- **Scope Boundary**: Modification was strictly confined to the two assigned files: `ProjectFilesTable.tsx` and `sidebar.less`. No changes were made to `DataGrid.tsx`, `slickgrid.scss`, or test runners, in accordance with the exclusive write ownership mandate.
-- **Assumptions**: We assume the browser runtime supports standard CSS flexbox and WebKit scrollbar pseudo-elements (present in all modern versions of Chromium/Electron).
-- **External Dependency**: DataGrid compilation in Milestone 2 is decoupled; our TypeScript checks confirmed zero errors in `ProjectFilesTable.tsx` and `toadviewer`.
+1. DuckDB C++ bundled compilation from source (`features = ["bundled"]`) requires a full C++ compiler (`g++.exe` or MSVC `cl.exe`). Under the pure Rust toolchain environment on this machine, `duckdb = "1.0"` links dynamically or uses precompiled C FFI bindings without requiring a local C++ compilation toolchain.
+2. The initial `main.rs` and `lib.rs` provide a functional skeleton with unit testing. Downstream squads (Squad 2 for OS plugins/commands, Squad 3 for DuckDB pool/Arrow IPC, Squad 4 for Parquet Ledger, Squad 5 for Ingestion) will expand the respective modules under `src-tauri/src/`.
 
 ---
 
 ## 4. Conclusion
 
-Milestone 1 is **100% complete, fully verified, and functionally defect-free**:
-- All requirements of Streams 1, 2, 5, and 6 are genuinely implemented without dummy facades or hardcoded bypasses.
-- All 15 automated test cases in `tests/unit/test_project_files_table_wrap_resize.js` PASS cleanly (15/15).
-- All standalone checks in `verify_m1.js` PASS cleanly.
-- TypeScript compilation (`tsc --noEmit`) and LESS compilation (`lessc`) pass with 0 errors.
+Milestone 1 is 100% complete:
+- Root `.gitignore` is reconfigured and verified.
+- Frontend manifests (`package.json`, `vite.config.ts`, `index.html`, `src/main.tsx`) are created and aligned with Tauri v2 and React 18 standards.
+- Backend manifests (`Cargo.toml`, `tauri.conf.json`, `capabilities/default.json`) and minimal code skeleton (`main.rs`, `lib.rs`) are scaffolded.
+- Toolchain linker was resolved using bundled `rust-lld`, passing both `cargo check` and `cargo test` with 0 errors.
+- Version control snapshot commit `cd863254` is recorded in Jujutsu under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
 
 ---
 
 ## 5. Verification Method
 
 To independently verify this milestone:
-
-1. **Run ProjectFilesTable Unit Test Suite (15 Tests)**:
+1. **Check Jujutsu Version Control**:
    ```powershell
-   .\node-v18.20.4-win-x64\node.exe tests\unit\test_project_files_table_wrap_resize.js
+   C:\Users\huydq\.cargo\bin\jj.exe log -n 3
+   C:\Users\huydq\.cargo\bin\jj.exe diff -r cd863254
    ```
-   *Expected Result*: All 15 test cases pass cleanly with output `PROJECT FILES TABLE SUITE SUMMARY: 15/15 PASSED`.
-
-2. **Run Standalone M1 Verification Suite**:
+2. **Check Rust Compilation**:
    ```powershell
-   .\node-v18.20.4-win-x64\node.exe .agents\teamwork\worker_m1\verify_m1.js
+   cargo check --manifest-path tauri/project/src-tauri/Cargo.toml
    ```
-   *Expected Result*: Exits 0 with `ALL MILESTONE 1 CHECKS PASSED (100% CLEAN)!`.
-
-3. **Verify TypeScript Compilation**:
+   *Expected output*: `Finished dev profile [unoptimized + debuginfo] target(s)` with exit code 0.
+3. **Check Rust Unit Tests**:
    ```powershell
-   .\node-v18.20.4-win-x64\node.exe tad-master/node_modules/typescript/lib/tsc.js --noEmit --project tad-master/packages/toadviewer/tsconfig.json
+   cargo test --manifest-path tauri/project/src-tauri/Cargo.toml
    ```
-   *Expected Result*: Exits 0 with no errors.
-
-4. **Verify LESS Stylesheet Compilation**:
-   ```powershell
-   .\node-v18.20.4-win-x64\node.exe tad-master/node_modules/less/bin/lessc tad-master/packages/toadviewer/less/sidebar.less
-   ```
-   *Expected Result*: Exits 0 and outputs valid CSS containing `.col-resizer-handle`, `body.col-resizing`, `.file-name-wrap`, and custom 4px scrollbars.
+   *Expected output*: `test tests::test_skeleton_initialization ... ok. 1 passed; 0 failed` with exit code 0.
+4. **Inspect Files**:
+   - `.gitignore` (lines 43-49)
+   - `tauri/project/package.json`
+   - `tauri/project/vite.config.ts`
+   - `tauri/project/index.html`
+   - `tauri/project/src/main.tsx`
+   - `tauri/project/src-tauri/Cargo.toml`
+   - `tauri/project/src-tauri/tauri.conf.json`
+   - `tauri/project/src-tauri/capabilities/default.json`
+   - `tauri/project/src-tauri/src/lib.rs`
+   - `tauri/project/src-tauri/src/main.rs`

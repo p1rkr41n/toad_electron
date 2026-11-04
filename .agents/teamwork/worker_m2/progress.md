@@ -1,18 +1,17 @@
-# Progress — Worker M2 (Main DataGrid Auto-Fit & Floating Cell Wrap)
+# Progress — Worker M2 (Squad 2)
 
-Last visited: 2026-11-04T15:52:00Z
+**Last visited**: 2026-11-04T20:10:00Z
+**Current status**: Task Complete — All 16 unit & integration tests passing, handoff report submitted.
 
-## Status: COMPLETED
-
-### Completed
-- [x] Initialized DISPATCH.md, BRIEFING.md, and progress.md
-- [x] Reviewed requirements, contracts, and blueprints in `PROJECT.md`, `explorer_ui_table/handoff.md`, and `spec_miner_survey/handoff.md`
-- [x] Implemented `autoFitGridColumn` and header resizer `dblclick` listener in `DataGrid.tsx` (Stream 3 & 6)
-- [x] Implemented floating active cell wrap (`slick-cell-active-expanded`, `slick-row-has-expanded`, `expandActiveCell`, `dismissFloatingCell`) with dismissal on scroll, viewport change, cell change, and Escape in `DataGrid.tsx` (Stream 4 & 6)
-- [x] Implemented CSS rules in `slickgrid.scss` (overrode `contain: strict;` with `contain: none !important;`, z-index 20/25, shadow, max-height 180px, slim 4px scrollbars, Light and Dark themes) (Stream 5)
-- [x] Verified TypeScript compilation (`npx tsc --noEmit` exits 0 with 0 errors)
-- [x] Verified `tests/unit/test_datagrid_floating_wrap.js` passes 15/15 tests
-- [x] Verified `tests/qa/test_grid_wrap_concurrency_stress.js` passes 10/10 tests
-- [x] Verified `test_parse_columns_datagrid_refresh.js` passes 18/18 tests
-- [x] Updated BRIEFING.md
-- [ ] Write handoff report `handoff.md` and notify parent agent
+## Tasks
+- [x] Read mandatory inputs (`ORIGINAL_REQUEST.md`, `PROJECT.md`, Approved Plan, `tauri_spec_report.md`, reviewer handoffs)
+- [x] Inspect existing `tauri/project/src-tauri` structure & files
+- [x] Implement Task 1: `Cargo.toml` build dependencies, `build.rs`, and Windows `.ico` assets
+- [x] Implement Task 2: `src-tauri/src/portable.rs` (portable paths, config.ini parsing, clean_temp_dir)
+- [x] Implement Task 3: `src-tauri/src/state.rs` & `logger.rs` (tracing setup, AppState, ErrorResponse DTOs)
+- [x] Implement Task 4: `src-tauri/src/lib.rs` (single-instance, window-state, native plugins)
+- [x] Implement Task 5: `src-tauri/src/commands/mod.rs` & `commands/system.rs` (dispatcher & aliases)
+- [x] Implement unit & integration tests (16 tests in `src/main.rs` & `tests/core_tests.rs`)
+- [x] Verify build and tests (`cargo check`, `cargo test` — 100% pass)
+- [ ] Version control commit via `jj`
+- [x] Write handoff report and notify orchestrator
