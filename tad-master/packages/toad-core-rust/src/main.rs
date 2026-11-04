@@ -240,8 +240,24 @@ fn run_qa_test_suite() -> std::io::Result<()> {
         let stats = convert_evtx_to_jsonl(sample_evtx, &out_jsonl, Some(500))?;
         assert_eq!(stats.total_records, 500);
         assert_eq!(stats.errors, 0);
+
+        let lines_content = std::fs::read_to_string(&out_jsonl)?;
+        for line in lines_content.lines().take(50) {
+            if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(tc) = v.get("TimeCreated").and_then(|t| t.as_str()) {
+                    assert!(tc.ends_with('Z') && tc.contains('T'), "TimeCreated must be ISO-8601 UTC RFC3339");
+                }
+                assert!(v.get("Binary").is_some(), "Binary column must exist");
+                assert!(v.get("param1").is_some(), "param1 column must exist");
+                assert!(v.get("param2").is_some(), "param2 column must exist");
+                if let Some(eid) = v.get("EventID") {
+                    assert!(eid.is_number(), "EventID must be a number");
+                }
+            }
+        }
+
         println!(
-            "  -> [PASS] Trich xuat 500 ban ghi EVTX trong {:.2} ms (toc do cao, 0 loi).",
+            "  -> [PASS] Trich xuat 500 ban ghi EVTX trong {:.2} ms (chuan ISO-8601, EventID so, Binary & param day du).",
             stats.elapsed_ms
         );
     }

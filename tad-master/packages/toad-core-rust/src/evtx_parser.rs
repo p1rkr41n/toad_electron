@@ -1,9 +1,10 @@
 //! evtx_parser.rs
 //!
 //! Windows XML Event Log (.evtx) Parser cho TOAD Core Engine.
-//! Kế thừa và nâng cấp kiến trúc từ `rust_kv_bench`:
-//! - Trích xuất có cấu trúc: EventID, TimeCreated, Level, Computer, Channel, Provider
+//! Kế thừa và nâng cấp kiến trúc:
+//! - Trích xuất có cấu trúc: RecordID, EventID, TimeCreated, Level, Computer, Channel, Provider, UserId
 //! - Flattening toàn bộ EventData thành JSON Object chuẩn hóa
+//! - Mô hình Hybrid: trích xuất param1, param2, param3, Binary thành cột độc lập cho DataGrid
 //! - Xuất streaming ra JSONL (.jsonl) tốc độ cao cho DuckDB tạo VIEW
 
 use serde::{Deserialize, Serialize};
@@ -15,9 +16,9 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NormalizedEvtxRecord {
     #[serde(rename = "RecordID")]
-    pub record_id: Option<String>,
+    pub record_id: Option<i64>,
     #[serde(rename = "EventID")]
-    pub event_id: Option<String>,
+    pub event_id: Option<i64>,
     #[serde(rename = "Level")]
     pub level: Option<String>,
     #[serde(rename = "TimeCreated")]
@@ -30,8 +31,20 @@ pub struct NormalizedEvtxRecord {
     pub computer: Option<String>,
     #[serde(rename = "UserId")]
     pub user_id: Option<String>,
+    #[serde(rename = "param1")]
+    pub param1: Option<String>,
+    #[serde(rename = "param2")]
+    pub param2: Option<String>,
+    #[serde(rename = "param3")]
+    pub param3: Option<String>,
+    #[serde(rename = "Binary")]
+    pub binary: Option<String>,
+    #[serde(rename = "EventData")]
+    pub event_data: Option<String>,
+    #[serde(rename = "RawEvent")]
+    pub raw_event: Option<String>,
     #[serde(flatten)]
-    pub event_data: BTreeMap<String, serde_json::Value>,
+    pub extra_data: BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +73,40 @@ pub fn escape_json_str(s: &str) -> String {
 }
 
 use evtx::{EvtxParser, ParserSettings};
+
+/// Trích xuất giá trị chuỗi an toàn từ serde_json::Value bất kể kiểu String, Number, Bool hay Object {#text}
+fn extract_val_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        serde_json::Value::Object(o) => {
+            if let Some(t) = o.get("#text") {
+                extract_val_string(t)
+            } else {
+                v.to_string()
+            }
+        }
+        serde_json::Value::Null => String::new(),
+        _ => v.to_string(),
+    }
+}
+
+/// Trích xuất số nguyên i64 từ Value (Number, String, hoặc Object có #text)
+fn extract_i64(v: &serde_json::Value) -> Option<i64> {
+    match v {
+        serde_json::Value::Number(n) => n.as_i64(),
+        serde_json::Value::String(s) => s.trim().parse::<i64>().ok(),
+        serde_json::Value::Object(o) => {
+            if let Some(t) = o.get("#text") {
+                extract_i64(t)
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
 
 /// Chuyển đổi file .evtx sang JSONL có cấu trúc cho Toad Ingestion (Native Multi-Threaded SIMD)
 pub fn convert_evtx_to_jsonl(
@@ -96,181 +143,206 @@ pub fn convert_evtx_to_jsonl(
             Ok(rec) => {
                 let mut map = serde_json::Map::new();
 
-                // 1. Record ID & Timestamp từ EVTX header
-                map.insert(
-                    "RecordID".to_string(),
-                    serde_json::Value::String(rec.event_record_id.to_string()),
-                );
-                map.insert(
-                    "TimeCreated".to_string(),
-                    serde_json::Value::String(rec.timestamp.to_string()),
-                );
+                // 1. TimeCreated từ header record: định dạng cố định RFC3339 UTC microsecond (YYYY-MM-DDTHH:MM:SS.ffffffZ)
+                // Việc dùng SecondsFormat::Micros đảm bảo luôn có đúng 6 chữ số thập phân (kể cả .000000Z),
+                // khớp 100% với DuckDB timestampformat = '%Y-%m-%dT%H:%M:%S.%fZ' và PowerShell .ToString('yyyy-MM-ddTHH:mm:ss.ffffffZ')
+                let iso_time = rec.timestamp.to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
+                map.insert("TimeCreated".to_string(), serde_json::Value::String(iso_time));
 
                 // 2. Parse Event.System & Event.EventData từ rec.data
-                if let Some(event_obj) = rec.data.get("Event") {
-                    if let Some(sys) = event_obj.get("System") {
-                        if let Some(eid) = sys.get("EventID") {
-                            let eid_str = match eid {
-                                serde_json::Value::Number(n) => n.to_string(),
-                                serde_json::Value::String(s) => s.clone(),
-                                serde_json::Value::Object(o) => o
-                                    .get("#text")
-                                    .map(|t| match t {
-                                        serde_json::Value::String(s) => s.clone(),
-                                        serde_json::Value::Number(n) => n.to_string(),
-                                        _ => t.to_string(),
-                                    })
-                                    .unwrap_or_else(|| eid.to_string()),
-                                _ => eid.to_string(),
-                            };
-                            map.insert("EventID".to_string(), serde_json::Value::String(eid_str));
-                        }
+                let event_obj = rec.data.get("Event");
+                let sys_obj = event_obj.and_then(|e| e.get("System"));
 
-                        if let Some(lvl) = sys.get("Level") {
-                            let lvl_str = match lvl.as_u64() {
-                                Some(1) => "Critical",
-                                Some(2) => "Error",
-                                Some(3) => "Warning",
-                                Some(4) => "Information",
-                                Some(5) => "Verbose",
-                                _ => "Information",
-                            };
-                            map.insert(
-                                "Level".to_string(),
-                                serde_json::Value::String(lvl_str.to_string()),
-                            );
+                // 2.1 RecordID: ưu tiên EventRecordID chuẩn của Windows Event Log trong System.EventRecordID
+                // Nếu không có, fallback về rec.event_record_id (thứ tự chu kỳ chunk)
+                let record_id = sys_obj
+                    .and_then(|s| s.get("EventRecordID"))
+                    .and_then(extract_i64)
+                    .unwrap_or(rec.event_record_id as i64);
+                map.insert("RecordID".to_string(), serde_json::Value::Number(record_id.into()));
+
+                // 2.2 EventID: chuẩn hóa về kiểu số nguyên BIGINT trong DuckDB
+                if let Some(eid_val) = sys_obj.and_then(|s| s.get("EventID")) {
+                    if let Some(eid_num) = extract_i64(eid_val) {
+                        map.insert("EventID".to_string(), serde_json::Value::Number(eid_num.into()));
+                    } else {
+                        let s = extract_val_string(eid_val);
+                        if !s.is_empty() {
+                            map.insert("EventID".to_string(), serde_json::Value::String(s));
                         } else {
-                            map.insert(
-                                "Level".to_string(),
-                                serde_json::Value::String("Information".to_string()),
-                            );
-                        }
-
-                        if let Some(prov) = sys.get("Provider") {
-                            if let Some(name) = prov
-                                .get("#attributes")
-                                .and_then(|a| a.get("Name"))
-                                .and_then(|n| n.as_str())
-                            {
-                                map.insert(
-                                    "Provider".to_string(),
-                                    serde_json::Value::String(name.to_string()),
-                                );
-                            } else if let Some(name) = prov.get("Name").and_then(|n| n.as_str()) {
-                                map.insert(
-                                    "Provider".to_string(),
-                                    serde_json::Value::String(name.to_string()),
-                                );
-                            }
-                        }
-
-                        if let Some(chan) = sys.get("Channel").and_then(|c| c.as_str()) {
-                            map.insert(
-                                "Channel".to_string(),
-                                serde_json::Value::String(chan.to_string()),
-                            );
-                        }
-
-                        if let Some(comp) = sys.get("Computer").and_then(|c| c.as_str()) {
-                            map.insert(
-                                "Computer".to_string(),
-                                serde_json::Value::String(comp.to_string()),
-                            );
-                        }
-
-                        if let Some(sec) = sys.get("Security") {
-                            if let Some(uid) = sec
-                                .get("#attributes")
-                                .and_then(|a| a.get("UserID"))
-                                .and_then(|u| u.as_str())
-                            {
-                                map.insert(
-                                    "UserId".to_string(),
-                                    serde_json::Value::String(uid.to_string()),
-                                );
-                            } else if let Some(uid) = sec.get("UserID").and_then(|u| u.as_str()) {
-                                map.insert(
-                                    "UserId".to_string(),
-                                    serde_json::Value::String(uid.to_string()),
-                                );
-                            }
+                            map.insert("EventID".to_string(), serde_json::Value::Null);
                         }
                     }
+                } else {
+                    map.insert("EventID".to_string(), serde_json::Value::Null);
+                }
 
-                    // 3. Trích xuất phẳng EventData & gom nhóm thành JSON chuỗi
-                    let mut event_data_summary = serde_json::Map::new();
-                    let mut p1 = String::new();
-                    let mut p2 = String::new();
-                    let mut p3 = String::new();
+                // 2.3 Level: Critical(1), Error(2), Warning(3), Information(4), Verbose(5)
+                let lvl_str = if let Some(lvl_val) = sys_obj.and_then(|s| s.get("Level")) {
+                    match extract_i64(lvl_val) {
+                        Some(1) => "Critical",
+                        Some(2) => "Error",
+                        Some(3) => "Warning",
+                        Some(4) => "Information",
+                        Some(5) => "Verbose",
+                        _ => "Information",
+                    }
+                } else {
+                    "Information"
+                };
+                map.insert("Level".to_string(), serde_json::Value::String(lvl_str.to_string()));
 
-                    if let Some(event_data) = event_obj.get("EventData") {
-                        if let Some(data_map) = event_data.as_object() {
-                            for (k, v) in data_map {
-                                if k == "Data" {
-                                    if let Some(arr) = v.as_array() {
-                                        for (i, item) in arr.iter().enumerate() {
-                                            let text_val = item
-                                                .get("#text")
-                                                .and_then(|t| t.as_str())
-                                                .unwrap_or("");
-                                            if i == 0 { p1 = text_val.to_string(); }
-                                            if i == 1 { p2 = text_val.to_string(); }
-                                            if i == 2 { p3 = text_val.to_string(); }
+                // 2.4 Provider
+                let prov_name = sys_obj
+                    .and_then(|s| s.get("Provider"))
+                    .and_then(|p| {
+                        p.get("#attributes")
+                            .and_then(|a| a.get("Name"))
+                            .and_then(|n| n.as_str())
+                            .or_else(|| p.get("Name").and_then(|n| n.as_str()))
+                            .or_else(|| p.as_str())
+                    })
+                    .unwrap_or("");
+                map.insert("Provider".to_string(), serde_json::Value::String(prov_name.to_string()));
 
-                                            if let Some(name) = item
-                                                .get("#attributes")
-                                                .and_then(|a| a.get("Name"))
-                                                .and_then(|n| n.as_str())
-                                            {
-                                                let val = item.get("#text").unwrap_or(item);
-                                                event_data_summary.insert(name.to_string(), val.clone());
-                                            } else {
-                                                event_data_summary.insert(format!("param_{}", i + 1), item.clone());
-                                            }
-                                        }
-                                    } else if let Some(item_obj) = v.as_object() {
-                                        if let Some(name) = item_obj
+                // 2.5 Channel
+                let chan = sys_obj
+                    .and_then(|s| s.get("Channel"))
+                    .map(|c| extract_val_string(c))
+                    .unwrap_or_default();
+                map.insert("Channel".to_string(), serde_json::Value::String(chan));
+
+                // 2.6 Computer
+                let comp = sys_obj
+                    .and_then(|s| s.get("Computer"))
+                    .map(|c| extract_val_string(c))
+                    .unwrap_or_default();
+                map.insert("Computer".to_string(), serde_json::Value::String(comp));
+
+                // 2.7 UserId
+                let uid = sys_obj
+                    .and_then(|s| s.get("Security"))
+                    .and_then(|sec| {
+                        sec.get("#attributes")
+                            .and_then(|a| a.get("UserID"))
+                            .and_then(|u| u.as_str())
+                            .or_else(|| sec.get("UserID").and_then(|u| u.as_str()))
+                            .or_else(|| sec.as_str())
+                    })
+                    .unwrap_or("");
+                map.insert("UserId".to_string(), serde_json::Value::String(uid.to_string()));
+
+                // 3. Xử lý EventData & UserData đa hình
+                let mut p1 = String::new();
+                let mut p2 = String::new();
+                let mut p3 = String::new();
+                let mut binary_val = String::new();
+                let mut event_data_summary = serde_json::Map::new();
+                let mut positional_candidates: Vec<String> = Vec::new();
+
+                if let Some(event_data) = event_obj.and_then(|e| e.get("EventData")) {
+                    if let Some(data_map) = event_data.as_object() {
+                        // Pass 1: Xử lý các trường Data đặc biệt, Binary, hoặc các thuộc tính trực tiếp
+                        for (k, v) in data_map {
+                            if k == "Data" {
+                                if let Some(arr) = v.as_array() {
+                                    for (i, item) in arr.iter().enumerate() {
+                                        let text_val = extract_val_string(item);
+                                        positional_candidates.push(text_val.clone());
+
+                                        if let Some(name) = item
                                             .get("#attributes")
                                             .and_then(|a| a.get("Name"))
                                             .and_then(|n| n.as_str())
                                         {
-                                            let val = item_obj.get("#text").unwrap_or(v);
-                                            event_data_summary.insert(name.to_string(), val.clone());
+                                            event_data_summary.insert(name.to_string(), serde_json::Value::String(text_val.clone()));
+                                            if name == "param1" { p1 = text_val; }
+                                            else if name == "param2" { p2 = text_val; }
+                                            else if name == "param3" { p3 = text_val; }
                                         } else {
-                                            event_data_summary.insert("Data".to_string(), v.clone());
+                                            let key_name = format!("param_{}", i + 1);
+                                            event_data_summary.insert(key_name, serde_json::Value::String(text_val));
                                         }
+                                    }
+                                } else if let Some(item_obj) = v.as_object() {
+                                    let text_val = extract_val_string(v);
+                                    if let Some(name) = item_obj
+                                        .get("#attributes")
+                                        .and_then(|a| a.get("Name"))
+                                        .and_then(|n| n.as_str())
+                                    {
+                                        event_data_summary.insert(name.to_string(), serde_json::Value::String(text_val.clone()));
+                                        if name == "param1" { p1 = text_val; }
+                                        else if name == "param2" { p2 = text_val; }
+                                        else if name == "param3" { p3 = text_val; }
+                                        else { positional_candidates.push(text_val); }
                                     } else {
-                                        event_data_summary.insert("Data".to_string(), v.clone());
+                                        event_data_summary.insert("Data".to_string(), serde_json::Value::String(text_val.clone()));
+                                        positional_candidates.push(text_val);
                                     }
-                                } else if k != "#attributes" {
-                                    event_data_summary.insert(k.clone(), v.clone());
-                                    if p1.is_empty() {
-                                        if let Some(s) = v.as_str() { p1 = s.to_string(); }
-                                    }
+                                } else {
+                                    let text_val = extract_val_string(v);
+                                    event_data_summary.insert("Data".to_string(), serde_json::Value::String(text_val.clone()));
+                                    positional_candidates.push(text_val);
                                 }
+                            } else if k == "Binary" {
+                                binary_val = extract_val_string(v);
+                                event_data_summary.insert(k.clone(), serde_json::Value::String(binary_val.clone()));
+                            } else if k != "#attributes" {
+                                let text_val = extract_val_string(v);
+                                event_data_summary.insert(k.clone(), serde_json::Value::String(text_val.clone()));
+                                if k == "param1" { p1 = text_val; }
+                                else if k == "param2" { p2 = text_val; }
+                                else if k == "param3" { p3 = text_val; }
+                                else { positional_candidates.push(text_val); }
                             }
                         }
                     }
-
-                    // 4. Trích xuất UserData (nếu có)
-                    if let Some(user_data) = event_obj.get("UserData") {
-                        if let Some(ud_map) = user_data.as_object() {
-                            for (k, v) in ud_map {
-                                if k != "#attributes" {
-                                    event_data_summary.insert(k.clone(), v.clone());
-                                }
-                            }
-                        }
-                    }
-
-                    map.insert("param1".to_string(), serde_json::Value::String(p1));
-                    map.insert("param2".to_string(), serde_json::Value::String(p2));
-                    map.insert("param3".to_string(), serde_json::Value::String(p3));
-                    map.insert(
-                        "EventData".to_string(),
-                        serde_json::Value::String(serde_json::to_string(&event_data_summary).unwrap_or_default()),
-                    );
                 }
+
+                // 4. Xử lý UserData nếu có
+                if let Some(user_data) = event_obj.and_then(|e| e.get("UserData")) {
+                    if let Some(ud_map) = user_data.as_object() {
+                        for (k, v) in ud_map {
+                            if k != "#attributes" {
+                                if let Some(nested) = v.as_object() {
+                                    for (nk, nv) in nested {
+                                        if nk != "#attributes" {
+                                            let s = extract_val_string(nv);
+                                            event_data_summary.insert(nk.clone(), serde_json::Value::String(s.clone()));
+                                            positional_candidates.push(s);
+                                        }
+                                    }
+                                } else {
+                                    let s = extract_val_string(v);
+                                    event_data_summary.insert(k.clone(), serde_json::Value::String(s.clone()));
+                                    positional_candidates.push(s);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pass 2: Điền các vị trí p1, p2, p3 còn trống từ danh sách positional_candidates
+                let mut cand_iter = positional_candidates.into_iter().filter(|s| !s.is_empty());
+                if p1.is_empty() {
+                    if let Some(c) = cand_iter.next() { p1 = c; }
+                }
+                if p2.is_empty() {
+                    if let Some(c) = cand_iter.next() { p2 = c; }
+                }
+                if p3.is_empty() {
+                    if let Some(c) = cand_iter.next() { p3 = c; }
+                }
+
+                map.insert("param1".to_string(), serde_json::Value::String(p1));
+                map.insert("param2".to_string(), serde_json::Value::String(p2));
+                map.insert("param3".to_string(), serde_json::Value::String(p3));
+                map.insert("Binary".to_string(), serde_json::Value::String(binary_val));
+                map.insert(
+                    "EventData".to_string(),
+                    serde_json::Value::String(serde_json::to_string(&event_data_summary).unwrap_or_default()),
+                );
 
                 // 5. Raw Event String cho Expand / Detail Panel
                 let raw_str = serde_json::to_string(&rec.data).unwrap_or_default();
