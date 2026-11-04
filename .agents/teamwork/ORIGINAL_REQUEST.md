@@ -1,40 +1,47 @@
 # Original User Request
 
-## Initial Request — 2026-11-03T15:48:44Z
+## Initial Request — 2026-11-04T07:28:22Z
 
-Implement TOAD v2.5.0 IPC architectural migration to Electron utilityProcess and Tauri-like host bridge based on the approved plan in c:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\ke_hoach_chuyen_doi_ipc_utilityprocess.md and d:\Shared_UserData\Downloads\tad\docs\FUTURE_KE_HOACH_CHUYEN_DOI_MO_HINH_IPC_UTILITYPROCESS.md.
+Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytics Desktop) for Windows Event Log (EVTX) JSON representations and complex JSON/JSONL logs containing deeply nested fields and special characters.
 
+Working directory: d:\Shared_UserData\Downloads\tad
 Integrity mode: development
 
 Reference material:
-- Plan: `c:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\ke_hoach_chuyen_doi_ipc_utilityprocess.md`
-- Architecture: `d:\Shared_UserData\Downloads\tad\docs\FUTURE_KE_HOACH_CHUYEN_DOI_MO_HINH_IPC_UTILITYPROCESS.md`
+- Implementation Plan: `C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\ke_hoach_phat_trien_nested_json_parser.md`
+- Parallel Execution & Testing Plan: `C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\phuong_an_trien_khai_va_kiem_thu_song_song_nested_json.md`
 
 ## Requirements
 
-### R1. Version Bumping & Dual-Mode Rollout
-Bump target version to TOAD v2.5.0 (SemVer 3-digit `2.5.0` via `node tools/bump_version.js 2.5.0`). Implement a 3-phase incremental rollout with a dual-mode feature flag (`runtime.engine = "utility" | "legacy"`).
+### R1. Interactive Extraction in Parse Columns Dialog
+In `packages/toadviewer/src/components/RegexDialog.tsx` (and supporting UI components), support extracting from columns containing nested JSON. Recursively traverse objects down to leaf nodes (primitives: string, number, boolean, null) while preserving arrays as JSON strings by default. Generate safe DuckDB bracket paths (`$["path"]["segment"]`) immune to special characters (`#`, `@`, dots, spaces, quotes). Provide a Discovered Fields table with editable column names (defaulting to hierarchical dot notation like `Event.System.EventID.#text`), data type selection, search filtering, and sample scanning with a 100-row initial preview and an asynchronous deep scan option (up to 1,000 rows). Generate and execute DuckDB `CREATE VIEW` statements with safe double-quoted column identifiers in < 15ms.
 
-### R2. Host Bridge Abstraction & CLI Test Compatibility
-Standardize UI communication via Tauri-like IPC (`window.toadBridge.invoke(command, payload)`), enabling `contextIsolation: true` and `nodeIntegration: false` in Renderer. Implement `HeadlessNodeAdapter` in `packages/host-bridge` implementing `IHostBridge` so that all 168+ CLI test cases continue running seamlessly without an Electron window.
+### R2. Direct File Ingestion Auto-Flattening
+In `packages/reltab-duckdb/src/csvimport.ts` (and supporting ingestion modules), implement two-phase dynamic projection for directly ingested `.json` and `.jsonl` files. In Phase 1, introspect the schema via DuckDB (`DESCRIBE SELECT * FROM read_json_auto(path, sample_size = 2048) LIMIT 0;`). In Phase 2, if `STRUCT` columns are present, recursively unpack all nested fields into flattened dot-notated columns and write directly to Parquet (`COPY (SELECT ... FROM read_json_auto(...)) TO 'dst.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);`). If no nested `STRUCT` columns exist, preserve standard ingestion.
 
-### R3. Dedicated Engine Service & Hybrid Data Protocol
-Separate DuckDB Driver, Parquet Ledger, and ingestion pipeline into a dedicated Electron `utilityProcess` (`engineService.ts`). Connect Renderer and `utilityProcess` directly via `MessagePort` using a hybrid data protocol (JSON for metadata/schema/counts and zero-copy transferable `ArrayBuffer` for table data blocks).
+### R3. Safe Character Handling and SQL Escaping
+Ensure 100% immunity to SQL parsing and identifier errors when JSON keys contain special characters including `#attributes`, `#text`, `@xmlns`, periods, spaces, slashes, and quotes, across both DuckDB JSON extraction paths (`json_extract_string`) and DuckDB column aliases.
 
-### R4. Crash Supervision & Auto-Recovery
-Configure Main Process as Supervisor (`engineSupervisor.ts`). When `utilityProcess` exits unexpectedly, auto-restart in < 500ms from Parquet Ledger (`toad_ledger.parquet`), re-register views in < 5ms, and trigger a non-blocking toast notification "Động cơ phân tích vừa được tự động phục hồi" in UI (`AppPane.tsx`).
+### R4. Modular Architecture and Interface Contracts
+Organize work across modular boundaries adhering to shared interface definitions (`packages/toadviewer/src/types/NestedJsonContracts.ts`). The team may decide whether to include Stream 7 (Rust native SIMD flattener for >5GB files) or focus on the DuckDB dynamic projection and TypeScript pipeline.
 
-### R5. Packaging & VCS Conformance
-Compile Webpack bundle for `engineService.bundle.js`, pack `duckdb.node` into `app.asar.unpacked`, and maintain `app.asar` size < 45 MB and portable executable < 75 MB. Maintain clean commits via Jujutsu (`jj`), follow zero-duplicate binary storage policy, and exclude intermediate artifacts and binaries from Git.
+### R5. Workspace Guidelines and Release Standards
+Increment release version to TOAD v2.5.1 via `node tools/bump_version.js 2.5.1`. Maintain Git/Jujutsu history cleanly without committing intermediate artifacts, binaries, or duplicate historical executables. All commit messages, release notes, and public artifacts must strictly follow the English-Only Public Language Policy and author identity standard (`HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`).
 
 ## Acceptance Criteria
 
-### Test Suites Execution
-- [ ] `node run_tests.js --all` passes 100% across all 4 test suites (Smoke Test, Deep Integration QA, Preload 3 Pages, Legacy Use Cases).
-- [ ] Headless engine service test (`node tests/test_engine_service.js`) executes 1,000 queries over MessagePort with verified data integrity.
-- [ ] Crash resilience test (`node tests/test_engine_crash_recovery.js`) verifies auto-restart within 500ms and state restoration from `toad_ledger.parquet`.
+### Correctness and Parity
+- [ ] Recursively extracts 100% of leaf fields from real-world Windows EVTX JSON (RecordID 93937 from `D:\Shared_UserData\Downloads\data_sample\System.evtx`), including `#attributes` and `#text` fields.
+- [ ] DuckDB bracket path extraction (`$["Event"]["System"]["EventID"]["#text"]`) executes without syntax or escaping errors.
+- [ ] Directly ingested nested JSON/JSONL files with `STRUCT` columns are automatically flattened into columnar dot-notated Parquet files.
 
-### Build and Packaging Verification
-- [ ] `fastbuild.ps1` builds successfully including the engine service bundle.
-- [ ] `dist_package.ps1` and `package_release.ps1` produce canonical portable release artifacts in `releases/` without duplicate historical binaries.
-- [ ] Dual-mode engine flag toggles correctly between `utility` and `legacy` modes.
+### UI and Performance
+- [ ] Interactive Parse Columns dialog renders discovered fields table with editable column names and search filtering.
+- [ ] DuckDB VIEW creation from extracted fields completes in < 15ms.
+- [ ] Scanning 1,000 sample rows executes asynchronously without freezing the UI.
+
+### Test Suites and Quality
+- [ ] Adversarial and fuzzing test suite passes with corrupted JSON, special characters, and deep recursion.
+- [ ] Existing full test suite (`node run_tests.js --all`) passes 100% with zero regressions.
+- [ ] Version is updated to 2.5.1 and packaging builds without duplicate historical binaries.
+
