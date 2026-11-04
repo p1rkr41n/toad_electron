@@ -68,11 +68,15 @@ Write-Output "================================================================="
 # --- STEP 1: Build TypeScript Libraries (Unless -SkipTsc) ---
 if (-not $SkipTsc) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    Write-Output "`n>>> [STEP 1.1] Building host-bridge (TypeScript)..."
+    Write-Output "`n>>> [STEP 1.1] Building reltab (TypeScript)..."
+    Set-Location "$rootDir\tad-master\packages\reltab"
+    & npm.cmd run build
+
+    Write-Output ">>> [STEP 1.2] Building host-bridge (TypeScript)..."
     Set-Location "$rootDir\tad-master\packages\host-bridge"
     & npm.cmd run build
 
-    Write-Output ">>> [STEP 1.2] Building reltab-duckdb (TypeScript)..."
+    Write-Output ">>> [STEP 1.3] Building reltab-duckdb (TypeScript)..."
     Set-Location "$rootDir\tad-master\packages\reltab-duckdb"
     & npm.cmd run build
 
@@ -82,7 +86,7 @@ if (-not $SkipTsc) {
     }
     $viewerName = Split-Path $viewerDir -Leaf
 
-    Write-Output ">>> [STEP 1.3] Building $viewerName..."
+    Write-Output ">>> [STEP 1.4] Building $viewerName..."
     Set-Location $viewerDir
     if ($Dev) {
         & npm.cmd run build-dev

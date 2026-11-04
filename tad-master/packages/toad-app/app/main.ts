@@ -114,6 +114,19 @@ class ElectronTransportServer implements TransportServer {
   ): void {
     // TODO: catch exceptions and map into a serializable failure
     ipcMain.handle(functionName, async (event, req) => handler(req));
+
+    // Register short and legacy aliases for seamless Tauri-like & fallback compatibility
+    if (functionName.startsWith("DataSourceConnection.")) {
+      const shortName = functionName.slice("DataSourceConnection.".length);
+      try {
+        ipcMain.handle(shortName, async (event, req) => handler(req));
+      } catch {}
+      if (shortName === "getTableSchema") {
+        try {
+          ipcMain.handle("schema", async (event, req) => handler(req));
+        } catch {}
+      }
+    }
   }
 }
 

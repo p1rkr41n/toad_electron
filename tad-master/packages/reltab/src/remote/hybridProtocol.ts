@@ -166,6 +166,54 @@ function createSchemaFromArrowFields(fields: any[]): Schema {
 }
 
 /**
+ * Accurately formats an Arrow DecimalBigNum or scaled integer into a JS number or decimal string.
+ */
+export function formatArrowDecimal(val: any, scale: number): number | string | null {
+  if (val == null) return null;
+  const rawStr = String(val).replace(/^"/, "").replace(/"$/, "");
+  const isNeg = rawStr.startsWith("-");
+  const digits = isNeg ? rawStr.slice(1) : rawStr;
+  if (scale <= 0) {
+    const num = Number(rawStr);
+    return Number.isSafeInteger(num) ? num : rawStr;
+  }
+  const num = Number(rawStr) / Math.pow(10, scale);
+  if (Number.isSafeInteger(Math.trunc(num))) {
+    return num;
+  }
+  const padLen = Math.max(0, scale - digits.length + 1);
+  const padded = "0".repeat(padLen) + digits;
+  const intPart = padded.slice(0, padded.length - scale);
+  const fracPart = padded.slice(padded.length - scale);
+  return `${isNeg ? "-" : ""}${intPart}.${fracPart}`;
+}
+
+/**
+ * Formats an Arrow Time value (microseconds since midnight) to HH:MM:SS or HH:MM:SS.sss
+ */
+export function formatArrowTime(val: any): string | null {
+  if (val == null) return null;
+  try {
+    const us = typeof val === "bigint" ? Number(val) : Number(val);
+    const totalMs = Math.floor(us / 1000);
+    const totalSec = Math.floor(totalMs / 1000);
+    const hours = Math.floor(totalSec / 3600);
+    const mins = Math.floor((totalSec % 3600) / 60);
+    const secs = totalSec % 60;
+    const ms = totalMs % 1000;
+    const hh = String(hours).padStart(2, "0");
+    const mm = String(mins).padStart(2, "0");
+    const ss = String(secs).padStart(2, "0");
+    if (ms > 0) {
+      return `${hh}:${mm}:${ss}.${String(ms).padStart(3, "0")}`;
+    }
+    return `${hh}:${mm}:${ss}`;
+  } catch {
+    return String(val);
+  }
+}
+
+/**
  * Decodes an Apache Arrow IPC Stream buffer directly into TableRep.
  */
 export function arrowIPCToTableRep(buffer: ArrayBuffer | Uint8Array): TableRep {
@@ -212,7 +260,20 @@ export function arrowIPCToTableRep(buffer: ArrayBuffer | Uint8Array): TableRep {
     for (let j = 0; j < columnNames.length; j++) {
       const col = cols[j];
       let val = col ? col.get(i) : null;
-      if (typeof val === "bigint") {
+      if (val != null && col && col.type) {
+        const typeId = col.type.typeId;
+        if (typeId === 7) {
+          // Decimal: accurately scale according to Arrow metadata
+          val = formatArrowDecimal(val, col.type.scale || 0);
+        } else if (typeId === 9) {
+          // Time: format microseconds to HH:MM:SS string
+          val = formatArrowTime(val);
+        } else if (typeof val === "bigint") {
+          val = Number.isSafeInteger(Number(val)) ? Number(val) : val.toString();
+        } else if (typeof val.toJSON === "function" && !(val instanceof Date)) {
+          val = val.toJSON();
+        }
+      } else if (typeof val === "bigint") {
         val = Number.isSafeInteger(Number(val)) ? Number(val) : val.toString();
       } else if (val && typeof val.toJSON === "function" && !(val instanceof Date)) {
         val = val.toJSON();

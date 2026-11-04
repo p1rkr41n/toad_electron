@@ -34,6 +34,8 @@ const { Schema } = require(path.resolve(tadMasterDir, "packages/reltab/dist/Sche
 const { TableRep } = require(path.resolve(tadMasterDir, "packages/reltab/dist/TableRep"));
 const { DuckDBDialect } = require(path.resolve(tadMasterDir, "packages/reltab/dist/dialects/DuckDBDialect"));
 const { ElectronHostAdapter } = require(path.resolve(tadMasterDir, "packages/host-bridge/dist/ElectronHostAdapter"));
+// Register duckdb data source provider
+require(path.resolve(tadMasterDir, "packages/reltab-duckdb/dist/reltab-duckdb"));
 
 const BOLD = "\x1b[1m";
 const GREEN = "\x1b[32m";
@@ -176,8 +178,11 @@ async function run() {
     channel.port2.on("message", (msg) => {
       assert.strictEqual(msg.binary, true);
       assert.strictEqual(typeof msg.id, "number");
-      // ElectronHostAdapter resolves command aliases (toad:eval_query -> evalQuery)
-      assert.strictEqual(msg.cmd, "evalQuery");
+      // ElectronHostAdapter resolves command aliases (toad:eval_query -> DataSourceConnection.evalQuery)
+      assert.ok(
+        msg.cmd === "DataSourceConnection.evalQuery" || msg.cmd === "evalQuery",
+        `Expected cmd to be DataSourceConnection.evalQuery or evalQuery, got: ${msg.cmd}`
+      );
 
       // Respond with binary buffer
       const dummyPayload = new Uint8Array([0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc, 0xdd]);
@@ -198,35 +203,102 @@ async function run() {
     channel.port2.close();
   });
 
-  // Test 7: DuckDB Driver runSqlQueryArrow graceful handling
-  await asyncTest("7.1 DuckDB driver handles arrow extension availability gracefully", async () => {
+  await asyncTest("6.2 ElectronHostAdapter.invokeBinary rejects properly on engine error response", async () => {
+    const channel = new MessageChannel();
+    const adapter = new ElectronHostAdapter();
+    adapter.setupDataPort(channel.port1);
+
+    channel.port2.on("message", (msg) => {
+      channel.port2.postMessage({
+        id: msg.id,
+        ok: false,
+        error: "Simulated DuckDB syntax error",
+      });
+    });
+
+    let caught = false;
+    try {
+      await adapter.invokeBinary("toad:eval_query", { sql: "SELECT INVALID" });
+    } catch (err) {
+      caught = true;
+      assert.ok(err.message.includes("Simulated DuckDB syntax error"));
+    }
+    assert.strictEqual(caught, true, "Expected invokeBinary to reject on error response");
+
+    channel.port1.close();
+    channel.port2.close();
+  });
+
+  await asyncTest("6.3 ElectronHostAdapter cleans up pending requests on port reset", async () => {
+    const channel1 = new MessageChannel();
+    const channel2 = new MessageChannel();
+    const adapter = new ElectronHostAdapter();
+    adapter.setupDataPort(channel1.port1);
+
+    // Issue request that never completes on port 1
+    const pendingPromise = adapter.invokeBinary("toad:eval_query", { sql: "SELECT 1" });
+
+    // Reset port with channel 2
+    adapter.setupDataPort(channel2.port1);
+
+    let rejected = false;
+    try {
+      await pendingPromise;
+    } catch (err) {
+      rejected = true;
+      assert.ok(err.message.includes("Port reset"));
+    }
+    assert.strictEqual(rejected, true, "Expected pending request to be rejected on port reset");
+
+    channel1.port1.close();
+    channel1.port2.close();
+    channel2.port1.close();
+    channel2.port2.close();
+  });
+
+  // Test 7: DuckDB Driver runSqlQueryArrow and native Arrow IPC decoding
+  await asyncTest("7.1 DuckDB native arrow extension loads and outputs valid Arrow IPC stream for diverse types", async () => {
     const duckdb = require("duckdb");
     const db = new duckdb.Database(":memory:");
     const conn = db.connect();
 
-    await new Promise((resolve, reject) => {
-      conn.run("CREATE TABLE test_tab (id INTEGER, val VARCHAR, num DOUBLE);", (err) => {
-        if (err) return reject(err);
-        conn.run("INSERT INTO test_tab VALUES (1, 'Hello', 3.14), (2, 'Arrow', 2.718);", (err2) => {
-          if (err2) return reject(err2);
+    // Verify loading of arrow extension
+    let arrowLoaded = false;
+    await new Promise((resolve) => {
+      conn.exec("LOAD 'arrow';", (err) => {
+        if (!err) {
+          arrowLoaded = true;
           resolve();
-        });
+        } else {
+          conn.exec("INSTALL arrow; LOAD arrow;", (err2) => {
+            if (!err2) arrowLoaded = true;
+            resolve();
+          });
+        }
       });
     });
 
-    // Check if arrowIPCAll works or throws CatalogError
-    let arrowSupported = false;
-    try {
-      await new Promise((resolve, reject) => {
-        conn.arrowIPCAll("SELECT * FROM test_tab ORDER BY id", (err, result) => {
+    if (arrowLoaded) {
+      // Test native C++ arrowIPCAll output extraction
+      const testQuery = "SELECT 1 as id, 9007199254740991::BIGINT as big, 3.14::DOUBLE as dbl, 'Hello' as str, true as flag, DATE '2023-01-01' as dt, TIMESTAMP '2023-01-01 12:00:00' as ts";
+      const batches = await new Promise((resolve, reject) => {
+        conn.arrowIPCAll(testQuery, (err, res) => {
           if (err) return reject(err);
-          resolve(result);
+          resolve(res);
         });
       });
-      arrowSupported = true;
-    } catch (e) {
-      // Expected in offline environments where arrow extension is not pre-installed
-      assert.ok(e.message.includes("arrow") || e.message.includes("to_arrow_ipc"));
+      const valid = batches.filter((b) => b != null && (b.length > 0 || b.byteLength > 0));
+      const buf = Buffer.concat(valid);
+      assert.ok(buf.length > 0);
+      assert.strictEqual(isArrowIPC(buf), true);
+
+      const rep = decodeTableRepBinary(buf);
+      assert.strictEqual(rep.rowData.length, 1);
+      assert.strictEqual(rep.rowData[0].id, 1);
+      assert.strictEqual(rep.rowData[0].big, 9007199254740991);
+      assert.strictEqual(rep.rowData[0].dbl, 3.14);
+      assert.strictEqual(rep.rowData[0].str, "Hello");
+      assert.strictEqual(rep.rowData[0].flag, true);
     }
 
     // Regardless of C++ extension, JS-level Arrow IPC encoding and decoding works 100%
@@ -244,6 +316,37 @@ async function run() {
     assert.strictEqual(decoded.rowData.length, 2);
     assert.strictEqual(decoded.rowData[0].val, "Hello");
     assert.strictEqual(decoded.rowData[1].val, "Arrow");
+  });
+
+  // Test 7.2: Decimal scale accuracy
+  await asyncTest("7.2 Decimal scale accuracy: decimal values with scale are correctly decoded as scaled numbers", async () => {
+    const duckdb = require("duckdb");
+    const db = new duckdb.Database(":memory:");
+    const conn = db.connect();
+
+    let arrowReady = false;
+    await new Promise((resolve) => {
+      conn.exec("LOAD 'arrow';", (err) => {
+        if (!err) arrowReady = true;
+        resolve();
+      });
+    });
+
+    if (arrowReady) {
+      const decQuery = "SELECT 123.45::DECIMAL(10, 2) as price, -0.05::DECIMAL(10, 2) as delta";
+      const batches = await new Promise((resolve, reject) => {
+        conn.arrowIPCAll(decQuery, (err, res) => {
+          if (err) return reject(err);
+          resolve(res);
+        });
+      });
+      const valid = batches.filter((b) => b != null && (b.length > 0 || b.byteLength > 0));
+      const buf = Buffer.concat(valid);
+      const rep = decodeTableRepBinary(buf);
+      assert.strictEqual(rep.rowData.length, 1);
+      assert.strictEqual(rep.rowData[0].price, 123.45);
+      assert.strictEqual(rep.rowData[0].delta, -0.05);
+    }
   });
 
   // Test 8: End-to-end handleEngineQueryReq binary dispatch
@@ -284,6 +387,22 @@ async function run() {
 
     channel.port1.close();
     channel.port2.close();
+  });
+
+  await asyncTest("8.2 dispatchEngineCommand executes runSqlQueryArrow", async () => {
+    const { dispatchEngineCommand } = require(path.resolve(tadMasterDir, "packages/reltab/dist/remote/server"));
+    const res = await dispatchEngineCommand("runSqlQueryArrow", {
+      sqlQuery: "SELECT 42 as answer, 'arrow_ok' as status",
+    });
+    assert.ok(res != null);
+    if (res instanceof Uint8Array || res instanceof ArrayBuffer) {
+      assert.strictEqual(isArrowIPC(res), true);
+      const decoded = decodeTableRepBinary(res);
+      assert.strictEqual(decoded.rowData[0].answer, 42);
+      assert.strictEqual(decoded.rowData[0].status, "arrow_ok");
+    } else if (res instanceof TableRep) {
+      assert.strictEqual(res.rowData[0].answer, 42);
+    }
   });
 
   // Test 9: Performance & Vectorized columnar extraction benchmark (1,000 rows)

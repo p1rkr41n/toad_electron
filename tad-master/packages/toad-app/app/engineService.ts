@@ -77,7 +77,10 @@ class EngineService {
       await reltabDuckDB.initToadLedger();
       // Ensure DuckDB provider is initialized in reltab instance cache
       try {
-        await reltab.getConnection({ providerName: "duckdb", resourceId: "" });
+        const defaultConn = await reltab.getConnection({ providerName: "duckdb", resourceId: "" });
+        if (typeof (defaultConn as any).evalQueryArrow === "function") {
+          log.info("[EngineService] Vectorized Apache Arrow IPC Stream engine ready.");
+        }
       } catch (connErr) {
         log.warn("[EngineService] DuckDB initial connection notice:", connErr);
       }

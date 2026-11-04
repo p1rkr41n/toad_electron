@@ -489,6 +489,20 @@ export async function dispatchEngineCommand(
       const req: DbConnRunSqlQueryRequest = { sqlQuery: payload?.sqlQuery };
       return await dbConnRunSqlQuery(conn, req);
     }
+    case "runSqlQueryArrow":
+    case "toad:run_sql_arrow": {
+      const sqlQuery = payload?.sqlQuery || payload?.query;
+      const db = (conn as any).db || conn;
+      if (typeof db.runSqlQueryArrow === "function") {
+        const buf = await db.runSqlQueryArrow(sqlQuery);
+        if (buf && buf.byteLength > 0) {
+          return buf;
+        }
+      }
+      const rows = await conn.runSqlQuery(sqlQuery);
+      const schema = await conn.getTableSchema(sqlQuery);
+      return new TableRep(schema, rows);
+    }
     default:
       throw new Error(`Unknown engine command: '${cmd}'`);
   }

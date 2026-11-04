@@ -35,7 +35,7 @@ if (smokeOnly) {
 } else {
   // Default: Smoke Test + Arrow IPC + Deep Integration QA + Preload 3 Pages
   testsToRun.push({ name: "Smoke Test (v2.5.0)", file: "tests/smoke_test.js" });
-  testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (9 Tests)", file: "tests/test_arrow_ipc_stream.js" });
+  testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (13 Tests)", file: "tests/test_arrow_ipc_stream.js" });
   testsToRun.push({ name: "Deep Integration QA (222 Tests)", file: "tests/deep_integration_qa.js" });
   testsToRun.push({ name: "Preload 3 Pages & Dynamic PageSize (10 Tests)", file: "tests/test_preload_3_pages.js" });
   if (runAll) {

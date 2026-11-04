@@ -40,4 +40,6 @@ export * from "./utils/ForensicDecoder";
 export * from "./toadTheme";
 export * from "./MultipleLoadingManager";
 export * from "./ProjectWorkspaceManager";
+export { tableFromIPC, tableToIPC, Table as ArrowTable } from "@apache-arrow/es2015-cjs";
+export { arrowIPCToTableRep, decodeTableRepBinary, encodeTableRepArrow, isArrowIPC } from "reltab";
 export { actions };
