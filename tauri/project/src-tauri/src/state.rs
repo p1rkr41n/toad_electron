@@ -4,16 +4,18 @@
 //! - Thread-safe access via Arc<RwLock<...>> on Tokio async runtime.
 //! - Hosts configuration, portable environment paths, and engine stubs ready for M3-M5.
 
+use crate::engine::DuckDbEnginePool;
 use crate::portable::{save_config, ToadConfig};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Placeholder for DuckDB engine connection pool (Milestone M3)
-#[derive(Debug, Default, Clone)]
+/// DuckDB engine connection pool state
+#[derive(Clone, Default)]
 pub struct DuckDbEnginePlaceholder {
     pub initialized: bool,
     pub active_queries: usize,
+    pub pool: Option<Arc<DuckDbEnginePool>>,
 }
 
 /// Placeholder for Parquet Double-Valid State Ledger WAL (Milestone M4)
@@ -44,14 +46,51 @@ impl AppState {
     /// Construct AppState from portable directory and initial config
     pub fn new(portable_dir: PathBuf, config: ToadConfig) -> Self {
         let config_path = portable_dir.join("config.ini");
+        let temp_dir = portable_dir.join("temp");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let pool = DuckDbEnginePool::new(
+            temp_dir,
+            config.duckdb.threads,
+            config.duckdb.max_memory.clone(),
+        )
+        .ok()
+        .map(Arc::new);
+
+        let placeholder = DuckDbEnginePlaceholder {
+            initialized: pool.is_some(),
+            active_queries: 0,
+            pool,
+        };
+
         Self {
             portable_dir,
             config_path,
             config: Arc::new(RwLock::new(config)),
-            duckdb_engine: Arc::new(RwLock::new(DuckDbEnginePlaceholder::default())),
+            duckdb_engine: Arc::new(RwLock::new(placeholder)),
             parquet_ledger: Arc::new(RwLock::new(ParquetLedgerPlaceholder::default())),
             ingest_queue: Arc::new(RwLock::new(IngestionQueuePlaceholder::default())),
         }
+    }
+
+    /// Retrieve or lazily initialize the DuckDB Engine Pool
+    pub async fn get_duckdb_pool(&self) -> Arc<DuckDbEnginePool> {
+        let mut engine = self.duckdb_engine.write().await;
+        if let Some(ref pool) = engine.pool {
+            return pool.clone();
+        }
+        let temp_dir = self.portable_dir.join("temp");
+        let _ = std::fs::create_dir_all(&temp_dir);
+        let cfg = self.config.read().await;
+        let pool = Arc::new(
+            DuckDbEnginePool::new(temp_dir, cfg.duckdb.threads, cfg.duckdb.max_memory.clone())
+                .unwrap_or_else(|_| {
+                    DuckDbEnginePool::new(std::env::temp_dir(), 2, "2GB".to_string())
+                        .expect("Fatal: cannot create DuckDB in-memory pool")
+                }),
+        );
+        engine.pool = Some(pool.clone());
+        engine.initialized = true;
+        pool
     }
 
     /// Read a clone of the current configuration snapshot

@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-04T20:28:45Z
+Last visited: 2026-11-04T21:28:42Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -15,18 +15,28 @@ Last visited: 2026-11-04T20:28:45Z
   - Worker M1 (3fe1e288-4db6-4a82-bdc5-4644cedd75a3) - DONE
   - Milestone 1 Gate: Reviewer 1 (APPROVE), Reviewer 2 (APPROVE), Challenger 1 (APPROVE), Challenger 2 (APPROVE), Forensic Auditor (CLEAN). Gate Result: PASS.
   - Milestone 1 marked DONE in PROJECT.md.
-- [ ] Milestone 2 (M2) Remediation (Iteration 3):
-  - Forensic audit failure evidence forwarded to Explorers (DONE)
-  - 3 Explorers completed technical designs (explorer_m2_fix_1, explorer_m2_fix_2, explorer_m2_fix_3)
-  - Dispatched Worker M2-Remediation (0e5b7170) to implement fixes:
-    - Eliminate plugin hijacking in commands/mod.rs (route_command -> PluginPassthrough)
-    - Hook genuine plugin extension traits in commands/system.rs (ClipboardExt, OpenerExt, DialogExt)
-    - Replace tautological test with authentic route_command coverage in main.rs
-    - Implement candidate-first atomic rollback in state.rs::update_config
-    - Strip inline comments in portable.rs::parse_ini
-    - Verify with cargo check and cargo test
-- [ ] M2 Iteration 3 Gate verification (Reviewers, Challengers, Forensic Auditor)
-- [ ] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol
+- [x] Milestone 2 (M2) Rust Core Engine & OS Plugins:
+  - Worker M2-Remediation (0e5b7170) completed all fixes (35/35 tests passed, commit 3726874b)
+  - Gate verification completed:
+    - Reviewer M2-Recheck-1 (791e3662): APPROVE
+    - Reviewer M2-Recheck-2 (a51c9af7): APPROVE
+    - Challenger M2-Recheck-1 (d6d24a29): APPROVE
+    - Challenger M2-Recheck-2 (85d8f5a9): APPROVE
+    - Forensic Auditor M2 Recheck (725eef51): CLEAN
+  - Gate Result: PASS.
+  - Milestone 2 marked DONE in PROJECT.md.
+- [ ] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol (Squad 3):
+  - Spec Miner M3 (313c364d): COMPLETED (handoff delivered: 41 features, edge cases, Arrow IPC 0xFFFFFFFF, reltab.Schema DTO)
+  - Explorer M3 DuckDB (64710a0f): COMPLETED (handoff delivered: duckdb_pool.rs, arrow_encoder.rs, fast_count.rs, arrow 54 unification)
+  - Explorer M3 Compiler (e047b874): COMPLETED (handoff delivered: query_compiler.rs, schema_mapper.rs, stats_cache.rs, commands/query.rs)
+  - Worker M3 Engine (afd16904): IN PROGRESS (all 7 engine modules implemented, official DuckDB 1.2.2 C-API linked in src-tauri/lib/, running tests)
+  - F07: DuckDB 1.0 Tokio Connection Pool (dual-engine UI vs Ingest)
+  - F08: QueryExp AST Compiler to DuckDB SQL
+  - F09: Streaming Arrow IPC Stream Protocol (`0xFFFFFFFF` continuation marker via `tauri::ipc::Response`)
+  - F10: Fast O(1) Parquet Metadata Footer Row Counter
+  - F11: Schema Mapper & reltab.Schema DTO
+  - F12: Column Statistics & Cardinality Cache
 
 ## Iteration Status
-Current iteration: 2 / 32
+Current iteration: 3 / 32
+

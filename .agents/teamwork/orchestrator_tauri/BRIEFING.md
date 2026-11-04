@@ -23,14 +23,14 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
   1. Survey & Architecture Specification [done]
   2. Scaffolding & Toolchain (Squad 1 / M1) [DONE - Gate PASSED]
   3. E2E Testing Track (Tiers 1-4) [DONE - TEST_READY.md certified]
-  4. Core Rust Engine & DuckDB (Squad 2 / M2) [in-progress]
-  5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [pending]
+  4. Core Rust Engine & DuckDB (Squad 2 / M2) [DONE - Gate PASSED]
+  5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [in-progress]
   6. Parquet Ledger & Workspace (Squad 4 / M4) [pending]
   7. Ingestion & Forensics Pipelines (Squad 5 / M5) [pending]
   8. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
   9. Final Verification & Packaging (Squad 7 / M7) [pending]
-- **Current phase**: 2 (Milestone 2 Implementation)
-- **Current focus**: worker_m2 implementing AppState, portable environment, and Tauri command router
+- **Current phase**: 3 (Milestone 3 Implementation)
+- **Current focus**: Milestone 3: DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3)
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -46,7 +46,8 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 
 ## Key Decisions Made
 - Milestone 1 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M1 marked DONE.
-- Milestone 2 (M2: Rust Core Engine & OS Plugins) dispatched to worker_m2.
+- Milestone 2 Iteration 2 Gate FAILED on Forensic Auditor integrity finding. Remediated via Iteration 3.
+- Milestone 2 Iteration 3 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M2 marked DONE. Commit 3726874b verified. M2 marked DONE in PROJECT.md.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -70,18 +71,27 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | explorer_m2_fix_1 | teamwork_explorer | Native Plugins Fix Explorer 1 | completed | 973787c7-2904-4196-af56-1bf92096dab3 |
 | explorer_m2_fix_2 | teamwork_explorer | Command Routing Test Explorer 2 | completed | 87bab168-dfec-459c-9a2c-8cc07bc37a17 |
 | explorer_m2_fix_3 | teamwork_explorer | AppState Atomicity Explorer 3 | completed | e7d89a1a-7210-4bdd-821e-e940d80f8b55 |
-| worker_m2_remediation | teamwork_worker | Rust Core Remediation Worker | in-progress | 0e5b7170-2a2f-49df-b0a9-9ec7091244fa |
+| worker_m2_remediation | teamwork_worker | Rust Core Remediation Worker | completed | 0e5b7170-2a2f-49df-b0a9-9ec7091244fa |
+| reviewer_m2_recheck_1 | teamwork_reviewer | Remediation Code Reviewer 1 | completed | 791e3662-2214-4d6f-b475-d372b95d46b2 |
+| reviewer_m2_recheck_2 | teamwork_reviewer | Remediation Code Reviewer 2 | completed | a51c9af7-98d5-4100-9291-d48bc5af336a |
+| challenger_m2_recheck_1 | teamwork_challenger | Remediation Adversarial Challenger 1 | completed | d6d24a29-8019-46e1-958a-1e10a637a8d3 |
+| challenger_m2_recheck_2 | teamwork_challenger | Remediation Linker Challenger 2 | completed | 85d8f5a9-25df-4968-9d38-3c4cfcb93897 |
+| auditor_m2_recheck_1 | teamwork_auditor | Forensic Auditor M2 Recheck | completed | 725eef51-f970-4608-ba04-68400776e9ca |
+| specminer_m3 | teamwork_spec_miner | QueryExp & Arrow Spec Miner | completed | 313c364d-a70d-4159-b6b1-3dceb40c7bea |
+| explorer_m3_duckdb | teamwork_explorer | DuckDB Pool & Arrow Encoder Explorer | completed | 64710a0f-7ada-4347-bf1c-2a9acb3dd6ca |
+| explorer_m3_compiler | teamwork_explorer | QueryExp AST Compiler Explorer | completed | e047b874-6355-41e1-a407-249351fb7613 |
+| worker_m3_engine | teamwork_worker | Milestone 3 Implementation Worker | in-progress | afd16904-96e8-45c1-954f-4fe8f5d8cf71 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 20 / 128
-- Pending subagents: 0e5b7170-2a2f-49df-b0a9-9ec7091244fa
+- Spawn count: 29 / 128
+- Pending subagents: afd16904-96e8-45c1-954f-4fe8f5d8cf71
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-614
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-905
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

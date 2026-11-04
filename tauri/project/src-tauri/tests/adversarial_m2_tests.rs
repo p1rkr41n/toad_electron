@@ -562,6 +562,7 @@ fn adv_test_command_aliases_exhaustive_table_validation() {
         "plugin:clipboard|write_text",
         "plugin:clipboard-manager|write_text",
         "plugin:opener|open_url",
+        "plugin:fs|read_file",
     ];
     for p_cmd in plugin_commands {
         assert_eq!(route_command(p_cmd), CommandAction::PluginPassthrough);
@@ -622,3 +623,103 @@ async fn adv_test_appstate_update_config_atomicity_on_io_failure() {
 
     let _ = fs::remove_dir_all(&test_dir);
 }
+
+#[tokio::test]
+async fn adv_test_appstate_update_config_atomicity_on_readonly_file() {
+    let test_dir = create_test_dir("atomicity_readonly_adv");
+    let file_path = test_dir.join("config.ini");
+
+    let initial_cfg = ToadConfig::default();
+    let initial_ini = toad_lib::portable::serialize_ini(&initial_cfg);
+    fs::write(&file_path, &initial_ini).expect("Failed to write initial ini");
+
+    // Set read-only attribute
+    let mut perms = fs::metadata(&file_path).unwrap().permissions();
+    perms.set_readonly(true);
+    fs::set_permissions(&file_path, perms).expect("Failed to set read-only attribute");
+
+    let state = AppState {
+        portable_dir: test_dir.clone(),
+        config_path: file_path.clone(),
+        config: Arc::new(tokio::sync::RwLock::new(initial_cfg.clone())),
+        duckdb_engine: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        parquet_ledger: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        ingest_queue: Arc::new(tokio::sync::RwLock::new(Default::default())),
+    };
+
+    let res = state
+        .update_config(|c| {
+            c.general.page_size = 77777;
+            c.system.log_level = "error".to_string();
+        })
+        .await;
+
+    assert!(res.is_err(), "Expected update_config to fail on read-only file");
+
+    let current_cfg = state.get_config().await;
+    assert_eq!(current_cfg, initial_cfg, "In-memory state diverged from initial config!");
+
+    // Reset read-only for cleanup
+    let mut perms = fs::metadata(&file_path).unwrap().permissions();
+    perms.set_readonly(false);
+    let _ = fs::set_permissions(&file_path, perms);
+    let _ = fs::remove_dir_all(&test_dir);
+}
+
+#[tokio::test]
+async fn adv_test_appstate_update_config_dirty_read_isolation() {
+    let test_dir = create_test_dir("atomicity_dirty_read_adv");
+    let dir_as_file = test_dir.join("unwritable_dir");
+    fs::create_dir_all(&dir_as_file).unwrap();
+
+    let state = Arc::new(AppState {
+        portable_dir: test_dir.clone(),
+        config_path: dir_as_file,
+        config: Arc::new(tokio::sync::RwLock::new(ToadConfig::default())),
+        duckdb_engine: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        parquet_ledger: Arc::new(tokio::sync::RwLock::new(Default::default())),
+        ingest_queue: Arc::new(tokio::sync::RwLock::new(Default::default())),
+    });
+
+    let mut reader_handles = Vec::new();
+    for _ in 0..10 {
+        let state_clone = Arc::clone(&state);
+        let handle = tokio::spawn(async move {
+            for _ in 0..50 {
+                let cfg = state_clone.get_config().await;
+                assert_eq!(cfg.general.page_size, 1000, "Dirty read detected: page_size != 1000");
+                assert_eq!(cfg.duckdb.threads, 0, "Dirty read detected: threads != 0");
+                tokio::time::sleep(Duration::from_millis(1)).await;
+            }
+        });
+        reader_handles.push(handle);
+    }
+
+    let mut updater_handles = Vec::new();
+    for i in 0..5 {
+        let state_clone = Arc::clone(&state);
+        let handle = tokio::spawn(async move {
+            let res = state_clone
+                .update_config(move |c| {
+                    c.general.page_size = 50000 + i;
+                    c.duckdb.threads = 100 + i as u32;
+                })
+                .await;
+            assert!(res.is_err());
+        });
+        updater_handles.push(handle);
+    }
+
+    for h in updater_handles {
+        h.await.unwrap();
+    }
+    for h in reader_handles {
+        h.await.unwrap();
+    }
+
+    assert_eq!(state.get_config().await.general.page_size, 1000);
+    assert_eq!(state.get_config().await.duckdb.threads, 0);
+
+    let _ = fs::remove_dir_all(&test_dir);
+}
+
