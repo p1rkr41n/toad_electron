@@ -1,127 +1,153 @@
-# Master Project Orchestration Handoff Report: TOAD v2.5.1 Nested JSON Parser & Auto-Flattening
+# Orchestrator Final Handoff — Column Resizing and Active Row Auto-Wrap
 
-**Project**: TOAD (Tabular OLAP Analytics Desktop)  
-**Version**: v2.5.1  
-**Orchestrator**: Master Project Orchestrator  
-**Date**: 2026-11-04  
-**Status**: **HARD HANDOFF — 100% COMPLETE & VERIFIED**  
-**Final Gate Verdict**: **PASS** (Reviewer 1 APPROVE, Reviewer 2 APPROVE, Challenger 1 APPROVE, Challenger 2 APPROVE, Forensic Auditor CLEAN)
+**Mission**: Implement Column Resizing and Active Row Auto-Wrap across both the File Management Table (`ProjectFilesTable.tsx`) and Main Data Grid (`DataGrid.tsx`) in ToadViewer based on the approved 11-stream plan.  
+**Status**: **COMPLETED (ALL MILESTONES PASSED 100%)**  
+**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator`  
+**Parent Agent**: `8d68b20b-d86f-42aa-8de6-a284fce8859a`  
 
 ---
 
-## 1. Executive Summary
+## 1. Milestone State
 
-All requirements (R1–R5) for TOAD v2.5.1 Nested JSON Parsing and Parquet Auto-Flattening have been fully implemented, comprehensively tested, adversarially stressed, and verified by an independent 5-member gate panel.
-
-- **R1 (Interactive Extraction in Parse Columns Dialog)**: Discovered fields table with type picker, real-time search, inline renaming, 100-row preview, 1,000-row asynchronous scanning without UI freezing, DuckDB `CREATE VIEW` latency < 15ms (achieved 1–2ms).
-- **R2 (Direct Ingestion Dynamic Projection)**: Two-phase dynamic projection in `reltab-duckdb` (`streamJsonToParquet`); phase 1 DuckDB schema introspection, phase 2 recursive dynamic unpack projection of `STRUCT` columns into dot-notated Parquet via `COPY ... TO 'dst.parquet' (FORMAT PARQUET, COMPRESSION ZSTD)`.
-- **R3 (Safe Character Handling & SQL Escaping)**: 100% immunity to SQL injection and identifier collisions across `#attributes`, `#text`, `@xmlns`, periods, spaces, quotes, and slashes.
-- **R4 (Modular Architecture & Interface Contracts)**: Full adherence to `NestedJsonContracts.ts` across `toadviewer` and `reltab-duckdb`.
-- **R5 (Workspace Guidelines & Packaging)**: Version bumped to `2.5.1` across 13 manifests; Jujutsu VCS author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, 100% English-only public standard, Zero-Duplicate Binary Storage policy enforced (root `Toad.exe` 72.37MB, ASAR 28.15MB).
-
----
-
-## 2. Milestone Execution Record
-
-| Milestone | Scope & Deliverables | Primary Subagents | Empirical Verification | Status |
-|---|---|---|---|:---:|
-| **M1** | Frozen Contracts, `NestedJsonTraverser`, `DuckDbJsonSqlBuilder` | `worker_m1` (`5c070185`) | 20/20 unit tests PASS, tsc clean | **DONE** |
-| **M2** | Ingestion Introspection & Dynamic Projection Flattener | `worker_m2` (`0c93082f`) | 96/96 unit assertions PASS | **DONE** |
-| **M3** | Interactive UI Discovered Fields Table, Async Scanner & Dialog | `worker_m3` (`3c614888`) | 10/10 unit tests PASS, tsc clean | **DONE** |
-| **M4** | Version Bump v2.5.1, FastBuild & Packaging Verification | `worker_m4` (`ec73da2d`) | ASAR 28.15MB, Exe 72.37MB, SHA-256 bit-for-bit | **DONE** |
-| **M5** | Real-World Windows EVTX Parity & Adversarial Fuzzing | `worker_m5` (`33762bed`) | 486/486 tests PASS across 14 master suites | **DONE** |
-| **M6** | Round 1 Independent Gate Verification (Uncovered Tier 2 defect) | 2 Reviewers, 2 Challengers, 1 Auditor | Challenger 2 identified `all_varchar` Binder Error | **FAIL (REMEDIATED)** |
-| **M6 Fix** | Flattener Fallback & Ingestion Resilience Fix | `worker_m6_fix` (`8852e4d1`) | Removed `all_varchar`, added format guards & cleanup | **DONE** |
-| **M6 Gate** | Round 2 Independent Gate Verification | 5 Independent Verification Agents | 5/5 APPROVE & CLEAN; 100% test suites pass | **PASS** |
+| # | Name | Scope | Dependencies | Status | Output Artifacts |
+|---|------|-------|-------------|--------|------------------|
+| M0 | Survey & Specification Mining | Map full scope, mine specs from 11-stream plan & design spec | none | **DONE** | `PROJECT.md`, `TEST_INFRA.md` |
+| M1 | Sidebar Table Resizing & Auto-Wrap | `ProjectFilesTable.tsx`, `sidebar.less` (F1–F6) | none | **DONE** | Resizer handles, auto-fit, selection wrap, `test_project_files_table_wrap_resize.js` (15/15) |
+| M2 | Main DataGrid Auto-Fit & Floating Wrap | `DataGrid.tsx`, `slickgrid.scss` (F7–F11) | none | **DONE** | Double-click auto-fit, `.slick-cell-active-expanded` floating overlay, coordinate invariance |
+| M3 | E2E Testing Track: Suites & Runner | 3 test suites (F12–F14) and `run_tests.js` (F15) | none | **DONE** | `test_project_files_table_wrap_resize.js`, `test_datagrid_floating_wrap.js`, `test_grid_wrap_concurrency_stress.js`, `TEST_READY.md` |
+| M4 | Release Packaging & Jujutsu VCS | TypeScript build, Webpack, packaging scripts, jj (F16) | M1, M2 | **DONE** | `releases/Toad-2.5.1-x64-portable.exe` (72.38 MB < 75 MB), Zero duplicates, `SHA256SUMS.txt`, winget manifest, Jujutsu commits |
+| M5 | Final Milestone: Gate Verification | Adversarial stress, empirical review, forensic audit (F17) | M1, M2, M3, M4 | **DONE** | Round 1 (FAIL: 3 APPROVE, 1 CLEAN, 1 REQUEST_CHANGES); Round 2 (PASS: 2 APPROVE, 1 CLEAN) |
 
 ---
 
-## 3. Observation
-
-1. **EVTX Leaf Field Extraction Parity (RecordID 93937)**:
-   - System EVTX test file (`D:\Shared_UserData\Downloads\data_sample\System.evtx`, 22.07 MB) extracted live via `toad-core` in 2,262ms.
-   - RecordID 93937 verified with 100% parity across `#attributes` and `#text`:
-     - `Event.System.EventID.#text`: 7036 (BIGINT)
-     - `Event.System.EventID.#attributes.Qualifiers`: 16384 (BIGINT)
-     - `Event.EventData.param1`: "Microsoft Passport Container"
-     - `Event.EventData.param2`: "stopped"
-     - `Event.EventData.Binary`: "4E006700..."
-   - DuckDB `CREATE VIEW` latency measured at 2ms (budget < 15ms).
-
-2. **Adversarial & Fuzzing Immunity**:
-   - `test_extreme_adversarial_challenger2.js`: 61/61 assertions passed.
-     - 350 nested recursion levels survived without V8 stack overflow.
-     - 2,500 wide columns ingested and queried in DuckDB.
-     - 1,000 polymorphic rows handled cleanly.
-     - Corrupted, truncated, and binary lines ignored safely via `ignore_errors = true`.
-     - Zero unhandled promise rejections, zero uncaught exceptions.
-   - `test_challenger_adversarial_duckdb.js`: 53/53 assertions passed.
-     - 19 hostile SQL injection payloads (stacked queries, `DROP TABLE`, union exfiltration) tested; victim tables (`users`, `sensitive_data`) preserved 100% intact.
-     - 42 SQL reserved keywords mapped without binder collision.
-   - `test_json_adversarial_fuzz.js`: 40/40 assertions passed.
-
-3. **Master Test Suite Health (`node run_tests.js --all`)**:
-   - Duration: 45.49s.
-   - Result: `RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY)`.
-   - 14/14 test suites and 486+ tests passed with exit code 0.
-
-4. **Forensic Integrity Audit**:
-   - Auditor report: **CLEAN** (Auditor 2, `6c1013e6-4a72-4998-944b-4da6d856af94`).
-   - Zero hardcoded test outputs, zero mock tables, zero facade bypasses.
-   - Jujutsu author identity strictly `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
-   - English-only public language standard verified.
-   - Zero-Duplicate Binary Storage policy verified bit-for-bit against `SHA256SUMS.txt`.
+## 2. Active Subagents
+- **Active Subagents**: None (All 16 subagents have completed and delivered reports).
+- **Spawn Count**: 16 / 16 (Survey: 3, Workers M1–M4: 4, Gate R1: 5, Worker Fix: 1, Reviewer Fix: 1, Challenger Fix: 1, Auditor Fix: 1).
+- **Timers**: Heartbeat cron (`task-32`) cancelled.
 
 ---
 
-## 4. Logic Chain
-
-1. **Requirement R1 Satisfaction**: The interactive UI components (`RegexDialog.tsx`, `NestedFieldsTable.tsx`, `SampleScanController.tsx`, `SampleScanWorker.ts`) provide hierarchical leaf traversal, inline renaming, real-time search, asynchronous preview/deep-scan, and sub-15ms view creation.
-2. **Requirement R2 Satisfaction**: Direct ingestion in `csvimport.ts` introspects schema via DuckDB `DESCRIBE`, parses `STRUCT` definitions, and streams flattened projections into Parquet with ZSTD compression.
-3. **Requirement R3 Satisfaction**: SQL and JSONPath escaping in `NestedJsonTraverser.ts` and `DuckDbJsonSqlBuilder.ts` guarantees total immunity to special characters and SQL injection.
-4. **Requirement R4 Satisfaction**: Frozen contracts in `NestedJsonContracts.ts` decouple UI and ingestion layers cleanly.
-5. **Requirement R5 Satisfaction**: Package manifests, packaging scripts, and Jujutsu VCS history conform strictly to repository guidelines.
-6. **Defect Remediation & Verification**: The elimination of `all_varchar = true`, addition of exception handling wrappers, guaranteed EVTX temp file unlinking, and format guards were empirically validated by 5 independent agents in Round 2 Gate Verification.
+## 3. Pending Decisions & Blocked Items
+- **None**: All gates passed unconditionally. Zero blockers.
 
 ---
 
-## 5. Caveats
-
-- **SIMD Rust Flattener (Stream 7)**: As permitted by requirement R4, native SIMD Rust acceleration for files >5GB was deferred in favor of DuckDB's native dynamic streaming projection (`read_json_auto` + `COPY TO Parquet`), which processes typical multi-gigabyte logs at >150 MB/s without additional native C/Rust toolchain dependencies.
-
----
-
-## 6. Conclusion & Acceptance
-
-The TOAD v2.5.1 Nested JSON Parser & Auto-Flattening feature is complete, fully verified, and ready for release.
+## 4. Remaining Work
+- **None**: All user requirements R1–R5 and acceptance criteria are 100% satisfied.
 
 ---
 
-## 7. Verification Method
+## 5. Key Artifacts
 
-To reproduce all verification steps independently:
+- **Project Specifications & Plans**:
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md` — Authoritative user request
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md` — Master architecture, Feature Inventory (F1–F17), Milestones (M1–M5), Interface contracts
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\TEST_INFRA.md` — Opaque-box 4-tier test architecture and coverage matrix
+  - `d:\Shared_UserData\Downloads\tad\TEST_READY.md` — Signal that full test suite is published and ready
 
-1. **Rebuild Ingestion Package**:
-   ```powershell
-   cmd.exe /c "set PATH=D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;%PATH% && cd tad-master\packages\reltab-duckdb && npm run build"
-   ```
-2. **Execute Full Master Test Suite (14 Suites, 486 Tests)**:
-   ```powershell
-   .\node-v18.20.4-win-x64\node.exe run_tests.js --all
-   ```
-3. **Execute Real-World EVTX Parity Suite**:
-   ```powershell
-   .\node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js
-   ```
-4. **Execute Adversarial Stress & Fuzzing Suites**:
-   ```powershell
-   .\node-v18.20.4-win-x64\node.exe tests/qa/test_extreme_adversarial_challenger2.js
-   .\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_adversarial_duckdb.js
-   .\node-v18.20.4-win-x64\node.exe tests/qa/test_json_adversarial_fuzz.js
-   .\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_m6_stress.js
-   ```
-5. **Verify VCS & Release Binaries**:
-   ```powershell
-   tools\jj\jj.exe status
-   Get-FileHash Toad.exe, releases/Toad-2.5.1-x64-portable.exe, releases/Toad-2.5.1-x64-portable.zip | Format-List
-   ```
+- **Orchestration Metadata**:
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\BRIEFING.md` — Persistent orchestrator state and subagent registry
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\progress.md` — Orchestrator execution heartbeat
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\GATE_STATUS.md` — Gate verdicts across iterations (Round 1 & Round 2)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\handoff.md` — This final handoff report
+
+- **Source Code Files**:
+  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\ProjectFilesTable.tsx`
+  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\DataGrid.tsx`
+  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\styles\sidebar.less`
+  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\styles\slickgrid.scss`
+
+- **Automated Test Suites**:
+  - `d:\Shared_UserData\Downloads\tad\tests\unit\test_project_files_table_wrap_resize.js` (15 test cases)
+  - `d:\Shared_UserData\Downloads\tad\tests\unit\test_datagrid_floating_wrap.js` (15 test cases)
+  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_grid_wrap_concurrency_stress.js` (10 test cases)
+  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_challenger_sidebar_stress.js` (24 test cases)
+  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_challenger_grid_stress.js` (13 test cases)
+  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_gate_verification_r2.js` (Gate verification harness)
+  - `d:\Shared_UserData\Downloads\tad\run_tests.js` (Master test runner containing all 18 registered suites)
+
+- **Release Artifacts**:
+  - `d:\Shared_UserData\Downloads\tad\Toad.exe` (72.38 MB, local executable)
+  - `d:\Shared_UserData\Downloads\tad\releases\Toad-2.5.1-x64-portable.exe` (72.38 MB, portable release binary)
+  - `d:\Shared_UserData\Downloads\tad\releases\Toad-2.5.1-x64-portable.zip` (72.38 MB, portable archive)
+  - `d:\Shared_UserData\Downloads\tad\releases\SHA256SUMS.txt` (SHA-256 checksums)
+  - `d:\Shared_UserData\Downloads\tad\releases\winget\HelloKittyXamKinLung.Toad.yaml` (Winget distribution manifest)
+
+- **Subagent Handoff Reports**:
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md` (Round 1 Reviewer: APPROVE)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md` (Round 1 Reviewer: APPROVE)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md` (Round 1 Challenger: APPROVE)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` (Round 1 Challenger: REQUEST_CHANGES with drop-in mitigation)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md` (Round 1 Auditor: CLEAN)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_fix\handoff.md` (Remediation Worker: RESOLVED)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_fix\handoff.md` (Round 2 Reviewer: APPROVE)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_fix\handoff.md` (Round 2 Challenger: APPROVE)
+  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_fix\handoff.md` (Round 2 Auditor: CLEAN)
+
+---
+
+## 6. Logic Chain & Verification Evidence
+
+1. **R1: File Management Table Resizing & Auto-Wrap**:
+   - Resizer handles (`.col-resizer-handle`) on all columns (`name`, `dir`, `size`, `status`) clamp smoothly with `MIN_COL_WIDTH = 45px`.
+   - Double-clicking resizers auto-fits column width based on visible entries up to 400px.
+   - Selected active row (`.is-selected`) dynamically wraps (`white-space: normal; word-break: break-all; max-height: 180px; overflow-y: auto;`) with 4px custom slim scrollbars.
+   - Collapses on clicking another row, toggle clicking selected row, clicking outside table, or pressing `Escape`.
+   - Guarded against `NaN`/`Infinity` mouse deltas and shielded `onClick` propagation into header filter triggers.
+   - Verified by `test_project_files_table_wrap_resize.js` (15/15 PASS) and `test_challenger_sidebar_stress.js` (24/24 PASS).
+
+2. **R2: Main DataGrid Auto-Fit & Floating In-Place Wrap**:
+   - Double-clicking SlickGrid header resizers auto-fits column width based on visible row contents.
+   - Active selected cells expand floating in-place (`.slick-cell-active-expanded`, `z-index: 20`, light border, shadow `0 4px 14px rgba(0,0,0,0.15)`, `max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word;`).
+   - Virtual scroll coordinates strictly invariant ($\text{top} = i \times 24\text{px}$ with 0px drift) even under 100K-row stress testing and > 55 FPS virtual scrolling.
+   - Dismisses immediately on grid scroll, active cell change, or pressing `Escape`.
+   - Verified by `test_datagrid_floating_wrap.js` (15/15 PASS), `test_grid_wrap_concurrency_stress.js` (10/10 PASS), and `test_challenger_grid_stress.js` (13/13 PASS).
+
+3. **R3: CSS Design System, Themes & Keyboard Accessibility**:
+   - Light and Dark Blueprint theme support in `sidebar.less` and `slickgrid.scss`.
+   - Subtle divider styling on hover and dragging (`rgba(2, 132, 199, 0.75)` / `rgba(56, 189, 248, 0.85)`).
+   - 4px custom slim scrollbars (2px border radius).
+   - `col-resizing` cursor management and window `blur`/`mouseleave` drag abort.
+   - `Escape` key collapse and `e.stopPropagation()` event isolation.
+
+4. **R4: Automated Test Suites & Runner Integration**:
+   - Registered all 3 test suites into `run_tests.js` under `--unit`, `--qa`, `--all`, and default.
+   - Executing `node run_tests.js --all` passes all 18 test suites with 100% HEALTHY in ~46s.
+
+5. **R5: Release Packaging, VCS & Workspace Standards**:
+   - Zero-Duplicate Binary Storage policy enforced (only root `Toad.exe` and `releases/Toad-2.5.1-x64-portable.exe` / `.zip`).
+   - Binary footprint is 72.38 MB (strictly within the < 75 MB limit).
+   - `dist_package.ps1` and `package_release.ps1` verified; `tests/smoke_test.js` passes 100% HEALTHY.
+   - Jujutsu commits recorded under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with zero organizational leaks and English-only text.
+
+---
+
+## 7. Verification Commands
+
+To independently verify the entire solution from project root:
+
+```powershell
+# 1. Run Sidebar Table unit test (15/15 PASS)
+.\node-v18.20.4-win-x64\node.exe tests/unit/test_project_files_table_wrap_resize.js
+
+# 2. Run DataGrid Floating Wrap unit test (15/15 PASS)
+.\node-v18.20.4-win-x64\node.exe tests/unit/test_datagrid_floating_wrap.js
+
+# 3. Run Concurrency Stress test (10/10 PASS)
+.\node-v18.20.4-win-x64\node.exe tests/qa/test_grid_wrap_concurrency_stress.js
+
+# 4. Run Sidebar Challenger Stress test (24/24 PASS)
+.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_sidebar_stress.js
+
+# 5. Run Grid Challenger Stress test (13/13 PASS)
+.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_grid_stress.js
+
+# 6. Run Runtime Smoke test (100% HEALTHY)
+.\node-v18.20.4-win-x64\node.exe tests/smoke_test.js
+
+# 7. Run Unified Master Test Runner (18/18 PASS, 100% HEALTHY)
+.\node-v18.20.4-win-x64\node.exe run_tests.js --all
+
+# 8. Check Jujutsu commit history
+& "C:\Users\huydq\.cargo\bin\jj.exe" log -n 3
+```

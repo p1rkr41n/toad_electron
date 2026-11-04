@@ -61,7 +61,7 @@
 | M2 | Main DataGrid Auto-Fit & Floating Wrap | `DataGrid.tsx`, `slickgrid.scss` (F7–F11) | none | DONE |
 | M3 | E2E Testing Track: Suites & Runner | 3 test suites (F12–F14) and `run_tests.js` (F15) | none | DONE |
 | M4 | Release Packaging & Jujutsu VCS | TypeScript build, Webpack, packaging scripts, jj (F16) | M1, M2 | DONE |
-| M5 | Final Milestone: Gate Verification | Full E2E verification, 2 Reviewers, 2 Challengers, 1 Auditor (F17) | M1, M2, M3, M4 | PLANNED |
+| M5 | Final Milestone: Gate Verification | Full E2E verification, 2 Reviewers, 2 Challengers, 1 Auditor (F17) | M1, M2, M3, M4 | DONE |
 
 ---
 

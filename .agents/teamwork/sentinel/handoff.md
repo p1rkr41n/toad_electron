@@ -1,57 +1,54 @@
-# Sentinel Handoff Report: TOAD v2.5.0 IPC Architectural Migration
+# Handoff Report — Sentinel (Column Resizing & Active Row Auto-Wrap)
 
-**Agent**: Sentinel (`c58e55ac-005f-4db9-a4b2-db2e2a1e8982`)  
-**Mission**: Supervise TOAD v2.5.0 IPC architectural migration to Electron utilityProcess and Tauri-like host bridge  
-**Status**: VICTORY CONFIRMED  
+**Author**: Project Sentinel  
 **Date**: 2026-11-04  
+**Target Request**: Column Resizing & Active Row Auto-Wrap Implementation across File Management Table and Main Data Grid (11 Parallel Streams)  
+**Status**: COMPLETE (VICTORY CONFIRMED)
 
 ---
 
 ## 1. Observation
-
-- **Original Mandate**: Full implementation of TOAD v2.5.0 IPC architectural migration based on `ke_hoach_chuyen_doi_ipc_utilityprocess.md` and `FUTURE_KE_HOACH_CHUYEN_DOI_MO_HINH_IPC_UTILITYPROCESS.md` covering Requirements R1–R5.
-- **Milestone Delivery**:
-  - R1: Target version `2.5.0` synchronized across all 9 manifest/metadata files (`package.json`, `RegexDialog.tsx`, `dist_package.ps1`, `package_release.ps1`, `README.md`, winget manifest). Dual-mode runtime configuration in `portableAppData.ts` (`runtime.engine = "utility" | "legacy"`).
-  - R2: Standardized Tauri-like IPC abstraction (`window.toadBridge.invoke`) in `packages/host-bridge`, enabling `contextIsolation: true` and `nodeIntegration: false`. Implemented `HeadlessNodeAdapter` in `packages/host-bridge` allowing all 168+ CLI test cases to execute headlessly without an Electron window.
-  - R3: Separated DuckDB connection pool and Parquet WAL into a dedicated Electron `utilityProcess` (`engineService.ts`). Connected Renderer and engine process directly via `MessagePort` using a hybrid data protocol (JSON metadata + zero-copy Transferable `ArrayBuffer` for tabular blocks with `'TOAD'` magic bytes).
-  - R4: Implemented Main process supervisor (`engineSupervisor.ts`) providing automatic crash recovery in < 500ms (measured at 265.69 ms), Parquet view state replay in < 5ms (measured at 2.40 ms/view), flap guard protection, and non-blocking BlueprintJS toast notification in `AppPane.tsx` (*"Động cơ phân tích vừa được tự động phục hồi"*).
-  - R5: Webpack production bundle for `engineService.bundle.js` (`target: "node"`, 12.6 KiB), native `duckdb.node` packaged in `app.asar.unpacked`. Package sizes: `app.asar` = 25.80 MB (< 45 MB budget), portable exe = 72.11 MB (< 75 MB budget). Canonical portable releases in `releases/` without duplicate historical binaries; Jujutsu commit logged cleanly.
-- **Independent Victory Audit**: Conducted by `teamwork_victory_auditor` (`c3b1905f-92cf-460a-b386-0a9a4da44f00`). 3-phase audit (Timeline, Anti-Cheating Forensics, Independent Test Execution) returned `VICTORY CONFIRMED`.
-
----
+- Original approved task prompt (`.agents/teamwork/ORIGINAL_REQUEST.md`) requested implementation of:
+  - R1: Draggable divider resizers (minWidth 45px) and active row auto-wrap (max-height 180px, slim scrollbars, collapse lifecycle) in `ProjectFilesTable.tsx` / `sidebar.less`.
+  - R2: Double-click auto-fit and floating in-place cell wrap (`.slick-cell-active-expanded`, `z-index: 20`, light shadow, dismiss on scroll/Escape) preserving virtual scrolling coordinates in `DataGrid.tsx` / `slickgrid.scss`.
+  - R3: CSS design system, Blueprint Light/Dark theme conformance, event isolation (`e.stopPropagation()` on divider handles, window blur/leave cleanup, Escape handling).
+  - R4: 40 automated test cases across 3 suites (`tests/unit/test_project_files_table_wrap_resize.js`, `tests/unit/test_datagrid_floating_wrap.js`, `tests/qa/test_grid_wrap_concurrency_stress.js`), registered in `run_tests.js`.
+  - R5: Zero duplicate binary policy, binary footprint < 75 MB (`Toad-2.5.1-x64-portable.exe` = 72.38 MB), Jujutsu VCS commits under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
 
 ## 2. Logic Chain
+1. **Interview & Routing**: Initial interview confirmed requirement parameters. Routed via General path to `teamwork_orchestrator`.
+2. **Phase 0 Codebase Survey**: Orchestrator mobilized 3 parallel survey subagents (`spec_miner_survey`, `explorer_ui_table`, `explorer_qa_packaging`) to map target components, test runner architecture, and layout constraints. Key discovery: `.slick-cell { contain: strict }` overridden with `contain: none !important` on `.slick-cell-active-expanded`.
+3. **Master Synthesis**: Codified architecture and 11-stream breakdown in `PROJECT.md` and `TEST_INFRA.md`.
+4. **Parallel Implementation & Testing**:
+   - `worker_m1`: Implemented Sidebar Table header resizing and row auto-wrap in `ProjectFilesTable.tsx` and `sidebar.less`.
+   - `worker_m2`: Implemented DataGrid header resizer double-click auto-fit and floating cell wrap in `DataGrid.tsx` and `slickgrid.scss`.
+   - `worker_m3_tests`: Authored 40 unit and stress test cases, integrated into `run_tests.js`.
+   - `worker_m4_release`: Executed `dist_package.ps1` and `package_release.ps1` producing canonical 72.38 MB portable executable, verified smoke test, and committed via Jujutsu.
+5. **Gate Verification & Remediation**:
+   - Iteration 1 Gate: Reviewer 1, Reviewer 2, Challenger 1 approved; Auditor 1 found clean; Challenger 2 requested changes for NaN delta mouse handling and resizer handle click propagation.
+   - Remediation: `worker_fix` implemented NaN delta guards and click propagation isolation, re-packaged, re-ran tests, and committed `3403c963`.
+   - Iteration 2 Gate: All reviewers, challengers, and forensic auditor approved unanimously.
+6. **Independent Sentinel Victory Audit**:
+   - Spawned `teamwork_victory_auditor` (`942d8c7e-c2f2-4037-912b-ab436d07c986`).
+   - Conducted Phase A (Timeline & Provenance), Phase B (Cheating & Static Integrity Forensics), and Phase C (Independent Test Execution).
+   - All 18 test suites passed (526/526 tests, 100% HEALTHY in 46.73s).
+   - Verdict: **VICTORY CONFIRMED**.
 
-1. **Routing & Dispatch**: Initial task interview conducted and approved. Request routed to the General path (`teamwork_orchestrator`).
-2. **Phase 0 Exploration**: Dispatched 3 parallel survey agents (`spec_miner_ipc_survey`, `explorer_ipc_backend`, `explorer_ipc_frontend`) to map out 31 IPC commands, DuckDB WAL restoration mechanisms, host bridge abstraction, and packaging requirements.
-3. **Phase 1 (Milestone 1)**: `worker_m1_bridge` bumped version to 2.5.0, configured dual-mode flags, and implemented `HeadlessNodeAdapter` preserving 100% CLI test runner compatibility.
-4. **Phase 2 (Milestone 2)**: Developed `hybridProtocol.ts` (binary wire framing with zero-copy `ArrayBuffer`) and `engineService.ts` running inside Electron `utilityProcess`. Upgraded `Connection.ts` and `server.ts` to decode binary tables.
-5. **Phase 3 (Milestone 3)**: Developed `engineSupervisor.ts` with crash monitoring, auto-restart SLA < 500ms, Parquet ledger view re-registration < 5ms, and UI toast integration in `AppPane.tsx`.
-6. **Phase 4 (Milestone 4)**: Webpack configuration updated for `engineService.bundle.js`, packaging scripts updated and verified for size limits and zero-duplicate binaries.
-7. **Phase 5 (Milestone 5 QA)**: 1,000 queries MessagePort test executed (2.28 ms avg latency), crash recovery tested (265.69 ms), and master test runner (`node run_tests.js --all`) passed 100% across all 4 suites.
-8. **Phase 6 Verification Gate**: 5 parallel reviewers, empirical challengers, and forensic auditors approved the changeset.
-9. **Post-Victory Audit**: Independent auditor independently ran all test commands and code inspections with zero shared context, confirming complete compliance.
-
----
-
-## 3. Caveats & Operating Boundaries
-
-- **Crash Flap Protection**: If 6 crashes occur within 10 seconds, the supervisor halts auto-restart and emits `engine:crash-loop` to prevent infinite restart loops. Manual restart via `EngineSupervisor.getInstance().restart()` resets the guard.
-- **Parquet Ledger Replay Scale**: Replay latency scales at ~2.34 ms per registered view. For typical user sessions (< 50 active views), replay is well under 120 ms. If a session accumulates over 105 views, total recovery time may exceed the 500 ms SLA.
-- **Dual-Mode Engine Switch**: Switching between `"utility"` and `"legacy"` is persistent in `config.ini` (`[runtime] engine = utility`). Switching to legacy mode runs DuckDB in-process without spawning the `utilityProcess`.
-
----
+## 3. Caveats
+- In-memory column widths in `ProjectFilesTable` persist across folder navigation within the active session. If permanent cross-session disk persistence is desired in the future, a localStorage/config persistence layer can be added.
+- In `DataGrid`, double-click auto-fit calculates widths based on currently loaded visible row items in PagedDataView.
 
 ## 4. Conclusion
-
-The TOAD v2.5.0 IPC architectural migration to Electron `utilityProcess` and Tauri-like host bridge has been fully implemented, rigorously verified across empirical stress and adversarial benchmarks, and independently validated by the Victory Auditor.
-
----
+All requirements R1 through R5 and 11 workstreams have been fully implemented, rigorously verified by adversarial challenges, independently audited, packaged under strict zero-duplicate standards, and certified production ready.
 
 ## 5. Verification Method
-
-- Master Test Suite: `node run_tests.js --all` (100% PASS in 29.73s across Smoke, Deep QA [222/222], Preload 3 Pages [10/10], Legacy [19/19]).
-- MessagePort Benchmark: `node tests/test_engine_service.js` (1,000 queries, 2.28 ms avg latency, 0 errors, 100% data integrity).
-- Crash Resilience: `node tests/test_engine_crash_recovery.js` (auto-restart 265.69 ms, view replay 2.40 ms/view).
-- Fast Build: `.\fastbuild.ps1` (Exit code 0, 131.8s, produces `build/Toad-2.5.0/Toad.exe`).
-- Checksum & Packaging: `dist_package.ps1` produces `releases/Toad-2.5.0-x64-portable.exe` (72.11 MB) and `releases/Toad-2.5.0-x64-portable.zip` matching `releases/SHA256SUMS.txt`.
+- Independent Victory Auditor execution:
+  - `node tests/unit/test_project_files_table_wrap_resize.js` (15/15 PASS)
+  - `node tests/unit/test_datagrid_floating_wrap.js` (15/15 PASS)
+  - `node tests/qa/test_grid_wrap_concurrency_stress.js` (10/10 PASS)
+  - `node tests/qa/test_challenger_sidebar_stress.js` (24/24 PASS)
+  - `node tests/qa/test_challenger_grid_stress.js` (13/13 PASS)
+  - `node tests/smoke_test.js` (100% HEALTHY)
+  - `node run_tests.js --all` (18/18 suites PASS, 526/526 tests PASS, 100% HEALTHY)
+- Release binary verification: `releases/Toad-2.5.1-x64-portable.exe` (72.38 MB) and `releases/SHA256SUMS.txt`.
+- VCS verification: Jujutsu commit `3403c963` under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
