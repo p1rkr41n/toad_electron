@@ -14,7 +14,7 @@ function config(nodeEnv) {
     resolve: {
       extensions: [".webpack.js", ".web.js", ".js", ".ts", ".tsx"],
       alias: {
-        "host-bridge": path.resolve(__dirname, "../host-bridge/dist/index.js"),
+        "host-bridge": path.resolve(__dirname, "../host-bridge/dist/ElectronHostAdapter.js"),
         "toadviewer": path.resolve(__dirname, "../toadviewer/dist/toadviewer.js"),
         "tadviewer": path.resolve(__dirname, "../toadviewer/dist/toadviewer.js"),
       },
@@ -116,7 +116,7 @@ function production() {
 var render = {
   target: "web",
   entry: {
-    toadapp: "./src/electronRenderMain.tsx",
+    toadapp: "./src/appMain.tsx",
   },
   resolve: {
     fallback: {

@@ -2,6 +2,8 @@ import { TransportClient } from "reltab";
 
 export type EngineName = "utility" | "legacy" | "v8" | "headless" | "tauri";
 
+export type UnlistenFn = () => void;
+
 export interface FileFilter {
   name: string;
   extensions: string[];
@@ -57,8 +59,15 @@ export interface AppConfigDTO {
 export interface IHostBridge extends TransportClient {
   readonly engineName: EngineName;
 
-  // Low-level RPC invocation (TransportClient compatible)
-  invoke(functionName: string, req: any): Promise<any>;
+  // 1. Unified Command Execution (Tauri v2 invoke)
+  invoke<T = any>(cmd: string, args?: Record<string, unknown> | any): Promise<T>;
+
+  // 2. Binary Execution (Tauri raw binary response)
+  invokeBinary(cmd: string, args?: Record<string, unknown> | any): Promise<Uint8Array>;
+
+  // 3. Event System (Tauri v2 listen & emit)
+  listen<T = any>(event: string, handler: (payload: T) => void): UnlistenFn;
+  emit(event: string, payload?: unknown): void;
 
   // Tauri-standard asynchronous invocation signature
   invokeCmd<T = any>(command: string, payload?: any): Promise<T>;

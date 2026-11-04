@@ -19,7 +19,7 @@ function config(nodeEnv) {
     resolve: {
       extensions: [".webpack.js", ".web.js", ".js", ".ts", ".tsx"],
       alias: {
-        "host-bridge": path.resolve(__dirname, "../host-bridge/dist/index.js"),
+        "host-bridge": path.resolve(__dirname, "../host-bridge/dist/ElectronHostAdapter.js"),
       },
     },
     output: {

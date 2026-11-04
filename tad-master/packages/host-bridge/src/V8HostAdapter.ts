@@ -1,17 +1,24 @@
-import { IHostBridge, OpenDialogOptions, SaveDialogOptions, AppConfigDTO, EngineName } from "./IHostBridge";
+import {
+  IHostBridge,
+  OpenDialogOptions,
+  SaveDialogOptions,
+  AppConfigDTO,
+  EngineName,
+  UnlistenFn,
+} from "./IHostBridge";
 
 /**
  * Ring 2: V8 Host Adapter
- * Concrete implementation of IHostBridge for Electron / Node.js V8 Runtime.
+ * Concrete base implementation of IHostBridge for Electron / Node.js V8 Runtime.
  * Prioritizes window.toadBridge (contextIsolation: true), falling back gracefully
  * to window.require("electron") in legacy mode (contextIsolation: false).
  */
 export class V8HostAdapter implements IHostBridge {
-  private toadBridge: any = null;
-  private ipc: any = null;
-  private clipboard: any = null;
-  private shell: any = null;
-  private dataPort: any = null;
+  protected toadBridge: any = null;
+  protected ipc: any = null;
+  protected clipboard: any = null;
+  protected shell: any = null;
+  protected dataPort: any = null;
 
   constructor() {
     this.initAPIs();
@@ -22,7 +29,7 @@ export class V8HostAdapter implements IHostBridge {
     return this.toadBridge ? "utility" : "v8";
   }
 
-  private initAPIs(): void {
+  protected initAPIs(): void {
     if (typeof window !== "undefined") {
       // 1. Prioritize secure toadBridge exposed by preload.js
       if ((window as any).toadBridge) {
@@ -42,7 +49,7 @@ export class V8HostAdapter implements IHostBridge {
     }
   }
 
-  private initPortListener(): void {
+  protected initPortListener(): void {
     if (typeof window !== "undefined") {
       window.addEventListener("message", (event: MessageEvent) => {
         if (event.data?.type === "toad-engine-port-handshake" && event.ports?.[0]) {
@@ -61,21 +68,81 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   // TransportClient implementation for reltab
-  async invoke(functionName: string, req: any): Promise<any> {
+  async invoke<T = any>(functionName: string, req?: any): Promise<T> {
     if (!this.toadBridge && !this.ipc) {
       this.initAPIs();
     }
-    if (this.toadBridge) {
+    if (this.toadBridge && typeof this.toadBridge.invoke === "function") {
       return await this.toadBridge.invoke(functionName, req);
     }
-    if (this.ipc) {
+    if (this.ipc && typeof this.ipc.invoke === "function") {
       return await this.ipc.invoke(functionName, req);
     }
     throw new Error(`[V8HostAdapter] Neither toadBridge nor ipcRenderer is available for invoking '${functionName}'`);
   }
 
+  async invokeBinary(cmd: string, args?: Record<string, unknown> | any): Promise<Uint8Array> {
+    const res = await this.invoke(cmd, args);
+    if (res instanceof Uint8Array) {
+      return res;
+    }
+    if (res instanceof ArrayBuffer) {
+      return new Uint8Array(res);
+    }
+    if (typeof Buffer !== "undefined" && Buffer.isBuffer(res)) {
+      return new Uint8Array(res.buffer, res.byteOffset, res.byteLength);
+    }
+    if (typeof res === "string") {
+      return new TextEncoder().encode(res);
+    }
+    return new Uint8Array();
+  }
+
+  listen<T = any>(event: string, handler: (payload: T) => void): UnlistenFn {
+    if (!this.toadBridge && !this.ipc) {
+      this.initAPIs();
+    }
+    if (this.toadBridge) {
+      if (typeof this.toadBridge.listen === "function") {
+        return this.toadBridge.listen(event, handler);
+      }
+      if (typeof this.toadBridge.on === "function") {
+        return this.toadBridge.on(event, handler);
+      }
+    }
+    if (this.ipc && typeof this.ipc.on === "function") {
+      const wrappedHandler = (_: any, data: T) => handler(data);
+      this.ipc.on(event, wrappedHandler);
+      return () => {
+        if (this.ipc) {
+          this.ipc.removeListener(event, wrappedHandler);
+        }
+      };
+    }
+    return () => {};
+  }
+
+  emit(event: string, payload?: unknown): void {
+    if (!this.toadBridge && !this.ipc) {
+      this.initAPIs();
+    }
+    if (this.toadBridge) {
+      if (typeof this.toadBridge.emit === "function") {
+        this.toadBridge.emit(event, payload);
+        return;
+      }
+      if (typeof this.toadBridge.send === "function") {
+        this.toadBridge.send(event, payload);
+        return;
+      }
+    }
+    if (this.ipc && typeof this.ipc.send === "function") {
+      this.ipc.send(event, payload);
+    }
+  }
+
   async invokeCmd<T = any>(command: string, payload?: any): Promise<T> {
-    return await this.invoke(command, payload);
+    return await this.invoke<T>(command, payload);
   }
 
   async getConfig(): Promise<AppConfigDTO> {
@@ -160,33 +227,11 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   onEvent<T = any>(channel: string, listener: (data: T) => void): () => void {
-    if (!this.toadBridge && !this.ipc) {
-      this.initAPIs();
-    }
-    if (this.toadBridge && typeof this.toadBridge.on === "function") {
-      return this.toadBridge.on(channel, listener);
-    }
-    if (this.ipc) {
-      const wrappedHandler = (_: any, data: T) => listener(data);
-      this.ipc.on(channel, wrappedHandler);
-      return () => {
-        if (this.ipc) {
-          this.ipc.removeListener(channel, wrappedHandler);
-        }
-      };
-    }
-    return () => {};
+    return this.listen<T>(channel, listener);
   }
 
   sendEvent(channel: string, payload?: any): void {
-    if (!this.toadBridge && !this.ipc) {
-      this.initAPIs();
-    }
-    if (this.toadBridge && typeof this.toadBridge.send === "function") {
-      this.toadBridge.send(channel, payload);
-    } else if (this.ipc) {
-      this.ipc.send(channel, payload);
-    }
+    this.emit(channel, payload);
   }
 
   onEngineCrash(listener: () => void): () => void {
