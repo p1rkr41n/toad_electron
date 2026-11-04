@@ -9,6 +9,10 @@ import {
   MultipleLoadingManager,
   getCanonicalPathFromDSPath,
 } from "../MultipleLoadingManager";
+import {
+  calculateLineCount,
+  getHeightAndScrollState,
+} from "../utils/CellLineCalculator";
 
 /**
  * Calculates the relative parent directory for a file:
@@ -669,10 +673,42 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 ? normPath(selectedRowPath) === normPath(f.filePath)
                 : false;
               const parentDir = getFullParentDir(f.filePath);
+
+              let rowClass = "file-table-row";
+              let rowStyle: React.CSSProperties | undefined = undefined;
+              let wrapStyle: React.CSSProperties | undefined = undefined;
+
+              if (isSelected) {
+                rowClass += " is-selected";
+                const nameLines = calculateLineCount(
+                  f.fileName,
+                  (colWidths.name || 140) - 24
+                );
+                const dirLines = calculateLineCount(
+                  f.relDir,
+                  (colWidths.dir || 120) - 12
+                );
+                const lineCount = Math.max(nameLines, dirLines);
+                const heightState = getHeightAndScrollState(lineCount, 17, 8, 25);
+
+                if (heightState.shouldExpand) {
+                  rowClass += " is-expanded";
+                  rowStyle = {
+                    height: heightState.height,
+                    overflowY: heightState.overflowY,
+                  };
+                  wrapStyle = {
+                    maxHeight: heightState.height,
+                    overflowY: heightState.overflowY,
+                  };
+                }
+              }
+
               return (
                 <tr
                   key={f.filePath}
-                  className={`file-table-row ${isSelected ? "is-selected" : ""}`}
+                  className={rowClass}
+                  style={rowStyle}
                   onClick={() => handleRowClick(f)}
                   title={f.filePath}
                 >
@@ -729,7 +765,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                       hoverOpenDelay={350}
                       popoverClassName="file-node-tooltip-popover"
                     >
-                      <div className="file-name-wrap">
+                      <div className="file-name-wrap" style={wrapStyle}>
                         <span className="file-name-text" title={f.filePath}>
                           {f.fileName}
                         </span>
@@ -757,7 +793,7 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                       hoverOpenDelay={350}
                       popoverClassName="file-node-tooltip-popover"
                     >
-                      <div className="file-dir-wrap">
+                      <div className="file-dir-wrap" style={wrapStyle}>
                         <span className="file-dir-text" title={parentDir}>
                           {f.relDir}
                         </span>

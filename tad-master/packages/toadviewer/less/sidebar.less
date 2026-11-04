@@ -1139,66 +1139,127 @@ body.col-resizing * {
     }
 
     &.is-selected {
-      height: auto !important;
+      height: 25px;
       background-color: #0284c7 !important;
       color: #ffffff !important;
 
       td {
-        white-space: normal !important;
-        word-break: break-all !important;
-        overflow-wrap: anywhere !important;
-        vertical-align: top !important;
-        padding-top: 5px !important;
-        padding-bottom: 5px !important;
+        white-space: nowrap;
+        vertical-align: middle;
         color: #ffffff !important;
       }
 
       .cell-name {
-        height: auto !important;
-        min-height: 25px;
-        align-items: flex-start !important;
+        line-height: 24px;
+        height: 25px;
+        align-items: center;
 
         .bp4-popover-target {
-          white-space: normal !important;
-          overflow: visible !important;
-          display: block !important;
-          width: 100% !important;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .file-name-wrap,
         .file-name-text {
-          white-space: normal !important;
-          word-break: break-all !important;
-          overflow-wrap: anywhere !important;
-          max-height: 180px;
-          overflow-y: auto;
-          display: block;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           color: #ffffff !important;
         }
       }
 
       .cell-dir {
         .bp4-popover-target {
-          white-space: normal !important;
-          overflow: visible !important;
-          display: block !important;
-          width: 100% !important;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
         .file-dir-wrap,
         .file-dir-text {
-          white-space: normal !important;
-          word-break: break-all !important;
-          overflow-wrap: anywhere !important;
-          max-height: 180px;
-          overflow-y: auto;
-          display: block;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
           color: #ffffff !important;
         }
       }
 
       .cell-size {
         color: #ffffff !important;
+      }
+
+      &.is-expanded {
+        height: auto; // inline style from CellLineCalculator governs exact height
+
+        td {
+          white-space: normal !important;
+          word-break: break-all !important;
+          overflow-wrap: anywhere !important;
+          vertical-align: top !important;
+          padding-top: 5px !important;
+          padding-bottom: 5px !important;
+          color: #ffffff !important;
+        }
+
+        .cell-name {
+          height: auto !important;
+          min-height: 25px;
+          align-items: flex-start !important;
+
+          .bp4-popover-target {
+            white-space: normal !important;
+            overflow: visible !important;
+            display: block !important;
+            width: 100% !important;
+          }
+
+          .file-name-wrap,
+          .file-name-text {
+            white-space: normal !important;
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+            display: block;
+            color: #ffffff !important;
+          }
+        }
+
+        .cell-dir {
+          .bp4-popover-target {
+            white-space: normal !important;
+            overflow: visible !important;
+            display: block !important;
+            width: 100% !important;
+          }
+
+          .file-dir-wrap,
+          .file-dir-text {
+            white-space: normal !important;
+            word-break: break-all !important;
+            overflow-wrap: anywhere !important;
+            display: block;
+            color: #ffffff !important;
+          }
+        }
+
+        /* Slim 4px rounded scrollbar for .is-expanded when overflow-y is auto */
+        .file-name-wrap,
+        .file-dir-wrap {
+          &::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+          }
+          &::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 2px;
+          }
+          &::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.7);
+          }
+        }
       }
     }
   }
