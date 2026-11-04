@@ -1,0 +1,164 @@
+--- a/tauri/project/src-tauri/src/ledger/cache_cleaner.rs
++++ b/tauri/project/src-tauri/src/ledger/cache_cleaner.rs
+@@ -52,11 +52,7 @@ impl CacheCleaner {
+         let trash_dir = temp_dir.join(format!(".trash_{}_{}", project_id, now_ms));
+ 
+-        // Atomic directory rename on the same volume (instantaneous and unlocks caller)
+-        fs::rename(&prj_dir, &trash_dir)?;
+-
+-        // Fire-and-forget async delete with retry backoff
+-        Self::async_delete_trash(trash_dir);
++        Self::purge_directory_atomic_or_fallback(&prj_dir, &trash_dir);
+ 
+         Ok(PurgeResult {
+             purged_files: files,
+@@ -91,6 +87,6 @@ impl CacheCleaner {
+                     let trash_dir = temp_dir.join(format!(".trash_all_{}_{}", name, now_ms));
+-                    if fs::rename(&path, &trash_dir).is_ok() {
++                    if Self::purge_directory_atomic_or_fallback(&path, &trash_dir) {
+                         total_dirs += 1;
+-                        Self::async_delete_trash(trash_dir);
+                     }
+                 } else if meta.is_file() {
+@@ -149,6 +145,6 @@ impl CacheCleaner {
+                         let trash_dir = temp_dir.join(format!(".trash_orphan_{}_{}", name, now_ms));
+-                        if fs::rename(&path, &trash_dir).is_ok() {
++                        if Self::purge_directory_atomic_or_fallback(&path, &trash_dir) {
+                             total_dirs += 1;
+-                            Self::async_delete_trash(trash_dir);
+                         }
+                     } else {
+@@ -226,19 +222,110 @@ impl CacheCleaner {
++    /// Atomic directory rename to trash with fallback to moving individual child files
++    /// when Windows NTFS open file handles prevent whole-directory rename.
++    pub fn purge_directory_atomic_or_fallback(dir_path: &Path, trash_dir: &Path) -> bool {
++        // 1. First attempt: atomic whole-directory rename on the same volume (instantaneous)
++        if fs::rename(dir_path, trash_dir).is_ok() {
++            Self::async_delete_trash(trash_dir.to_path_buf());
++            return true;
++        }
++
++        // 2. Windows NTFS EBUSY Fallback:
++        // When active open handles (e.g. readers with FILE_SHARE_DELETE) prevent
++        // directory rename, move child entries individually into trash_dir.
++        let _ = fs::create_dir_all(trash_dir);
++        let mut lingering = Vec::new();
++        let mut moved_any = false;
++
++        if let Ok(entries) = fs::read_dir(dir_path) {
++            for entry in entries.flatten() {
++                let child_path = entry.path();
++                if let Some(file_name) = child_path.file_name() {
++                    let target = trash_dir.join(file_name);
++                    if fs::rename(&child_path, &target).is_ok() {
++                        moved_any = true;
++                    } else {
++                        lingering.push(child_path);
++                    }
++                }
++            }
++        }
++
++        // Try removing the emptied parent directory
++        let _ = fs::remove_dir(dir_path);
++
++        // Schedule async deletion of moved files in trash_dir
++        if moved_any {
++            Self::async_delete_trash(trash_dir.to_path_buf());
++        } else {
++            let _ = fs::remove_dir(trash_dir);
++        }
++
++        // Schedule background retry deletion for any remaining lingering files
++        if !lingering.is_empty() {
++            Self::async_delete_lingering_files(lingering, dir_path.to_path_buf());
++        }
++
++        true
++    }
++
++    /// Async fire-and-forget deletion of lingering locked files that could not be moved immediately.
++    pub fn async_delete_lingering_files(files: Vec<PathBuf>, parent_dir: PathBuf) {
++        let task = move || {
++            for attempt in 0..6 {
++                let mut all_removed = true;
++                for f in &files {
++                    if f.exists() {
++                        #[cfg(windows)]
++                        {
++                            if let Ok(meta) = f.metadata() {
++                                let mut perm = meta.permissions();
++                                if perm.readonly() {
++                                    perm.set_readonly(false);
++                                    let _ = fs::set_permissions(f, perm);
++                                }
++                            }
++                        }
++                        if fs::remove_file(f).is_err() {
++                            all_removed = false;
++                        }
++                    }
++                }
++                if all_removed {
++                    let _ = fs::remove_dir(&parent_dir);
++                    return;
++                }
++                std::thread::sleep(std::time::Duration::from_millis(50 << attempt.min(5)));
++            }
++            for f in &files {
++                let _ = fs::remove_file(f);
++            }
++            let _ = fs::remove_dir(&parent_dir);
++        };
++
++        if tokio::runtime::Handle::try_current().is_ok() {
++            tokio::task::spawn_blocking(task);
++        } else {
++            std::thread::spawn(task);
++        }
++    }
++
+     /// Async fire-and-forget deletion of `.trash_*` folders with exponential backoff.
+     pub fn async_delete_trash(trash_path: PathBuf) {
+         let task = move || {
+-            for attempt in 0..5 {
++            for attempt in 0..6 {
+                 if fs::remove_dir_all(&trash_path).is_ok() {
+                     return;
+                 }
+-                std::thread::sleep(std::time::Duration::from_millis(50 << attempt));
++                #[cfg(windows)]
++                {
++                    Self::clear_readonly_recursive(&trash_path);
++                }
++                std::thread::sleep(std::time::Duration::from_millis(50 << attempt.min(5)));
+             }
+             let _ = fs::remove_dir_all(&trash_path);
+         };
+ 
+         if tokio::runtime::Handle::try_current().is_ok() {
+             tokio::task::spawn_blocking(task);
+         } else {
+             std::thread::spawn(task);
+         }
+     }
++
++    #[cfg(windows)]
++    fn clear_readonly_recursive(dir: &Path) {
++        if let Ok(entries) = fs::read_dir(dir) {
++            for entry in entries.flatten() {
++                let path = entry.path();
++                if let Ok(meta) = path.metadata() {
++                    let mut perm = meta.permissions();
++                    if perm.readonly() {
++                        perm.set_readonly(false);
++                        let _ = fs::set_permissions(&path, perm);
++                    }
++                    if meta.is_dir() {
++                        Self::clear_readonly_recursive(&path);
++                    }
++                }
++            }
++        }
++    }
+ }

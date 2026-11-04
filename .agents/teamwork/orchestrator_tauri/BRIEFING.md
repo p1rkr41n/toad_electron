@@ -24,13 +24,13 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
   2. Scaffolding & Toolchain (Squad 1 / M1) [DONE - Gate PASSED]
   3. E2E Testing Track (Tiers 1-4) [DONE - TEST_READY.md certified]
   4. Core Rust Engine & DuckDB (Squad 2 / M2) [DONE - Gate PASSED]
-  5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [in-progress]
-  6. Parquet Ledger & Workspace (Squad 4 / M4) [pending]
-  7. Ingestion & Forensics Pipelines (Squad 5 / M5) [pending]
+  5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [DONE - Gate PASSED]
+  6. Parquet Ledger & Workspace (Squad 4 / M4) [DONE - Gate PASSED]
+  7. Ingestion & Forensics Pipelines (Squad 5 / M5) [in-progress]
   8. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
   9. Final Verification & Packaging (Squad 7 / M7) [pending]
-- **Current phase**: 3 (Milestone 3 Implementation)
-- **Current focus**: Milestone 3: DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3)
+- **Current phase**: 5 (Milestone 5 Implementation)
+- **Current focus**: Milestone 5: Forensics & Ingestion Pipelines (Squad 5 / M5)
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -48,6 +48,10 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - Milestone 1 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M1 marked DONE.
 - Milestone 2 Iteration 2 Gate FAILED on Forensic Auditor integrity finding. Remediated via Iteration 3.
 - Milestone 2 Iteration 3 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M2 marked DONE. Commit 3726874b verified. M2 marked DONE in PROJECT.md.
+- Milestone 3 Iteration 4 Gate FAILED on Challenger finding. Remediated via Iteration 5.
+- Milestone 3 Iteration 5 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M3 marked DONE in PROJECT.md. Commit cd5a501f verified.
+- Milestone 4 Iteration 6 Gate FAILED on Challenger findings (EBUSY open handle purge & startup latency). Remediated via Iteration 7.
+- Milestone 4 Iteration 7 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). Commit 4904b89a verified (100/100 Rust tests, 55/55 Node tests, 1.82ms latency, per-file move fallback). M4 marked DONE in PROJECT.md.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -89,18 +93,45 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | explorer_m3_fix_1 | teamwork_explorer | Parquet Metadata Fast Count Explorer 1 | completed | f944860a-b312-4f6d-80d4-f897290f287b |
 | explorer_m3_fix_2 | teamwork_explorer | Forensics Path Normalization Explorer 2 | completed | 53fd4fca-2ec2-442a-aa8e-3fe62b09b4e8 |
 | explorer_m3_fix_3 | teamwork_explorer | SQL Syntax & Robustness Explorer 3 | completed | 1d10dfc1-0c79-4fd8-b354-fbb129a0419d |
-| worker_m3_remediation | teamwork_worker | Milestone 3 Remediation Worker | in-progress | 74dde045-5d38-4a26-9430-98065f95f71b |
+| worker_m3_remediation | teamwork_worker | Milestone 3 Remediation Worker | completed | 74dde045-5d38-4a26-9430-98065f95f71b |
+| reviewer_m3_recheck_1 | teamwork_reviewer | Milestone 3 Remediation Reviewer 1 | completed | 6c345a9b-2a4a-4345-ac65-ba28ce483d1b |
+| reviewer_m3_recheck_2 | teamwork_reviewer | Milestone 3 Remediation Reviewer 2 | completed | eb93ec3a-c702-4d49-9272-20c4b7cc4952 |
+| challenger_m3_recheck_1 | teamwork_challenger | Arrow IPC Regression Challenger 1 | completed | 1d48a066-d16d-49c4-bd13-267cab4f7771 |
+| challenger_m3_recheck_2 | teamwork_challenger | Empirical Defect Re-Verification Challenger 2 | completed | 7fba8ae1-8047-4e91-b066-aee5d78850a8 |
+| auditor_m3_recheck_1 | teamwork_auditor | Forensic Integrity Auditor M3 Recheck | completed | da5b6acf-c564-453a-9757-83028ac7000a |
+| explorer_m4_ledger | teamwork_explorer | Parquet Ledger & WAL Architecture Explorer | completed | 7eac0623-4b2c-4346-806b-90393c601e4c |
+| explorer_m4_reconcile | teamwork_explorer | Startup Reconciliation & Cache Cleaner Explorer | completed | 96b386e7-2b51-4a8d-9e89-ad546cd4e17f |
+| explorer_m4_workspace | teamwork_explorer | Workspace CRUD & Command Router Explorer | completed | 3ad0e07b-62a3-4f4c-8f5a-97030b6a80b8 |
+| worker_m4_ledger | teamwork_worker | Parquet Ledger & Workspace Engine Worker | completed | dd0b8987-f18d-46a2-ad38-0fd244a4fe84 |
+| reviewer_m4_1 | teamwork_reviewer | Core Ledger & WAL Reviewer | completed | c76c48fa-9282-4089-b535-398b6322b5ee |
+| reviewer_m4_2 | teamwork_reviewer | Workspace CRUD & IPC Reviewer | completed | 490147b6-8b08-4c36-abd6-77330c0690ad |
+| challenger_m4_1 | teamwork_challenger | Parquet WAL & Startup Recovery Challenger | completed | f166b126-529e-4b17-bef8-55e0ee005966 |
+| challenger_m4_2 | teamwork_challenger | Workspace Concurrency & Windows EBUSY Challenger | completed | b5f6c8e2-0937-4aea-9048-d94e1f68419b |
+| auditor_m4_1 | teamwork_auditor | Forensic Integrity Auditor M4 | completed | 858ef2c2-1c55-41d1-92cd-a5d301fee832 |
+| explorer_m4_fix_1 | teamwork_explorer | Windows EBUSY Purge Remediation Explorer | completed | b317d35c-e86f-4915-96c3-2fbc00b11d5d |
+| explorer_m4_fix_2 | teamwork_explorer | Parquet Deserialization Latency Explorer | completed | f4f7b053-962b-4111-82a7-df87884e71e9 |
+| explorer_m4_fix_3 | teamwork_explorer | Release Target DLL Linkage Explorer | completed | 319900ce-9134-41e5-88c0-73af9588925d |
+| worker_m4_remediation | teamwork_worker | Milestone 4 Remediation Worker | completed | 2df2192f-4a9a-465e-b21a-3ba4e502e202 |
+| reviewer_m4_recheck_1 | teamwork_reviewer | Core Ledger Remediation Reviewer 1 | completed | 233b851d-f4fe-4f94-b5cb-2b344b84fba6 |
+| reviewer_m4_recheck_2 | teamwork_reviewer | Interface Conformance Reviewer 2 | completed | f8677951-067e-4b88-a743-dbccede1bb44 |
+| challenger_m4_recheck_1 | teamwork_challenger | Startup Latency & Parquet Challenger 1 | completed | 13b70a59-11bf-4a1d-ae2f-c1a8ecf72105 |
+| challenger_m4_recheck_2 | teamwork_challenger | NTFS EBUSY & Suite Challenger 2 | completed | d5dcc9be-a244-426d-8b4d-4b08dcb6eb4a |
+| auditor_m4_recheck_1 | teamwork_auditor | Forensic Integrity Auditor M4 Recheck | completed | 5ca84c52-eb3c-48ab-9d3c-ec7fcebdd1e2 |
+| explorer_m5_csv | teamwork_explorer | CSV & JSONL Ingestion Explorer | completed | 988e7ae8-909f-4416-93ce-326b65c473fe |
+| explorer_m5_evtx | teamwork_explorer | EVTX Forensics Parser Explorer | completed | b863a767-4992-4a8c-b0df-ee7b6d71eb6d |
+| explorer_m5_scheduler | teamwork_explorer | SJF Ingestion Scheduler & Progress Dispatcher Explorer | completed | c3e1b6a6-386c-4da2-a5d1-5ef375ff3bce |
+| worker_m5_ingest | teamwork_worker | Milestone 5 Implementation Worker | in-progress | 379e6086-c46d-40dd-8104-97bd2151ffc1 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 38 / 128
-- Pending subagents: 74dde045-5d38-4a26-9430-98065f95f71b
+- Spawn count: 65 / 128
+- Pending subagents: 379e6086-c46d-40dd-8104-97bd2151ffc1
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-1100
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-1934
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

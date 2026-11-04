@@ -50,3 +50,46 @@ Milestone 2 (Rust Core Engine & OS Plugins) is 100% COMPLETE, authentic, verifie
 Gate Result: **FAIL** (challenger_m3_2 REQUEST_CHANGES)
 Remediation required: Apply the 3 fixes to `query_compiler.rs` identified by challenger_m3_2.
 
+## Gate — Milestone 3 (Iteration 5: Post-Remediation)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m3_remediation | teamwork_worker | DONE (66/66 tests passed, commit cd5a501f) | handoff.md |
+| reviewer_m3_recheck_1 | teamwork_reviewer | APPROVE | handoff.md |
+| reviewer_m3_recheck_2 | teamwork_reviewer | APPROVE | handoff.md |
+| challenger_m3_recheck_1 | teamwork_challenger | APPROVE | handoff.md |
+| challenger_m3_recheck_2 | teamwork_challenger | APPROVE | handoff.md |
+| auditor_m3_recheck_1 | teamwork_auditor | CLEAN | handoff.md |
+
+Gate Result: **PASS**
+Milestone 3 (DuckDB Engine & Arrow IPC Protocol) is 100% COMPLETE, authentic, verified across 66 Rust tests and 55 Node E2E tests, audited CLEAN with zero violations, and approved by all reviewers and challengers.
+
+## Gate — Milestone 4 (Iteration 6)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m4_ledger | teamwork_worker | DONE (87/87 tests passed, commit 683980a6) | handoff.md |
+| reviewer_m4_1 | teamwork_reviewer | APPROVE | handoff.md |
+| reviewer_m4_2 | teamwork_reviewer | APPROVE | handoff.md |
+| challenger_m4_1 | teamwork_challenger | REQUEST_CHANGES (Windows EBUSY access denied on purge, startup latency ~35-47ms vs <5ms) | handoff.md |
+| challenger_m4_2 | teamwork_challenger | REQUEST_CHANGES (Windows EBUSY access denied on directory rename with open handle) | handoff.md |
+| auditor_m4_1 | teamwork_auditor | CLEAN | handoff.md |
+
+Gate Result: **FAIL** (challenger_m4_1 and challenger_m4_2 REQUEST_CHANGES)
+Remediation required:
+1. Fix `CacheCleaner::purge_project_cache` to handle open file handles on Windows NTFS (individual file move fallback and retry loop).
+2. Optimize WAL event reader `read_all_events_from_parquet` using pure Rust `parquet` / `arrow` reader to eliminate the 25-35ms in-memory DuckDB engine startup penalty and bring latency < 5ms.
+3. Ensure `duckdb.dll` is available in `target/release/` and `target/release/deps/`.
+
+## Gate — Milestone 4 (Iteration 7: Post-Remediation)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m4_remediation | teamwork_worker | DONE (100/100 Rust tests passed, 55/55 Node tests passed, latency 1.82ms, commit 4904b89a) | handoff.md |
+| reviewer_m4_recheck_1 | teamwork_reviewer | APPROVE (per-file move fallback, native Parquet reader, release DLL automated) | handoff.md |
+| reviewer_m4_recheck_2 | teamwork_reviewer | APPROVE (zero regressions on 14 project:* commands & DTOs, latency 1.88ms) | handoff.md |
+| challenger_m4_recheck_1 | teamwork_challenger | APPROVE (startup latency 1.93ms clean / 3.60ms missing source < 5ms, 0 DLL errors) | handoff.md |
+| challenger_m4_recheck_2 | teamwork_challenger | APPROVE (NTFS EBUSY purge with open handle passed, 100/100 tests passed) | handoff.md |
+| auditor_m4_recheck_1 | teamwork_auditor | CLEAN (zero cheating, genuine vectorized Arrow decoding, clean jj commit 4904b89a) | handoff.md |
+
+Gate Result: **PASS**
+Milestone 4 (Parquet State Ledger WAL & Workspace Engine) is 100% COMPLETE, authentic, verified across 100 unit/stress tests and 55 E2E tests, latency strictly < 5ms (1.82-1.93ms median), audited CLEAN with zero violations, and approved by all reviewers and challengers.
+
+

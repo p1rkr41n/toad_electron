@@ -1,7 +1,7 @@
 import * as React from "react";
 import * as reltab from "reltab";
 import { AppState } from "../AppState";
-import { Button } from "@blueprintjs/core";
+import { Button, Spinner, Intent } from "@blueprintjs/core";
 import { FilterEditorRow } from "./FilterEditorRow";
 import { StateRef } from "oneref";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
@@ -697,6 +697,8 @@ const countIncompleteRules = (group: FilterGroupNode): number => {
   return count;
 };
 
+export type FilterApplyState = "idle" | "applying" | "applied";
+
 export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
   appState,
   stateRef,
@@ -714,7 +716,9 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
-  const [applyState, setApplyState] = useState<"idle" | "applied">("idle");
+  const [applyState, setApplyState] = useState<FilterApplyState>("idle");
+  const isWaitingForQueryRef = useRef<boolean>(false);
+  const appliedSqlRef = useRef<string | null>(null);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"tree" | "raw">("tree");
   const [rawSqlText, setRawSqlText] = useState<string>("");
@@ -727,14 +731,14 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
   const matchedRows = queryView?.filterRowCount ?? queryView?.rowCount ?? 0;
 
   useEffect(() => {
-    if (queryView) {
-      const elapsed = Math.max(
-        0.4,
-        Number((performance.now() - queryStartRef.current).toFixed(1))
-      );
-      setLatency(elapsed);
+    try {
+      appliedSqlRef.current = (filterExp || new FilterExp()).toSqlWhere(getDefaultDialect());
+    } catch {
+      appliedSqlRef.current = null;
     }
-  }, [queryView]);
+  }, []);
+
+
 
   // Auto-select first available condition if none selected
   useEffect(() => {
@@ -757,6 +761,8 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
   useEffect(() => {
     const handleError = (e: any) => {
       const msg = e?.detail?.message || "DuckDB query error";
+      isWaitingForQueryRef.current = false;
+      setApplyState("idle");
       setQueryError(msg);
       setTimeout(() => setQueryError(null), 8000);
     };
@@ -823,6 +829,27 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
     return previewSql;
   }, [viewMode, rawSqlText, previewSql]);
 
+  useEffect(() => {
+    if (queryView) {
+      const elapsed = Math.max(
+        0.4,
+        Number((performance.now() - queryStartRef.current).toFixed(1))
+      );
+      setLatency(elapsed);
+
+      // ONLY WHEN DUCKDB QUERY COMPLETES AND WE WERE WAITING FOR IT:
+      if (isWaitingForQueryRef.current) {
+        isWaitingForQueryRef.current = false;
+        appliedSqlRef.current = displaySql;
+        setApplyState("applied");
+        const timer = setTimeout(() => {
+          setApplyState("idle");
+        }, 1800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [queryView, displaySql]);
+
   const handleCopySql = () => {
     if (displaySql) {
       navigator.clipboard.writeText(`WHERE ${displaySql}`);
@@ -833,18 +860,30 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
 
   const handleApply = useCallback(() => {
     setQueryError(null);
-    setApplyState("applied");
+    const targetSql = displaySql;
+    // Fast-path: If this filter is already applied and no query is currently running
+    if (
+      appliedSqlRef.current === targetSql &&
+      !appState.viewState?.loadingTimer?.running
+    ) {
+      setApplyState("applied");
+      const timer = setTimeout(() => {
+        setApplyState("idle");
+      }, 1800);
+      return;
+    }
+
     queryStartRef.current = performance.now();
+    isWaitingForQueryRef.current = true;
+    setApplyState("applying");
+
     if (viewMode === "raw") {
       const rawFE = new FilterExp("AND", [new RawSqlRelExp(rawSqlText)]);
       onApply(rawFE);
     } else {
       onApply(currentFE);
     }
-    setTimeout(() => {
-      setApplyState("idle");
-    }, 1800);
-  }, [viewMode, rawSqlText, currentFE, onApply]);
+  }, [viewMode, rawSqlText, currentFE, displaySql, onApply, appState.viewState]);
 
   // Synchronize query: Every action on rootGroup immediately notifies onQueryChange
   const handleUpdateRoot = (nextRoot: FilterGroupNode) => {
@@ -1116,14 +1155,32 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
             className={`filter-btn-apply ${
               applyState === "applied"
                 ? "bp4-intent-success is-applied"
+                : applyState === "applying"
+                ? "bp4-intent-primary is-applying"
                 : "bp4-intent-primary"
             }`}
-            icon={applyState === "applied" ? "tick" : "play"}
-            text={applyState === "applied" ? "Applied! ✓" : "Apply"}
-            disabled={liveUpdate}
+            icon={
+              applyState === "applied" ? (
+                "tick"
+              ) : applyState === "applying" ? (
+                <Spinner size={12} intent={Intent.PRIMARY} />
+              ) : (
+                "play"
+              )
+            }
+            text={
+              applyState === "applied"
+                ? "Applied! ✓"
+                : applyState === "applying"
+                ? "Applying..."
+                : "Apply"
+            }
+            disabled={liveUpdate || applyState === "applying"}
             title={
               liveUpdate
                 ? "Live update is enabled (table updates automatically)"
+                : applyState === "applying"
+                ? "Executing DuckDB query..."
                 : "Apply filter to main table (or press Enter)"
             }
             onClick={handleApply}

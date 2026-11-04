@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-04T21:42:00Z
+Last visited: 2026-11-05T00:18:50Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -25,25 +25,56 @@ Last visited: 2026-11-04T21:42:00Z
     - Forensic Auditor M2 Recheck (725eef51): CLEAN
   - Gate Result: PASS.
   - Milestone 2 marked DONE in PROJECT.md.
-- [ ] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol (Squad 3):
+- [x] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol (Squad 3):
   - Spec Miner M3 (313c364d): COMPLETED
   - Explorer M3 DuckDB (64710a0f): COMPLETED
   - Explorer M3 Compiler (e047b874): COMPLETED
   - Worker M3 Engine (afd16904): COMPLETED (commit bb7710ea, 51/51 cargo tests, 122 total automated tests passed)
-  - Gate verification (Iteration 4): FAIL (reviewer_m3_1: APPROVE, reviewer_m3_2: APPROVE, challenger_m3_1: APPROVE, challenger_m3_2: REQUEST_CHANGES, auditor_m3_1: CLEAN).
+  - Gate verification (Iteration 4): FAIL (challenger_m3_2 REQUEST_CHANGES on Parquet count, UNC path, empty IN).
   - Iteration 5 Remediation:
-    - Explorer M3-Fix-1 (f944860a): COMPLETED (fast_parquet_count WHERE column_id = 0 fix designed)
-    - Explorer M3-Fix-2 (53fd4fca): COMPLETED (normalize_path_slashes symmetrical normalization designed)
-    - Explorer M3-Fix-3 (1d10dfc1): COMPLETED (empty IN/NOT IN 1=0 / 1=1 fix & syntax safeguards designed)
-    - Worker M3 Remediation (74dde045): IN PROGRESS (applying fixes to query_compiler.rs, engine_tests.rs, adversarial tests, test_e2e_features.js)
-  - F07: DuckDB 1.0 Tokio Connection Pool (dual-engine UI vs Ingest)
-  - F08: QueryExp AST Compiler to DuckDB SQL
-  - F09: Streaming Arrow IPC Stream Protocol (`0xFFFFFFFF` continuation marker via `tauri::ipc::Response`)
-  - F10: Fast O(1) Parquet Metadata Footer Row Counter
-  - F11: Schema Mapper & reltab.Schema DTO
-  - F12: Column Statistics & Cardinality Cache
+    - Explorers (f944860a, 53fd4fca, 1d10dfc1): COMPLETED
+    - Worker M3 Remediation (74dde045): COMPLETED (commit cd5a501f, 66/66 cargo tests, 55/55 node tests passed)
+    - Gate Re-Evaluation:
+      - Reviewer M3-Recheck-1 (6c345a9b): APPROVE
+      - Reviewer M3-Recheck-2 (eb93ec3a): APPROVE
+      - Challenger M3-Recheck-1 (1d48a066): APPROVE (144 total tests, 0 regressions)
+      - Challenger M3-Recheck-2 (7fba8ae1): APPROVE (exact 12,000 count, UNC match, empty IN verified)
+      - Forensic Auditor M3 Recheck (da5b6acf): CLEAN (zero cheating, genuine SQL compiler)
+  - Gate Result: PASS.
+  - Milestone 3 marked DONE in PROJECT.md.
+  - Features verified: F07 (DuckDB Tokio Pool), F08 (QueryExp AST Compiler), F09 (Streaming Arrow IPC `0xFFFFFFFF`), F10 (Fast Parquet Metadata Count), F11 (Schema Mapper), F12 (Column Stats Cache).
+- [x] Milestone 4 (M4) Parquet State Ledger WAL & Workspace Engine (Squad 4):
+  - Scope: F13 (toad_ledger.parquet WAL), F14 (Tombstone logging & transactional append), F15 (Startup reconciliation engine <5ms), F16 (Temp purge cascade), F17 (Workspace CRUD commands).
+  - Step 2B.a Survey & Exploration:
+    - Explorer M4 Ledger (7eac0623): COMPLETED
+    - Explorer M4 Reconcile (96b386e7): COMPLETED
+    - Explorer M4 Workspace (3ad0e07b): COMPLETED
+  - Step 2B.b Implementation:
+    - Worker M4 Ledger (dd0b8987): COMPLETED (87/87 Rust tests, 55/55 Node tests, commit 683980a6)
+  - Step 2B.c–e Gate Verification (Iteration 6):
+    - Gate Result: FAIL (challenger findings on EBUSY purge & startup latency)
+  - Iteration 7 Remediation:
+    - Explorers (b317d35c, f4f7b053, 319900ce): COMPLETED
+    - Worker M4 Remediation (2df2192f): COMPLETED (commit 4904b89a, 100/100 Rust tests, 55/55 Node tests, latency 1.82ms, EBUSY fallback verified)
+    - Gate Re-Evaluation (Iteration 7):
+      - Reviewer M4-Recheck-1 (233b851d): APPROVE
+      - Reviewer M4-Recheck-2 (f8677951): APPROVE
+      - Challenger M4-Recheck-1 (13b70a59): APPROVE (startup latency 1.93ms clean / 3.60ms missing source < 5ms, 0 DLL errors)
+      - Challenger M4-Recheck-2 (d5dcc9be): APPROVE (NTFS EBUSY purge with open handle passed, 100/100 tests passed)
+      - Forensic Auditor M4-Recheck-1 (5ca84c52): CLEAN (zero cheating, genuine vectorized Arrow decoding, clean jj commit 4904b89a)
+  - Gate Result: PASS.
+  - Milestone 4 marked DONE in PROJECT.md.
+  - Features verified: F13 (toad_ledger.parquet WAL), F14 (Tombstone logging), F15 (Startup reconciliation <5ms), F16 (Cascade cache purge), F17 (Workspace CRUD commands).
+- [ ] Milestone 5 (M5) Forensics & Ingestion Pipelines (Squad 5):
+  - Scope: F18 (RFC-4180 CSV/TSV streaming ingest), F19 (EVTX Rust SIMD binary decoder), F20 (JSONL/NDJSON stream ingestion), F21 (SJF ingestion queue & VIP preemption), F22 (Multi-stage progress dispatcher).
+  - Step 2B.a Survey & Exploration:
+    - Explorer M5 CSV & JSONL (988e7ae8): COMPLETED (RFC-4180 delimiter sniffer, 3-tier all_varchar fallback matrix, JSONL 2-phase unnesting, dirty log raw_event engine)
+    - Explorer M5 EVTX (b863a767): COMPLETED (SIMD evtx crate, direct Arrow RecordBatch -> Parquet stream, 9-column schema, 35k rows/s, <30MB RAM)
+    - Explorer M5 Scheduler & Progress (c3e1b6a6): COMPLETED (SJF priority comparator, dual-bound concurrency, VIP burst lane, 4-stage progress dispatcher)
+  - Step 2B.b Implementation:
+    - Worker M5 Ingest (379e6086): IN PROGRESS
 
 ## Iteration Status
-Current iteration: 5 / 32
+Current iteration: 8 / 32
 
 

@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T22:00:00Z
+# BRIEFING — 2026-11-04T22:15:00Z
 
 ## Mission
 Execute Milestone 3 Remediation by fixing `fast_parquet_count` row multiplier, symmetrical path normalization for Windows UNC paths, and empty `IN`/`NOTIN` array syntax and query safeguards in the DuckDB QueryExp compiler.
@@ -38,8 +38,9 @@ Execute Milestone 3 Remediation by fixing `fast_parquet_count` row multiplier, s
 - **Code layout**: `tauri/project/src-tauri/src/engine/query_compiler.rs`
 
 ## Key Decisions Made
-- Adopted pure single-pass `normalize_path_slashes` from explorer 2 to collapse any run of `/` and `\` into a single `/`.
-- Adopted ISO SQL 9075 empty set semantics from explorer 3 (`IN ([])` -> `1=0`, `NOT IN ([])` -> `1=1`).
+- Adopted pure single-pass `normalize_path_slashes` to collapse any run of `/` and `\` into a single `/`.
+- Adopted ISO SQL 9075 empty set semantics (`IN ([])` -> `1=0`, `NOT IN ([])` -> `1=1`).
+- Appended `WHERE column_id = 0` to `fast_parquet_count` for single-leaf column chunk summation.
 
 ## Artifact Index
 - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3_remediation\DISPATCH.md` — Dispatch instructions
@@ -48,14 +49,18 @@ Execute Milestone 3 Remediation by fixing `fast_parquet_count` row multiplier, s
 - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3_remediation\handoff.md` — Completion handoff report
 
 ## Change Tracker
-- **Files modified**: None yet
-- **Build status**: Pending initial run
+- **Files modified**:
+  - `tauri/project/src-tauri/src/engine/query_compiler.rs`: fixed fast_parquet_count, UNC path normalization, empty IN/NOTIN, safeguards
+  - `tauri/project/src-tauri/tests/engine_tests.rs`: synchronized fast_parquet_count assertion, added empty IN/NOTIN, safeguards, and UNC tests
+  - `tauri/project/src-tauri/tests/adversarial_query_compiler_tests.rs`: verified UNC match on row 5, empty IN 1=0, empty NOTIN 1=1, fast_parquet_count parity
+  - `tauri/project/tests/test_e2e_features.js`: synchronized fastParquetCountSql and T1.6 assertion
+- **Build status**: Pass (66 Rust tests, 55 Node.js tests)
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Pending
+- **Build/test result**: 100% pass across all suites
 - **Lint status**: Clean
-- **Tests added/modified**: Pending
+- **Tests added/modified**: +3 tests in `engine_tests.rs`, 4 subtests in `adversarial_query_compiler_tests.rs`
 
 ## Loaded Skills
 - None

@@ -20,7 +20,7 @@ tauri-plugin-clipboard-manager = "2"
 tauri-plugin-fs = "2"
 duckdb = { version = "1.2.2" }
 arrow = { version = "54", default-features = false, features = ["ipc"] }
-parquet = { version = "54", default-features = false }
+parquet = { version = "54", default-features = false, features = ["arrow", "snap", "flate2"] }
 evtx = "0.8"
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }

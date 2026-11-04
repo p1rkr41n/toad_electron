@@ -1,0 +1,141 @@
+--- a/tauri/project/src-tauri/build.rs
++++ b/tauri/project/src-tauri/build.rs
+@@ -1,7 +1,114 @@
++use std::env;
++use std::fs;
++use std::path::{Path, PathBuf};
++
+ fn main() {
+     tauri_build::build();
+ 
+     // Delay-load comctl32.dll so that headless unit tests and CLI runs
+     // do not fail with STATUS_ENTRYPOINT_NOT_FOUND (0xc0000139) on Windows GNU toolchain.
+     println!("cargo:rustc-link-arg=--delayload=comctl32.dll");
++
++    copy_duckdb_dll();
+ }
++
++/// Automatically locate duckdb.dll and copy it into the target profile directory
++/// (e.g., target/debug, target/release) and its deps/ directory (e.g., target/debug/deps, target/release/deps)
++/// so that both application binaries and cargo test runners execute cleanly on Windows without
++/// STATUS_DLL_NOT_FOUND (0xc0000135).
++fn copy_duckdb_dll() {
++    // Only execute on Windows targets
++    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
++    if target_os != "windows" && !cfg!(target_os = "windows") {
++        return;
++    }
++
++    let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into()));
++    let out_dir = match env::var("OUT_DIR") {
++        Ok(val) => PathBuf::from(val),
++        Err(_) => return,
++    };
++
++    // Inform cargo to link with native libraries in lib/ directory if present
++    let lib_dir = manifest_dir.join("lib");
++    if lib_dir.exists() {
++        println!("cargo:rustc-link-search=native={}", lib_dir.display());
++    }
++
++    // Resolve target profile dir (e.g., target/debug or target/release) from OUT_DIR.
++    // OUT_DIR is typically <target-dir>/[<target-triple>/]<profile>/build/<pkg-name>-<hash>/out
++    let target_profile_dir = match out_dir
++        .ancestors()
++        .find(|p| p.file_name().map_or(false, |name| name == "build"))
++        .and_then(|build_dir| build_dir.parent())
++    {
++        Some(dir) => dir.to_path_buf(),
++        None => return,
++    };
++
++    let target_root = match target_profile_dir.parent() {
++        Some(p) => p.to_path_buf(),
++        None => return,
++    };
++
++    // Locate source duckdb.dll in candidate locations
++    let mut candidate_sources: Vec<PathBuf> = Vec::new();
++
++    if let Ok(env_dir) = env::var("DUCKDB_LIB_DIR") {
++        candidate_sources.push(PathBuf::from(env_dir).join("duckdb.dll"));
++    }
++
++    candidate_sources.push(manifest_dir.join("lib").join("duckdb.dll"));
++    candidate_sources.push(manifest_dir.join("duckdb.dll"));
++
++    // Check build directories across profiles
++    candidate_sources.push(target_root.join("debug").join("duckdb.dll"));
++    candidate_sources.push(target_root.join("debug").join("deps").join("duckdb.dll"));
++    candidate_sources.push(target_root.join("release").join("duckdb.dll"));
++    candidate_sources.push(target_root.join("release").join("deps").join("duckdb.dll"));
++
++    // Find the first valid existing source file
++    let source_dll = candidate_sources.into_iter().find(|p| p.is_file());
++
++    let source_dll = match source_dll {
++        Some(src) => src,
++        None => {
++            println!("cargo:warning=duckdb.dll not found in candidate paths. Windows test executables may fail with STATUS_DLL_NOT_FOUND (0xc0000135).");
++            return;
++        }
++    };
++
++    println!("cargo:rerun-if-changed={}", source_dll.display());
++    println!("cargo:rerun-if-env-changed=DUCKDB_LIB_DIR");
++
++    // Collect all target directories where duckdb.dll is required
++    let mut dest_dirs: Vec<PathBuf> = Vec::new();
++
++    // 1. Current build profile root and its deps/ directory
++    dest_dirs.push(target_profile_dir.clone());
++    dest_dirs.push(target_profile_dir.join("deps"));
++
++    // 2. Also populate sibling profiles (debug/release) if their directory exists
++    for profile_name in &["debug", "release"] {
++        let profile_dir = target_root.join(profile_name);
++        if profile_dir.exists() {
++            dest_dirs.push(profile_dir.clone());
++            dest_dirs.push(profile_dir.join("deps"));
++        }
++    }
++
++    // Deduplicate destination paths
++    dest_dirs.sort();
++    dest_dirs.dedup();
++
++    for dest_dir in dest_dirs {
++        let dest_file = dest_dir.join("duckdb.dll");
++        if let Err(e) = copy_if_different(&source_dll, &dest_file) {
++            println!(
++                "cargo:warning=Failed to copy duckdb.dll to {}: {}",
++                dest_file.display(),
++                e
++            );
++        }
++    }
++}
++
++/// Copies `from` to `to` only if `to` does not exist or has a different file size.
++/// This prevents redundant disk I/O and Windows ERROR_SHARING_VIOLATION / ERROR_ACCESS_DENIED
++/// if the DLL is currently loaded by an active process.
++fn copy_if_different(from: &Path, to: &Path) -> std::io::Result<()> {
++    if from == to {
++        return Ok(());
++    }
++
++    if to.exists() {
++        if let (Ok(src_meta), Ok(dst_meta)) = (from.metadata(), to.metadata()) {
++            if src_meta.len() == dst_meta.len() && src_meta.len() > 0 {
++                return Ok(());
++            }
++        }
++    }
++
++    if let Some(parent) = to.parent() {
++        fs::create_dir_all(parent)?;
++    }
++
++    fs::copy(from, to)?;
++    Ok(())
++}

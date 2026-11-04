@@ -50,6 +50,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "DataGrid Floating Wrap Unit (15 Tests)", file: "tests/unit/test_datagrid_floating_wrap.js" });
   testsToRun.push({ name: "Cell Line Calculator Unit (25 Tests)", file: "tests/unit/test_cell_line_calculator.js" });
   testsToRun.push({ name: "Parse Dialog Nested Dropdown Unit (15 Tests)", file: "tests/unit/test_parse_dialog_nested_dropdown.js" });
+  testsToRun.push({ name: "Filter Editor Apply Lifecycle Unit (10 Tests)", file: "tests/unit/test_filter_editor_apply_lifecycle.js" });
 } else {
   // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites + Table/Grid Wrap Suites
   testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
@@ -66,6 +67,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "DataGrid Floating Wrap Unit (15 Tests)", file: "tests/unit/test_datagrid_floating_wrap.js" });
   testsToRun.push({ name: "Cell Line Calculator Unit (25 Tests)", file: "tests/unit/test_cell_line_calculator.js" });
   testsToRun.push({ name: "Parse Dialog Nested Dropdown Unit (15 Tests)", file: "tests/unit/test_parse_dialog_nested_dropdown.js" });
+  testsToRun.push({ name: "Filter Editor Apply Lifecycle Unit (10 Tests)", file: "tests/unit/test_filter_editor_apply_lifecycle.js" });
   testsToRun.push({ name: "Modal Cell Glow Suppression QA (10 Tests)", file: "tests/qa/test_modal_cell_glow_suppression.js" });
   if (runAll) {
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
