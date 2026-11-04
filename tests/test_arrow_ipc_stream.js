@@ -509,6 +509,78 @@ async function run() {
     assert.ok(decodeMs < 200, `Decoding 10,000 rows should take < 200ms, took ${decodeMs}ms`);
   });
 
+  // 10. Preload Capabilities Whitelist & Namespace Policy
+  await test("10.1 Preload Capabilities Whitelist permits DataSourceConnection & namespaces, blocks unlisted commands", () => {
+    const fs = require("fs");
+    const preloadContent = fs.readFileSync(
+      path.resolve(tadMasterDir, "packages/toad-app/app/preload.js"),
+      "utf8"
+    );
+    const vm = require("vm");
+    const sandbox = {
+      require: () => ({
+        contextBridge: {
+          exposeInMainWorld: (name, val) => {
+            sandbox.window[name] = val;
+          },
+        },
+        ipcRenderer: { invoke: async () => {}, on: () => {} },
+        clipboard: {},
+        shell: {},
+      }),
+      process: { argv: [] },
+      window: {},
+      Buffer,
+      TextEncoder,
+      TextDecoder,
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(preloadContent, sandbox);
+
+    const bridge = sandbox.window.toadBridge;
+    assert.ok(bridge, "toadBridge must be exposed on window");
+    assert.strictEqual(typeof bridge.invoke, "function");
+
+    // Allowed: Explicit whitelist
+    assert.doesNotThrow(() => {
+      bridge.invoke("DataSourceConnection.getTableName", {});
+    });
+    assert.doesNotThrow(() => {
+      bridge.invoke("initMain", {});
+    });
+    assert.doesNotThrow(() => {
+      bridge.invoke("toad:get_table_name", {});
+    });
+
+    // Allowed: Namespace wildcard capabilities
+    assert.doesNotThrow(() => {
+      bridge.invoke("DataSourceConnection.getTableSchema", {});
+    });
+    assert.doesNotThrow(() => {
+      bridge.invoke("DataSourceConnection.evalQuery", {});
+    });
+    assert.doesNotThrow(() => {
+      bridge.invoke("plugin:dialog|open", {});
+    });
+    assert.doesNotThrow(() => {
+      bridge.invoke("project:getWorkspace", {});
+    });
+
+    // Denied: Disallowed commands outside whitelist and allowed namespaces
+    assert.throws(
+      () => {
+        bridge.invoke("unauthorized_eval", {});
+      },
+      (err) => err.message.includes("[SecurityError: Capability Denied]")
+    );
+    assert.throws(
+      () => {
+        bridge.invoke("system:execute_shell", {});
+      },
+      (err) => err.message.includes("[SecurityError: Capability Denied]")
+    );
+  });
+
   console.log(`\n${BOLD}======================================================================${RESET}`);
   console.log(`  ALL ${passCount} ARROW IPC & INVOKE_BINARY TESTS PASSED CLEANLY!       `);
   console.log(`======================================================================${RESET}\n`);
