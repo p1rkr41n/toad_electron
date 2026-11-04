@@ -66,6 +66,9 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   "engine:get_status",
   "engine:restart",
   "engine:do_restart",
+  "engine:request-port",
+  "engine:restored",
+  "toad-engine-port",
   "getSetupInfo",
   "toad:get_setup_info",
   "openExample",
@@ -74,8 +77,12 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   // Reltab DuckDB RPC Commands
   "open",
   "openFormat",
+  "getDataSources",
+  "getTableName",
+  "getTableSchema",
   "schema",
   "toad:schema",
+  "toad:get_table_schema",
   "evalQuery",
   "toad:eval_query",
   "toad:query",
@@ -136,19 +143,22 @@ const COMMAND_ALIAS_MAP = Object.freeze({
   "engine:do_restart": "engine:restart",
   "toad:get_setup_info": "getSetupInfo",
   "toad:open_example": "openExample",
-  "toad:eval_query": "evalQuery",
-  "toad:query": "evalQuery",
-  "toad:row_count": "rowCount",
-  "toad:schema": "schema",
-  "toad:run_sql_arrow": "runSqlQueryArrow",
+  "toad:eval_query": "DataSourceConnection.evalQuery",
+  "toad:query": "DataSourceConnection.evalQuery",
+  "evalQuery": "DataSourceConnection.evalQuery",
+  "toad:row_count": "DataSourceConnection.rowCount",
+  "rowCount": "DataSourceConnection.rowCount",
+  "toad:schema": "DataSourceConnection.getTableSchema",
+  "toad:get_table_schema": "DataSourceConnection.getTableSchema",
+  "schema": "DataSourceConnection.getTableSchema",
+  "getTableSchema": "DataSourceConnection.getTableSchema",
+  "toad:run_sql_arrow": "DataSourceConnection.runSqlQueryArrow",
   "toad:get_table_name": "DataSourceConnection.getTableName",
+  "getTableName": "DataSourceConnection.getTableName",
 });
 
 function assertCapability(cmd) {
   const normalized = typeof cmd === "string" ? cmd.trim() : "";
-  if (normalized.startsWith("DataSourceConnection.")) {
-    return;
-  }
   if (!normalized || !STRICT_CAPABILITIES_WHITELIST.includes(normalized)) {
     throw new Error(
       `[SecurityError: Capability Denied] Command '${cmd}' is not permitted by preload whitelist policy.`

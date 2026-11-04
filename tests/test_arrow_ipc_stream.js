@@ -349,6 +349,40 @@ async function run() {
     }
   });
 
+  // Test 7.3: Robust handling of NULLs across all Arrow types
+  await asyncTest("7.3 Native Arrow IPC safely handles NULL values across integer, text, float, boolean, decimal", async () => {
+    const duckdb = require("duckdb");
+    const db = new duckdb.Database(":memory:");
+    const conn = db.connect();
+
+    let arrowReady = false;
+    await new Promise((resolve) => {
+      conn.exec("LOAD 'arrow';", (err) => {
+        if (!err) arrowReady = true;
+        resolve();
+      });
+    });
+
+    if (arrowReady) {
+      const nullQuery = "SELECT NULL::INTEGER as int_null, NULL::VARCHAR as str_null, NULL::DOUBLE as dbl_null, NULL::BOOLEAN as bool_null, NULL::DECIMAL(10,2) as dec_null";
+      const batches = await new Promise((resolve, reject) => {
+        conn.arrowIPCAll(nullQuery, (err, res) => {
+          if (err) return reject(err);
+          resolve(res);
+        });
+      });
+      const valid = batches.filter((b) => b != null && (b.length > 0 || b.byteLength > 0));
+      const buf = Buffer.concat(valid);
+      const rep = decodeTableRepBinary(buf);
+      assert.strictEqual(rep.rowData.length, 1);
+      assert.strictEqual(rep.rowData[0].int_null, null);
+      assert.strictEqual(rep.rowData[0].str_null, null);
+      assert.strictEqual(rep.rowData[0].dbl_null, null);
+      assert.strictEqual(rep.rowData[0].bool_null, null);
+      assert.strictEqual(rep.rowData[0].dec_null, null);
+    }
+  });
+
   // Test 8: End-to-end handleEngineQueryReq binary dispatch
   await asyncTest("8.1 handleEngineQueryReq formats response with binary Arrow buffer", async () => {
     const { handleEngineQueryReq } = require(path.resolve(tadMasterDir, "packages/reltab/dist/remote/server"));
@@ -438,6 +472,41 @@ async function run() {
     assert.strictEqual(decoded.rowData[999].id, 999);
     console.log(`    Throughput benchmark: 1000 rows encoded in ${encodeMs.toFixed(2)}ms, decoded in ${decodeMs.toFixed(2)}ms`);
     assert.ok(decodeMs < 50, `Decoding 1000 rows should take < 50ms, took ${decodeMs}ms`);
+  });
+
+  // Test 9.2: 10,000 rows large dataset multi-batch streaming
+  test("9.2 Arrow IPC encodes and decodes 10,000 rows with high throughput", () => {
+    const schema = new Schema(DuckDBDialect, ["id", "text", "val", "flag"], {
+      id: { displayName: "id", columnType: "INTEGER" },
+      text: { displayName: "text", columnType: "VARCHAR" },
+      val: { displayName: "val", columnType: "DOUBLE" },
+      flag: { displayName: "flag", columnType: "BOOLEAN" },
+    });
+
+    const rows = [];
+    for (let i = 0; i < 10000; i++) {
+      rows.push({
+        id: i,
+        text: `Row item #${i}`,
+        val: i * 1.5,
+        flag: i % 2 === 0,
+      });
+    }
+
+    const t0 = process.hrtime.bigint();
+    const rep = new TableRep(schema, rows);
+    const { buffer } = encodeTableRepArrow(rep);
+    const t1 = process.hrtime.bigint();
+    const decoded = decodeTableRepBinary(buffer);
+    const t2 = process.hrtime.bigint();
+
+    const encodeMs = Number(t1 - t0) / 1e6;
+    const decodeMs = Number(t2 - t1) / 1e6;
+
+    assert.strictEqual(decoded.rowData.length, 10000);
+    assert.strictEqual(decoded.rowData[9999].id, 9999);
+    console.log(`    Throughput benchmark: 10,000 rows encoded in ${encodeMs.toFixed(2)}ms, decoded in ${decodeMs.toFixed(2)}ms`);
+    assert.ok(decodeMs < 200, `Decoding 10,000 rows should take < 200ms, took ${decodeMs}ms`);
   });
 
   console.log(`\n${BOLD}======================================================================${RESET}`);
