@@ -234,6 +234,13 @@ const GridPaneInternal: React.FunctionComponent<GridPaneProps> = ({
     [stateRef]
   );
 
+  const onOpenParseDialog = React.useCallback(
+    (colId: string) => {
+      actions.setRegexDialogOpen(true, stateRef, colId);
+    },
+    [stateRef]
+  );
+
   const isPivoted = viewParams.vpivots.length > 0;
 
   const dataGridProps: DataGridProps = {
@@ -258,6 +265,7 @@ const GridPaneInternal: React.FunctionComponent<GridPaneProps> = ({
     onFilterIn,
     onFilterOut,
     onTimeBracket,
+    onOpenParseDialog,
     sortKey,
     isPivoted,
     clipboard,

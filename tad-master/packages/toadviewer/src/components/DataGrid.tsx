@@ -1012,6 +1012,7 @@ export interface DataGridProps {
   onFilterIn?: (columnId: string, val: any) => void;
   onFilterOut?: (columnId: string, val: any) => void;
   onTimeBracket?: (columnId: string, val: any, minutes: number) => void;
+  onOpenParseDialog?: (columnId: string) => void;
   onCellContextMenu?: (
     e: any,
     row: number,
@@ -1387,6 +1388,14 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
               </>
             )}
             <MenuDivider />
+            <MenuItem
+              icon="derive-column"
+              text={`Parse / Extract "${contextMenu.colId}"...`}
+              onClick={() => {
+                props.onOpenParseDialog?.(contextMenu.colId);
+                setContextMenu(null);
+              }}
+            />
             <MenuItem
               icon="clipboard"
               text="Copy cell value"
