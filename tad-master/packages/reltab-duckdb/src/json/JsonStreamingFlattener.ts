@@ -87,6 +87,61 @@ ${projectionLines.join(",\n")}
  * Streams a JSON / JSONL / NDJSON / EVTX file directly into a columnar Parquet file
  * using Phase 1 schema introspection and Phase 2 dynamic unpack projection.
  */
+
+async function execQuery(dbConn: any, sql: string): Promise<any> {
+  if (typeof dbConn.exec === "function") {
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+      const res = dbConn.exec(sql, (err: any) => {
+        if (!resolved) {
+          resolved = true;
+          if (err) reject(err);
+          else resolve(null);
+        }
+      });
+      if (res && typeof res.then === "function") {
+        res.then(() => {
+          if (!resolved) {
+            resolved = true;
+            resolve(null);
+          }
+        }).catch((err: any) => {
+          if (!resolved) {
+            resolved = true;
+            reject(err);
+          }
+        });
+      }
+    });
+  }
+  if (typeof dbConn.all === "function") {
+    return new Promise((resolve, reject) => {
+      let resolved = false;
+      const res = dbConn.all(sql, (err: any, rows: any) => {
+        if (!resolved) {
+          resolved = true;
+          if (err) reject(err);
+          else resolve(rows || []);
+        }
+      });
+      if (res && typeof res.then === "function") {
+        res.then((r: any) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(r || []);
+          }
+        }).catch((err: any) => {
+          if (!resolved) {
+            resolved = true;
+            reject(err);
+          }
+        });
+      }
+    });
+  }
+  throw new Error("dbConn has no exec() or all() method");
+}
+
 export async function streamFlattenedJsonToParquet(
   dbConn: any,
   filePath: string,
@@ -113,7 +168,7 @@ export async function streamFlattenedJsonToParquet(
     const flattenQuery = generateDynamicProjectionSql(filePath, parquetPath, introspection, options);
 
     try {
-      await dbConn.exec(flattenQuery);
+      await execQuery(dbConn, flattenQuery);
       const executionTimeMs = Date.now() - startTime;
       log.info(
         `[JsonStreamingFlattener] Auto-Flatten successfully wrote ${introspection.leafProjections.length} columns in ${executionTimeMs}ms.`
@@ -148,7 +203,7 @@ COPY (
 `.trim();
 
   try {
-    await dbConn.exec(standardQuery);
+    await execQuery(dbConn, standardQuery);
     const executionTimeMs = Date.now() - startTime;
     log.info(`[JsonStreamingFlattener] Standard JSON streaming completed in ${executionTimeMs}ms.`);
     return {
@@ -177,7 +232,7 @@ COPY (
 ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
 `.trim();
 
-  await dbConn.exec(allVarcharQuery);
+  await execQuery(dbConn, allVarcharQuery);
   const executionTimeMs = Date.now() - startTime;
   log.info(`[JsonStreamingFlattener] all_varchar JSON streaming completed in ${executionTimeMs}ms.`);
 

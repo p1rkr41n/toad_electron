@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Dialog,
   Classes,
@@ -11,11 +11,20 @@ import {
   Callout,
   Intent,
 } from "@blueprintjs/core";
-import { StateRef } from "oneref";
+import { StateRef, update } from "oneref";
+import * as reltab from "reltab";
+import * as aggtree from "aggtree";
 import { AppState } from "../AppState";
 import * as actions from "../actions";
 import { ExtractionFormatType, ExtractionFieldMapping } from "../actions";
 import { ParseSplitIcon } from "./icons/ParseSplitIcon";
+import { DiscoveredLeafField, InferredDuckDbType } from "../types/NestedJsonContracts";
+import { SampleScanWorker, ScanProgress } from "../workers/SampleScanWorker";
+import { SampleScanController } from "./SampleScanController";
+import { NestedFieldsTable } from "./NestedFieldsTable";
+import { DuckDbJsonSqlBuilder } from "../utils/DuckDbJsonSqlBuilder";
+
+export type DialogMode = "simple" | "nested_json" | "advanced";
 
 export interface RegexDialogProps {
   appState: AppState;
@@ -138,10 +147,22 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     return viewState.baseSchema.columns;
   }, [viewState]);
 
-  // Mode: "simple" (default) or "advanced" (regex)
-  const [mode, setMode] = useState<"simple" | "advanced">("simple");
+  // Mode: "simple" (default), "nested_json", or "advanced" (regex)
+  const [mode, setMode] = useState<DialogMode>("simple");
   const [selectedCol, setSelectedCol] = useState<string>("");
   const [sampleText, setSampleText] = useState<string>("");
+
+  // Nested JSON Mode State (M3)
+  const [nestedFields, setNestedFields] = useState<DiscoveredLeafField[]>([]);
+  const [nestedSearch, setNestedSearch] = useState<string>("");
+  const [isScanningNested, setIsScanningNested] = useState<boolean>(false);
+  const [nestedProgress, setNestedProgress] = useState<ScanProgress | null>(null);
+  const [newNestedFieldsCount, setNewNestedFieldsCount] = useState<number>(0);
+  const [scannedRowCount, setScannedRowCount] = useState<number>(0);
+  const [isSqlPreviewOpen, setIsSqlPreviewOpen] = useState<boolean>(false);
+  const nestedWorkerRef = useRef<SampleScanWorker | null>(null);
+  const nestedFieldsRef = useRef<DiscoveredLeafField[]>(nestedFields);
+  nestedFieldsRef.current = nestedFields;
   const [sampleList, setSampleList] = useState<string[]>([]);
   const [sampleIdx, setSampleIdx] = useState<number>(0);
   const [isApplying, setIsApplying] = useState<boolean>(false);
@@ -227,6 +248,122 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     },
     [viewState]
   );
+
+  // Fetch up to limit raw string values across column for high-speed scanner
+  const fetchRawRowsForScan = useCallback(
+    (colName: string, limit: number = 100): string[] => {
+      if (!colName || !viewState) return [];
+      const dataView = viewState.dataView;
+      const res: string[] = [];
+      if (dataView && dataView.rawData && dataView.rawData.length > 0) {
+        for (const row of dataView.rawData) {
+          const val = row[colName];
+          if (val !== null && val !== undefined && String(val).trim() !== "") {
+            res.push(String(val));
+            if (res.length >= limit) break;
+          }
+        }
+      }
+      return res;
+    },
+    [viewState]
+  );
+
+  // Trigger sample scan for nested JSON mode (100 preview or 1,000 deep)
+  const triggerNestedScan = useCallback(
+    async (limit: number = 100) => {
+      if (!selectedCol) return;
+      setIsScanningNested(true);
+      setNestedProgress({
+        scanned: 0,
+        total: limit,
+        discoveredCount: nestedFieldsRef.current.length,
+        percent: 0,
+      });
+
+      const rows = fetchRawRowsForScan(selectedCol, limit);
+      const rowsToUse =
+        rows.length > 0 ? rows : sampleList.length > 0 ? sampleList : sampleText ? [sampleText] : [];
+
+      const worker = new SampleScanWorker(50);
+      nestedWorkerRef.current = worker;
+
+      try {
+        const priorFields = nestedFieldsRef.current;
+        const res = await worker.scan(rowsToUse, {
+          sampleLimit: limit,
+          existingFields: priorFields,
+          onProgress: (p) => {
+            setNestedProgress(p);
+          },
+        });
+
+        if (!worker.isAborted()) {
+          setNestedFields(res.fields);
+          setScannedRowCount(res.totalScanned);
+          if (limit > 100) {
+            setNewNestedFieldsCount(res.newFieldsCount);
+          }
+        }
+      } catch (err) {
+        console.error("Error during nested scan:", err);
+      } finally {
+        setIsScanningNested(false);
+        setNestedProgress(null);
+      }
+    },
+    [selectedCol, fetchRawRowsForScan, sampleList, sampleText]
+  );
+
+  // Auto-trigger preview scan on opening or column change in nested_json mode
+  useEffect(() => {
+    if (isOpen && mode === "nested_json" && selectedCol) {
+      triggerNestedScan(100);
+    }
+  }, [isOpen, mode, selectedCol, triggerNestedScan]);
+
+  const handleToggleNestedField = useCallback((dotPath: string, enabled: boolean) => {
+    setNestedFields((prev) =>
+      prev.map((f) => (f.dotPath === dotPath ? { ...f, enabled } : f))
+    );
+  }, []);
+
+  const handleToggleAllNested = useCallback((enabled: boolean) => {
+    setNestedFields((prev) => prev.map((f) => ({ ...f, enabled })));
+  }, []);
+
+  const handleInvertNestedSelection = useCallback(() => {
+    setNestedFields((prev) => prev.map((f) => ({ ...f, enabled: !f.enabled })));
+  }, []);
+
+  const handleRenameNestedField = useCallback((dotPath: string, newName: string) => {
+    setNestedFields((prev) =>
+      prev.map((f) => (f.dotPath === dotPath ? { ...f, customColName: newName } : f))
+    );
+  }, []);
+
+  const handleChangeNestedType = useCallback((dotPath: string, newType: InferredDuckDbType) => {
+    setNestedFields((prev) =>
+      prev.map((f) => (f.dotPath === dotPath ? { ...f, inferredType: newType } : f))
+    );
+  }, []);
+
+  const previewNestedSql = useMemo(() => {
+    if (mode !== "nested_json" || !selectedCol) return "";
+    const active = nestedFields.filter((f) => f.enabled);
+    if (active.length === 0) return "-- No nested fields enabled";
+    try {
+      const res = DuckDbJsonSqlBuilder.buildCreateViewSql({
+        targetViewName: "table_nested",
+        sourceTableName: "current_table",
+        sourceColumnName: selectedCol,
+        fields: active,
+      });
+      return res.createViewSql;
+    } catch (e: any) {
+      return `-- Error generating SQL: ${e.message}`;
+    }
+  }, [mode, selectedCol, nestedFields]);
 
   // Format Auto-Detection Engine (Enhanced for custom delimiters like ¦, |, and colon assign)
   const detectAndSelectFormat = useCallback((text: string) => {
@@ -993,7 +1130,73 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     setIsApplying(true);
     setApplyError(null);
     try {
-      if (mode === "simple") {
+      if (mode === "nested_json") {
+        const activeFields = nestedFields.filter(
+          (f) => f.enabled && (f.customColName || f.dotPath).trim().length > 0
+        );
+        if (activeFields.length === 0) {
+          throw new Error("Please select at least one nested JSON field to extract!");
+        }
+
+        if (!viewState || !viewState.dbc || !viewState.baseSchema) {
+          throw new Error("Database connection or base schema is not available");
+        }
+
+        const { dbc, dsPath, baseSchema } = viewState;
+
+        // 1. Determine current table name
+        let currentTableName: string;
+        const baseRep = (viewState.baseQuery as any)?._rep;
+        if (baseRep && baseRep.operator === "table" && baseRep.tableName) {
+          currentTableName = baseRep.tableName;
+        } else if (dsPath) {
+          currentTableName = await dbc.getTableName(dsPath);
+        } else {
+          throw new Error("Cannot determine current table name for column extraction");
+        }
+
+        // 2. Generate unique new view name
+        const newTableName = `${currentTableName}_rx${Date.now()}`;
+
+        // 3. Handle column collisions with existing base table
+        const outputColNames = activeFields.map((f) => (f.customColName || f.dotPath).trim());
+        const collisions = outputColNames.filter((col) => baseSchema.columns.includes(col));
+
+        // 4. Generate SQL using DuckDbJsonSqlBuilder
+        const sqlResult = DuckDbJsonSqlBuilder.buildCreateViewSql({
+          targetViewName: newTableName,
+          sourceTableName: currentTableName,
+          sourceColumnName: selectedCol,
+          fields: activeFields,
+          excludeExistingColumns: collisions,
+        });
+
+        // 5. Execute CREATE VIEW in DuckDB
+        await dbc.runSqlQuery(sqlResult.createViewSql);
+
+        // 6. Retrieve updated schema and update display columns
+        const newBaseQuery = reltab.tableQuery(newTableName);
+        const newBaseSchema = await aggtree.getBaseSchema(
+          dbc,
+          newBaseQuery,
+          appState.showRecordCount
+        );
+
+        const prevDisplayCols = viewState.viewParams.displayColumns.filter(
+          (c: string) => !outputColNames.includes(c)
+        );
+        const nextDisplayCols = [...prevDisplayCols, ...outputColNames];
+        const nextViewParams = viewState.viewParams.set("displayColumns", nextDisplayCols);
+
+        const nextViewState = viewState
+          .set("baseQuery", newBaseQuery)
+          .set("baseSchema", newBaseSchema)
+          .set("viewParams", nextViewParams)
+          .set("initialViewParams", nextViewParams);
+
+        actions.setRegexDialogOpen(false, stateRef);
+        update(stateRef, (st: AppState): AppState => st.set("viewState", nextViewState) as AppState);
+      } else if (mode === "simple") {
         const activeMappings: ExtractionFieldMapping[] = simpleRows
           .filter((r) => r.enabled && r.outputColName.trim().length > 0)
           .map((r) => ({
@@ -1120,7 +1323,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
   const evaluateLineMatch = (
     text: string,
-    targetMode: "simple" | "advanced",
+    targetMode: DialogMode,
     fmt: ExtractionFormatType,
     delim: string,
     assign: string,
@@ -1268,6 +1471,8 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const enabledCount =
     mode === "simple"
       ? (formatType === "raw" ? (simpleRows.filter((r) => r.enabled).length || 1) : simpleRows.filter((r) => r.enabled).length)
+      : mode === "nested_json"
+      ? nestedFields.filter((f) => f.enabled).length
       : advRows.filter((r) => r.enabled).length;
 
   return (
@@ -1291,7 +1496,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
               Parse Columns
             </h4>
             <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--md-sys-color-primary, #0369a1)", background: "rgba(138, 180, 248, 0.12)", border: "1px solid rgba(138, 180, 248, 0.28)", padding: "1px 6px", borderRadius: "10px" }}>
-              v2.5.0.5
+              v2.5.1
             </span>
           </div>
           {/* Linear-style Capsule Segmented Switch */}
@@ -1321,6 +1526,37 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                 <path d="M8.5 1.5L2 9h5l-1.5 5.5L14 7H9l.5-5.5z" />
               </svg>
               <span>Visual</span>
+            </button>
+            <button
+              type="button"
+              id="ntab-nested"
+              onClick={() => {
+                setMode("nested_json");
+                if (nestedFields.length === 0 && selectedCol) {
+                  triggerNestedScan(100);
+                }
+              }}
+              title="Nested JSON / Auto-Flatten Mode (Recursive leaf discovery & DuckDB JSONPath extraction)"
+              style={{
+                background: mode === "nested_json" ? "var(--md-sys-color-surface, #ffffff)" : "transparent",
+                border: "none",
+                color: mode === "nested_json" ? "var(--md-sys-color-primary, #0f172a)" : "var(--md-sys-color-on-surface-variant, #64748b)",
+                boxShadow: mode === "nested_json" ? "0 1px 2px rgba(0, 0, 0, 0.08)" : "none",
+                padding: "3px 10px",
+                borderRadius: "4px",
+                fontSize: "11px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                transition: "all 120ms ease",
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill={mode === "nested_json" ? "var(--md-sys-color-primary, #0284c7)" : "currentColor"}>
+                <path d="M2 2a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2zm3 2v2h6V4H5zm0 4v2h6V8H5zm0 4v1h4v-1H5z" />
+              </svg>
+              <span>Nested JSON</span>
             </button>
             <button
               type="button"
@@ -1357,6 +1593,49 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
           <Callout intent={Intent.DANGER} style={{ marginBottom: "10px" }}>
             {applyError}
           </Callout>
+        )}
+
+        {mode === "nested_json" && (
+          <div style={{ display: "flex", gap: "8px", alignItems: "flex-end", marginBottom: "10px" }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--md-sys-color-on-surface, #182026)", marginBottom: "4px" }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--md-sys-color-on-surface-variant, #5c7080)">
+                  <path d="M8 0C3.6 0 0 .9 0 2v12c0 1.1 3.6 2 8 2s8-.9 8-2V2c0-1.1-3.6-2-8-2zm6 12c0 .4-2.2 1-6 1s-6-.6-6-1V9.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V12zm0-4c0 .4-2.2 1-6 1s-6-.6-6-1V5.7c1.6.8 3.7 1.3 6 1.3s4.4-.5 6-1.3V8zm0-4.3c-1.6.8-3.7 1.3-6 1.3s-4.4-.5-6-1.3V2c0-.4 2.2-1 6-1s6 .6 6 1v1.7z" />
+                </svg>
+                <span>Source Column:</span>
+              </label>
+              <HTMLSelect
+                fill={true}
+                value={selectedCol}
+                onChange={(e) => setSelectedCol(e.target.value)}
+                options={colOptions}
+              />
+            </div>
+            <button
+              type="button"
+              className="bp4-button bp4-minimal"
+              title="Reload Sample Pool & Re-scan"
+              onClick={() => triggerNestedScan(100)}
+              style={{
+                padding: "6px 9px",
+                height: "30px",
+                width: "30px",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid var(--md-sys-color-outline-variant, #c5d0d8)",
+                borderRadius: "3px",
+                background: "var(--md-sys-color-surface-container, #ffffff)",
+                color: "var(--md-sys-color-on-surface-variant, #5c7080)",
+                cursor: "pointer",
+              }}
+              aria-label="Reload Sample"
+            >
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                <path fillRule="evenodd" clipRule="evenodd" d="M12.83 8a4.83 4.83 0 1 1-1.42-3.42l-1.41 1.42H14V2l-1.58 1.58A6.83 6.83 0 1 0 14.83 8h-2z" />
+              </svg>
+            </button>
+          </div>
         )}
 
         {mode === "advanced" && (
@@ -1478,6 +1757,33 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
                 <option value="csv">CSV</option>
                 <option value="arr">Array</option>
               </select>
+              {formatType === "json" && (
+                <button
+                  type="button"
+                  id="btn-switch-nested"
+                  onClick={() => {
+                    setMode("nested_json");
+                    triggerNestedScan(100);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    marginLeft: "8px",
+                    padding: "2px 8px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "var(--md-sys-color-primary, #0284c7)",
+                    background: "rgba(2, 132, 199, 0.08)",
+                    border: "1px solid rgba(2, 132, 199, 0.25)",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                  }}
+                  title="Switch to Nested JSON Auto-Flatten Mode"
+                >
+                  <span>Auto-Flatten Available ➔</span>
+                </button>
+              )}
               {(formatType === "kv" || formatType === "space" || formatType === "raw" || formatType === "csv") && (
                 <>
                   <span>split by</span>
@@ -1685,108 +1991,182 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
         )}
 
         {/* Sample Event Header with Multi-Row Sample Navigator & Quick Copy */}
-        <div style={{ marginBottom: "8px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-            <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--md-sys-color-on-surface, #0f172a)", margin: 0 }}>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--md-sys-color-on-surface-variant, #64748b)">
-                <path d="M0 2h16v2H0V2zm0 4h16v2H0V6zm0 4h10v2H0v-2zm0 4h8v2H0v-2z" />
-              </svg>
-              <span>Sample Event:</span>
-            </label>
-            {/* Multi-Row Sample Navigator & Quick Copy */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "11px", color: "var(--md-sys-color-on-surface-variant, #64748b)" }}>
-              <span>
-                Row <strong style={{ color: "var(--md-sys-color-primary, #0284c7)" }}>{sampleIdx + 1}</strong> of <strong>{Math.max(1, sampleList.length)}</strong>
-              </span>
-              <div style={{ display: "inline-flex", border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)", borderRadius: "4px", overflow: "hidden" }}>
+        {mode !== "nested_json" && (
+          <div style={{ marginBottom: "8px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: 600, color: "var(--md-sys-color-on-surface, #0f172a)", margin: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="var(--md-sys-color-on-surface-variant, #64748b)">
+                  <path d="M0 2h16v2H0V2zm0 4h16v2H0V6zm0 4h10v2H0v-2zm0 4h8v2H0v-2z" />
+                </svg>
+                <span>Sample Event:</span>
+              </label>
+              {/* Multi-Row Sample Navigator & Quick Copy */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", fontSize: "11px", color: "var(--md-sys-color-on-surface-variant, #64748b)" }}>
+                <span>
+                  Row <strong style={{ color: "var(--md-sys-color-primary, #0284c7)" }}>{sampleIdx + 1}</strong> of <strong>{Math.max(1, sampleList.length)}</strong>
+                </span>
+                <div style={{ display: "inline-flex", border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)", borderRadius: "4px", overflow: "hidden" }}>
+                  <button
+                    type="button"
+                    className="bp4-button bp4-minimal bp4-small"
+                    onClick={handlePrevSample}
+                    disabled={sampleList.length <= 1}
+                    style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: "var(--md-sys-color-primary, #0284c7)", cursor: "pointer", borderRight: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)" }}
+                    title="Previous sample row"
+                  >
+                    ◀
+                  </button>
+                  <button
+                    type="button"
+                    className="bp4-button bp4-minimal bp4-small"
+                    onClick={handleNextSample}
+                    disabled={sampleList.length <= 1}
+                    style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: "var(--md-sys-color-primary, #0284c7)", cursor: "pointer" }}
+                    title="Next sample row"
+                  >
+                    ▶
+                  </button>
+                </div>
                 <button
                   type="button"
                   className="bp4-button bp4-minimal bp4-small"
-                  onClick={handlePrevSample}
-                  disabled={sampleList.length <= 1}
-                  style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: "var(--md-sys-color-primary, #0284c7)", cursor: "pointer", borderRight: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)" }}
-                  title="Previous sample row"
+                  onClick={handleCopySample}
+                  style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: copiedSample ? "#10b981" : "var(--md-sys-color-on-surface-variant, #64748b)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                  title="Copy sample event to clipboard"
                 >
-                  ◀
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
+                    <path d="M11 1H3c-1.1 0-2 .9-2 2v10h2V3h8V1zm3 4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 12H6V7h8v10z" />
+                  </svg>
+                  <span>{copiedSample ? "Copied!" : "Copy"}</span>
                 </button>
                 <button
                   type="button"
                   className="bp4-button bp4-minimal bp4-small"
-                  onClick={handleNextSample}
-                  disabled={sampleList.length <= 1}
-                  style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: "var(--md-sys-color-primary, #0284c7)", cursor: "pointer" }}
-                  title="Next sample row"
+                  onClick={handleScanDeepSchema}
+                  style={{
+                    padding: "1px 6px",
+                    height: "20px",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: sampleList.length > 50 ? "var(--md-sys-color-primary, #0284c7)" : "var(--md-sys-color-on-surface-variant, #64748b)",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "3px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)",
+                    backgroundColor: sampleList.length > 50 ? "rgba(2, 132, 199, 0.08)" : "transparent"
+                  }}
+                  title="Scan up to 1,000 rows to discover complete nested schema and rare fields"
                 >
-                  ▶
+                  <span>{sampleList.length > 50 ? `Scanned ${sampleList.length} rows` : "Deep Scan (1,000 rows)"}</span>
                 </button>
               </div>
-              <button
-                type="button"
-                className="bp4-button bp4-minimal bp4-small"
-                onClick={handleCopySample}
-                style={{ padding: "1px 6px", height: "20px", fontSize: "10px", color: copiedSample ? "#10b981" : "var(--md-sys-color-on-surface-variant, #64748b)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "3px" }}
-                title="Copy sample event to clipboard"
-              >
-                <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M11 1H3c-1.1 0-2 .9-2 2v10h2V3h8V1zm3 4H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 12H6V7h8v10z" />
-                </svg>
-                <span>{copiedSample ? "Copied!" : "Copy"}</span>
-              </button>
-              <button
-                type="button"
-                className="bp4-button bp4-minimal bp4-small"
-                onClick={handleScanDeepSchema}
-                style={{
-                  padding: "1px 6px",
-                  height: "20px",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  color: sampleList.length > 50 ? "var(--md-sys-color-primary, #0284c7)" : "var(--md-sys-color-on-surface-variant, #64748b)",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "3px",
-                  borderRadius: "4px",
-                  border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)",
-                  backgroundColor: sampleList.length > 50 ? "rgba(2, 132, 199, 0.08)" : "transparent"
-                }}
-                title="Scan up to 1,000 rows to discover complete nested schema and rare fields"
-              >
-                <span>{sampleList.length > 50 ? `Scanned ${sampleList.length} rows` : "Deep Scan (1,000 rows)"}</span>
-              </button>
             </div>
-          </div>
 
-          <div style={{ position: "relative", display: "flex", border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)", borderRadius: "4px", overflow: "hidden", background: "var(--md-sys-color-surface-dim, #f8fafc)" }}>
-            <div style={{ padding: "6px 8px", background: "var(--md-sys-color-surface-container, #f1f5f9)", borderRight: "1px solid var(--md-sys-color-outline-variant, #e2e8f0)", color: "var(--md-sys-color-on-surface-variant, #94a3b8)", fontFamily: "Consolas, monospace", fontSize: "11px", userSelect: "none" }}>
-              01
+            <div style={{ position: "relative", display: "flex", border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)", borderRadius: "4px", overflow: "hidden", background: "var(--md-sys-color-surface-dim, #f8fafc)" }}>
+              <div style={{ padding: "6px 8px", background: "var(--md-sys-color-surface-container, #f1f5f9)", borderRight: "1px solid var(--md-sys-color-outline-variant, #e2e8f0)", color: "var(--md-sys-color-on-surface-variant, #94a3b8)", fontFamily: "Consolas, monospace", fontSize: "11px", userSelect: "none" }}>
+                01
+              </div>
+              <textarea
+                rows={2}
+                value={sampleText}
+                onChange={(e) => {
+                  setSampleText(e.target.value);
+                  detectAndSelectFormat(e.target.value);
+                }}
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                style={{
+                  flex: 1,
+                  border: "none",
+                  outline: "none",
+                  padding: "6px 8px",
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                  fontSize: "11px",
+                  resize: "none",
+                  backgroundColor: "var(--md-sys-color-surface-dim, #ffffff)",
+                  color: "var(--md-sys-color-on-surface, #0f172a)",
+                  lineHeight: 1.45,
+                }}
+                placeholder="Sample log line..."
+              />
             </div>
-            <textarea
-              rows={2}
-              value={sampleText}
-              onChange={(e) => {
-                setSampleText(e.target.value);
-                detectAndSelectFormat(e.target.value);
-              }}
-              spellCheck={false}
-              autoCorrect="off"
-              autoCapitalize="off"
-              style={{
-                flex: 1,
-                border: "none",
-                outline: "none",
-                padding: "6px 8px",
-                fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-                fontSize: "11px",
-                resize: "none",
-                backgroundColor: "var(--md-sys-color-surface-dim, #ffffff)",
-                color: "var(--md-sys-color-on-surface, #0f172a)",
-                lineHeight: 1.45,
-              }}
-              placeholder="Sample log line..."
-            />
           </div>
-        </div>
+        )}
+
+        {/* NESTED JSON MODE CONTENT */}
+        {mode === "nested_json" && (
+          <div className="nested-json-content">
+            <SampleScanController
+              selectedCol={selectedCol}
+              totalRowsAvailable={viewState?.dataView?.rawData?.length ?? 0}
+              scannedRows={scannedRowCount || 100}
+              isScanning={isScanningNested}
+              scanProgress={nestedProgress}
+              newFieldsDiscovered={newNestedFieldsCount}
+              onScanDeep={() => triggerNestedScan(1000)}
+              onCancelScan={() => nestedWorkerRef.current?.abort()}
+              totalFieldsCount={nestedFields.length}
+            />
+
+            <NestedFieldsTable
+              fields={nestedFields}
+              searchQuery={nestedSearch}
+              onSearchChange={setNestedSearch}
+              onToggleField={handleToggleNestedField}
+              onToggleAll={handleToggleAllNested}
+              onInvertSelection={handleInvertNestedSelection}
+              onRenameField={handleRenameNestedField}
+              onChangeType={handleChangeNestedType}
+            />
+
+            {/* Live DuckDB SQL Preview Accordion */}
+            <div style={{ marginTop: "8px", borderTop: "1px solid var(--md-sys-color-outline-variant, #e2e8f0)", paddingTop: "6px" }}>
+              <div
+                onClick={() => setIsSqlPreviewOpen(!isSqlPreviewOpen)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "var(--md-sys-color-on-surface-variant, #64748b)",
+                  userSelect: "none",
+                }}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                  <span>{isSqlPreviewOpen ? "▼" : "▶"}</span>
+                  <span>Live DuckDB SQL View Preview</span>
+                </span>
+                <span style={{ fontSize: "10px", color: "var(--md-sys-color-primary, #0284c7)" }}>
+                  {nestedFields.filter((f) => f.enabled).length} active columns &bull; &lt; 15ms execution
+                </span>
+              </div>
+              {isSqlPreviewOpen && (
+                <pre
+                  style={{
+                    maxHeight: "130px",
+                    overflow: "auto",
+                    fontSize: "10.5px",
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    background: "var(--md-sys-color-surface-container, #f8fafc)",
+                    padding: "8px 10px",
+                    borderRadius: "4px",
+                    border: "1px solid var(--md-sys-color-outline-variant, #cbd5e1)",
+                    margin: "6px 0 0 0",
+                    color: "var(--md-sys-color-on-surface, #0f172a)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {previewNestedSql}
+                </pre>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* SIMPLE MODE CONTENT */}
         {mode === "simple" && (

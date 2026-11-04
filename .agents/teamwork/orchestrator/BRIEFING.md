@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T14:59:10+07:00
+# BRIEFING — 2026-11-04T15:04:20+07:00
 
 ## Mission
 Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytics Desktop) v2.5.1 for Windows Event Log (EVTX) JSON representations and complex JSON/JSONL logs containing deeply nested fields and special characters (R1-R5).
@@ -34,13 +34,13 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
   1. Survey and architecture mapping (Spec Miner + UI Explorer + Backend Explorer) [done]
   2. Synthesize PROJECT.md Feature Inventory, Milestones & Contracts [done]
   3. Milestone 1: Interface Contracts & Core Traversal Engine (Stream 1, 4) [done]
-  4. Milestone 2: Direct Ingestion Dynamic Projection Pipeline (Stream 5, 6) [in-progress]
+  4. Milestone 2: Direct Ingestion Dynamic Projection Pipeline (Stream 5, 6) [done]
   5. Milestone 3: Interactive UI Discovered Fields & Async Scanner (Stream 2, 3) [in-progress]
   6. Milestone 4: Version Bump v2.5.1, Packaging & VCS Conformance (R5) [pending]
   7. Milestone 5: Real-world EVTX Parity & Adversarial Fuzzing Test Suite [pending]
   8. Gate: Independent Reviewers, Challengers, and Forensic Auditor [pending]
 - **Current phase**: 1 (Implementation)
-- **Current focus**: Parallel execution of Milestone 2 (worker_m2) & Milestone 3 (worker_m3)
+- **Current focus**: Milestone 3 execution (worker_m3)
 
 ## 🔒 Key Constraints
 - NEVER write source code directly.
@@ -67,9 +67,10 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
 - Updated: 2026-11-04T14:32:00+07:00
 
 ## Key Decisions Made
-- Milestone 1 completed (worker_m1): NestedJsonContracts.ts, NestedJsonTraverser.ts, DuckDbJsonSqlBuilder.ts verified with 20/20 unit tests pass and 0 tsc errors.
-- Dispatched Milestone 3 (worker_m3: `3c614888-9c7e-41d1-9659-e952f4066bc0`) to implement UI Discovered Fields Table, Async Scanner, and RegexDialog integration.
-- Monitoring Milestone 2 (worker_m2: `0c93082f-f29f-4b1f-9ed2-b45aac72db39`) running unit tests on dynamic ingestion pipeline.
+- Milestone 1 completed (worker_m1): NestedJsonContracts.ts, NestedJsonTraverser.ts, DuckDbJsonSqlBuilder.ts verified with 20/20 unit tests pass.
+- Milestone 2 completed (worker_m2): JsonSchemaIntrospector.ts, JsonStreamingFlattener.ts, csvimport.ts verified with 96/96 assertions pass.
+- Milestone 3 in-progress (worker_m3: `3c614888-9c7e-41d1-9659-e952f4066bc0`): UI Discovered Fields Table, Async Scanner, and RegexDialog integration.
+- Holding Milestone 4 dispatch until Milestone 3 completes to prevent merge contention on RegexDialog.tsx.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -78,13 +79,13 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
 | explorer_ui_json | teamwork_explorer | RegexDialog & UI component mapping | completed | ca2ef28b-0a03-4633-b063-d7eea5c339a3 |
 | explorer_backend_json | teamwork_explorer | reltab-duckdb ingestion & test mapping | completed | a2df39ba-a11e-4481-b6b6-9d9e43c20d99 |
 | worker_m1 | teamwork_worker | M1: Core Contracts & Traversal/SQL Engine | completed | 5c070185-4355-4490-a986-abb327855850 |
-| worker_m2 | teamwork_worker | M2: Direct Ingestion Dynamic Projection | in-progress | 0c93082f-f29f-4b1f-9ed2-b45aac72db39 |
+| worker_m2 | teamwork_worker | M2: Direct Ingestion Dynamic Projection | completed | 0c93082f-f29f-4b1f-9ed2-b45aac72db39 |
 | worker_m3 | teamwork_worker | M3: UI Discovered Fields & Scanner | in-progress | 3c614888-9c7e-41d1-9659-e952f4066bc0 |
 
 ## Succession Status
 - Succession required: no
 - Spawn count: 6 / 16
-- Pending subagents: 0c93082f-f29f-4b1f-9ed2-b45aac72db39, 3c614888-9c7e-41d1-9659-e952f4066bc0
+- Pending subagents: 3c614888-9c7e-41d1-9659-e952f4066bc0
 - Predecessor: none
 - Successor: not yet spawned
 
@@ -100,3 +101,4 @@ Implement nested JSON parsing and auto-flattening in TOAD (Tabular OLAP Analytic
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md — Master project and milestone plan
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\TEST_INFRA.md — Test infrastructure and coverage matrix
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md — Milestone 1 implementation handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2\handoff.md — Milestone 2 implementation handoff
