@@ -42,7 +42,7 @@ Direct empirical observations gathered during forensic audit:
    - `dist_package.ps1` lines 80 & 99: Enforces `app.asar` size <= 45.0 MB and portable exe <= 75.0 MB.
    - `releases/` directory: Top level contains only canonical versioned files (`Toad-2.5.0-x64-portable.exe`, `Toad-2.5.0-x64-portable.zip`) and no duplicate alias binaries.
    - Jujutsu log (`tools/jj/jj.exe log -r "@" -n 1`):
-     `@  osxolpnr contact@vncert.vn 2026-11-04 01:00:10 c5b63682 feat: TOAD v2.5.0 IPC architectural migration to Electron utilityProcess`
+     `@  osxolpnr p1rkr41n@users.noreply.github.com 2026-11-04 01:00:10 c5b63682 feat: TOAD v2.5.0 IPC architectural migration to Electron utilityProcess`
 
 6. **Empirical Test Suite Execution**:
    - `.\node-v18.20.4-win-x64\node.exe tests/test_engine_service.js`:

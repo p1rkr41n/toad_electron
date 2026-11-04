@@ -26,6 +26,6 @@
 - **Commit & Release Identity**:
   - Author Name: `HelloKittyXamKinLung`
   - Author Email: `p1rkr41n@users.noreply.github.com`
-- **Zero Enterprise/Org Leaks**: Never use enterprise, corporate, or organizational credentials/identities (e.g. `VNCERT`) in git commits, jujutsu commits, release metadata, or packaging scripts.
+- **Zero Enterprise/Org Leaks**: Never use enterprise, corporate, or organizational credentials/identities in git commits, jujutsu commits, release metadata, or packaging scripts.
 - **English-Only Public Language Policy**: In all public-facing contexts (git commit messages, git tags, GitHub release titles, release notes, release assets, PRs, public issue templates, documentation, winget manifests, etc.), strictly use professional, concise English. Zero non-English text in public artifacts or releases.
 

@@ -25,7 +25,7 @@ Dành cho nhà phát triển cá nhân (Indie Dev / Hacker / Security Researcher
 6. **Định danh phát hành & VCS đồng nhất (Author & VCS Identity):**
    - Tác giả commit Jujutsu / Git & Metadata: `HelloKittyXamKinLung`
    - Email phát hành ẩn danh: `p1rkr41n@users.noreply.github.com`
-   - Tuyệt đối không để lộ thông tin tổ chức/doanh nghiệp (như `VNCERT`) trong lịch sử commit, file build hay metadata phát hành.
+   - Tuyệt đối không để lộ thông tin tổ chức/doanh nghiệp trong lịch sử commit, file build hay metadata phát hành.
 7. **Ngôn ngữ phát hành công khai (English-Only Public Language Policy):**
    - Toàn bộ thông tin phát hành công khai (tiêu đề GitHub Release, nội dung Release Notes, Git commit messages, Git tags, tài sản phát hành, Winget manifest) bắt buộc phải sử dụng **100% tiếng Anh chuẩn mực, ngắn gọn, rành mạch và chuyên nghiệp**.
    - Tuyệt đối không sử dụng ngôn ngữ địa phương trong các bản release hoặc thông điệp VCS công khai.
@@ -169,7 +169,7 @@ Trong phần `README.md` hoặc trang download của bạn, luôn đính kèm h�
 
 ## 4. Danh Sách Kiểm Tra Nhanh Trước Khi Bấm Nút Phát Hành (Release Checklist)
 
-- [ ] Định danh tác giả VCS (Jujutsu `jj` / Git) đã đặt chuẩn: `HelloKittyXamKinLung` (`p1rkr41n@users.noreply.github.com`), không dùng danh tính tổ chức (`VNCERT`).
+- [ ] Định danh tác giả VCS (Jujutsu `jj` / Git) đã đặt chuẩn: `HelloKittyXamKinLung` (`p1rkr41n@users.noreply.github.com`), không dùng danh tính tổ chức/doanh nghiệp.
 - [ ] Thông tin Metadata đã nhúng tên `HelloKittyXamKinLung` trong file `package.json` / PE header.
 - [ ] Phiên bản đã được cập nhật đồng bộ (`package.json`, Dialog header, README).
 - [ ] Đã chạy test QA toàn diện và đạt **100% Pass**.

@@ -39,7 +39,7 @@ Bump TOAD version to `2.5.1` (SemVer 3-digit) across all project metadata files 
 4. **VCS & Identity Verification**:
    Run `tools/jj/jj.exe status` and check configured author identity.
    Ensure Author Name is `HelloKittyXamKinLung` and Email is `p1rkr41n@users.noreply.github.com`.
-   Verify zero enterprise/org leaks (e.g. VNCERT).
+   Verify zero enterprise/org leaks.
    Ensure English-only public commit messages and release notes.
 
 5. **Run Existing Test Suite Quick Check**:
@@ -66,5 +66,5 @@ Your tasks:
 2. Verify all metadata files (package.json files across packages, RegexDialog.tsx, README.md, dist_package.ps1, package_release.ps1) are updated to 2.5.1.
 3. Test build via `powershell -ExecutionPolicy Bypass -File fastbuild.ps1`. Verify app.asar < 45 MB and Toad.exe < 75 MB.
 4. Verify packaging binary de-duplication policy: zero duplicate historical binaries in releases/.
-5. Check Jujutsu (jj) VCS: run `tools/jj/jj.exe status`, ensure author identity is `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, zero corporate/org leaks (e.g. VNCERT), English-only.
+5. Check Jujutsu (jj) VCS: run `tools/jj/jj.exe status`, ensure author identity is `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`, zero corporate/org leaks, English-only.
 6. Verify quick tests pass with node-v18.20.4-win-x64\node.exe run_tests.js --quick or test_nested_json.js.

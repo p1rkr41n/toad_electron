@@ -196,7 +196,7 @@ All automated test suites, headless engine benchmarks (1,000 queries), crash rec
 - **Execution**:
   - `tools/jj/jj.exe log -r "@" -n 5` output:
     ```
-    @  osxolpnr contact@vncert.vn 2026-11-04 01:00:10 c5b63682
+    @  osxolpnr p1rkr41n@users.noreply.github.com 2026-11-04 01:00:10 c5b63682
     │  feat: TOAD v2.5.0 IPC architectural migration to Electron utilityProcess
     ~
     ```
