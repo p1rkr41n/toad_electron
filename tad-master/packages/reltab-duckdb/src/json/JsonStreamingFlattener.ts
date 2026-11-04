@@ -6,7 +6,7 @@
  * - Safely double-quotes every column alias and field identifier
  * - Unpacks nested STRUCT columns into dot-notated columnar Parquet
  * - Gracefully falls back to standard read_json_auto if no STRUCT columns are detected
- * - Includes robust fallback tiers (standard stream, all_varchar mode)
+ * - Includes robust fallback tiers (standard stream, resilient auto stream)
  */
 
 import * as log from "loglevel";
@@ -215,32 +215,36 @@ COPY (
     };
   } catch (stdErr: any) {
     log.warn(
-      `[JsonStreamingFlattener] Standard stream failed, falling back to all_varchar tier:`,
+      `[JsonStreamingFlattener] Standard stream failed, falling back to Tier 2 resilient stream:`,
       stdErr?.message || stdErr
     );
   }
 
-  // Tier 2 Fallback: all_varchar = true
-  const allVarcharQuery = `
+  // Tier 2 Fallback: Resilient auto stream (sample_size, ignore_errors = true, maximum_object_size = 64MB)
+  const fallbackQuery = `
 COPY (
   SELECT * FROM read_json_auto(
     '${safeSrc}',
     sample_size = ${sampleSize},
     ignore_errors = true,
-    all_varchar = true
+    maximum_object_size = 67108864
   )
 ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
 `.trim();
 
-  await execQuery(dbConn, allVarcharQuery);
-  const executionTimeMs = Date.now() - startTime;
-  log.info(`[JsonStreamingFlattener] all_varchar JSON streaming completed in ${executionTimeMs}ms.`);
-
-  return {
-    flattened: false,
-    hasStructColumns: false,
-    columnCount: introspection.columns.length,
-    finalColumnNames: introspection.columns.map((c) => c.columnName),
-    executionTimeMs,
-  };
+  try {
+    await execQuery(dbConn, fallbackQuery);
+    const executionTimeMs = Date.now() - startTime;
+    log.info(`[JsonStreamingFlattener] Tier 2 fallback JSON streaming completed in ${executionTimeMs}ms.`);
+    return {
+      flattened: false,
+      hasStructColumns: false,
+      columnCount: introspection.columns.length,
+      finalColumnNames: introspection.columns.map((c) => c.columnName),
+      executionTimeMs,
+    };
+  } catch (fbErr: any) {
+    log.warn(`[JsonStreamingFlattener] Tier 2 fallback JSON streaming failed:`, fbErr?.message || fbErr);
+    throw fbErr;
+  }
 }

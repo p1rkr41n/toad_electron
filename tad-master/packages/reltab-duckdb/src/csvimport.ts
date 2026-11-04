@@ -3008,13 +3008,21 @@ async function streamJsonToParquet(
   const compression = (cfg.compression || "snappy").toUpperCase();
   const rowGroupSize = cfg.row_group_size || 100000;
 
-  await streamFlattenedJsonToParquet(dbConn, filePath, parquetPath, {
-    compression,
-    rowGroupSize,
-    sampleSize: 2048,
-    ignoreErrors: true,
-    timestampFormat: "%Y-%m-%dT%H:%M:%S.%fZ",
-  });
+  try {
+    await streamFlattenedJsonToParquet(dbConn, filePath, parquetPath, {
+      compression,
+      rowGroupSize,
+      sampleSize: 2048,
+      ignoreErrors: true,
+      timestampFormat: "%Y-%m-%dT%H:%M:%S.%fZ",
+    });
+  } catch (streamErr: any) {
+    log.warn(
+      `[streamJsonToParquet] Streaming JSON to Parquet failed for ${filePath}:`,
+      streamErr?.message || streamErr
+    );
+    throw streamErr;
+  }
 }
 
 /**
@@ -3505,12 +3513,15 @@ export const nativeCSVImport = async (
             statusText: "Streaming decoded EVTX events into DuckDB Parquet...",
           });
 
-          await streamJsonToParquet(dbConn, tempJsonl, targetParquetPath, cfg);
           try {
-            if (fs.existsSync(tempJsonl)) {
-              fs.unlinkSync(tempJsonl);
-            }
-          } catch { }
+            await streamJsonToParquet(dbConn, tempJsonl, targetParquetPath, cfg);
+          } finally {
+            try {
+              if (fs.existsSync(tempJsonl)) {
+                fs.unlinkSync(tempJsonl);
+              }
+            } catch { }
+          }
         } else if ([".json", ".jsonl", ".ndjson"].includes(ext)) {
           await streamJsonToParquet(dbConn, normalizedPath, targetParquetPath, cfg);
         } else if ([".log", ".txt"].includes(ext)) {
@@ -3596,7 +3607,7 @@ export const nativeCSVImport = async (
           )} -> VIEW: ${tableName}`
         );
         return tableName;
-      } catch (streamErr) {
+      } catch (streamErr: any) {
         log.warn(
           "[TOAD Ingest] Streaming pipeline that bai, fallback ve in-memory import:",
           streamErr
@@ -3625,7 +3636,30 @@ export const nativeCSVImport = async (
             fs.unlinkSync(targetParquetPath);
           }
         } catch { }
-        // Tiếp tục với in-memory fallback bên dưới
+
+        // Format-Specific Fallback Guards: Never let JSON or EVTX fall through into read_csv
+        const fileExt = path.extname(filePath).toLowerCase();
+        const baseName = path.basename(filePath);
+
+        if (fileExt === ".evtx") {
+          log.error(`[TOAD Ingest] EVTX ingestion failed for ${filePath}:`, streamErr);
+          throw new Error(`Failed to ingest EVTX file "${baseName}": ${streamErr?.message || streamErr}`);
+        }
+
+        if ([".json", ".jsonl", ".ndjson"].includes(fileExt)) {
+          log.warn(`[TOAD Ingest] Streaming JSON failed for ${filePath}, attempting in-memory JSON fallback...`);
+          try {
+            const safePath = escapeSqlPath(normalizedPath);
+            const inMemQuery = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_json_auto('${safePath}', ignore_errors = true);`;
+            await dbConn.all(inMemQuery);
+            log.info(`[TOAD Ingest] In-memory JSON fallback succeeded for ${tableName}`);
+            return tableName;
+          } catch (inMemErr: any) {
+            log.error(`[TOAD Ingest] In-memory JSON fallback also failed for ${filePath}:`, inMemErr);
+            throw new Error(`Failed to parse JSON file "${baseName}": ${streamErr?.message || streamErr}`);
+          }
+        }
+        // Tiếp tục với in-memory fallback bên dưới cho CSV/TSV
       } finally {
         if (ioWatcherProc) {
           try {
