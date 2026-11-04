@@ -34,10 +34,33 @@ export class ElectronHostAdapter extends V8HostAdapter {
     { resolve: (val: Uint8Array) => void; reject: (err: any) => void }
   >();
   private attachedPort: any = null;
+  private boundListener: any = null;
 
   public setupDataPort(port: any): void {
+    if (this.attachedPort && this.attachedPort !== port) {
+      for (const [id, pending] of this.pendingBinaryReqs) {
+        pending.reject(
+          new Error(`[ElectronHostAdapter] Port reset while request ${id} was pending`)
+        );
+      }
+      this.pendingBinaryReqs.clear();
+      this.detachDataPortListener(this.attachedPort);
+    }
     super.setupDataPort(port);
     this.attachDataPortListener(port);
+  }
+
+  private detachDataPortListener(port: any): void {
+    if (!port || !this.boundListener) return;
+    if (typeof port.removeEventListener === "function") {
+      port.removeEventListener("message", this.boundListener);
+    } else if (typeof port.off === "function") {
+      port.off("message", this.boundListener);
+    } else if (port.onmessage === this.boundListener) {
+      port.onmessage = null;
+    }
+    this.attachedPort = null;
+    this.boundListener = null;
   }
 
   private attachDataPortListener(port: any): void {
@@ -82,6 +105,7 @@ export class ElectronHostAdapter extends V8HostAdapter {
       }
     };
 
+    this.boundListener = onMessage;
     if (typeof port.addEventListener === "function") {
       port.addEventListener("message", onMessage);
     } else if (typeof port.on === "function") {
@@ -110,7 +134,26 @@ export class ElectronHostAdapter extends V8HostAdapter {
       this.attachDataPortListener(this.dataPort);
       const id = ++this.binaryReqId;
       return new Promise<Uint8Array>((resolve, reject) => {
-        this.pendingBinaryReqs.set(id, { resolve, reject });
+        const timer = setTimeout(() => {
+          if (this.pendingBinaryReqs.has(id)) {
+            this.pendingBinaryReqs.delete(id);
+            reject(
+              new Error(`[ElectronHostAdapter] invokeBinary timeout for '${cmd}' (reqId: ${id})`)
+            );
+          }
+        }, 30000);
+
+        this.pendingBinaryReqs.set(id, {
+          resolve: (val) => {
+            clearTimeout(timer);
+            resolve(val);
+          },
+          reject: (err) => {
+            clearTimeout(timer);
+            reject(err);
+          },
+        });
+
         try {
           this.dataPort.postMessage({
             id,
@@ -119,6 +162,7 @@ export class ElectronHostAdapter extends V8HostAdapter {
             binary: true,
           });
         } catch (sendErr) {
+          clearTimeout(timer);
           this.pendingBinaryReqs.delete(id);
           reject(sendErr);
         }

@@ -81,6 +81,9 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   "toad:query",
   "rowCount",
   "toad:row_count",
+  "runSqlQuery",
+  "runSqlQueryArrow",
+  "toad:run_sql_arrow",
   "dispose",
   "realPath",
   "toad:get_table_name",
@@ -94,6 +97,7 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   "DataSourceConnection.getRootNode",
   "DataSourceConnection.getChildren",
   "DataSourceConnection.runSqlQuery",
+  "DataSourceConnection.runSqlQueryArrow",
   "DataSourceConnection.dispose",
 
   // Export & Filter Queries
@@ -136,6 +140,7 @@ const COMMAND_ALIAS_MAP = Object.freeze({
   "toad:query": "evalQuery",
   "toad:row_count": "rowCount",
   "toad:schema": "schema",
+  "toad:run_sql_arrow": "runSqlQueryArrow",
   "toad:get_table_name": "DataSourceConnection.getTableName",
 });
 
@@ -219,6 +224,23 @@ const toadBridge = {
       return ipcRenderer.invoke(resolved, payload);
     }
     return Promise.reject(new Error("[toadBridge] ipcRenderer is not available for invoke"));
+  },
+
+  // Binary execution (returns Promise<Uint8Array>)
+  invokeBinary: async (command, payload) => {
+    assertCapability(command);
+    const normalized = typeof command === "string" ? command.trim() : command;
+    const resolved = COMMAND_ALIAS_MAP[normalized] || normalized;
+    if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
+      const res = await ipcRenderer.invoke(resolved, payload);
+      if (res instanceof Uint8Array) return res;
+      if (res instanceof ArrayBuffer) return new Uint8Array(res);
+      if (typeof Buffer !== "undefined" && Buffer.isBuffer(res)) {
+        return new Uint8Array(res.buffer, res.byteOffset, res.byteLength);
+      }
+      return new Uint8Array(res || 0);
+    }
+    return Promise.reject(new Error("[toadBridge] ipcRenderer is not available for invokeBinary"));
   },
 
   // Core event listening (Tauri v2 listen parity)

@@ -223,7 +223,14 @@ export class DuckDBDriver implements DbDriver {
               return resolve(new Uint8Array(0));
             }
             const buf = Buffer.concat(valid);
-            resolve(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
+            const arrayBuffer =
+              buf.byteOffset === 0 && buf.byteLength === buf.buffer.byteLength
+                ? buf.buffer
+                : (buf.buffer.slice(
+                    buf.byteOffset,
+                    buf.byteOffset + buf.byteLength
+                  ) as ArrayBuffer);
+            resolve(new Uint8Array(arrayBuffer));
           });
         });
       }
@@ -309,10 +316,15 @@ const loadExtensions = async (db: Database): Promise<void> => {
     log.error("caught exception loading extensions: ", err);
     log.error("(ignoring unloadable extensions...)");
   }
+  // Try LOAD 'arrow' first for offline/pre-cached extensions, then fallback to INSTALL
   try {
-    await db.exec(`INSTALL 'arrow'; LOAD 'arrow'`);
-  } catch (err) {
-    log.warn("caught notice loading arrow extension: ", err);
+    await db.exec(`LOAD 'arrow'`);
+  } catch {
+    try {
+      await db.exec(`INSTALL 'arrow'; LOAD 'arrow'`);
+    } catch (err) {
+      log.warn("caught notice loading arrow extension: ", err);
+    }
   }
 };
 

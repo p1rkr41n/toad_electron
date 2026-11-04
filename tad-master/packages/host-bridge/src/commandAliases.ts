@@ -36,11 +36,18 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   "engine:do_restart": "engine:restart",
   "toad:get_setup_info": "getSetupInfo",
   "toad:open_example": "openExample",
-  "toad:eval_query": "evalQuery",
-  "toad:query": "evalQuery",
-  "toad:row_count": "rowCount",
-  "toad:schema": "schema",
+  "toad:eval_query": "DataSourceConnection.evalQuery",
+  "toad:query": "DataSourceConnection.evalQuery",
+  "evalQuery": "DataSourceConnection.evalQuery",
+  "toad:row_count": "DataSourceConnection.rowCount",
+  "rowCount": "DataSourceConnection.rowCount",
+  "toad:schema": "DataSourceConnection.getTableSchema",
+  "toad:get_table_schema": "DataSourceConnection.getTableSchema",
+  "schema": "DataSourceConnection.getTableSchema",
+  "getTableSchema": "DataSourceConnection.getTableSchema",
+  "toad:run_sql_arrow": "DataSourceConnection.runSqlQueryArrow",
   "toad:get_table_name": "DataSourceConnection.getTableName",
+  "getTableName": "DataSourceConnection.getTableName",
 };
 
 /**
