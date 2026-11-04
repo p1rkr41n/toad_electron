@@ -10,7 +10,8 @@ function getGitHubToken() {
   if (process.env.GITHUB_TOKEN) return process.env.GITHUB_TOKEN;
   if (process.env.GH_TOKEN) return process.env.GH_TOKEN;
   try {
-    const remoteUrl = execSync('git config --get remote.origin.url', { encoding: 'utf8' }).trim();
+    const gitBin = fs.existsSync(path.resolve('mingit/cmd/git.exe')) ? `"${path.resolve('mingit/cmd/git.exe')}"` : 'git';
+    const remoteUrl = execSync(`${gitBin} config --get remote.origin.url`, { encoding: 'utf8' }).trim();
     const match = remoteUrl.match(/https:\/\/([^:@]+)@github\.com/);
     if (match && match[1]) {
       return match[1];
@@ -27,8 +28,13 @@ async function main() {
   const checksumPath = path.resolve('releases', 'SHA256SUMS.txt');
 
   let body = '';
+  let releaseTitle = `Toad v${version}`;
   if (fs.existsSync(notesPath)) {
     body = fs.readFileSync(notesPath, 'utf8');
+    const titleMatch = body.match(/^#+\s*(.+)$/m);
+    if (titleMatch) {
+      releaseTitle = titleMatch[1].trim();
+    }
   } else {
     body = `Toad v${version} Release`;
   }
@@ -37,8 +43,6 @@ async function main() {
     const checksums = fs.readFileSync(checksumPath, 'utf8');
     body += `\n\n### 🛡️ Checksums & Integrity\n\`\`\`\n${checksums}\n\`\`\``;
   }
-
-  const releaseTitle = `Toad v${version} - Tabular OLAP Analytics Desktop (Full Rebrand & Feature Release)`;
 
   // 1. Check if release already exists
   let releaseId = null;
