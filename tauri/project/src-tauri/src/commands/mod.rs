@@ -6,8 +6,10 @@
 //! - Routes system requests to `commands::system` handlers with genuine plugin extension traits.
 //! - Provides clean typed DTO stubs for Query (M3), Ledger (M4), and Forensics (M5).
 
+pub mod ingest;
 pub mod query;
 pub mod system;
+pub mod workspace;
 
 use crate::state::AppState;
 use serde_json::{json, Value};
@@ -49,6 +51,12 @@ pub enum CommandAction {
     ProjectPurgeCache,
     ProjectRemoveFile,
     ProjectMoveOrphanFiles,
+
+    // Forensics & Ingestion Commands (Milestone M5)
+    IngestFile,
+    IngestCancel,
+    IngestVip,
+    IngestGetQueue,
 
     // Engine Control Stubs
     EngineGetStatus,
@@ -141,6 +149,16 @@ pub fn route_command(cmd: &str) -> CommandAction {
         }
         "project:move_orphan_files" | "project:moveOrphanFiles" | "move_orphan_files" => {
             CommandAction::ProjectMoveOrphanFiles
+        }
+
+        // ================================================================
+        // Forensics & Ingestion Commands (Milestone M5)
+        // ================================================================
+        "toad:ingest_file" | "ingestFile" | "ingest_file" => CommandAction::IngestFile,
+        "toad:ingest_cancel" | "cancelIngest" | "ingest_cancel" => CommandAction::IngestCancel,
+        "toad:ingest_vip" | "prioritizeIngest" | "ingest_vip" => CommandAction::IngestVip,
+        "toad:get_ingest_queue" | "getIngestQueue" | "get_ingest_queue" => {
+            CommandAction::IngestGetQueue
         }
 
         // ================================================================
@@ -332,92 +350,218 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
             }
 
             CommandAction::ProjectGetWorkspace => {
-                invoke.resolver.resolve(json!({
-                    "activeProjectId": "default",
-                    "projects": [
-                        {
-                            "id": "default",
-                            "name": "Untitled-1",
-                            "createdAt": 0,
-                            "filesCount": 0
-                        }
-                    ]
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_get_workspace(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectGetFiles => {
-                invoke.resolver.resolve(json!({
-                    "projectId": "default",
-                    "files": []
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_get_files(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
-            CommandAction::ProjectAddFiles | CommandAction::ProjectAddFolder => {
-                invoke.resolver.resolve(json!({ "addedFiles": [] }));
+            CommandAction::ProjectAddFiles => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_add_files(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::ProjectAddFolder => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_add_folder(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectDelete => {
-                invoke.resolver.resolve(json!({ "success": true }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_delete_project(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectRename => {
-                invoke.resolver.resolve(json!({ "success": true }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_rename_project(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectCreate => {
-                invoke.resolver.resolve(json!({
-                    "projectId": "new_project",
-                    "name": "New Project"
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_create_project(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectSetActive => {
-                invoke.resolver.resolve(json!({ "success": true }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_set_active_project(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectReconcile => {
-                invoke.resolver.resolve(json!({
-                    "success": true,
-                    "reconciledFiles": 0
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_reconcile(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectDeleteAll => {
-                invoke.resolver.resolve(json!({ "success": true }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_delete_all_projects(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectGetCacheSize => {
-                invoke.resolver.resolve(json!({
-                    "cacheSizeBytes": 0,
-                    "formatted": "0 B"
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_get_cache_size(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectPurgeCache => {
-                invoke.resolver.resolve(json!({
-                    "purgedBytes": 0,
-                    "filesRemoved": 0
-                }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_purge_cache(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectRemoveFile => {
-                invoke.resolver.resolve(json!({ "success": true }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_remove_file(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 
             CommandAction::ProjectMoveOrphanFiles => {
-                invoke.resolver.resolve(json!({ "movedCount": 0 }));
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match workspace::handle_move_orphan_files(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::IngestFile => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match ingest::handle_ingest_file(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::IngestCancel => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match ingest::handle_ingest_cancel(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::IngestVip => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match ingest::handle_ingest_vip(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::IngestGetQueue => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match ingest::handle_get_ingest_queue(&state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
                 true
             }
 

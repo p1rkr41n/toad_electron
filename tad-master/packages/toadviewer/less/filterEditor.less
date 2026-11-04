@@ -32,6 +32,17 @@
 .filter-btn-apply {
   font-weight: 600;
   transition: all 0.2s ease-in-out;
+
+  &.is-applying {
+    opacity: 0.85;
+    cursor: wait !important;
+    .bp4-spinner {
+      margin-right: 5px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+  }
+
   &.is-applied {
     background-color: #0f9960 !important;
     background-image: none !important;

@@ -18,19 +18,15 @@ pub struct DuckDbEnginePlaceholder {
     pub pool: Option<Arc<DuckDbEnginePool>>,
 }
 
-/// Placeholder for Parquet Double-Valid State Ledger WAL (Milestone M4)
-#[derive(Debug, Default, Clone)]
-pub struct ParquetLedgerPlaceholder {
-    pub initialized: bool,
-    pub active_project_id: Option<String>,
-}
+use crate::ledger::ParquetLedger;
 
-/// Placeholder for Ingestion Queue & Forensics Scheduler (Milestone M5)
-#[derive(Debug, Default, Clone)]
-pub struct IngestionQueuePlaceholder {
-    pub active_jobs: usize,
-    pub pending_jobs: usize,
-}
+use crate::ingest::{IngestionScheduler, ProgressDispatcher};
+
+/// Parquet Double-Valid State Ledger WAL (Milestone M4)
+pub type ParquetLedgerPlaceholder = ParquetLedger;
+
+/// Active Ingestion Scheduler & Forensics Queue (Milestone M5 / F21)
+pub type IngestionQueuePlaceholder = IngestionScheduler;
 
 /// Core thread-safe application state managed by Tauri runtime
 pub struct AppState {
@@ -38,8 +34,8 @@ pub struct AppState {
     pub config_path: PathBuf,
     pub config: Arc<RwLock<ToadConfig>>,
     pub duckdb_engine: Arc<RwLock<DuckDbEnginePlaceholder>>,
-    pub parquet_ledger: Arc<RwLock<ParquetLedgerPlaceholder>>,
-    pub ingest_queue: Arc<RwLock<IngestionQueuePlaceholder>>,
+    pub parquet_ledger: Arc<RwLock<ParquetLedger>>,
+    pub ingest_queue: Arc<RwLock<IngestionScheduler>>,
 }
 
 impl AppState {
@@ -49,7 +45,7 @@ impl AppState {
         let temp_dir = portable_dir.join("temp");
         let _ = std::fs::create_dir_all(&temp_dir);
         let pool = DuckDbEnginePool::new(
-            temp_dir,
+            temp_dir.clone(),
             config.duckdb.threads,
             config.duckdb.max_memory.clone(),
         )
@@ -59,16 +55,39 @@ impl AppState {
         let placeholder = DuckDbEnginePlaceholder {
             initialized: pool.is_some(),
             active_queries: 0,
-            pool,
+            pool: pool.clone(),
         };
+        let ledger = ParquetLedger::new(portable_dir.clone());
+        let _ = {
+            let reconciler = crate::ledger::StartupReconciler::new(
+                &ledger.ledger_path,
+                &ledger.backup_path,
+                &ledger.temp_dir,
+                &ledger.logs_dir,
+                true,
+            );
+            if let Ok(mut st) = ledger.state.try_write() {
+                let _ = reconciler.reconcile(&mut st);
+            }
+        };
+
+        let ledger_arc = Arc::new(RwLock::new(ledger));
+        let scheduler = IngestionScheduler::new(
+            temp_dir,
+            Some(ledger_arc.clone()),
+            pool,
+            Arc::new(ProgressDispatcher::default()),
+            config.general.max_concurrent_files as usize,
+            (config.general.max_concurrent_gb * 1_073_741_824.0) as u64,
+        );
 
         Self {
             portable_dir,
             config_path,
             config: Arc::new(RwLock::new(config)),
             duckdb_engine: Arc::new(RwLock::new(placeholder)),
-            parquet_ledger: Arc::new(RwLock::new(ParquetLedgerPlaceholder::default())),
-            ingest_queue: Arc::new(RwLock::new(IngestionQueuePlaceholder::default())),
+            parquet_ledger: ledger_arc,
+            ingest_queue: Arc::new(RwLock::new(scheduler)),
         }
     }
 
@@ -96,6 +115,12 @@ impl AppState {
     /// Read a clone of the current configuration snapshot
     pub async fn get_config(&self) -> ToadConfig {
         self.config.read().await.clone()
+    }
+
+    /// Retrieve or lazily initialize the Ingestion Scheduler
+    pub async fn get_ingest_scheduler(&self) -> Arc<IngestionScheduler> {
+        let sched = self.ingest_queue.read().await.clone();
+        Arc::new(sched)
     }
 
     /// Update configuration in memory and persist to config.ini on disk with atomic rollback safety.

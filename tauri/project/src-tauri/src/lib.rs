@@ -8,6 +8,8 @@
 
 pub mod commands;
 pub mod engine;
+pub mod ingest;
+pub mod ledger;
 pub mod logger;
 pub mod portable;
 pub mod state;
