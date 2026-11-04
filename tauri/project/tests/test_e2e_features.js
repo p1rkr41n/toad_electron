@@ -196,7 +196,7 @@ class QueryExpCompiler {
    */
   static fastParquetCountSql(parquetPath) {
     const escaped = parquetPath.replace(/'/g, "''");
-    return `SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('${escaped}')`;
+    return `SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('${escaped}') WHERE column_id = 0`;
   }
 }
 
@@ -442,7 +442,7 @@ async function runE2EFeaturesTests() {
     const sql = QueryExpCompiler.fastParquetCountSql(parquetFile);
     assert.strictEqual(
       sql,
-      "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('C:\\Data\\logs_2026.parquet')"
+      "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('C:\\Data\\logs_2026.parquet') WHERE column_id = 0"
     );
   });
 

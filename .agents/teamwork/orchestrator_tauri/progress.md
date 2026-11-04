@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-04T21:28:42Z
+Last visited: 2026-11-04T21:42:00Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -26,10 +26,16 @@ Last visited: 2026-11-04T21:28:42Z
   - Gate Result: PASS.
   - Milestone 2 marked DONE in PROJECT.md.
 - [ ] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol (Squad 3):
-  - Spec Miner M3 (313c364d): COMPLETED (handoff delivered: 41 features, edge cases, Arrow IPC 0xFFFFFFFF, reltab.Schema DTO)
-  - Explorer M3 DuckDB (64710a0f): COMPLETED (handoff delivered: duckdb_pool.rs, arrow_encoder.rs, fast_count.rs, arrow 54 unification)
-  - Explorer M3 Compiler (e047b874): COMPLETED (handoff delivered: query_compiler.rs, schema_mapper.rs, stats_cache.rs, commands/query.rs)
-  - Worker M3 Engine (afd16904): IN PROGRESS (all 7 engine modules implemented, official DuckDB 1.2.2 C-API linked in src-tauri/lib/, running tests)
+  - Spec Miner M3 (313c364d): COMPLETED
+  - Explorer M3 DuckDB (64710a0f): COMPLETED
+  - Explorer M3 Compiler (e047b874): COMPLETED
+  - Worker M3 Engine (afd16904): COMPLETED (commit bb7710ea, 51/51 cargo tests, 122 total automated tests passed)
+  - Gate verification (Iteration 4): FAIL (reviewer_m3_1: APPROVE, reviewer_m3_2: APPROVE, challenger_m3_1: APPROVE, challenger_m3_2: REQUEST_CHANGES, auditor_m3_1: CLEAN).
+  - Iteration 5 Remediation:
+    - Explorer M3-Fix-1 (f944860a): COMPLETED (fast_parquet_count WHERE column_id = 0 fix designed)
+    - Explorer M3-Fix-2 (53fd4fca): COMPLETED (normalize_path_slashes symmetrical normalization designed)
+    - Explorer M3-Fix-3 (1d10dfc1): COMPLETED (empty IN/NOT IN 1=0 / 1=1 fix & syntax safeguards designed)
+    - Worker M3 Remediation (74dde045): IN PROGRESS (applying fixes to query_compiler.rs, engine_tests.rs, adversarial tests, test_e2e_features.js)
   - F07: DuckDB 1.0 Tokio Connection Pool (dual-engine UI vs Ingest)
   - F08: QueryExp AST Compiler to DuckDB SQL
   - F09: Streaming Arrow IPC Stream Protocol (`0xFFFFFFFF` continuation marker via `tauri::ipc::Response`)
@@ -38,5 +44,6 @@ Last visited: 2026-11-04T21:28:42Z
   - F12: Column Statistics & Cardinality Cache
 
 ## Iteration Status
-Current iteration: 3 / 32
+Current iteration: 5 / 32
+
 

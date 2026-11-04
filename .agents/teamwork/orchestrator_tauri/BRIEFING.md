@@ -80,18 +80,27 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | specminer_m3 | teamwork_spec_miner | QueryExp & Arrow Spec Miner | completed | 313c364d-a70d-4159-b6b1-3dceb40c7bea |
 | explorer_m3_duckdb | teamwork_explorer | DuckDB Pool & Arrow Encoder Explorer | completed | 64710a0f-7ada-4347-bf1c-2a9acb3dd6ca |
 | explorer_m3_compiler | teamwork_explorer | QueryExp AST Compiler Explorer | completed | e047b874-6355-41e1-a407-249351fb7613 |
-| worker_m3_engine | teamwork_worker | Milestone 3 Implementation Worker | in-progress | afd16904-96e8-45c1-954f-4fe8f5d8cf71 |
+| worker_m3_engine | teamwork_worker | Milestone 3 Implementation Worker | completed | afd16904-96e8-45c1-954f-4fe8f5d8cf71 |
+| reviewer_m3_1 | teamwork_reviewer | DuckDB Core Code Reviewer 1 | completed | 4ebae773-98a3-473f-8f5b-c4ae03189e52 |
+| reviewer_m3_2 | teamwork_reviewer | Interface & Architecture Reviewer 2 | completed | e08900b5-1874-42ae-9f6f-88899b63304a |
+| challenger_m3_1 | teamwork_challenger | Arrow IPC & Protocol Stress Challenger 1 | completed | 50494c24-0807-404c-86f9-c6e160aa1457 |
+| challenger_m3_2 | teamwork_challenger | QueryExp Compiler Challenger 2 | completed | 7e58a213-4717-4b70-8bcd-2a22f338e6c3 |
+| auditor_m3_1 | teamwork_auditor | Forensic Integrity Auditor M3 | completed | 5899c6f4-85c5-4cd2-996e-5eb244c49877 |
+| explorer_m3_fix_1 | teamwork_explorer | Parquet Metadata Fast Count Explorer 1 | completed | f944860a-b312-4f6d-80d4-f897290f287b |
+| explorer_m3_fix_2 | teamwork_explorer | Forensics Path Normalization Explorer 2 | completed | 53fd4fca-2ec2-442a-aa8e-3fe62b09b4e8 |
+| explorer_m3_fix_3 | teamwork_explorer | SQL Syntax & Robustness Explorer 3 | completed | 1d10dfc1-0c79-4fd8-b354-fbb129a0419d |
+| worker_m3_remediation | teamwork_worker | Milestone 3 Remediation Worker | in-progress | 74dde045-5d38-4a26-9430-98065f95f71b |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 29 / 128
-- Pending subagents: afd16904-96e8-45c1-954f-4fe8f5d8cf71
+- Spawn count: 38 / 128
+- Pending subagents: 74dde045-5d38-4a26-9430-98065f95f71b
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-905
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-1100
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

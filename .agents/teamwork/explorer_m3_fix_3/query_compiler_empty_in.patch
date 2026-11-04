@@ -1,0 +1,100 @@
+--- a/tauri/project/src-tauri/src/engine/query_compiler.rs
++++ b/tauri/project/src-tauri/src/engine/query_compiler.rs
+@@ -431,9 +431,13 @@ impl QueryExpCompiler {
+                 let sub = Self::compile_rec(from, depth)?;
+-                let col_list = cols
+-                    .iter()
+-                    .map(|c| Self::quote_ident(c))
+-                    .collect::<Vec<_>>()
+-                    .join(", ");
++                let col_list = if cols.is_empty() {
++                    "*".to_string()
++                } else {
++                    cols.iter()
++                        .map(|c| Self::quote_ident(c))
++                        .collect::<Vec<_>>()
++                        .join(", ")
++                };
+                 Ok(format!("SELECT {} FROM ({}) AS {}", col_list, sub, alias))
+             }
+@@ -476,7 +480,11 @@ impl QueryExpCompiler {
+                 }
+ 
+-                let select_clause = select_items.join(", ");
++                let select_clause = if select_items.is_empty() {
++                    "*".to_string()
++                } else {
++                    select_items.join(", ")
++                };
+                 if group_cols.is_empty() {
+                     Ok(format!("SELECT {} FROM ({}) AS {}", select_clause, sub, alias))
+                 } else {
+@@ -522,10 +530,14 @@ impl QueryExpCompiler {
+                 let jt = join_type.as_deref().unwrap_or("LEFT OUTER JOIN");
+-                let on_clause = on
+-                    .iter()
+-                    .map(|c| format!("_lhs.{} = _rhs.{}", Self::quote_ident(c), Self::quote_ident(c)))
+-                    .collect::<Vec<_>>()
+-                    .join(" AND ");
++                let on_clause = if on.is_empty() {
++                    "1=1".to_string()
++                } else {
++                    on.iter()
++                        .map(|c| format!("_lhs.{} = _rhs.{}", Self::quote_ident(c), Self::quote_ident(c)))
++                        .collect::<Vec<_>>()
++                        .join(" AND ")
++                };
+ 
+                 Ok(format!(
+                     "SELECT * FROM ({}) AS _lhs {} ({}) AS _rhs ON {}",
+@@ -770,15 +782,41 @@ impl QueryExpCompiler {
+             "IN" | "NOTIN" => {
+-                let neg = if op_up == "NOTIN" { "NOT " } else { "" };
+-                let in_list = match rhs {
+-                    ValExp::Literal(Value::Array(arr)) => arr
++                let is_notin = op_up == "NOTIN";
++                let arr_opt: Option<&Vec<Value>> = match rhs {
++                    ValExp::Literal(Value::Array(arr)) => Some(arr),
++                    ValExp::Typed(TypedValExp::ConstVal { val: Value::Array(arr) }) => Some(arr),
++                    _ => None,
++                };
++
++                if let Some(arr) = arr_opt {
++                    if arr.is_empty() {
++                        return if is_notin {
++                            Ok("1=1".to_string())
++                        } else {
++                            Ok("1=0".to_string())
++                        };
++                    }
++                    let in_list = arr
+                         .iter()
+                         .map(|v| match v {
+                             Value::String(s) => format!("'{}'", s.replace('\'', "''")),
++                            Value::Null => "NULL".to_string(),
++                            Value::Bool(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
++                            Value::Number(n) => n.to_string(),
+                             other => other.to_string(),
+                         })
+                         .collect::<Vec<_>>()
+-                        .join(", "),
+-                    _ => Self::compile_val_exp(rhs)?,
+-                };
+-                Ok(format!("{} {}IN ({})", lhs_sql, neg, in_list))
++                        .join(", ");
++                    let neg = if is_notin { "NOT " } else { "" };
++                    Ok(format!("{} {}IN ({})", lhs_sql, neg, in_list))
++                } else {
++                    let in_expr = Self::compile_val_exp(rhs)?;
++                    if in_expr.trim().is_empty() {
++                        if is_notin {
++                            Ok("1=1".to_string())
++                        } else {
++                            Ok("1=0".to_string())
++                        }
++                    } else {
++                        let neg = if is_notin { "NOT " } else { "" };
++                        Ok(format!("{} {}IN ({})", lhs_sql, neg, in_expr))
++                    }
++                }
+             }

@@ -394,7 +394,7 @@ fn test_fast_parquet_count_sql_generation() {
     let sql = QueryExpCompiler::fast_parquet_count(path);
     assert_eq!(
         sql,
-        "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('C:\\Data\\logs_2026.parquet')"
+        "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('C:\\Data\\logs_2026.parquet') WHERE column_id = 0"
     );
 }
 
@@ -484,4 +484,138 @@ async fn test_stats_cache_ttl_and_lru() {
     // Wait for TTL expiration (> 50ms)
     tokio::time::sleep(Duration::from_millis(60)).await;
     assert!(cache.get("table_a").await.is_none()); // Expired by TTL
+}
+
+#[test]
+fn test_query_compiler_empty_in_and_notin() {
+    let q_table = QueryRep::Table {
+        table_name: "events".to_string(),
+    };
+
+    // 1. Literal empty IN -> 1=0
+    let q_in_empty = QueryRep::Filter {
+        fexp: FilterExp::Single(SubExp::BinRel(BinRelExp {
+            exp_type: "BinRelExp".to_string(),
+            op: "IN".to_string(),
+            lhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ColRef {
+                col_name: "Status".to_string(),
+                tbl_alias: None,
+            }),
+            rhs: ValExp::Literal(json!([])),
+        })),
+        from: Box::new(q_table.clone()),
+    };
+    let sql_in = QueryExpCompiler::compile(&q_in_empty, None, None).unwrap();
+    assert!(sql_in.contains("WHERE 1=0"), "Empty IN must compile to 1=0");
+
+    // 2. Literal empty NOTIN -> 1=1
+    let q_notin_empty = QueryRep::Filter {
+        fexp: FilterExp::Single(SubExp::BinRel(BinRelExp {
+            exp_type: "BinRelExp".to_string(),
+            op: "NOTIN".to_string(),
+            lhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ColRef {
+                col_name: "Status".to_string(),
+                tbl_alias: None,
+            }),
+            rhs: ValExp::Literal(json!([])),
+        })),
+        from: Box::new(q_table.clone()),
+    };
+    let sql_notin = QueryExpCompiler::compile(&q_notin_empty, None, None).unwrap();
+    assert!(sql_notin.contains("WHERE 1=1"), "Empty NOTIN must compile to 1=1");
+
+    // 3. Typed ConstVal non-empty array with strings (single quotes, not double quotes)
+    let q_in_vals = QueryRep::Filter {
+        fexp: FilterExp::Single(SubExp::BinRel(BinRelExp {
+            exp_type: "BinRelExp".to_string(),
+            op: "IN".to_string(),
+            lhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ColRef {
+                col_name: "Status".to_string(),
+                tbl_alias: None,
+            }),
+            rhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ConstVal {
+                val: json!(["Active", "Pending"]),
+            }),
+        })),
+        from: Box::new(q_table),
+    };
+    let sql_vals = QueryExpCompiler::compile(&q_in_vals, None, None).unwrap();
+    assert!(
+        sql_vals.contains("\"Status\" IN ('Active', 'Pending')"),
+        "Array items must be formatted as single-quoted SQL literals: {}",
+        sql_vals
+    );
+}
+
+#[test]
+fn test_query_compiler_empty_ast_safeguards() {
+    let q_table = QueryRep::Table {
+        table_name: "users".to_string(),
+    };
+
+    // 1. Project with empty cols -> SELECT *
+    let q_proj = QueryRep::Project {
+        cols: vec![],
+        from: Box::new(q_table.clone()),
+    };
+    let sql_proj = QueryExpCompiler::compile(&q_proj, None, None).unwrap();
+    assert!(sql_proj.starts_with("SELECT * FROM"));
+
+    // 2. GroupBy with empty cols and aggs -> SELECT *
+    let q_group = QueryRep::GroupBy {
+        cols: vec![],
+        aggs: vec![],
+        from: Box::new(q_table.clone()),
+    };
+    let sql_group = QueryExpCompiler::compile(&q_group, None, None).unwrap();
+    assert!(sql_group.starts_with("SELECT * FROM"));
+
+    // 3. Join with empty on -> ON 1=1
+    let q_join = QueryRep::Join {
+        lhs: Box::new(q_table.clone()),
+        rhs: Box::new(q_table),
+        on: vec![],
+        join_type: None,
+    };
+    let sql_join = QueryExpCompiler::compile(&q_join, None, None).unwrap();
+    assert!(sql_join.contains("ON 1=1"));
+}
+
+#[test]
+fn test_query_compiler_unc_path_symmetrical_normalization() {
+    let q_table = QueryRep::Table {
+        table_name: "logs".to_string(),
+    };
+
+    // Windows UNC path with double backslashes in EQ
+    let q_eq = QueryRep::Filter {
+        fexp: FilterExp::Single(SubExp::BinRel(BinRelExp {
+            exp_type: "BinRelExp".to_string(),
+            op: "EQ".to_string(),
+            lhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ColRef {
+                col_name: "Path".to_string(),
+                tbl_alias: None,
+            }),
+            rhs: ValExp::Literal(json!("\\\\server\\share\\tool.exe")),
+        })),
+        from: Box::new(q_table.clone()),
+    };
+    let sql_eq = QueryExpCompiler::compile(&q_eq, None, None).unwrap();
+    assert!(sql_eq.contains("REGEXP_REPLACE(\"Path\"::VARCHAR, '[\\\\/]+', '/', 'g') = '/server/share/tool.exe'"));
+
+    // Windows UNC path in NEQ
+    let q_neq = QueryRep::Filter {
+        fexp: FilterExp::Single(SubExp::BinRel(BinRelExp {
+            exp_type: "BinRelExp".to_string(),
+            op: "NEQ".to_string(),
+            lhs: ValExp::Typed(toad_lib::engine::query_compiler::TypedValExp::ColRef {
+                col_name: "Path".to_string(),
+                tbl_alias: None,
+            }),
+            rhs: ValExp::Literal(json!("\\\\server\\share\\tool.exe")),
+        })),
+        from: Box::new(q_table),
+    };
+    let sql_neq = QueryExpCompiler::compile(&q_neq, None, None).unwrap();
+    assert!(sql_neq.contains("REGEXP_REPLACE(\"Path\"::VARCHAR, '[\\\\/]+', '/', 'g') != '/server/share/tool.exe'"));
 }
