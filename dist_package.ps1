@@ -121,7 +121,11 @@ if ($latestExe) {
     $canonicalReleaseExe = "$releaseDir\Toad-$version-x64-portable.exe"
     Write-Output "Copying $($latestExe.Name) to $canonicalReleaseExe and root\Toad.exe..."
     Copy-Item $latestExe.FullName -Destination $canonicalReleaseExe -Force
-    Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
+    try {
+        Copy-Item $latestExe.FullName -Destination "$rootDir\Toad.exe" -Force
+    } catch {
+        Write-Warning "Could not update root\Toad.exe (process currently active/locked): $_"
+    }
 }
 
 # Enforce zero-duplicate binary policy
