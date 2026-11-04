@@ -1,5 +1,5 @@
 /*
- * main module for render process
+ * main module for render process (Platform Agnostic UI Entry)
  */
 if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
   (BigInt.prototype as any).toJSON = function () {
@@ -271,12 +271,12 @@ const init = async () => {
     });
 
     bridge.onEvent("reopen-current-file", async () => {
-      log.info("electronRenderMain: received reopen-current-file IPC");
+      log.info("appMain: received reopen-current-file IPC");
       await actions.reopenCurrentView(stateRef);
     });
 
     bridge.onEvent("engine:restored", async (details: any) => {
-      log.info("electronRenderMain: received engine:restored IPC", details);
+      log.info("appMain: received engine:restored IPC", details);
       if ((bridge as any)?.dataPort) {
         rtc.setDataPort((bridge as any).dataPort);
       }
@@ -289,7 +289,7 @@ const init = async () => {
 
     bridge.onEvent("project-add-files", async () => {
       try {
-        log.info("electronRenderMain: received project-add-files IPC");
+        log.info("appMain: received project-add-files IPC");
         const chosen = await bridge.showOpenDialog({
           title: "Add Files to Active Project",
           multiple: true,
@@ -310,7 +310,7 @@ const init = async () => {
 
     bridge.onEvent("project-add-folder", async () => {
       try {
-        log.info("electronRenderMain: received project-add-folder IPC");
+        log.info("appMain: received project-add-folder IPC");
         const chosen = await bridge.showOpenDialog({
           title: "Add Folder to Active Project",
           directory: true,

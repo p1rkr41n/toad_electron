@@ -1,15 +1,15 @@
 import { IHostBridge } from "./IHostBridge";
-import { V8HostAdapter } from "./V8HostAdapter";
+import { ElectronHostAdapter } from "./ElectronHostAdapter";
 
 let activeBridge: IHostBridge | null = null;
 
 /**
  * Get the active singleton HostBridge instance.
- * Defaults to V8HostAdapter.
+ * Defaults to ElectronHostAdapter.
  */
 export function getHostBridge(): IHostBridge {
   if (!activeBridge) {
-    activeBridge = new V8HostAdapter();
+    activeBridge = new ElectronHostAdapter();
   }
   return activeBridge;
 }
@@ -22,4 +22,8 @@ export function setHostBridge(customBridge: IHostBridge): void {
 }
 
 export * from "./IHostBridge";
+export * from "./commandAliases";
 export * from "./V8HostAdapter";
+export * from "./ElectronHostAdapter";
+export * from "./TauriHostAdapter";
+export * from "./HeadlessNodeAdapter";

@@ -102,12 +102,18 @@ function mapLegacyPath(targetPath) {
   let redirected = targetPath
     .replace(/tad-master[/\\]packages[/\\]tad-app\b/, "tad-master/packages/toad-app")
     .replace(/tad-master[/\\]packages[/\\]tadviewer\b/, "tad-master/packages/toadviewer")
-    .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js");
+    .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js")
+    .replace(/electronRenderMain\.tsx\b/, "appMain.tsx");
   if (pathOrModuleExists(redirected)) return redirected;
   redirected = targetPath
     .replace(/tad-master[/\\]packages[/\\]toad-app\b/, "tad-master/packages/tad-app")
     .replace(/tad-master[/\\]packages[/\\]toadviewer\b/, "tad-master/packages/tadviewer")
-    .replace(/toadapp\.bundle\.js\b/, "tadapp.bundle.js");
+    .replace(/toadapp\.bundle\.js\b/, "tadapp.bundle.js")
+    .replace(/appMain\.tsx\b/, "electronRenderMain.tsx");
+  if (pathOrModuleExists(redirected)) return redirected;
+  redirected = targetPath.replace(/electronRenderMain\.tsx\b/, "appMain.tsx");
+  if (pathOrModuleExists(redirected)) return redirected;
+  redirected = targetPath.replace(/appMain\.tsx\b/, "electronRenderMain.tsx");
   if (pathOrModuleExists(redirected)) return redirected;
   return targetPath;
 }

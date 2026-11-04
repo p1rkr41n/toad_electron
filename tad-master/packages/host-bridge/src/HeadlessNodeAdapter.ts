@@ -5,6 +5,7 @@ import {
   SaveDialogOptions,
   AppConfigDTO,
   EngineName,
+  UnlistenFn,
 } from "./IHostBridge";
 
 /**
@@ -90,6 +91,27 @@ export class HeadlessNodeAdapter implements IHostBridge {
 
   async invokeCmd<T = any>(command: string, payload?: any): Promise<T> {
     return await this.invoke(command, payload);
+  }
+
+  async invokeBinary(cmd: string, args?: Record<string, unknown> | any): Promise<Uint8Array> {
+    const res = await this.invoke(cmd, args);
+    if (res instanceof Uint8Array) return res;
+    if (res instanceof ArrayBuffer) return new Uint8Array(res);
+    if (typeof Buffer !== "undefined" && Buffer.isBuffer(res)) {
+      return new Uint8Array(res.buffer, res.byteOffset, res.byteLength);
+    }
+    if (typeof res === "string") {
+      return new TextEncoder().encode(res);
+    }
+    return new Uint8Array();
+  }
+
+  listen<T = any>(event: string, handler: (payload: T) => void): UnlistenFn {
+    return this.onEvent<T>(event, handler);
+  }
+
+  emit(event: string, payload?: unknown): void {
+    this.sendEvent(event, payload);
   }
 
   setupDataPort(port: any): void {

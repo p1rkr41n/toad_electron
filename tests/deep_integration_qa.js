@@ -44,12 +44,18 @@ function mapLegacyPath(targetPath) {
   let redirected = targetPath
     .replace(/tad-master[/\\]packages[/\\]tad-app\b/, "tad-master/packages/toad-app")
     .replace(/tad-master[/\\]packages[/\\]tadviewer\b/, "tad-master/packages/toadviewer")
-    .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js");
+    .replace(/tadapp\.bundle\.js\b/, "toadapp.bundle.js")
+    .replace(/electronRenderMain\.tsx\b/, "appMain.tsx");
   if (pathOrModuleExists(redirected)) return redirected;
   redirected = targetPath
     .replace(/tad-master[/\\]packages[/\\]toad-app\b/, "tad-master/packages/tad-app")
     .replace(/tad-master[/\\]packages[/\\]toadviewer\b/, "tad-master/packages/tadviewer")
-    .replace(/toadapp\.bundle\.js\b/, "tadapp.bundle.js");
+    .replace(/toadapp\.bundle\.js\b/, "tadapp.bundle.js")
+    .replace(/appMain\.tsx\b/, "electronRenderMain.tsx");
+  if (pathOrModuleExists(redirected)) return redirected;
+  redirected = targetPath.replace(/electronRenderMain\.tsx\b/, "appMain.tsx");
+  if (pathOrModuleExists(redirected)) return redirected;
+  redirected = targetPath.replace(/appMain\.tsx\b/, "electronRenderMain.tsx");
   if (pathOrModuleExists(redirected)) return redirected;
   return targetPath;
 }
@@ -3077,9 +3083,50 @@ async function main() {
     const hostBridge = require(path.resolve(ROOT_DIR, "tad-master/packages/host-bridge/dist/index.js"));
     assert(hostBridge.getHostBridge, "host-bridge must export getHostBridge");
     assert(hostBridge.V8HostAdapter, "host-bridge must export V8HostAdapter");
+    assert(hostBridge.ElectronHostAdapter, "host-bridge must export ElectronHostAdapter");
+    assert(hostBridge.TauriHostAdapter, "host-bridge must export TauriHostAdapter");
     const bridge = hostBridge.getHostBridge();
     assert.strictEqual(bridge.engineName, "v8", "V8HostAdapter engineName must be 'v8'");
     assert.strictEqual(typeof bridge.invoke, "function", "bridge.invoke must be a function");
+    assert.strictEqual(typeof bridge.invokeBinary, "function", "bridge.invokeBinary must be a function");
+    assert.strictEqual(typeof bridge.listen, "function", "bridge.listen must be a function");
+    assert.strictEqual(typeof bridge.emit, "function", "bridge.emit must be a function");
+
+    // Tauri-like Command Alias verification (Bidirectional)
+    assert.strictEqual(bridge.resolveCommand("toad:init_main"), "initMain", "toad:init_main must alias to initMain");
+    assert.strictEqual(bridge.resolveCommand("plugin:dialog|open"), "dialog:showOpenDialog", "plugin:dialog|open must alias to dialog:showOpenDialog");
+    assert.strictEqual(bridge.resolveCanonicalCommand("initMain"), "toad:init_main", "initMain must reverse-map to toad:init_main");
+    assert.strictEqual(bridge.resolveCanonicalCommand("dialog:showOpenDialog"), "plugin:dialog|open", "dialog:showOpenDialog must reverse-map to plugin:dialog|open");
+
+    // TauriHostAdapter verification
+    const tauriAdapter = new hostBridge.TauriHostAdapter();
+    assert.strictEqual(tauriAdapter.engineName, "tauri", "TauriHostAdapter engineName must be 'tauri'");
+    assert.strictEqual(tauriAdapter.resolveTauriCommand("initMain"), "toad:init_main", "Tauri adapter must resolve legacy to tauri command");
+    assert.strictEqual(tauriAdapter.resolveLegacyCommand("toad:init_main"), "initMain", "Tauri adapter must resolve tauri to legacy command");
+
+    // Preload Strict Capabilities Whitelist verification
+    const { assertCapability, STRICT_CAPABILITIES_WHITELIST, COMMAND_ALIAS_MAP, toadBridge: preloadBridge } = require(path.resolve(ROOT_DIR, "tad-master/packages/toad-app/app/preload.js"));
+    assert(Array.isArray(STRICT_CAPABILITIES_WHITELIST), "STRICT_CAPABILITIES_WHITELIST must be an array");
+    assert(STRICT_CAPABILITIES_WHITELIST.includes("toad:init_main"), "Whitelist must include toad:init_main");
+    assert.strictEqual(COMMAND_ALIAS_MAP["toad:init_main"], "initMain", "preload COMMAND_ALIAS_MAP must map toad:init_main to initMain");
+
+    // Edge cases: whitespace normalization
+    assert.doesNotThrow(() => assertCapability("  toad:init_main  "), "assertCapability must allow valid command with whitespace");
+    assert.throws(
+      () => assertCapability("malicious:exec"),
+      /SecurityError: Capability Denied/,
+      "assertCapability must block unauthorized command 'malicious:exec'"
+    );
+    assert.throws(
+      () => assertCapability(null),
+      /SecurityError: Capability Denied/,
+      "assertCapability must block null command"
+    );
+    assert.throws(
+      () => assertCapability(""),
+      /SecurityError: Capability Denied/,
+      "assertCapability must block empty string command"
+    );
   });
 
   await runTest("CC.2 Zero-Electron UI Isolation: tadviewer/src contains zero direct electron imports", async () => {
