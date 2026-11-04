@@ -697,6 +697,7 @@ dependencies = [
 name = "toad-core"
 version = "1.2.0"
 dependencies = [
+ "chrono",
  "evtx",
  "serde",
  "serde_json",

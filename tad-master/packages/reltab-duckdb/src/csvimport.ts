@@ -2980,7 +2980,8 @@ async function streamJsonToParquet(
     COPY (
       SELECT * FROM read_json_auto(
         '${safeSrc}',
-        ignore_errors = true
+        ignore_errors = true,
+        timestampformat = '%Y-%m-%dT%H:%M:%S.%fZ'
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
@@ -2995,7 +2996,8 @@ async function streamJsonToParquet(
       COPY (
         SELECT * FROM read_json_auto(
           '${safeSrc}',
-          ignore_errors = true
+          ignore_errors = true,
+          all_varchar = true
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
@@ -3471,7 +3473,7 @@ export const nativeCSVImport = async (
             }
           } else {
             log.info(`[TOAD Ingest] Chuyen doi EVTX qua PowerShell fallback: ${filePath}`);
-            const psScript = `$ErrorActionPreference = 'SilentlyContinue'; Get-WinEvent -Path '${filePath}' | ForEach-Object { $xml = [xml]$_.ToXml(); $h = [ordered]@{'RecordID'=[string]$_.RecordId;'EventID'=[string]$_.Id;'Level'=[string]$_.LevelDisplayName;'TimeCreated'=$_.TimeCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffZ');'Provider'=[string]$_.ProviderName;'Channel'=[string]$_.LogName;'Computer'=[string]$_.MachineName;'UserId'=[string]$_.UserId}; if ($xml.Event.EventData.Data) { foreach ($d in $xml.Event.EventData.Data) { if ($d.Name) { $h[$d.Name] = [string]$d.'#text' } } }; $h | ConvertTo-Json -Compress }`;
+            const psScript = `$ErrorActionPreference = 'SilentlyContinue'; Get-WinEvent -Path '${filePath}' | ForEach-Object { $xml = [xml]$_.ToXml(); $h = [ordered]@{'RecordID'=[int64]$_.RecordId;'EventID'=[int64]$_.Id;'Level'=[string]$_.LevelDisplayName;'TimeCreated'=$_.TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.ffffffZ');'Provider'=[string]$_.ProviderName;'Channel'=[string]$_.LogName;'Computer'=[string]$_.MachineName;'UserId'=[string]$_.UserId}; $p1=''; $p2=''; $p3=''; $i=0; $ed=[ordered]@{}; if ($xml.Event.EventData.Data) { foreach ($d in $xml.Event.EventData.Data) { $val = if ($d.'#text') { [string]$d.'#text' } else { [string]$d }; if ($i -eq 0) { $p1 = $val } elseif ($i -eq 1) { $p2 = $val } elseif ($i -eq 2) { $p3 = $val }; if ($d.Name) { $h[$d.Name] = $val; $ed[$d.Name] = $val; if ($d.Name -eq 'param1') { $p1 = $val } elseif ($d.Name -eq 'param2') { $p2 = $val } elseif ($d.Name -eq 'param3') { $p3 = $val } } else { $k = 'param_' + ($i+1); $h[$k] = $val; $ed[$k] = $val }; $i++ } }; if ($xml.Event.EventData.param1) { $p1 = [string]$xml.Event.EventData.param1; $ed['param1'] = $p1 }; if ($xml.Event.EventData.param2) { $p2 = [string]$xml.Event.EventData.param2; $ed['param2'] = $p2 }; if ($xml.Event.EventData.param3) { $p3 = [string]$xml.Event.EventData.param3; $ed['param3'] = $p3 }; $bin = if ($xml.Event.EventData.Binary) { [string]$xml.Event.EventData.Binary } else { '' }; if ($bin) { $ed['Binary'] = $bin }; $h['param1'] = $p1; $h['param2'] = $p2; $h['param3'] = $p3; $h['Binary'] = $bin; $h['EventData'] = ($ed | ConvertTo-Json -Compress); $h['RawEvent'] = $_.ToXml(); $h | ConvertTo-Json -Compress }`;
             await new Promise<void>((resolve, reject) => {
               child_process.exec(
                 `powershell -NoProfile -NonInteractive -Command "${psScript}" > "${tempJsonl}"`,
