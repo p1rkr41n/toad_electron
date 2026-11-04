@@ -311,7 +311,7 @@ impl QueryExpCompiler {
     pub fn fast_parquet_count(file_path: &str) -> String {
         let escaped = file_path.replace('\'', "''");
         format!(
-            "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('{}')",
+            "SELECT COALESCE(SUM(row_group_num_rows), 0) AS total_rows FROM parquet_metadata('{}') WHERE column_id = 0",
             escaped
         )
     }
@@ -428,11 +428,14 @@ impl QueryExpCompiler {
             }
             QueryRep::Project { cols, from } => {
                 let sub = Self::compile_rec(from, depth)?;
-                let col_list = cols
-                    .iter()
-                    .map(|c| Self::quote_ident(c))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                let col_list = if cols.is_empty() {
+                    "*".to_string()
+                } else {
+                    cols.iter()
+                        .map(|c| Self::quote_ident(c))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
                 Ok(format!("SELECT {} FROM ({}) AS {}", col_list, sub, alias))
             }
             QueryRep::Filter { fexp, from } => {
@@ -474,7 +477,11 @@ impl QueryExpCompiler {
                     }
                 }
 
-                let select_clause = select_items.join(", ");
+                let select_clause = if select_items.is_empty() {
+                    "*".to_string()
+                } else {
+                    select_items.join(", ")
+                };
                 if group_cols.is_empty() {
                     Ok(format!("SELECT {} FROM ({}) AS {}", select_clause, sub, alias))
                 } else {
@@ -519,11 +526,14 @@ impl QueryExpCompiler {
                 let lhs_sql = Self::compile_rec(lhs, depth)?;
                 let rhs_sql = Self::compile_rec(rhs, depth)?;
                 let jt = join_type.as_deref().unwrap_or("LEFT OUTER JOIN");
-                let on_clause = on
-                    .iter()
-                    .map(|c| format!("_lhs.{} = _rhs.{}", Self::quote_ident(c), Self::quote_ident(c)))
-                    .collect::<Vec<_>>()
-                    .join(" AND ");
+                let on_clause = if on.is_empty() {
+                    "1=1".to_string()
+                } else {
+                    on.iter()
+                        .map(|c| format!("_lhs.{} = _rhs.{}", Self::quote_ident(c), Self::quote_ident(c)))
+                        .collect::<Vec<_>>()
+                        .join(" AND ")
+                };
 
                 Ok(format!(
                     "SELECT * FROM ({}) AS _lhs {} ({}) AS _rhs ON {}",
@@ -718,7 +728,7 @@ impl QueryExpCompiler {
             "EQ" => {
                 let rhs_sql = Self::compile_val_exp(rhs)?;
                 if has_slashes {
-                    let norm_rhs = rhs_str.unwrap().replace('\\', "/");
+                    let norm_rhs = Self::normalize_path_slashes(rhs_str.unwrap());
                     Ok(format!("{} = '{}'", eff_lhs, norm_rhs.replace('\'', "''")))
                 } else {
                     Ok(format!("{} = {}", lhs_sql, rhs_sql))
@@ -727,7 +737,7 @@ impl QueryExpCompiler {
             "NEQ" => {
                 let rhs_sql = Self::compile_val_exp(rhs)?;
                 if has_slashes {
-                    let norm_rhs = rhs_str.unwrap().replace('\\', "/");
+                    let norm_rhs = Self::normalize_path_slashes(rhs_str.unwrap());
                     Ok(format!("{} != '{}'", eff_lhs, norm_rhs.replace('\'', "''")))
                 } else {
                     Ok(format!("{} != {}", lhs_sql, rhs_sql))
@@ -768,19 +778,47 @@ impl QueryExpCompiler {
                 Ok(format!("{} NOT ILIKE '%{}%' ESCAPE '\\'", eff_lhs, sanitized))
             }
             "IN" | "NOTIN" => {
-                let neg = if op_up == "NOTIN" { "NOT " } else { "" };
-                let in_list = match rhs {
-                    ValExp::Literal(Value::Array(arr)) => arr
+                let is_notin = op_up == "NOTIN";
+                let arr_opt: Option<&Vec<Value>> = match rhs {
+                    ValExp::Literal(Value::Array(arr)) => Some(arr),
+                    ValExp::Typed(TypedValExp::ConstVal { val: Value::Array(arr) }) => Some(arr),
+                    _ => None,
+                };
+
+                if let Some(arr) = arr_opt {
+                    if arr.is_empty() {
+                        return if is_notin {
+                            Ok("1=1".to_string())
+                        } else {
+                            Ok("1=0".to_string())
+                        };
+                    }
+                    let in_list = arr
                         .iter()
                         .map(|v| match v {
                             Value::String(s) => format!("'{}'", s.replace('\'', "''")),
+                            Value::Null => "NULL".to_string(),
+                            Value::Bool(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
+                            Value::Number(n) => n.to_string(),
                             other => other.to_string(),
                         })
                         .collect::<Vec<_>>()
-                        .join(", "),
-                    _ => Self::compile_val_exp(rhs)?,
-                };
-                Ok(format!("{} {}IN ({})", lhs_sql, neg, in_list))
+                        .join(", ");
+                    let neg = if is_notin { "NOT " } else { "" };
+                    Ok(format!("{} {}IN ({})", lhs_sql, neg, in_list))
+                } else {
+                    let in_expr = Self::compile_val_exp(rhs)?;
+                    if in_expr.trim().is_empty() {
+                        if is_notin {
+                            Ok("1=1".to_string())
+                        } else {
+                            Ok("1=0".to_string())
+                        }
+                    } else {
+                        let neg = if is_notin { "NOT " } else { "" };
+                        Ok(format!("{} {}IN ({})", lhs_sql, neg, in_expr))
+                    }
+                }
             }
             "REGEX" => {
                 let term = rhs_str.unwrap_or("");
@@ -792,9 +830,29 @@ impl QueryExpCompiler {
         }
     }
 
-    fn escape_ilike_term(term: &str, has_slashes: bool) -> String {
+    /// Symmetrically normalize path slashes by replacing all backslashes with forward slashes
+    /// and collapsing contiguous runs of slashes into a single forward slash.
+    /// This strictly mirrors DuckDB's `REGEXP_REPLACE(col, '[\\/]+', '/', 'g')`.
+    pub fn normalize_path_slashes(s: &str) -> String {
+        let mut out = String::with_capacity(s.len());
+        let mut prev_slash = false;
+        for c in s.chars() {
+            if c == '/' || c == '\\' {
+                if !prev_slash {
+                    out.push('/');
+                    prev_slash = true;
+                }
+            } else {
+                out.push(c);
+                prev_slash = false;
+            }
+        }
+        out
+    }
+
+    pub fn escape_ilike_term(term: &str, has_slashes: bool) -> String {
         let base = if has_slashes {
-            term.replace('\\', "/").replace("//", "/")
+            Self::normalize_path_slashes(term)
         } else {
             term.replace('\\', "\\\\")
         };
@@ -810,7 +868,20 @@ impl QueryExpCompiler {
                 Value::Bool(b) => Ok(if *b { "TRUE".to_string() } else { "FALSE".to_string() }),
                 Value::Number(n) => Ok(n.to_string()),
                 Value::String(s) => Ok(format!("'{}'", s.replace('\'', "''"))),
-                Value::Array(arr) => Ok(arr.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")),
+                Value::Array(arr) => {
+                    let items = arr
+                        .iter()
+                        .map(|v| match v {
+                            Value::String(s) => format!("'{}'", s.replace('\'', "''")),
+                            Value::Null => "NULL".to_string(),
+                            Value::Bool(b) => if *b { "TRUE".to_string() } else { "FALSE".to_string() },
+                            Value::Number(n) => n.to_string(),
+                            other => other.to_string(),
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    Ok(items)
+                }
                 Value::Object(_) => Ok(format!("'{}'", val.to_string().replace('\'', "''"))),
             },
             ValExp::Typed(typed) => match typed {
