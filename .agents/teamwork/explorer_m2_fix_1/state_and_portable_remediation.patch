@@ -1,0 +1,36 @@
+diff --git a/tauri/project/src-tauri/src/state.rs b/tauri/project/src-tauri/src/state.rs
+--- a/tauri/project/src-tauri/src/state.rs
++++ b/tauri/project/src-tauri/src/state.rs
+@@ -64,9 +64,10 @@ impl AppState {
+     pub async fn update_config<F>(&self, update_fn: F) -> std::io::Result<ToadConfig>
+     where
+         F: FnOnce(&mut ToadConfig),
+     {
+         let mut cfg = self.config.write().await;
+-        update_fn(&mut cfg);
+-        let snapshot = cfg.clone();
+-        save_config(&self.config_path, &snapshot)?;
+-        Ok(snapshot)
++        let mut candidate = cfg.clone();
++        update_fn(&mut candidate);
++        save_config(&self.config_path, &candidate)?;
++        *cfg = candidate.clone();
++        Ok(candidate)
+     }
+ }
+diff --git a/tauri/project/src-tauri/src/portable.rs b/tauri/project/src-tauri/src/portable.rs
+--- a/tauri/project/src-tauri/src/portable.rs
++++ b/tauri/project/src-tauri/src/portable.rs
+@@ -229,7 +229,11 @@ pub fn parse_ini(content: &str) -> HashMap<String, HashMap<String, String>> {
+         if let Some((k, v)) = trimmed.split_once('=') {
+             let key = k.trim().to_lowercase();
+-            let val = v.trim().to_string();
++            let raw_val = match v.split_once('#').or_else(|| v.split_once(';')) {
++                Some((before_comment, _)) => before_comment,
++                None => v,
++            };
++            let val = raw_val.trim().to_string();
+             map.entry(current_section.clone())
+                 .or_default()
+                 .insert(key, val);
+         }

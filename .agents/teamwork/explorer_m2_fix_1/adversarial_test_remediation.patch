@@ -1,0 +1,74 @@
+diff --git a/tauri/project/src-tauri/tests/adversarial_m2_tests.rs b/tauri/project/src-tauri/tests/adversarial_m2_tests.rs
+--- a/tauri/project/src-tauri/tests/adversarial_m2_tests.rs
++++ b/tauri/project/src-tauri/tests/adversarial_m2_tests.rs
+@@ -512,15 +512,17 @@ fn adv_test_save_config_atomic_roundtrip() {
+ #[test]
+ fn adv_test_command_aliases_exhaustive_table_validation() {
++    use toad_lib::commands::{route_command, CommandAction};
++
+     // Complete mapping set from commandAliases.ts + canonical router
+     let expected_mappings = vec![
+-        ("toad:init_main", vec!["initMain", "init_main"]),
+-        ("toad:get_config", vec!["getToadConfig", "get_config"]),
+-        ("toad:new_window", vec!["newWindowFromDSPath", "new_window"]),
+-        ("toad:open_file_dialog", vec!["plugin:dialog|open", "dialog:showOpenDialog"]),
+-        ("toad:write_clipboard", vec!["plugin:clipboard|write_text", "plugin:clipboard-manager|write_text", "clipboard:writeText"]),
+-        ("toad:open_url", vec!["plugin:opener|open_url", "shell:openExternal"]),
+-        ("toad:get_setup_info", vec!["getSetupInfo", "get_setup_info"]),
++        ("toad:init_main", vec!["initMain", "init_main"], CommandAction::InitMain),
++        ("toad:get_config", vec!["getToadConfig", "get_config"], CommandAction::GetConfig),
++        ("toad:new_window", vec!["newWindowFromDSPath", "new_window"], CommandAction::NewWindow),
++        ("toad:open_file_dialog", vec!["dialog:showOpenDialog"], CommandAction::OpenFileDialog),
++        ("toad:write_clipboard", vec!["clipboard:writeText"], CommandAction::WriteClipboard),
++        ("toad:open_url", vec!["shell:openExternal"], CommandAction::OpenUrl),
++        ("toad:get_setup_info", vec!["getSetupInfo", "get_setup_info"], CommandAction::GetSetupInfo),
++        ("toad:open_example", vec!["openExample", "open_example"], CommandAction::OpenExample),
++        ("toad:eval_query", vec!["DataSourceConnection.evalQuery", "evalQuery", "toad:query", "eval_query"], CommandAction::EvalQuery),
++        ("toad:row_count", vec!["DataSourceConnection.rowCount", "rowCount", "row_count"], CommandAction::RowCount),
++        ("toad:schema", vec!["toad:get_table_schema", "DataSourceConnection.getTableSchema", "schema", "getTableSchema", "get_table_schema"], CommandAction::Schema),
++        ("toad:run_sql_arrow", vec!["DataSourceConnection.runSqlQueryArrow", "run_sql_arrow"], CommandAction::RunSqlArrow),
++        ("toad:get_table_name", vec!["DataSourceConnection.getTableName", "getTableName", "get_table_name"], CommandAction::GetTableName),
++        ("project:get_workspace", vec!["project:getWorkspace", "get_workspace"], CommandAction::ProjectGetWorkspace),
++        ("project:get_files", vec!["project:getFiles", "get_files"], CommandAction::ProjectGetFiles),
++        ("project:add_files", vec!["project:addFiles", "add_files"], CommandAction::ProjectAddFiles),
++        ("project:add_folder", vec!["project:addFolder", "add_folder"], CommandAction::ProjectAddFolder),
++        ("project:delete", vec!["delete_project"], CommandAction::ProjectDelete),
++        ("project:rename", vec!["rename_project"], CommandAction::ProjectRename),
++        ("project:create", vec!["create_project"], CommandAction::ProjectCreate),
++        ("project:set_active", vec!["project:setActive", "set_active"], CommandAction::ProjectSetActive),
++        ("project:reconcile", vec!["reconcile_project"], CommandAction::ProjectReconcile),
++        ("project:delete_all", vec!["project:deleteAll", "delete_all"], CommandAction::ProjectDeleteAll),
++        ("project:get_cache_size", vec!["project:getCacheSize", "get_cache_size"], CommandAction::ProjectGetCacheSize),
++        ("project:purge_cache", vec!["project:purgeCache", "purge_cache"], CommandAction::ProjectPurgeCache),
++        ("project:remove_file", vec!["project:removeFile", "remove_file"], CommandAction::ProjectRemoveFile),
++        ("project:move_orphan_files", vec!["project:moveOrphanFiles", "move_orphan_files"], CommandAction::ProjectMoveOrphanFiles),
++        ("engine:get_status", vec!["engine:status", "engine_status"], CommandAction::EngineGetStatus),
++        ("engine:do_restart", vec!["engine:restart", "engine_restart"], CommandAction::EngineDoRestart),
+     ];
+ 
+     let mut all_unique_commands = HashSet::new();
+-    for (canonical, aliases) in expected_mappings {
+-        assert!(!canonical.is_empty());
++    for (canonical, aliases, expected_action) in expected_mappings {
++        assert_eq!(route_command(canonical), expected_action, "Canonical failed routing: {}", canonical);
+         assert!(all_unique_commands.insert(canonical), "Duplicate canonical command: {}", canonical);
+         for alias in aliases {
+-            assert!(!alias.is_empty());
++            assert_eq!(route_command(alias), expected_action, "Alias failed routing: {}", alias);
+             assert!(all_unique_commands.insert(alias), "Duplicate alias command: {}", alias);
+         }
+     }
+ 
++    // Verify canonical Tauri plugin commands are not intercepted and pass through
++    let plugin_commands = [
++        "plugin:dialog|open",
++        "plugin:clipboard|write_text",
++        "plugin:clipboard-manager|write_text",
++        "plugin:opener|open_url",
++    ];
++    for p_cmd in plugin_commands {
++        assert_eq!(route_command(p_cmd), CommandAction::PluginPassthrough);
++    }
++
+     assert!(all_unique_commands.len() >= 60, "Expected at least 60 command identifiers mapped, got {}", all_unique_commands.len());
+ }

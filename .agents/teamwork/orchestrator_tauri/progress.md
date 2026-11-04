@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-04T20:07:45Z
+Last visited: 2026-11-04T20:28:45Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -15,11 +15,18 @@ Last visited: 2026-11-04T20:07:45Z
   - Worker M1 (3fe1e288-4db6-4a82-bdc5-4644cedd75a3) - DONE
   - Milestone 1 Gate: Reviewer 1 (APPROVE), Reviewer 2 (APPROVE), Challenger 1 (APPROVE), Challenger 2 (APPROVE), Forensic Auditor (CLEAN). Gate Result: PASS.
   - Milestone 1 marked DONE in PROJECT.md.
-- [ ] Milestone 2 (M2) Rust Core Engine & OS Plugins:
-  - Worker M2 (abc0cce1-ac3a-47cb-b6e1-b40d78eadd77) - In progress (running cargo test across all core suites)
-- [ ] M2 Gate: Reviewers, Challengers, Forensic Auditor
+- [ ] Milestone 2 (M2) Remediation (Iteration 3):
+  - Forensic audit failure evidence forwarded to Explorers (DONE)
+  - 3 Explorers completed technical designs (explorer_m2_fix_1, explorer_m2_fix_2, explorer_m2_fix_3)
+  - Dispatched Worker M2-Remediation (0e5b7170) to implement fixes:
+    - Eliminate plugin hijacking in commands/mod.rs (route_command -> PluginPassthrough)
+    - Hook genuine plugin extension traits in commands/system.rs (ClipboardExt, OpenerExt, DialogExt)
+    - Replace tautological test with authentic route_command coverage in main.rs
+    - Implement candidate-first atomic rollback in state.rs::update_config
+    - Strip inline comments in portable.rs::parse_ini
+    - Verify with cargo check and cargo test
+- [ ] M2 Iteration 3 Gate verification (Reviewers, Challengers, Forensic Auditor)
 - [ ] Milestone 3 (M3) DuckDB Engine & Arrow IPC Protocol
-- [ ] Sequential Milestones M4 -> M5 -> M6 -> M7
 
 ## Iteration Status
 Current iteration: 2 / 32
