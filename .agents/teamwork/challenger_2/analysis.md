@@ -1,211 +1,209 @@
-# Deep Empirical Analysis: Deep Recursion, Polymorphism & Fuzzing Adversarial Challenge
+# Adversarial Analysis — Sidebar File Table Column Resizing & Active Row Auto-Wrap
 
-**Identity**: Challenger 2 (Deep Recursion, Polymorphism & Fuzzing Adversarial Challenger)  
-**Date**: 2026-11-04  
-**Target Milestone**: TOAD v2.5.1 Nested JSON Parser & Auto-Flattening (Milestone 6 Independent Challenger Gate)  
-**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2`  
-
----
-
-## 1. Executive Summary & Verdict
-
-### Final Verdict: **REQUEST_CHANGES**
-
-During adversarial empirical challenge testing of TOAD v2.5.1 Nested JSON Parser and Auto-Flattening Engine, **61 out of 61 assertions** in our dedicated empirical stress harness (`tests/qa/test_extreme_adversarial_challenger2.js`) succeeded, and all **14 baseline test suites (486 tests)** in `run_tests.js --all` pass cleanly.
-
-However, deep adversarial fuzzing exposed **one latent defect in the fallback ingestion pipeline** of `JsonStreamingFlattener.ts` that will crash when encountering dirty JSON streams:
-- **Location**: `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts:224-235`
-- **Issue**: Tier 2 Fallback unconditionally executes `read_json_auto(..., all_varchar = true)`. In DuckDB, `all_varchar` is **strictly invalid** for `read_json_auto` (only valid for `read_csv`). DuckDB throws a fatal `Binder Error: Invalid named parameter "all_varchar" for function read_json_auto`.
-- **Unhandled Rejection**: Because `await execQuery(dbConn, allVarcharQuery)` on line 235 has **no `try ... catch` block**, whenever Tier 1 fails on corrupt lines, Tier 2 crashes the ingestion pipeline with an unhandled exception rather than recovering.
-- **Remediation**: Remove `all_varchar = true` from `read_json_auto` and wrap Tier 2 in a `try ... catch` block to fall back to Raw Event streaming mode.
-
-Until this 3-line defect is addressed, any file that triggers Tier 2 fallback will crash the ingestion process.
+**Agent Archetype**: EMPIRICAL CHALLENGER (critic, specialist)  
+**Target Codebase**: `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`, `sidebar.less`, `tests/unit/test_project_files_table_wrap_resize.js`  
+**Harness Executed**: `tests/qa/test_challenger_sidebar_stress.js` (24 test cases)  
+**Overall Verdict**: **REQUEST_CHANGES**  
 
 ---
 
-## 2. Empirical Challenge Matrix
+## 1. Executive Summary
 
-| # | Challenge Dimension | Test Target | Workload / Stress Payload | Result | Latency / Metric |
-|---|---------------------|-------------|---------------------------|:------:|:----------------:|
-| 1 | Deep Object Recursion | `NestedJsonTraverser` | 200 & 350 nested object levels | **PASS** | Terminated safely without RangeError |
-| 2 | Safety Truncation | `traverseJsonLeaves` | 200 levels with `maxDepth = 50` | **PASS** | Truncated at depth 50 to serialized fallback string |
-| 3 | Circular References | `traverseJsonLeaves` | Self-referencing & Mutual A <-> B | **PASS** | `[Circular]` leaf recorded, zero infinite recursion |
-| 4 | Deep Struct Parsing | `JsonSchemaIntrospector` | 60 nested `STRUCT` levels | **PASS** | `isStructType` & `extractLeafProjections` extracted all 61 segments |
-| 5 | Ultra-Wide JSON Lines | `traverseJsonLeaves` | 2,500 distinct fields in single object | **PASS** | Traversed in **7ms** (< 250ms target) |
-| 6 | Wide SQL Generation | `DuckDbJsonSqlBuilder` | CREATE VIEW with 2,500 projected columns | **PASS** | Generated in **14ms** (< 100ms target) |
-| 7 | Wide DuckDB Execution | DuckDB Engine | Querying view with 2,500 columns | **PASS** | Compiled in **177ms**, exact numeric retrieval |
-| 8 | Wide Parquet Stream | `JsonStreamingFlattener` | Ingesting 2,500 columns to Parquet | **PASS** | Produced valid Parquet (2 rows, 2,501 columns) |
-| 9 | High-Frequency Polymorphism | `scanJsonSamplePool` | 1,000 rows flapping across 8 distinct types | **PASS** | Exact fill rate calculated: 0.875 (7/8 non-null) |
-| 10 | Polymorphic DuckDB Query | DuckDB Engine | View with `TRY_CAST` across 8 flapping types | **PASS** | Zero binder errors; scalars parsed, strings/nulls safe |
-| 11 | Polymorphic Parquet Ingest | `JsonStreamingFlattener` | 1,000 polymorphic rows to Parquet | **PASS** | Ingested 1,000 rows cleanly into Parquet |
-| 12 | Corrupted Lines Resilience | `traverseJsonLeaves` | 16 corrupted/binary payloads | **PASS** | Survived PE headers, null bytes, 50KB strings |
-| 13 | Interleaved Fuzz Stream | `scanJsonSamplePool` | 50 valid rows interleaved with 50 corrupt | **PASS** | Extracted valid keys with 100% accuracy |
-| 14 | SQL Injection Immunity | `DuckDbJsonSqlBuilder` | Nested DROP TABLE payloads | **PASS** | Sensitive tables preserved intact; quotes escaped |
-| 15 | Real-World EVTX Parity | `test_realworld_evtx_json.js` | `System.evtx` RecordID 93937 | **PASS** | 100% parity across all 10 leaf fields |
-| 16 | EVTX Multi-Record Dump | `toad-core` + `SampleScanWorker` | 100 records from `System.evtx` | **PASS** | Discovered 14 top-level fields & 22 RawEvent leaves |
-| 17 | Worker Chunking & Async | `SampleScanWorker` | 2,000 rows in chunks of 100 | **PASS** | Event loop yielded; 10 progress callbacks (0%-100%) |
-| 18 | Worker Abort Lifecycle | `SampleScanWorker` | Mid-scan abort at 30% progress | **PASS** | Stopped at 600/2,000 rows; `aborted: true` |
-| 19 | Global Stability | Node.js Process | Full stress suite execution | **PASS** | 0 unhandled rejections, 0 uncaught exceptions |
-| 20 | Tier 2 `all_varchar` Defect | `JsonStreamingFlattener` | `read_json_auto(..., all_varchar=true)` | **FAIL** | Rejects with `Binder Error: Invalid named parameter` |
+As Teamwork Challenger 2, an empirical stress harness (`tests/qa/test_challenger_sidebar_stress.js`) was engineered and executed against the Sidebar File Table column resizing, boundary clamping, auto-fit calculation, 50-row auto-wrap lifecycle, and DOM event propagation models.
+
+Out of 24 adversarial challenge test cases:
+- **21 PASSED** (87.5%): 0-file and extreme payload auto-fit clamping within $[45, 400]\text{px}$, 50-row selection state invariance across 10,000 Monte Carlo fuzzing interactions, toggle click collapse, cross-platform path slash normalization, and resizer `mousedown`/`dblclick` propagation stopping.
+- **3 FAILED** (12.5%):
+  1. **NaN / Non-Finite Coordinate Corrupts Column Width**: Drag resizing calculations in `ProjectFilesTable.tsx:353-358` compute `Math.max(MIN_COL_WIDTH, draggingRef.current.startWidth + delta)`. When `moveEvt.clientX` is `NaN` or `undefined`, `Math.max(45, NaN)` evaluates to `NaN`. In JavaScript, `!(NaN >= 45)`, which violates the `>= 45px` clamping boundary and injects `NaN` into React style attributes (`<col style={{ width: NaN }} />`), breaking table column geometry.
+  2. **Undefined clientX Coordinate Evaluates to NaN**: Bypasses the lower clamp boundary and corrupts state.
+  3. **Event Isolation Leak on Resizer Handles (`col-resizer-handle`)**: In `ProjectFilesTable.tsx` (lines 500-504, 540-544, 580-584, 620-624), `.col-resizer-handle` hooks `onMouseDown` and `onDoubleClick` with `stopPropagation()`, but **completely lacks an `onClick` handler**. Consequently, when a user clicks the handle, double-clicks to auto-fit, or finishes a drag resize with mouseup over the handle, the browser dispatches a `click` event that **bubbles directly to the parent `th.onClick`**, inadvertently executing `toggleColumnFilter(col, e)` and popping open the column filter input (`<input className="col-filter-input" ... autoFocus />`).
 
 ---
 
-## 3. Detailed Empirical Analysis
+## 2. Challenge 1: Column Resizing & Clamping Boundaries
 
-### 3.1 Deep Recursion Safety & Call Stack Integrity
-- **V8 Call Stack Boundary**: In standard V8 engines, call stack depth limits are around 10,000 frames. When nested objects reach extreme depths (120 to 350 levels), unoptimized recursion could trigger `RangeError: Maximum call stack size exceeded`.
-- **Empirical Observation**:
-  - `traverseJsonLeaves` was tested with an object nested **200 levels deep** (`lvl_0` -> `lvl_1` -> ... -> `lvl_200`). With `maxDepth: 250`, it extracted the leaf value `"deep_treasure_200"` with 201 path segments without stack overflow.
-  - Tested with **350 levels deep** and `maxDepth: 400`: traversed cleanly in **3ms**.
-  - With default safety cap `maxDepth: 50`: the traversal safely halted at level 50 and recorded the sub-object as a serialized JSON fallback string, preventing deeper recursion.
-  - Circular references: An object referencing itself (`circularObj.loop = circularObj`) was identified by `visited.has(current)` and recorded as `sampleValue = "[Circular]"` without hanging or stack overflow. Mutual circular reference (`A.b = B`, `B.a = A`) likewise resolved cleanly.
-- **DuckDB STRUCT Introspection**:
-  - `JsonSchemaIntrospector.ts` functions `isStructType`, `splitTopLevelComma`, `parseStructFields`, and `extractLeafProjections` were tested with a **60-level nested STRUCT** type string (`STRUCT("level_1" STRUCT("level_2" ... STRUCT("level_60" BIGINT)...))`).
-  - Correctly parsed the top-level identifier, balanced all 60 parentheses pairs, and constructed a 61-segment dot-notated alias and double-quoted SQL identifier expression: `"root_col"."level_1"."level_2"..."level_60"`.
-
-### 3.2 High-Volume Wide Schemas (2,500+ Fields)
-- **Traverser Performance**: Traversed a single JSON line containing **2,500 unique floating-point fields** (`metric_00001` through `metric_02500`) in **7ms**.
-- **SQL Builder Latency**: `DuckDbJsonSqlBuilder.buildCreateViewSql` formatted all 2,500 fields with double-quoted aliases and `TRY_CAST` expressions in **14ms** (< 100ms budget). The generated SQL was 128,491 characters long.
-- **DuckDB View Compilation**: The 128 KB `CREATE VIEW` statement was submitted to an in-memory DuckDB connection. DuckDB parsed, planned, and registered the 2,500-column view in **177ms** (< 250ms budget). Querying boundary columns (`metric_00001` and `metric_02500`) returned exact expected values (`1.5` and `3750.0`).
-- **Streaming Flattener**: Streamed a wide NDJSON file containing 2,500 fields directly to Parquet using `streamFlattenedJsonToParquet`. The output Parquet file was verified in DuckDB, containing 2 rows and 2,501 columns (`id` + 2,500 metric columns).
-
-### 3.3 Heavy Polymorphism (1,000 Rows across 8 Data Types)
-- **Workload**: A test dataset of 1,000 rows where a single column `chameleon` flapped consecutively every row across 8 distinct types:
-  1. `BIGINT` (12345)
-  2. `DOUBLE` (123.456)
-  3. `VARCHAR` ("status_string_i")
-  4. `BOOLEAN` (true)
-  5. `Object` (`{"nested_k": "v_i"}`)
-  6. `Array` (`[1, 2, i]`)
-  7. `Null` (`null`)
-  8. `TIMESTAMP` string ("2026-11-04T12:00:00.000Z")
-- **Fill Rate Accuracy**: `scanJsonSamplePool` processed all 1,000 rows. Exactly 7 out of 8 rows were non-null, resulting in an authoritative fill rate of **0.875** (87.5%), verified to 4 decimal places.
-- **DuckDB TRY_CAST Execution**: When querying the view generated by `DuckDbJsonSqlBuilder`, `TRY_CAST(sourceCol->>'chameleon' AS BIGINT)` executed without binder failures. Integers were parsed correctly, floats were converted, strings safely yielded NULL, and objects/arrays yielded stringified JSON representations.
-
-### 3.4 Corrupted, Truncated & Binary Lines
-- **Fuzzing Stream**: 16 adversarial payloads were constructed:
-  - Raw binary byte buffers with null bytes (`\x00\x01\x02\xff\xfe\x80\x7f\x00`)
-  - DOS/PE binary executable header (`MZ\x90\x00...`)
-  - 50,000-character unclosed string
-  - Truncated nested objects (`{"truncated": {"nested": 123`)
-  - Unquoted JavaScript syntax (`{bad_syntax: unquoted}`)
-  - Multiple unbalanced braces/brackets (`{{{{{{{{`, `[[[[[[[[`)
-  - Unescaped delimiters (`:::::`, `,,,,,`)
-  - HTML tags (`<!DOCTYPE html>...`)
-  - Out-of-range exponential numbers (`1e9999999999999999999999999999999`)
-- **Traverser & Scanner**: `traverseJsonLeaves` returned empty arrays on all 16 malformed strings without throwing. `scanJsonSamplePool` successfully filtered out the 50 corrupted lines and extracted 100% of the 50 valid interleaved rows with accurate fill rates.
-- **SQL Injection**: Payloads attempting `' OR 1=1; DROP TABLE sensitive_table; --` in JSON keys were safely escaped by double-quoting in `DuckDbJsonSqlBuilder`. DuckDB created views without SQL execution leaks; `sensitive_table` remained intact.
-
----
-
-## 4. Latent Defect Analysis: `JsonStreamingFlattener.ts` Tier 2
-
-### 4.1 Root Cause
-In `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`:
+### 2.1 Empirical Observations
+In `ProjectFilesTable.tsx` (lines 353-358):
 ```typescript
-// Line 223:
-  // Tier 2 Fallback: all_varchar = true
-  const allVarcharQuery = `
-COPY (
-  SELECT * FROM read_json_auto(
-    '${safeSrc}',
-    sample_size = ${sampleSize},
-    ignore_errors = true,
-    all_varchar = true
-  )
-) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-`.trim();
-
-  await execQuery(dbConn, allVarcharQuery);
+const onMouseMove = (moveEvt: MouseEvent) => {
+  if (!draggingRef.current) return;
+  const delta = moveEvt.clientX - draggingRef.current.startX;
+  const newWidth = Math.max(MIN_COL_WIDTH, draggingRef.current.startWidth + delta);
+  setColWidths((prev) => ({
+    ...prev,
+    [draggingRef.current!.col]: newWidth,
+  }));
+};
 ```
 
-### 4.2 Empirical Proof
-When DuckDB executes this query:
-```
-Binder Error: Invalid named parameter "all_varchar" for function read_json_auto
-Candidates:
-    filename BOOLEAN
-    format VARCHAR
-    date_format VARCHAR
-    hive_partitioning BOOLEAN
-    union_by_name BOOLEAN
-    maximum_object_size UINTEGER
-    hive_types ANY
-    hive_types_autocast BOOLEAN
-    ignore_errors BOOLEAN
-    compression VARCHAR
-    columns ANY
-    auto_detect BOOLEAN
-    sample_size BIGINT
-    dateformat VARCHAR
-    maximum_depth BIGINT
-    timestampformat VARCHAR
-    timestamp_format VARCHAR
-    records VARCHAR
-    maximum_sample_files BIGINT
-    field_appearance_threshold DOUBLE
-    convert_strings_to_integers BOOLEAN
-```
-DuckDB Node.js throws `[Error: Invalid Error: ...] { errno: -1, code: 'DUCKDB_NODEJS_ERROR', errorType: 'Invalid' }`.
+| Input Vector | Computed Delta | Computed Width | Invariant (`width >= 45px`) | Status |
+|---|---|---|---|---|
+| `clientX = -49800` (Start 200) | $\Delta x = -50,000\text{px}$ | `45px` | Satisfied ($45 \ge 45$) | PASS |
+| `clientX = -99800` (Start 200) | $\Delta x = -100,000\text{px}$ | `45px` | Satisfied ($45 \ge 45$) | PASS |
+| `clientX = 50200` (Start 200) | $\Delta x = +50,000\text{px}$ | `50,140px` | Satisfied ($50140 \ge 45$) | PASS |
+| `clientX = NaN` | $\Delta x = \text{NaN}$ | `NaN` | **VIOLATED** (`!(NaN >= 45)`) | **FAIL** |
+| `clientX = undefined` | $\Delta x = \text{NaN}$ | `NaN` | **VIOLATED** (`!(NaN >= 45)`) | **FAIL** |
+| `clientX = -Infinity` | $\Delta x = -\infty$ | `45px` | Satisfied ($45 \ge 45$) | PASS |
+| `clientX = +Infinity` | $\Delta x = +\infty$ | `Infinity` | Numeric $\ge 45$, but non-finite CSS | WARNING |
 
-Because line 235 `await execQuery(dbConn, allVarcharQuery);` has **no `try ... catch` block**, this error escapes as an unhandled promise rejection.
+### 2.2 Root Cause Analysis
+In JavaScript IEEE-754 arithmetic:
+- `Math.max(45, NaN) === NaN`
+- `NaN >= 45 === false`
+If a browser, synthetic test harness, touch event wrapper, or headless runner dispatches a `mousemove` with an undefined or NaN `clientX`, the column width state becomes `NaN`. When React renders:
+```tsx
+<colgroup>
+  <col style={{ width: colWidths.name }} />
+  ...
+</colgroup>
+```
+React 18 generates an inline style with `width: NaN` or omits the style attribute, causing the browser table layout engine to collapse the column to 0px or auto-expand uncontrollably.
 
-### 4.3 Recommended Fix
-In `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`:
-1. Remove `all_varchar = true` from the `read_json_auto` query:
+### 2.3 Required Mitigation
+Guard `delta` with `Number.isFinite`:
 ```typescript
-  // Tier 2 Fallback: format = 'newline_delimited', ignore_errors = true
-  const fallbackQuery = `
-COPY (
-  SELECT * FROM read_json_auto(
-    '${safeSrc}',
-    sample_size = ${sampleSize},
-    ignore_errors = true,
-    format = 'newline_delimited'
-  )
-) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-`.trim();
-
-  try {
-    await execQuery(dbConn, fallbackQuery);
-    const executionTimeMs = Date.now() - startTime;
-    return {
-      flattened: false,
-      hasStructColumns: false,
-      columnCount: introspection.columns.length,
-      finalColumnNames: introspection.columns.map((c) => c.columnName),
-      executionTimeMs,
-    };
-  } catch (fbErr: any) {
-    log.warn(`[JsonStreamingFlattener] Tier 2 fallback failed:`, fbErr?.message || fbErr);
-    throw fbErr;
-  }
+const rawDelta = moveEvt.clientX - draggingRef.current.startX;
+const delta = Number.isFinite(rawDelta) ? rawDelta : 0;
+const newWidth = Math.max(MIN_COL_WIDTH, draggingRef.current.startWidth + delta);
 ```
 
 ---
 
-## 5. Real-World EVTX Parity (`System.evtx`)
+## 3. Challenge 2: Auto-Fit Calculation & Boundary Clamping
 
-Live extraction of RecordID 93937 from `D:\Shared_UserData\Downloads\data_sample\System.evtx` was verified:
+### 3.1 Empirical Observations
+In `ProjectFilesTable.tsx` (lines 119-121, 376-407):
+```typescript
+export const calculateAutoFitWidth = (maxLen: number): number => {
+  return Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, Math.round(maxLen * 7.0 + 24)));
+};
+```
 
-| Field Path | Target Type | Value Verified | Status |
-|------------|-------------|----------------|:------:|
-| `Event.System.EventID.#text` | `BIGINT` | `7036` | **100% PARITY** |
-| `Event.System.EventID.#attributes.Qualifiers` | `BIGINT` | `16384` | **100% PARITY** |
-| `Event.EventData.param1` | `VARCHAR` | `"Microsoft Passport Container"` | **100% PARITY** |
-| `Event.EventData.param2` | `VARCHAR` | `"stopped"` | **100% PARITY** |
-| `Event.EventData.Binary` | `VARCHAR` | `"4E0067006300430074006E0072005300760063002F0031000000"` | **100% PARITY** |
-| `Event.System.TimeCreated.#attributes.SystemTime` | `TIMESTAMP` | `"2026-10-27T14:44:08.819818Z"` | **100% PARITY** |
-| `Event.System.Provider.#attributes.Name` | `VARCHAR` | `"Service Control Manager"` | **100% PARITY** |
-| `Event.System.Computer` | `VARCHAR` | `"WIN-3MJ9DEQ5B94"` | **100% PARITY** |
+| Edge Case Test Vector | Input Parameters | Formula Result | Clamped Result | Clamped [45, 400]px? |
+|---|---|---|---|---|
+| Empty File List (0 files) | `Name` header (len 4) | $4 \times 7 + 24 = 52$ | 52px | PASS |
+| Empty File List (0 files) | `DirPath` header (len 7) | $7 \times 7 + 24 = 73$ | 73px | PASS |
+| Empty File List (0 files) | `Size` header (len 4) | $4 \times 7 + 24 = 52$ | 52px | PASS |
+| Empty File List (0 files) | `Status` header (len 6) | $6 \times 7 + 24 = 66$ | 66px | PASS |
+| 1-character file | `maxLen = 1` | $1 \times 7 + 24 = 31$ | 45px | PASS |
+| 0-length text | `maxLen = 0` | $0 \times 7 + 24 = 24$ | 45px | PASS |
+| 1,000-char unbroken base64 | `maxLen = 1000` | $1000 \times 7 + 24 = 7024$ | 400px | PASS |
+| Unicode emojis (`🔥🚀💎📁🎉📊`) | Surrogate pairs (len 32) | $32 \times 7 + 24 = 248$ | 248px | PASS |
+| CJK Script (Japanese) | `データ分析レポート...` (len 28) | $28 \times 7 + 24 = 220$ | 220px | PASS |
+| Arabic RTL Script | `تقرير_مراجعة_الحسابات...` (len 35) | $35 \times 7 + 24 = 269$ | 269px | PASS |
+| Corrupted File Attributes | `null`, `undefined`, `NaN` | Handled via fallbacks | [45, 400]px | PASS |
+| 10,000 Random Lengths Fuzzing | Random $L \in [-5000, 45000]$ | Clamped | All $\in [45, 400]$ | PASS |
 
-Both `test_realworld_evtx_json.js` (35/35 PASS) and our challenger harness (61/61 PASS) confirmed full fidelity.
+### 3.2 Assessment
+The auto-fit calculation is exceptionally robust against empty lists, multi-byte Unicode strings, surrogate pairs, and 1,000-character unbroken base64 strings. It adheres strictly to the $[45, 400]\text{px}$ contract.
 
 ---
 
-## 6. SampleScanWorker Lifecycle & Abort Mechanics
+## 4. Challenge 3: 50-Row Selection & Auto-Wrap Lifecycle Fuzzing
 
-- **Yielding to Event Loop**: Chunked scanning (chunks of 100) using `setTimeout(0)` successfully yielded execution to the event loop. In interactive UI environments, this ensures 60 FPS fluidity without freezing the renderer.
-- **Progress Monotonicity**: 10 distinct progress callbacks were captured across 1,000 scanned rows, monotonically progressing from 10% to 100%.
-- **Abort Responsiveness**: When calling `worker.abort()` upon reaching 30% progress on a 2,000-row dataset, the worker stopped immediately at row 600 (< 1,000 limit), returned `aborted: true`, and triggered zero unhandled rejections.
-- **Empty / Irregular Inputs**: `worker.scan([])` and `worker.scan(["corrupted", null, 12345])` resolved without throwing errors.
+### 4.1 Empirical Observations
+Tested across a dataset of 50 heterogeneous files (`.csv`, `.json`, `.parquet`, `.evtx`, `.log`):
+
+1. **Single Click Expand**: Row transitions to `.is-selected`, height becomes `auto`, text wraps (`white-space: normal; word-break: break-all; overflow-wrap: anywhere;`), max-height capped at 180px with auto scrollbars.
+2. **Toggle Click Collapse**: Clicking the already-selected row deselects it (`selectedRowPath = null`), restoring 25px single-line height (`white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`).
+3. **Rapid Double-Click**: Click 1 expands, Click 2 immediately collapses. State returns to `null`.
+4. **Sequential Traversal Sweep (0 -> 49)**: Traversed all 50 rows in sequence. Invariant maintained: exactly 1 row selected at any time, 0 orphaned selections.
+5. **Escape Key Dismissal**: Validated across rows 0, 15, 33, 49. Selection immediately resets to `null`.
+6. **Click Outside Container**: Clicks outside `.project-table-container` reset selection to `null`. Clicks inside the container (e.g. table header or body background) preserve active selection.
+7. **Windows Path Normalization**: `normPath()` normalizes `C:\path\file.csv` and `c:/path/file.csv`, guaranteeing toggle click works regardless of slash direction or casing.
+8. **10,000-Step Monte Carlo Fuzzing**: Randomly dispatched `CLICK_ROW`, `TOGGLE_CURRENT`, `ESCAPE`, `CLICK_OUTSIDE`, and `CLICK_INSIDE`. **Zero invariant violations observed across all 10,000 steps.**
+
+---
+
+## 5. Challenge 4: Event Isolation on Divider Resizer Handles
+
+### 5.1 Empirical Observations
+In `ProjectFilesTable.tsx` (lines 483-504, 523-544, 563-584, 603-624):
+```tsx
+<th
+  className="col-name"
+  style={{ width: colWidths.name }}
+  onClick={(e) => toggleColumnFilter("name", e)}
+>
+  <div className="th-content">
+    <span>Name</span>
+    <button
+      type="button"
+      className="sort-btn"
+      title="Sort by Name"
+      onClick={(e) => handleSort("name", e)}
+    >
+      {getSortIcon("name")}
+    </button>
+  </div>
+  <div
+    className="col-resizer-handle"
+    title="Drag to resize, double-click to auto-fit"
+    onMouseDown={(e) => handleResizeMouseDown("name", e)}
+    onDoubleClick={(e) => handleAutoFit("name", e)}
+  />
+  ...
+```
+
+### 5.2 Defect Trace: Click Event Leakage
+1. When a user drags a column resizer, or double-clicks it to auto-fit, or simply clicks the divider:
+   - `mousedown` on `.col-resizer-handle` fires `handleResizeMouseDown`, which invokes `e.stopPropagation()` and `e.preventDefault()`. (Isolated from header mousedown).
+   - `mouseup` fires on document.
+   - **The browser dispatches a `click` event on `.col-resizer-handle`**.
+2. `.col-resizer-handle` **registers NO `onClick` handler**.
+3. The `click` event bubbles up the DOM tree to `th.col-name`.
+4. `th.col-name` has:
+   `onClick={(e) => toggleColumnFilter("name", e)}`.
+5. `toggleColumnFilter` toggles `filterOpenCol`:
+   `setFilterOpenCol((prev) => (prev === col ? null : col))`.
+6. **Symptom in UI**:
+   - Double-clicking the divider to auto-fit pops open the column filter input box (`<input className="col-filter-input" ... autoFocus />`), stealing keyboard focus.
+   - Dragging a column divider and releasing mouseup over the handle unexpectedly opens the filter input box.
+   - Clicking near the column divider divider handle opens the filter popup.
+
+In contrast, `.sort-btn` correctly implements:
+```tsx
+<button
+  type="button"
+  className="sort-btn"
+  onClick={(e) => handleSort("name", e)} // handleSort executes e.stopPropagation()
+>
+```
+The developer remembered to isolate the sort button click, but missed `.col-resizer-handle`!
+
+### 5.3 Required Mitigation
+Add `onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}` to `.col-resizer-handle` across all four column definitions:
+```tsx
+<div
+  className="col-resizer-handle"
+  title="Drag to resize, double-click to auto-fit"
+  onMouseDown={(e) => handleResizeMouseDown("name", e)}
+  onDoubleClick={(e) => handleAutoFit("name", e)}
+  onClick={(e) => {
+    e.stopPropagation();
+    e.preventDefault();
+  }}
+/>
+```
+
+---
+
+## 6. Verification and Reproduction
+
+To independently reproduce the failures:
+```powershell
+.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_sidebar_stress.js
+```
+Expected output:
+- `TEST 1.4` FAILS with `Current code yields NaN (isFinite: false). NaN corrupts React style width!`
+- `TEST 1.6` FAILS with `Undefined clientX yields NaN (NaN)`
+- `TEST 4.4` FAILS with `Clicking the resizer handle leaks click event to parent th.onClick, inadvertently popping open toggleColumnFilter!`
+
+---
+
+## 7. Conclusion & Gate Recommendation
+
+**Verdict**: **REQUEST_CHANGES**  
+The implementation exhibits high quality in auto-fit text measurement, Unicode support, and 50-row lifecycle management. However, two high-impact defects must be resolved:
+1. `ProjectFilesTable.tsx`: Guard drag resize delta against `NaN` and `undefined` with `Number.isFinite`.
+2. `ProjectFilesTable.tsx`: Shield `.col-resizer-handle` with `onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}` on all 4 headers (`name`, `dir`, `size`, `status`) to prevent unwanted column filter popups.

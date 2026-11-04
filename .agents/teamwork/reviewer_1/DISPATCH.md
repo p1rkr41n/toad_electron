@@ -1,45 +1,40 @@
-# Dispatch: Reviewer 1 (Code Quality, Contracts & Ingestion Review)
+# DISPATCH — Reviewer 1: Functional & Code Quality Review
 
-## Objective
-Perform an objective, rigorous review of the TOAD v2.5.1 Nested JSON Parser & Auto-Flattening implementation:
-1. Examine `packages/toadviewer/src/types/NestedJsonContracts.ts`
-2. Examine `packages/toadviewer/src/utils/NestedJsonTraverser.ts`
-3. Examine `packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`
-4. Examine `packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`
-5. Examine `packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`
-6. Examine `packages/reltab-duckdb/src/csvimport.ts`
-7. Run the test suite: `node-v18.20.4-win-x64\node.exe run_tests.js --all` and unit tests.
-8. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
+Read `ORIGINAL_REQUEST.md` at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
+Read the master plan at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`
+`d:\Shared_UserData\Downloads\tad\TEST_READY.md`
 
-Read `ORIGINAL_REQUEST.md` and `PROJECT.md` for requirements.
-Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md`.
+Examine:
+- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`
+- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`
+- Unit tests:
+  - `tests/unit/test_project_files_table_wrap_resize.js`
+  - `tests/unit/test_datagrid_floating_wrap.js`
 
-## 2026-11-04T09:03:10Z
-You are reviewer_1, the Code Quality, Contracts & Ingestion Reviewer for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
-Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1.
+Review checklist:
+1. Correctness: Are column resizing math, clamping bounds (45px on table, 60px/500px on grid), and double-click auto-fit correctly implemented?
+2. Robustness: Are event listeners isolated (`e.stopPropagation()`)? Are drags aborted on `window.onblur` and `mouseleave`?
+3. Lifecycle: Does clicking an active row toggle collapse? Does Escape key collapse? Does click-away collapse? Does scrolling SlickGrid collapse the floating active cell?
+4. Run tests:
+   `node tests/unit/test_project_files_table_wrap_resize.js`
+   `node tests/unit/test_datagrid_floating_wrap.js`
+   `node tests/test_parse_columns_datagrid_refresh.js`
 
-Before starting, you MUST read the authoritative original request and project documents:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\TEST_READY.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\DISPATCH.md
+Provide an explicit verdict: `APPROVE` or `REQUEST_CHANGES`.
+Write handoff report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md`.
 
-Your assigned review tasks:
-1. Review implementation and design of contracts:
-   - `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
-   - `tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`
-   - `tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`
-2. Review backend ingestion dynamic projection pipeline:
-   - `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`
-   - `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`
-   - `tad-master/packages/reltab-duckdb/src/csvimport.ts`
-3. Execute and verify unit and integration tests:
-   - `node-v18.20.4-win-x64\node.exe run_tests.js --all`
-   - `node-v18.20.4-win-x64\node.exe tests/unit/test_nested_traverser.js`
-   - `node-v18.20.4-win-x64\node.exe tests/unit/test_duckdb_json_builder.js`
-   - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_schema_introspect.js`
-   - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js`
-4. Verify code quality, memory safety, error handling, and interface conformance.
+## 2026-11-04T16:07:19Z
+You are teamwork_reviewer 1 for Gate Verification.
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1
+Read your task dispatch file at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\DISPATCH.md
+Read the authoritative user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+Read the master plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+Read the test ready index at: d:\Shared_UserData\Downloads\tad\TEST_READY.md
 
-Write your complete review report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
-Notify me via send_message with your verdict and summary.
+Review ProjectFilesTable.tsx and DataGrid.tsx for correctness, clamping, auto-fit, event isolation, and keyboard accessibility.
+Run unit tests and verify all pass.
+Provide an explicit verdict: APPROVE or REQUEST_CHANGES.
+Write your complete handoff report to: d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md
+When finished, notify me using send_message.

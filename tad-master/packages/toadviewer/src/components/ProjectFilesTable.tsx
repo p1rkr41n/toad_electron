@@ -350,7 +350,8 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
 
     const onMouseMove = (moveEvt: MouseEvent) => {
       if (!draggingRef.current) return;
-      const delta = moveEvt.clientX - draggingRef.current.startX;
+      const rawDelta = moveEvt.clientX - draggingRef.current.startX;
+      const delta = rawDelta === -Infinity ? -Infinity : (Number.isFinite(rawDelta) ? rawDelta : 0);
       const newWidth = Math.max(MIN_COL_WIDTH, draggingRef.current.startWidth + delta);
       setColWidths((prev) => ({
         ...prev,
@@ -501,6 +502,10 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 title="Drag to resize, double-click to auto-fit"
                 onMouseDown={(e) => handleResizeMouseDown("name", e)}
                 onDoubleClick={(e) => handleAutoFit("name", e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
               />
               {filterOpenCol === "name" && (
                 <input
@@ -541,6 +546,10 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 title="Drag to resize, double-click to auto-fit"
                 onMouseDown={(e) => handleResizeMouseDown("dir", e)}
                 onDoubleClick={(e) => handleAutoFit("dir", e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
               />
               {filterOpenCol === "dir" && (
                 <input
@@ -581,6 +590,10 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 title="Drag to resize, double-click to auto-fit"
                 onMouseDown={(e) => handleResizeMouseDown("size", e)}
                 onDoubleClick={(e) => handleAutoFit("size", e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
               />
               {filterOpenCol === "size" && (
                 <input
@@ -621,6 +634,10 @@ export const ProjectFilesTable: React.FC<ProjectFilesTableProps> = ({
                 title="Drag to resize, double-click to auto-fit"
                 onMouseDown={(e) => handleResizeMouseDown("status", e)}
                 onDoubleClick={(e) => handleAutoFit("status", e)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
               />
               {filterOpenCol === "status" && (
                 <input

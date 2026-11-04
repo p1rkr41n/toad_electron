@@ -1,37 +1,32 @@
-# Dispatch: Challenger 2 (Deep Recursion, Polymorphism & Fuzzing Verification)
+# DISPATCH — Challenger 2: Adversarial Sidebar Table & Resizing Boundary Verification
 
-## Objective
-Empirically stress-test boundary and extreme corner cases:
-1. Deeply nested JSON (objects nested 150+ levels deep) to test stack safety.
-2. Huge JSON lines with 5,000+ fields in a single record.
-3. Heavily polymorphic fields (same field alternating between scalar number, string, array, and nested object across rows).
-4. Invalid/corrupted JSON lines interleaved with valid logs.
-5. Verify that `NestedJsonTraverser`, `JsonSchemaIntrospector`, and `SampleScanWorker` handle all cases without unhandled exceptions.
-6. Deliver verdict: `APPROVE` or `REQUEST_CHANGES`.
+Read `ORIGINAL_REQUEST.md` at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
+Read `PROJECT.md` at:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`
 
-Report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md`.
+Your mission:
+Write an adversarial test harness (e.g. `tests/unit/test_challenger_sidebar_stress.js` or run in your working directory) to empirically challenge:
+1. Boundary Clamping: Drag resize with extreme deltas ($-50,000\text{px}$, $+50,000\text{px}$, NaN, Infinity). Verify strict minimum 45px clamping.
+2. Auto-Fit Edge Cases: Test auto-fit calculation with empty files list, null/undefined fields, 1,000-character unbroken base64 strings, and unicode emojis. Verify width remains within $[45, 400]\text{px}$.
+3. Toggle Click & Escape Lifecycle: Fuzz row clicks (rapid double-clicking, clicking 50 different rows in sequence, pressing Escape, clicking outside). Assert selection state never desyncs.
+4. Event Isolation: Verify drag resizer handle mousedown never triggers `toggleColumnFilter` or table sorting.
+5. Provide explicit verdict: `APPROVE` or `REQUEST_CHANGES`.
 
+Write handoff report to: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md`.
 
-## 2026-11-04T09:03:56Z
-You are challenger_2, the Deep Recursion, Polymorphism & Fuzzing Adversarial Challenger for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
-Your working directory is d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2.
+## 2026-11-04T16:07:37Z
+[Message] timestamp=2026-11-04T16:07:37Z sender=9699ca00-885a-4723-9e59-f34fe9df2bf4 priority=MESSAGE_PRIORITY_HIGH content=You are teamwork_challenger 2 for Gate Verification.
+Your working directory is: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2
+Read your task dispatch file at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\DISPATCH.md
+Read the authoritative user request at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
+Read the master plan at: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
 
-Before starting, you MUST read the authoritative original request and project documents:
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
-- d:\Shared_UserData\Downloads\tad\TEST_READY.md
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\DISPATCH.md
-
-Your challenge mission:
-Empirically stress-test boundary, corner, and extreme workload cases:
-1. Deeply nested JSON structures (objects nested 120+ to 200+ levels deep) to test recursion safety, call stack integrity, and graceful truncation (`maxDepth`).
-2. High-volume wide JSON lines with 2,000+ fields in a single line.
-3. Heavily polymorphic fields (same column key flapping between integer, float, string, boolean, object, array, and null across consecutive lines).
-4. Corrupted, truncated, and binary-garbage lines interleaved with valid JSON.
-5. Real-world EVTX System log parity against `D:\Shared_UserData\Downloads\data_sample\System.evtx`:
-   - Run `node-v18.20.4-win-x64\node.exe tests/qa/test_realworld_evtx_json.js`
-   - Confirm 100% leaf field extraction parity for RecordID 93937.
-6. Verify that `NestedJsonTraverser`, `JsonSchemaIntrospector`, `JsonStreamingFlattener`, and `SampleScanWorker` execute with zero unhandled rejections or crashes.
-
-Write your empirical challenge report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` and deliver an unambiguous verdict: APPROVE or REQUEST_CHANGES.
-Notify me via send_message with your verdict and empirical findings.
+Empirically challenge the Sidebar File Table column resizing, boundaries, and active row auto-wrap:
+1. Clamping boundaries: extreme negative/positive deltas (-50,000px, +50,000px, NaN, Infinity) strictly clamped >= 45px.
+2. Auto-fit edge cases: 0 files, null/undefined, 1,000-char unbroken base64 strings, unicode emojis (clamped [45, 400]px).
+3. Toggle click, Escape key, click outside lifecycle fuzzing across 50 rows.
+4. Event isolation on divider mousedown/dblclick.
+Provide an explicit verdict: APPROVE or REQUEST_CHANGES.
+Write your complete handoff report to: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md
+When finished, notify me using send_message.

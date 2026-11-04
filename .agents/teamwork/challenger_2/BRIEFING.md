@@ -1,14 +1,14 @@
-# BRIEFING — 2026-11-04T09:18:00Z
+# BRIEFING — 2026-11-04T16:18:00Z
 
 ## Mission
-Adversarial empirical stress testing, deep recursion verification, high-volume wide schema fuzzing, heavily polymorphic field handling, corrupted line resilience, and EVTX parity verification for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Adversarial empirical challenge of Sidebar File Table column resizing, clamping boundaries, auto-fit calculation, and active row auto-wrap for ToadViewer Gate Verification.
 
 ## 🔒 My Identity
 - Archetype: EMPIRICAL CHALLENGER
 - Roles: critic, specialist
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\
-- Original parent: 9ac5654e-b2b9-4aed-bbc4-dcd613ccea09
-- Milestone: Milestone 2 & Release Pre-flight (v2.4.8) -> Milestone 6 Adversarial Challenge (v2.5.1)
+- Original parent: 9699ca00-885a-4723-9e59-f34fe9df2bf4
+- Milestone: Milestone 5 Final Gate Verification (v2.5.2)
 - Instance: 2 of 2
 
 ## 🔒 Key Constraints
@@ -18,49 +18,52 @@ Adversarial empirical stress testing, deep recursion verification, high-volume w
 - Do NOT fix code failures yourself — report them as findings.
 
 ## Current Parent
-- Conversation ID: aad28923-4697-407e-9b0b-76e49e020103
-- Updated: 2026-11-04T09:03:56Z
+- Conversation ID: 9699ca00-885a-4723-9e59-f34fe9df2bf4
+- Updated: 2026-11-04T16:07:37Z
 
 ## Review Scope
-- **Components stress-tested**:
-  - `NestedJsonTraverser.ts` (deep recursion, wide objects, type inference, bracket & dot paths)
-  - `DuckDbJsonSqlBuilder.ts` (CREATE VIEW generation with 2,500+ fields, SQL injection resistance, DuckDB execution)
-  - `JsonSchemaIntrospector.ts` (DuckDB DESCRIBE STRUCT parser, token splitter, deep nesting)
-  - `JsonStreamingFlattener.ts` (Dynamic unpack COPY TO Parquet, wide and polymorphic columns)
-  - `SampleScanWorker.ts` (Chunked async scanner, cancellation/abort, UI non-freezing)
-  - `tests/qa/test_realworld_evtx_json.js` (RecordID 93937 leaf parity from `System.evtx`)
+- **Components empirically challenged**:
+  - `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`
+  - `tad-master/packages/toadviewer/less/sidebar.less`
+  - `tests/unit/test_project_files_table_wrap_resize.js`
 - **Interface contracts**:
-  - `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
-  - `PROJECT.md` & `TEST_READY.md`
+  - `PROJECT.md` & `ORIGINAL_REQUEST.md` (R1 & R3)
+  - `ColWidths`, `calculateAutoFitWidth`, `handleResizeMouseDown`, `handleAutoFit`, `handleRowClick`
 
 ## Key Decisions Made
-- Authored and executed dedicated empirical stress harness `tests/qa/test_extreme_adversarial_challenger2.js` (61/61 assertions PASS).
-- Confirmed 100% leaf parity for RecordID 93937 from `System.evtx` (35/35 PASS in `test_realworld_evtx_json.js`).
-- Confirmed full baseline suite health: 14 test suites, 486 tests PASS (100% HEALTHY in `run_tests.js --all`).
-- Discovered latent defect in `JsonStreamingFlattener.ts:224-235`: `read_json_auto(..., all_varchar = true)` causes DuckDB Binder Error on Tier 2 fallback, and missing try/catch triggers unhandled rejection.
-- Issued unambiguous verdict: **REQUEST_CHANGES** to ensure fallback tier stability.
+- Authored and executed dedicated empirical stress harness `tests/qa/test_challenger_sidebar_stress.js` (21/24 assertions PASS, 3 FAIL).
+- Confirmed full baseline suite health: 18 test suites in `run_tests.js --all` pass 100% (46.38s duration).
+- Discovered latent defect in `ProjectFilesTable.tsx:353-358`: `NaN` and `undefined` clientX coordinates cause `Math.max(45, NaN) = NaN`, violating the `>= 45px` clamping contract and corrupting React style attributes.
+- Discovered defect in `ProjectFilesTable.tsx:500-504, 540-544, 580-584, 620-624`: `.col-resizer-handle` lacks `onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}`, causing click events on divider handles to bubble to `th.onClick`, inadvertently triggering `toggleColumnFilter` and popping open the filter input.
+- Delivered explicit verdict: **REQUEST_CHANGES** with drop-in code mitigations.
 
 ## Artifact Index
 - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\DISPATCH.md` — Dispatch log
-- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\BRIEFING.md` — Persistent awareness
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\BRIEFING.md` — Situational awareness
 - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\progress.md` — Liveness heartbeat and progress
-- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\analysis.md` — Deep empirical analysis
-- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` — Final challenge report & verdict
-- `d:\Shared_UserData\Downloads\tad\tests\qa\test_extreme_adversarial_challenger2.js` — Empirical adversarial stress harness (61/61 PASS)
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\analysis.md` — Deep empirical adversarial analysis
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` — Complete 5-component handoff report & verdict
+- `d:\Shared_UserData\Downloads\tad\tests\qa\test_challenger_sidebar_stress.js` — Empirical adversarial stress harness (21/24 PASS, 3 FAIL)
 
 ## Attack Surface
 - **Hypotheses tested**:
-  1. Deep nesting (200-350 levels) -> PASS (no RangeError, maxDepth=50 truncation, circular reference detection)
-  2. Ultra-wide JSON (2,500 fields) -> PASS (traversed in 7ms, SQL built in 14ms, view executed in 177ms, Parquet written)
-  3. High-frequency polymorphism (1,000 rows across 8 types) -> PASS (exact 0.875 fill rate, TRY_CAST safe execution)
-  4. Interleaved binary corruption -> PASS (traverser & scanner ignore corrupt lines, SQL injection neutral)
-  5. SampleScanWorker abort -> PASS (aborted cleanly at 30% progress, capped at 600/2,000 rows, zero dangling promises)
-  6. EVTX Parity -> PASS (100% leaf parity on RecordID 93937, 100-record batch dump)
-  7. Process exception audit -> PASS (0 unhandled rejections, 0 uncaught exceptions)
-  8. Streaming flattener Tier 2 fallback -> FAIL (exposes DuckDB Binder Error on `all_varchar = true`)
+  1. Negative drag delta clamping (-50,000px, -100,000px) -> PASS (strictly clamped to 45px)
+  2. Positive drag delta (+50,000px) -> PASS (>= 45px)
+  3. Non-numeric / NaN drag coordinate -> FAIL (`Math.max(45, NaN)` evaluates to `NaN`)
+  4. Undefined drag coordinate -> FAIL (`undefined - startX` evaluates to `NaN`)
+  5. Auto-fit on 0 files -> PASS (clamped within [45, 400]px: name=52, dir=73, size=52, status=66)
+  6. Auto-fit on null/undefined/corrupt file attributes -> PASS (safe fallback without crash)
+  7. Auto-fit on 1,000-char unbroken base64 strings -> PASS (strictly clamped to 400px)
+  8. Auto-fit on multi-byte Unicode emojis, CJK, and Arabic RTL -> PASS (clamped within [45, 400]px)
+  9. Auto-fit 10,000 random integer length fuzzing -> PASS (all within [45, 400]px)
+  10. 50-row lifecycle fuzzing (toggle click, rapid double click, 50-row sequential sweep, Escape key, outside click) -> PASS (0 desyncs)
+  11. 10,000-step Monte Carlo interaction fuzzer -> PASS (0 invariant violations)
+  12. Resizer handle mousedown & dblclick propagation isolation -> PASS
+  13. Resizer handle click event leakage -> FAIL (`click` bubbles to `th.onClick`, triggering `toggleColumnFilter`)
 - **Vulnerabilities found**:
-  - `JsonStreamingFlattener.ts:224-235`: `all_varchar = true` is rejected by DuckDB's `read_json_auto()`, causing Tier 2 fallback to crash with unhandled exception.
-- **Untested angles**: Continuous ingestion under high RAM exhaustion (> 16GB).
+  1. `ProjectFilesTable.tsx:353-358`: Missing `Number.isFinite` guard allows `NaN` clientX to corrupt `colWidths` and React styles.
+  2. `ProjectFilesTable.tsx:500-504, 540-544, 580-584, 620-624`: Missing `onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}` on `.col-resizer-handle` causes divider clicks/double-clicks to pop open column filter input.
+- **Untested angles**: Hardware touch input gestures under heavy GPU memory pressure.
 
 ## Loaded Skills
-- None specified by dispatch message.
+- None specified in dispatch.

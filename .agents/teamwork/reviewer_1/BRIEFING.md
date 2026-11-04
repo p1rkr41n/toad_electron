@@ -1,7 +1,7 @@
-# BRIEFING — 2026-11-04T09:12:00Z
+# BRIEFING — 2026-11-04T16:12:00Z
 
 ## Mission
-Perform rigorous code quality, contracts, and dynamic projection ingestion review for TOAD v2.5.1 Nested JSON Parser & Auto-Flattening.
+Gate Verification: Review ProjectFilesTable.tsx and DataGrid.tsx for correctness, clamping, auto-fit, event isolation, keyboard accessibility, test runs, and issue an explicit verdict (APPROVE or REQUEST_CHANGES).
 
 ## 🔒 My Identity
 - Archetype: reviewer / critic
@@ -12,6 +12,8 @@ Perform rigorous code quality, contracts, and dynamic projection ingestion revie
 - Instance: 1 of 1
 - Current Parent: aad28923-4697-407e-9b0b-76e49e020103
 - Active Milestone: Reviewer 1 (TOAD v2.5.1 Nested JSON Review)
+- Gate Verification Parent: 9699ca00-885a-4723-9e59-f34fe9df2bf4
+- Gate Verification Milestone: M5 Gate Verification (ProjectFilesTable.tsx & DataGrid.tsx Review)
 
 ## 🔒 Key Constraints
 - Review-only — do NOT modify implementation code
@@ -20,51 +22,54 @@ Perform rigorous code quality, contracts, and dynamic projection ingestion revie
 - Write only to .agents/teamwork/reviewer_1/
 
 ## Current Parent
-- Conversation ID: aad28923-4697-407e-9b0b-76e49e020103
-- Updated: 2026-11-04T09:12:00Z
+- Conversation ID: 9699ca00-885a-4723-9e59-f34fe9df2bf4
+- Updated: 2026-11-04T16:12:00Z
 
 ## Review Scope
 - **Files to review**:
-  - `tad-master/packages/toadviewer/src/types/NestedJsonContracts.ts`
-  - `tad-master/packages/toadviewer/src/utils/NestedJsonTraverser.ts`
-  - `tad-master/packages/toadviewer/src/utils/DuckDbJsonSqlBuilder.ts`
-  - `tad-master/packages/reltab-duckdb/src/json/JsonSchemaIntrospector.ts`
-  - `tad-master/packages/reltab-duckdb/src/json/JsonStreamingFlattener.ts`
-  - `tad-master/packages/reltab-duckdb/src/csvimport.ts`
-- **Tests executed & verified**:
-  - `node-v18.20.4-win-x64\node.exe run_tests.js --all` (14 suites, 486 tests PASS)
-  - `node-v18.20.4-win-x64\node.exe tests/unit/test_nested_traverser.js` (10/10 PASS)
-  - `node-v18.20.4-win-x64\node.exe tests/unit/test_duckdb_json_builder.js` (10/10 PASS, avg 2.024ms)
-  - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_schema_introspect.js` (50/50 PASS)
-  - `node-v18.20.4-win-x64\node.exe tests/unit/test_json_streaming_flattener.js` (46/46 PASS)
-  - `tsc --noEmit` on toadviewer and reltab-duckdb (0 errors)
-- **Interface contracts**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`, `TEST_READY.md`
-- **Review criteria**: Correctness, memory safety, error handling, interface conformance, no integrity violations / facades.
+  - `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`
+  - `tad-master/packages/toadviewer/src/components/DataGrid.tsx`
+  - `tad-master/packages/toadviewer/less/sidebar.less`
+  - `tad-master/packages/toadviewer/src/slickgrid.scss`
+  - Unit & QA test suites:
+    - `tests/unit/test_project_files_table_wrap_resize.js` (15/15 PASS)
+    - `tests/unit/test_datagrid_floating_wrap.js` (15/15 PASS)
+    - `tests/test_parse_columns_datagrid_refresh.js` (18/18 PASS)
+    - `tests/qa/test_grid_wrap_concurrency_stress.js` (10/10 PASS)
+    - `run_tests.js --all` (18/18 suites PASS, 100% HEALTHY)
+- **Interface contracts**: `PROJECT.md`, `ORIGINAL_REQUEST.md`, `TEST_READY.md`
+- **Review criteria**:
+  1. Correctness: column resizing math, clamping bounds (45px on table, 60px/500px on grid), double-click auto-fit
+  2. Robustness: event isolation (`e.stopPropagation()`), drags aborted on `window.onblur` and `mouseleave`
+  3. Lifecycle: clicking active row toggles collapse, Escape key collapses, click-away collapses, SlickGrid scroll collapses floating cell
+  4. Accessibility: keyboard support (Escape), no focus trap
+  5. Integrity: no hardcoded outputs, facades, fake tests, or bypassed logic
 
 ## Review Checklist
 - **Items reviewed**:
-  - `NestedJsonContracts.ts` — Frozen interface definitions
-  - `NestedJsonTraverser.ts` — Recursive traversal, type inference, bracket paths
-  - `DuckDbJsonSqlBuilder.ts` — View SQL generator, TRY_CAST, latency < 15ms
-  - `JsonSchemaIntrospector.ts` — Phase 1 DuckDB DESCRIBE & STRUCT AST parser
-  - `JsonStreamingFlattener.ts` — Phase 2 dynamic projection COPY TO Parquet & fallbacks
-  - `csvimport.ts` — Integration into production file routing
+  - `ProjectFilesTable.tsx` — Column resizing, clamping, auto-fit, active row auto-wrap, collapse lifecycle
+  - `DataGrid.tsx` — SlickGrid resizer double-click auto-fit, floating active cell wrap, coordinate invariance, scroll/Escape dismissal
+  - `sidebar.less` & `slickgrid.scss` — Styling, slim scrollbars, Blueprint theme, cursor management
+  - Test suites: all 4 new/relevant test suites and full runner executed with 100% pass
 - **Verdict**: APPROVE
-- **Unverified claims**: None. All claims independently verified.
+- **Unverified claims**: None. All functional requirements and edge cases verified independently.
 
 ## Attack Surface
 - **Hypotheses tested**:
-  - Prototype pollution: Tested & blocked cleanly.
-  - SQL injection via key names: Tested & neutralized by double-quote escaping.
-  - Deep recursion (>100 levels): Tested & bounded by maxDepth without stack overflow.
-  - Special characters & EVTX (#attributes, #text, @xmlns): 100% extraction parity.
-  - Corrupted data: Safely handled via TRY_CAST (returns NULL) and multi-tier fallbacks.
+  - Extreme negative drag delta: Clamped to 45px strictly.
+  - Auto-fit on non-resizable / internal columns (`_expand`): Safely ignored without side-effects.
+  - Zero-row file table auto-fit: Uses header title length; no NaN or crashes.
+  - 50KB payload active cell wrap: Wrapped under 180px max-height in < 16ms (actual 0.025ms).
+  - High-speed scroll under active expansion: 1,000 jumps with 0 orphan overlays.
+  - Memory leak guard: 1,000 expand/scroll/collapse cycles with heap delta < 25 MB (actual 0.51 MB).
+  - Window blur during drag: Drag state and `.col-resizing` cleanly removed.
 - **Vulnerabilities found**: None.
 - **Untested angles**: None within assigned scope.
 
 ## Key Decisions Made
 - Confirmed zero integrity violations or facades.
-- Confirmed DuckDB CREATE VIEW latency of 2.02ms (budget < 15ms).
+- Confirmed all clamping bounds (45px table, 60px/500px grid) and math formulas conform to specifications.
+- Confirmed event isolation prevents row selection and sort triggers during divider drags.
 - Issued unambiguous verdict APPROVE with 5-component handoff report.
 
 ## Artifact Index
