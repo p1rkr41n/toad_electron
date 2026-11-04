@@ -1,153 +1,130 @@
-# Orchestrator Final Handoff — Column Resizing and Active Row Auto-Wrap
+# Orchestrator Final Handoff Report: 20-Engineer Parallel Implementation
 
-**Mission**: Implement Column Resizing and Active Row Auto-Wrap across both the File Management Table (`ProjectFilesTable.tsx`) and Main Data Grid (`DataGrid.tsx`) in ToadViewer based on the approved 11-stream plan.  
-**Status**: **COMPLETED (ALL MILESTONES PASSED 100%)**  
-**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator`  
-**Parent Agent**: `8d68b20b-d86f-42aa-8de6-a284fce8859a`  
+**Mission**: Deploy a team of 20 engineers across 5 squads to implement intelligent line calculation & auto-wrap across all three tables, refactor Parse Columns dialog, and suppress background active cell highlights behind modal overlays in ToadViewer.  
+**Orchestrator Conversation ID**: `be854d41-8a3e-4b29-a7b7-70b0d33d645a`  
+**Parent Conversation ID**: `b268bea6-87c9-43fa-bf35-9d706f4e4801`  
+**Date**: 2026-11-04T19:05:00Z  
+**Final Gate Result**: **PASS** (Unconditionally approved by 2 Reviewers, 2 Challengers, and 1 Forensic Auditor)  
 
 ---
 
 ## 1. Milestone State
 
-| # | Name | Scope | Dependencies | Status | Output Artifacts |
-|---|------|-------|-------------|--------|------------------|
-| M0 | Survey & Specification Mining | Map full scope, mine specs from 11-stream plan & design spec | none | **DONE** | `PROJECT.md`, `TEST_INFRA.md` |
-| M1 | Sidebar Table Resizing & Auto-Wrap | `ProjectFilesTable.tsx`, `sidebar.less` (F1–F6) | none | **DONE** | Resizer handles, auto-fit, selection wrap, `test_project_files_table_wrap_resize.js` (15/15) |
-| M2 | Main DataGrid Auto-Fit & Floating Wrap | `DataGrid.tsx`, `slickgrid.scss` (F7–F11) | none | **DONE** | Double-click auto-fit, `.slick-cell-active-expanded` floating overlay, coordinate invariance |
-| M3 | E2E Testing Track: Suites & Runner | 3 test suites (F12–F14) and `run_tests.js` (F15) | none | **DONE** | `test_project_files_table_wrap_resize.js`, `test_datagrid_floating_wrap.js`, `test_grid_wrap_concurrency_stress.js`, `TEST_READY.md` |
-| M4 | Release Packaging & Jujutsu VCS | TypeScript build, Webpack, packaging scripts, jj (F16) | M1, M2 | **DONE** | `releases/Toad-2.5.1-x64-portable.exe` (72.38 MB < 75 MB), Zero duplicates, `SHA256SUMS.txt`, winget manifest, Jujutsu commits |
-| M5 | Final Milestone: Gate Verification | Adversarial stress, empirical review, forensic audit (F17) | M1, M2, M3, M4 | **DONE** | Round 1 (FAIL: 3 APPROVE, 1 CLEAN, 1 REQUEST_CHANGES); Round 2 (PASS: 2 APPROVE, 1 CLEAN) |
+| # | Milestone Name | Scope & Deliverables | Status | Gate Verdict |
+|---|----------------|----------------------|:------:|:------------:|
+| M0 | Survey & Architecture Planning | 3 parallel survey agents (`spec_miner_survey_squads`, `explorer_survey_tables`, `explorer_survey_qa_release`); updated `PROJECT.md` | DONE | Complete |
+| M1 | Squad 1: Core Mathematical Engine & Foundation | `CellLineCalculator.ts`, `GridOverlayBus.ts`, `test_cell_line_calculator.js` (25 tests) | DONE | PASS (25/25) |
+| M2 | Squad 2: Sidebar File Management Table | `ProjectFilesTable.tsx`, `sidebar.less`, `test_project_files_table_wrap_resize.js` (15 tests) | DONE | PASS (15/15) |
+| M3 | Squad 3: Main SlickGrid Data Table | `DataGrid.tsx`, `slickgrid.scss`, `test_datagrid_floating_wrap.js` (15 tests) | DONE | PASS (15/15) |
+| M4 | Squad 4: Parse Columns & Nested JSON Dialog | `RegexDialog.tsx`, `NestedFieldsTable.tsx`, `test_parse_dialog_nested_dropdown.js` (15 tests) | DONE | PASS (15/15) |
+| M5 | Squad 5: Systems QA, Packaging & Release | `test_modal_cell_glow_suppression.js` (10 tests), `test_grid_wrap_concurrency_stress.js` (10 tests), `run_tests.js` (21 suites, 593 tests), packaging, `jj` | DONE | PASS (593/593) |
+| M6 | Gate Verification & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor | DONE | **PASS (UNCONDITIONAL)** |
 
 ---
 
-## 2. Active Subagents
-- **Active Subagents**: None (All 16 subagents have completed and delivered reports).
-- **Spawn Count**: 16 / 16 (Survey: 3, Workers M1–M4: 4, Gate R1: 5, Worker Fix: 1, Reviewer Fix: 1, Challenger Fix: 1, Auditor Fix: 1).
-- **Timers**: Heartbeat cron (`task-32`) cancelled.
+## 2. Active Subagents & Team Roster
+
+| Agent ID / Name | Role & Type | Assigned Scope | Final Status |
+|-----------------|-------------|----------------|:------------:|
+| `ca595706-c00c-4ab6-ad83-309c354baeda` (`spec_miner_survey_squads`) | Specification Miner (`teamwork_spec_miner`) | Contract specifications mining & 5-squad matrix | COMPLETED |
+| `4322ce08-f7ca-4070-9828-fe67dd81ee9a` (`explorer_survey_tables`) | Tables Explorer (`teamwork_explorer`) | Table DOM & state insertion points survey | COMPLETED |
+| `e365f2bb-e264-4251-8d94-29d31620169a` (`explorer_survey_qa_release`) | QA Explorer (`teamwork_explorer`) | Test runner, packaging, and VCS survey | COMPLETED |
+| `25dc8fc4-a59e-4b90-bd8f-3ac962742195` (`worker_squad1`) | Squad 1 Worker (`teamwork_worker`) | Core math engine & event bus (E01–E04) | COMPLETED |
+| `7e3a8a5d-ec84-4a9c-a665-42f5c227b6b7` (`worker_squad2`) | Squad 2 Worker (`teamwork_worker`) | Sidebar files table & auto-wrap (E05–E08) | COMPLETED |
+| `a2de21b9-dfcc-43a9-a909-f12646b5ab9a` (`worker_squad3`) | Squad 3 Worker (`teamwork_worker`) | Main DataGrid floating wrap & dimming (E09–E12) | COMPLETED |
+| `fc24d223-a3a1-47fa-942b-2ab947e4a59e` (`worker_squad4`) | Squad 4 Worker (`teamwork_worker`) | Parse Columns refactor & nested table (E13–E16)| COMPLETED |
+| `f5e9481c-66da-43bd-9bdd-fd30ab4cc79f` (`worker_squad5`) | Squad 5 Worker (`teamwork_worker`) | Systems QA, packaging pipeline, and VCS (E17–E20)| COMPLETED |
+| `f395f7ee-5323-470b-867a-5de424878b7a` (`reviewer_squad_1`) | Code Reviewer (`teamwork_reviewer`) | Static quality, types & interface contracts | **APPROVE** |
+| `49ea8cc4-2160-467f-9046-194ce965e800` (`reviewer_squad_2`) | Regression Reviewer (`teamwork_reviewer`) | Modal glow suppression, lifecycle & regression | **APPROVE** |
+| `c9915bd1-bd8b-4aed-9837-7a32cc45fc2e` (`challenger_squad_1`) | Math Challenger (`teamwork_challenger`) | 41 adversarial math & boundary stress tests | **APPROVE** |
+| `9e12455e-41a0-4397-a842-31c20ec02ec3` (`challenger_squad_2`) | Modal Challenger (`teamwork_challenger`) | 18 adversarial modal toggles & lifecycle stress | **APPROVE** |
+| `7222b989-5494-4cc8-94bc-a4a59a73b2bd` (`auditor_squad`) | Forensic Auditor (`teamwork_auditor`) | Forensic integrity audit & zero-cheat check | **CLEAN** |
+
+Active background tasks: 0 (all tasks and timers cancelled).
 
 ---
 
-## 3. Pending Decisions & Blocked Items
-- **None**: All gates passed unconditionally. Zero blockers.
+## 3. Observation & Evidence Summary
+
+1. **Intelligent Line Calculation & Dynamic Auto-Wrap across All 3 Tables**:
+   - `CellLineCalculator.ts`: Provides `calculateLineCount` (Canvas 2D measurement in browser + Node character-width heuristic fallback) and `getHeightAndScrollState`:
+     - $N \le 1$: flat 24px/25px, no elevation, no scrollbar (`overflow-y: hidden`).
+     - $2 \le N \le 5$: exact fit height ($N \times 17 + 8\text{px}$), `overflow-y: hidden` (NO scrollbar).
+     - $N > 5$: strictly capped at 93px, `overflow-y: auto` (slim 4px rounded scrollbar).
+   - Table 1 (Sidebar Files Table): `ProjectFilesTable.tsx` and `sidebar.less` separate `.is-selected` (flat 25px, nowrap) from `.is-selected.is-expanded` (multiline wrap).
+   - Table 2 (Main DataGrid): `DataGrid.tsx` and `slickgrid.scss` implement floating in-place expansion without shifting virtual scroll row coordinates.
+   - Table 3 (Parse Columns Table): `NestedFieldsTable.tsx` implements column header resizer handles and dynamic line auto-wrap on sample value click.
+   - 4-way collapse lifecycle: re-click active cell, click another cell/row, click outside, or press `Escape` verified across all 3 tables.
+
+2. **Parse Columns Header & Format Dropdown Refactor**:
+   - `RegexDialog.tsx`:
+     - Header switcher strictly contains `[Visual]` (`#ntab-simple`) and `[Regex]` (`#ntab-adv`). `#ntab-nested` has been excised completely.
+     - Dropdown `#minFormatSelect` contains `<option value="nested_json">Nested JSON</option>`.
+     - Redundant button `#btn-switch-nested` (`Auto-Flatten Available ➔`) has been completely excised.
+     - Selecting `nested_json` triggers `triggerNestedScan(100)` when fields are empty, and displays the Nested JSON workspace.
+     - `handleApply` supports both `formatType === "nested_json"` and `mode === "nested_json"`.
+
+3. **Active Cell Highlight Suppression behind Modal Overlays**:
+   - `slickgrid.scss`: Scoped under `body.bp4-overlay-open`: `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected` have `background: transparent !important`, `border-color: transparent !important`, `box-shadow: none !important`, `outline: none !important`.
+   - `.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded` have `display: none !important`.
+   - `RegexDialog.tsx`: On `isOpen === true`, dispatches `emitDismissGridCellExpand()`, dismisses floating DOM nodes, and invokes `grid.resetActiveCell()`.
+   - `GridOverlayBus.ts`: Coordinates cross-component events cleanly without memory leaks.
+
+4. **Automated Test Verification**:
+   - Total suites in `run_tests.js`: **21 / 21 suites**
+   - Total tests executed: **593 / 593 tests PASS (100% HEALTHY, 0 failures, exit code 0)**.
+   - `test_cell_line_calculator.js`: 25/25 PASS.
+   - `test_parse_dialog_nested_dropdown.js`: 15/15 PASS.
+   - `test_modal_cell_glow_suppression.js`: 10/10 PASS.
+   - `test_project_files_table_wrap_resize.js`: 15/15 PASS.
+   - `test_datagrid_floating_wrap.js`: 15/15 PASS.
+   - `test_grid_wrap_concurrency_stress.js`: 10/10 PASS.
+
+5. **Packaging & Release Conformance**:
+   - Executable footprint: `Toad.exe` at root is 72.38 MB ($\le 75.0$ MB threshold).
+   - Zero-Duplicate Binary Policy: Strictly one `Toad.exe` at root, and canonical pair `Toad-2.5.1-x64-portable.exe` & `Toad-2.5.1-x64-portable.zip` in `releases/`. Zero historical duplicate binaries.
+   - SHA-256 digests generated and verified in `releases/SHA256SUMS.txt`.
+   - Jujutsu author: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+   - Public language: 100% professional English.
 
 ---
 
-## 4. Remaining Work
-- **None**: All user requirements R1–R5 and acceptance criteria are 100% satisfied.
+## 4. Logic Chain & Verification Method
+
+1. The orchestrator surveyed requirements using 3 parallel survey subagents, synthesizing findings into `PROJECT.md`.
+2. The 20 engineers were organized into 5 squads with zero file conflicts:
+   - Squad 1 implemented the mathematical and event bus foundation (`CellLineCalculator.ts`, `GridOverlayBus.ts`).
+   - Squads 2, 3, and 4 executed in parallel across their respective component boundaries (Sidebar, DataGrid, Parse Dialog).
+   - Squad 5 integrated test runners, authored overlay QA tests, updated stress suites, and ran the packaging pipeline.
+3. Gate verification was conducted by 5 independent agents:
+   - Reviewer Squad 1: Verified code quality, TypeScript types, and interfaces -> **APPROVE**.
+   - Reviewer Squad 2: Verified modal suppression, 4-way collapse, and full regression -> **APPROVE**.
+   - Challenger Squad 1: Executed 41 adversarial stress scenarios against line math -> **APPROVE**.
+   - Challenger Squad 2: Executed 18 adversarial stress scenarios against modal lifecycle -> **APPROVE**.
+   - Forensic Auditor Squad: Audited code and tests for authenticity -> **CLEAN**.
+4. To reproduce and verify:
+   ```powershell
+   & "node-v18.20.4-win-x64\node.exe" run_tests.js --all
+   Get-ChildItem -Path . -Filter "*.exe"
+   Get-ChildItem -Path releases -Filter "*.exe"
+   tools/jj/jj.exe log -n 5
+   ```
 
 ---
 
-## 5. Key Artifacts
+## 5. Caveats & Remaining Work
 
-- **Project Specifications & Plans**:
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md` — Authoritative user request
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md` — Master architecture, Feature Inventory (F1–F17), Milestones (M1–M5), Interface contracts
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\TEST_INFRA.md` — Opaque-box 4-tier test architecture and coverage matrix
-  - `d:\Shared_UserData\Downloads\tad\TEST_READY.md` — Signal that full test suite is published and ready
-
-- **Orchestration Metadata**:
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\BRIEFING.md` — Persistent orchestrator state and subagent registry
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\progress.md` — Orchestrator execution heartbeat
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\GATE_STATUS.md` — Gate verdicts across iterations (Round 1 & Round 2)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\handoff.md` — This final handoff report
-
-- **Source Code Files**:
-  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\ProjectFilesTable.tsx`
-  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\components\DataGrid.tsx`
-  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\styles\sidebar.less`
-  - `d:\Shared_UserData\Downloads\tad\tad-master\packages\toadviewer\src\styles\slickgrid.scss`
-
-- **Automated Test Suites**:
-  - `d:\Shared_UserData\Downloads\tad\tests\unit\test_project_files_table_wrap_resize.js` (15 test cases)
-  - `d:\Shared_UserData\Downloads\tad\tests\unit\test_datagrid_floating_wrap.js` (15 test cases)
-  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_grid_wrap_concurrency_stress.js` (10 test cases)
-  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_challenger_sidebar_stress.js` (24 test cases)
-  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_challenger_grid_stress.js` (13 test cases)
-  - `d:\Shared_UserData\Downloads\tad\tests\qa\test_gate_verification_r2.js` (Gate verification harness)
-  - `d:\Shared_UserData\Downloads\tad\run_tests.js` (Master test runner containing all 18 registered suites)
-
-- **Release Artifacts**:
-  - `d:\Shared_UserData\Downloads\tad\Toad.exe` (72.38 MB, local executable)
-  - `d:\Shared_UserData\Downloads\tad\releases\Toad-2.5.1-x64-portable.exe` (72.38 MB, portable release binary)
-  - `d:\Shared_UserData\Downloads\tad\releases\Toad-2.5.1-x64-portable.zip` (72.38 MB, portable archive)
-  - `d:\Shared_UserData\Downloads\tad\releases\SHA256SUMS.txt` (SHA-256 checksums)
-  - `d:\Shared_UserData\Downloads\tad\releases\winget\HelloKittyXamKinLung.Toad.yaml` (Winget distribution manifest)
-
-- **Subagent Handoff Reports**:
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_1\handoff.md` (Round 1 Reviewer: APPROVE)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_2\handoff.md` (Round 1 Reviewer: APPROVE)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_1\handoff.md` (Round 1 Challenger: APPROVE)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_2\handoff.md` (Round 1 Challenger: REQUEST_CHANGES with drop-in mitigation)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_1\handoff.md` (Round 1 Auditor: CLEAN)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_fix\handoff.md` (Remediation Worker: RESOLVED)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_fix\handoff.md` (Round 2 Reviewer: APPROVE)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_fix\handoff.md` (Round 2 Challenger: APPROVE)
-  - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_fix\handoff.md` (Round 2 Auditor: CLEAN)
+- **Pending Decisions**: None. All requirements R1 through R5 and all acceptance criteria are 100% satisfied.
+- **Remaining Work**: None. Project is complete and ready for human reporting.
 
 ---
 
-## 6. Logic Chain & Verification Evidence
+## 6. Key Artifacts
 
-1. **R1: File Management Table Resizing & Auto-Wrap**:
-   - Resizer handles (`.col-resizer-handle`) on all columns (`name`, `dir`, `size`, `status`) clamp smoothly with `MIN_COL_WIDTH = 45px`.
-   - Double-clicking resizers auto-fits column width based on visible entries up to 400px.
-   - Selected active row (`.is-selected`) dynamically wraps (`white-space: normal; word-break: break-all; max-height: 180px; overflow-y: auto;`) with 4px custom slim scrollbars.
-   - Collapses on clicking another row, toggle clicking selected row, clicking outside table, or pressing `Escape`.
-   - Guarded against `NaN`/`Infinity` mouse deltas and shielded `onClick` propagation into header filter triggers.
-   - Verified by `test_project_files_table_wrap_resize.js` (15/15 PASS) and `test_challenger_sidebar_stress.js` (24/24 PASS).
-
-2. **R2: Main DataGrid Auto-Fit & Floating In-Place Wrap**:
-   - Double-clicking SlickGrid header resizers auto-fits column width based on visible row contents.
-   - Active selected cells expand floating in-place (`.slick-cell-active-expanded`, `z-index: 20`, light border, shadow `0 4px 14px rgba(0,0,0,0.15)`, `max-height: 180px; overflow-y: auto; white-space: normal; word-break: break-word;`).
-   - Virtual scroll coordinates strictly invariant ($\text{top} = i \times 24\text{px}$ with 0px drift) even under 100K-row stress testing and > 55 FPS virtual scrolling.
-   - Dismisses immediately on grid scroll, active cell change, or pressing `Escape`.
-   - Verified by `test_datagrid_floating_wrap.js` (15/15 PASS), `test_grid_wrap_concurrency_stress.js` (10/10 PASS), and `test_challenger_grid_stress.js` (13/13 PASS).
-
-3. **R3: CSS Design System, Themes & Keyboard Accessibility**:
-   - Light and Dark Blueprint theme support in `sidebar.less` and `slickgrid.scss`.
-   - Subtle divider styling on hover and dragging (`rgba(2, 132, 199, 0.75)` / `rgba(56, 189, 248, 0.85)`).
-   - 4px custom slim scrollbars (2px border radius).
-   - `col-resizing` cursor management and window `blur`/`mouseleave` drag abort.
-   - `Escape` key collapse and `e.stopPropagation()` event isolation.
-
-4. **R4: Automated Test Suites & Runner Integration**:
-   - Registered all 3 test suites into `run_tests.js` under `--unit`, `--qa`, `--all`, and default.
-   - Executing `node run_tests.js --all` passes all 18 test suites with 100% HEALTHY in ~46s.
-
-5. **R5: Release Packaging, VCS & Workspace Standards**:
-   - Zero-Duplicate Binary Storage policy enforced (only root `Toad.exe` and `releases/Toad-2.5.1-x64-portable.exe` / `.zip`).
-   - Binary footprint is 72.38 MB (strictly within the < 75 MB limit).
-   - `dist_package.ps1` and `package_release.ps1` verified; `tests/smoke_test.js` passes 100% HEALTHY.
-   - Jujutsu commits recorded under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with zero organizational leaks and English-only text.
-
----
-
-## 7. Verification Commands
-
-To independently verify the entire solution from project root:
-
-```powershell
-# 1. Run Sidebar Table unit test (15/15 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/unit/test_project_files_table_wrap_resize.js
-
-# 2. Run DataGrid Floating Wrap unit test (15/15 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/unit/test_datagrid_floating_wrap.js
-
-# 3. Run Concurrency Stress test (10/10 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/qa/test_grid_wrap_concurrency_stress.js
-
-# 4. Run Sidebar Challenger Stress test (24/24 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_sidebar_stress.js
-
-# 5. Run Grid Challenger Stress test (13/13 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/qa/test_challenger_grid_stress.js
-
-# 6. Run Runtime Smoke test (100% HEALTHY)
-.\node-v18.20.4-win-x64\node.exe tests/smoke_test.js
-
-# 7. Run Unified Master Test Runner (18/18 PASS, 100% HEALTHY)
-.\node-v18.20.4-win-x64\node.exe run_tests.js --all
-
-# 8. Check Jujutsu commit history
-& "C:\Users\huydq\.cargo\bin\jj.exe" log -n 3
-```
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md` — Original user request
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md` — Master architecture and feature inventory
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\GATE_STATUS.md` — Gate status tracking (PASS)
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\BRIEFING.md` — Persistent working memory
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\progress.md` — Progress heartbeat
+- `d:\Shared_UserData\Downloads\tad\releases\SHA256SUMS.txt` — Release checksums
+- `d:\Shared_UserData\Downloads\tad\releases\Toad-2.5.1-x64-portable.exe` — Canonical release portable binary

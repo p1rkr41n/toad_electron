@@ -1,40 +1,39 @@
-# BRIEFING — 2026-11-04T18:32:45Z
+# BRIEFING — 2026-11-04T19:05:40Z
 
 ## Mission
-Orchestrate execution and oversight of the 50-engineer Tauri v2 port and rebuild of Toad for Windows.
+Orchestrate execution of the approved 20-engineer parallel implementation plan for Tad/Toad.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\sentinel
-- Orchestrator: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Victory Auditor: to be spawned on victory claim
+- Orchestrator: be854d41-8a3e-4b29-a7b7-70b0d33d645a
+- Victory Auditor: c63edd18-eef9-4c52-9afd-a569f5607807
 
 ## 🔒 Key Constraints
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
-- R1: Scaffolding, Toolchain & Jujutsu Version Control (tauri/project, Vite 5, React 18, local builds only, HelloKittyXamKinLung, no push/API)
-- R2: Native Rust Core, DuckDB Engine & Forensics Ingestion (100% Native Rust backend, Tokio Async, DuckDB 1.0 connection pool dual-engine driver, QueryExp AST compiler, Arrow IPC 0xFFFFFFFF stream, CSV/TSV/JSONL/EVTX SIMD, toad_ledger.parquet, toadAppData_[5chars])
-- R3: Frontend Porting & Host Bridge Integration (React 18 / SlickGrid / Pivot / ArcSight ESM, TauriHostAdapter.ts, commandAliases.ts, zero-copy Arrow IPC decoding via @apache-arrow/es2015-cjs)
-- R4: Automated Testing & Verification (cargo test in src-tauri, npm run build, test_tauri_arrow_ipc.js, 100K scroll stress test)
-- R5: Production Portable Packaging & Release Audit (package_portable.ps1, Toad-2.5.1-x64-portable.exe < 50MB, Toad-2.5.1-x64-portable.zip, SHA256SUMS.txt, Zero-Duplicate Binary storage policy)
-- 50 engineers across 7 squads structure
+- R1: Intelligent line calculation (N<=1 flat, 2<=N<=5 exact fit hidden scrollbar, N>5 capped 5 lines with 4px scrollbar, 4-way collapse) across 3 tables
+- R2: Parse Columns dialog header strictly [Visual] & [Regex], nested_json in format dropdown, remove redundant switch button
+- R3: Active cell highlight suppression behind modal overlays via GridOverlayBus and CSS
+- R4: 50+ new unit/QA test cases, register in run_tests.js, 100% passing tests
+- R5: Commit author HelloKittyXamKinLung, 100% English, zero duplicate binaries, clean cache
+- 20 engineers across 5 squads structure
 
 ## User Context
-- **Last user request**: Approved task prompt received and dispatched to orchestrator
+- **Last user request**: Approved task prompt dispatched to orchestrator
 - **Pending clarifications**: none
-- **Delivered results**: Run started notification sent
+- **Delivered results**: Iteration 1-10 progress reports delivered
 
 ## Project Status
-- **Phase**: in progress (Phase 0 Survey completed; PROJECT.md consolidated; Phase 1 dispatched: M1 Worker for scaffolding & VCS, E2E Test Writer for TEST_INFRA.md)
+- **Phase**: victory claimed / auditing
 - **Route**: General (teamwork_orchestrator)
-- **Active Orchestrator**: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- **Crons**: Progress reporting (task-36), Liveness check (task-37)
+- **Active Orchestrator**: be854d41-8a3e-4b29-a7b7-70b0d33d645a
 
 ## Victory Audit Status
-- **Triggered**: no
+- **Triggered**: yes
 - **Verdict**: pending
 - **Retry count**: 0
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user intent record
-- C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md — Reference implementation plan
+- C:\Users\huydq\.gemini\antigravity\brain\489b863f-84dc-4fd6-bbfb-142488ba4d23\ke_hoach_trien_khai_20_ki_su_song_song.md — Reference implementation plan

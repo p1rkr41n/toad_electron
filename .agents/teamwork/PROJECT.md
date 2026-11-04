@@ -94,8 +94,8 @@
 | M2 | Squad 2: Sidebar File Management Table | `ProjectFilesTable.tsx`, `sidebar.less`, `test_project_files_table_wrap_resize.js` (F05–F08) | M1 | DONE |
 | M3 | Squad 3: Main SlickGrid Data Table | `DataGrid.tsx`, `slickgrid.scss`, `test_datagrid_floating_wrap.js` (F09–F12) | M1 | DONE |
 | M4 | Squad 4: Parse Columns & Nested JSON Dialog | `RegexDialog.tsx`, `NestedFieldsTable.tsx`, `test_parse_dialog_nested_dropdown.js` (F13–F16) | M1 | DONE |
-| M5 | Squad 5: Systems QA, Packaging & Release | `test_modal_cell_glow_suppression.js`, `test_grid_wrap_concurrency_stress.js`, `run_tests.js`, packaging, jj (F17–F21) | M2, M3, M4 | IN_PROGRESS |
-| M6 | Milestone 6: Gate Verification | Full test suite execution, 2 Reviewers, 2 Challengers, 1 Forensic Auditor (F22) | M5 | PLANNED |
+| M5 | Squad 5: Systems QA, Packaging & Release | `test_modal_cell_glow_suppression.js`, `test_grid_wrap_concurrency_stress.js`, `run_tests.js`, packaging, jj (F17–F21) | M2, M3, M4 | DONE |
+| M6 | Milestone 6: Gate Verification | Full test suite execution, 2 Reviewers, 2 Challengers, 1 Forensic Auditor (F22) | M5 | DONE |
 
 ---
 

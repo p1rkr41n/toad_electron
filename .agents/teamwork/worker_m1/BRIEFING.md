@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T18:48:00Z
+# BRIEFING — 2026-11-04T18:52:00Z
 
 ## Mission
 Scaffold the Tauri v2 toolchain, manifests, Vite/React project structure, Cargo backend skeleton, permissions capabilities, and .gitignore rules for the Toad Tauri v2 migration project.
@@ -41,23 +41,33 @@ Scaffold the Tauri v2 toolchain, manifests, Vite/React project structure, Cargo 
 - **Code layout**: `tauri/project/...`
 
 ## Change Tracker
-- **Files modified**: None yet
-- **Build status**: Untested
-- **Pending issues**: None
+- **Files modified**:
+  - `.gitignore`: Updated with `!tauri/`, `!tauri/project/`, and exclusion rules
+  - `tauri/project/package.json`: Vite 5, React 18, Tauri v2 plugins, Arrow, SlickGrid
+  - `tauri/project/vite.config.ts`: React, ~ alias prefix resolver, Less preprocessor
+  - `tauri/project/index.html`: Entrypoint with dark theme and app mount point
+  - `tauri/project/src/main.tsx`: React 18 entrypoint with BigInt serialization polyfill
+  - `tauri/project/src-tauri/Cargo.toml`: Tauri v2, DuckDB 1.0 bundled, Arrow 53, EVTX, Tokio
+  - `tauri/project/src-tauri/tauri.conf.json`: withGlobalTauri, appDirectoriesOverride, 1280x980 hidden window
+  - `tauri/project/src-tauri/capabilities/default.json`: default capabilities and permissions
+  - `tauri/project/src-tauri/src/lib.rs`: Minimal library skeleton
+  - `tauri/project/src-tauri/src/main.rs`: Minimal binary entrypoint
+- **Build status**: `cargo check` running in background (task-78)
+- **Pending issues**: Awaiting task completion to commit with jj
 
 ## Quality Status
-- **Build/test result**: Pending
+- **Build/test result**: In verification
 - **Lint status**: Clean
-- **Tests added/modified**: Minimal skeleton verification
+- **Tests added/modified**: Minimal skeleton unit test in `src/lib.rs`
 
 ## Loaded Skills
-- None explicitly requested for loading beyond workspace default skills.
+- None beyond default workspace skills.
 
 ## Key Decisions Made
-- [TBD]
+- Used standalone minimal skeleton for `main.rs` and `lib.rs` linking to `tracing` and `toad_lib::run()` to cleanly verify crate resolution.
 
 ## Artifact Index
 - `.agents/teamwork/worker_m1/DISPATCH.md` — Worker dispatch task
 - `.agents/teamwork/worker_m1/BRIEFING.md` — Situational awareness
 - `.agents/teamwork/worker_m1/progress.md` — Liveness & task progress
-- `.agents/teamwork/worker_m1/handoff.md` — Final handoff report
+- `.agents/teamwork/worker_m1/handoff.md` — Final handoff report (pending)

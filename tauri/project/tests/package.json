@@ -1,0 +1,6 @@
+{
+  "name": "toad-tauri-v2-tests",
+  "version": "2.5.1",
+  "private": true,
+  "type": "commonjs"
+}

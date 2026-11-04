@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T18:48:00Z
+# BRIEFING — 2026-11-04T19:03:30Z
 
 ## Mission
 Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Windows on Tauri v2 at tauri/project and package portable release.
@@ -22,14 +22,14 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - **Work items**:
   1. Survey & Architecture Specification [done]
   2. Scaffolding & Toolchain (Squad 1 / M1) [in-progress]
-  3. E2E Testing Track (Tiers 1-4) [in-progress]
+  3. E2E Testing Track (Tiers 1-4) [done - TEST_READY.md certified]
   4. Core Rust Engine & DuckDB (Squad 2 & Squad 3 / M2, M3) [pending]
   5. Parquet Ledger & Workspace (Squad 4 / M4) [pending]
   6. Ingestion & Forensics Pipelines (Squad 5 / M5) [pending]
   7. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
   8. Final Verification & Packaging (Squad 7 / M7) [pending]
-- **Current phase**: 1 (Scaffolding & E2E Testing)
-- **Current focus**: Milestone 1 implementation by worker_m1 and E2E test suite by test_writer_e2e
+- **Current phase**: 1 (Scaffolding & Manifests)
+- **Current focus**: Awaiting worker_m1 cargo check and handoff delivery
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -48,6 +48,8 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - Phase 0 Survey completed by 3 parallel subagents.
 - PROJECT.md generated with 33 features mapped to 7 milestones, contracts, and layout.
 - Milestone 1 (M1) and E2E Testing Track dispatched in parallel.
+- `test_writer_e2e` completed: `TEST_INFRA.md` authored, 55/55 tests passed (100%), and `TEST_READY.md` certified.
+- `worker_m1` actively running `cargo check on tauri/project/src-tauri`.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -55,25 +57,24 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | explorer_survey_1 | teamwork_explorer | Frontend Host Bridge Explorer | completed | 5fa7eb5b-f7f7-4908-beeb-668274a42832 |
 | specminer_survey_2 | teamwork_spec_miner | Tauri v2 Spec Miner | completed | fe261d5e-4c7e-4046-9a52-b254565b91b8 |
 | explorer_survey_3 | teamwork_explorer | Backend Infra Explorer | completed | d46896dd-e33f-41cf-b954-54bdd7b281be |
-| worker_m1 | teamwork_worker | Milestone 1 Implementation | in-progress | 3fe1e288-4db6-4a82-bdc5-4644cedd75a3 |
-| test_writer_e2e | teamwork_test_writer | E2E Testing Track Suites | in-progress | cd4ba0c0-aaaa-4ebd-b15a-0c7e221a5bfe |
+| worker_m1 | teamwork_worker | Milestone 1 Implementation | in-progress (cargo check) | 3fe1e288-4db6-4a82-bdc5-4644cedd75a3 |
+| test_writer_e2e | teamwork_test_writer | E2E Testing Track Suites | completed | cd4ba0c0-aaaa-4ebd-b15a-0c7e221a5bfe |
 
 ## Succession Status
 - Succession required: no
 - Spawn count: 5 / 16
-- Pending subagents: 3fe1e288-4db6-4a82-bdc5-4644cedd75a3, cd4ba0c0-aaaa-4ebd-b15a-0c7e221a5bfe
+- Pending subagents: 3fe1e288-4db6-4a82-bdc5-4644cedd75a3
 - Predecessor: none
 - Successor: not yet spawned
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-18
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-110
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-162
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request
 - d:\Shared_UserData\Downloads\tad\PROJECT.md — Global architecture, 33-feature inventory, 7 milestones
+- d:\Shared_UserData\Downloads\tad\TEST_INFRA.md — E2E Test Infrastructure Specification
+- d:\Shared_UserData\Downloads\tad\TEST_READY.md — Certified E2E Test Readiness
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator_tauri\DISPATCH.md — Dispatch log
 - C:\Users\huydq\.gemini\antigravity\brain\4cd78c02-c356-4448-bdfe-f2930e55fb29\ke_hoach_trien_khai_50_subagents_tauri_v2.md — Approved 50-engineer plan
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\specminer_survey_2\tauri_spec_report.md — Tauri v2 mined specifications
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\backend_infra_report.md — Backend & Infra survey report
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_1\survey_frontend_report.md — Frontend survey report
