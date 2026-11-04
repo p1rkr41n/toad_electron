@@ -7,7 +7,8 @@ edition = "2021"
 
 [lib]
 name = "toad_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "rlib"]
+test = false
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -24,7 +25,10 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
 
 [profile.release]
 opt-level = 3
