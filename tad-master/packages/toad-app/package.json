@@ -1,6 +1,6 @@
 {
   "name": "toad-app",
-  "version": "2.5.0.4",
+  "version": "2.5.0.5",
   "homepage": "https://example.com",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
