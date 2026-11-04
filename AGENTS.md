@@ -20,3 +20,11 @@
 ## Bugfix & Patch Versioning Standard
 - **No Overwriting Past Versions**: Never overwrite an existing git tag, GitHub release, or published version.
 - **Auto 4th-Digit Patch Increment (`x.x.x.1++`)**: When a bugfix or patch is implemented without an explicit version specified by the user, if base version `x.x.x` already exists, automatically increment to `x.x.x.1`, `x.x.x.2`, etc. (e.g., `2.3.5.1`, `2.3.5.2`) using `tools/bump_version.js`.
+
+## Release & Commit Identity Standard
+- **Indie Release Branding**: The standard indie release author and publisher is strictly `HelloKittyXamKinLung`.
+- **Commit & Release Identity**:
+  - Author Name: `HelloKittyXamKinLung`
+  - Author Email: `p1rkr41n@users.noreply.github.com`
+- **Zero Enterprise/Org Leaks**: Never use enterprise, corporate, or organizational credentials/identities (e.g. `VNCERT`) in git commits, jujutsu commits, release metadata, or packaging scripts.
+

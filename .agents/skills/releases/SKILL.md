@@ -22,6 +22,10 @@ Dành cho nhà phát triển cá nhân (Indie Dev / Hacker / Security Researcher
 3. **Phân phối kép (Dual Packaging):** Luôn phát hành đồng thời cả file chạy nhanh `.exe` và file nén sạch `.zip`. Trình duyệt Edge/Chrome đối xử với file `.zip` nhẹ nhàng hơn rất nhiều so với file `.exe` trần chưa có danh tiếng.
 4. **Minh bạch mật mã (SHA-256 Integrity):** Bắt buộc tự động xuất file `SHA256SUMS.txt` đi kèm mỗi bản phát hành để người dùng đối soát tính toàn vẹn.
 5. **Git Hygiene (Mã nguồn sạch):** Chỉ lưu trữ mã nguồn trong kho Git; tuyệt đối không commit file chạy `.exe` hay token nhạy cảm vào Git history. File thực thi chỉ được đẩy lên GitHub Releases.
+6. **Định danh phát hành & VCS đồng nhất (Author & VCS Identity):**
+   - Tác giả commit Jujutsu / Git & Metadata: `HelloKittyXamKinLung`
+   - Email phát hành ẩn danh: `p1rkr41n@users.noreply.github.com`
+   - Tuyệt đối không để lộ thông tin tổ chức/doanh nghiệp (như `VNCERT`) trong lịch sử commit, file build hay metadata phát hành.
 
 ---
 
@@ -162,6 +166,7 @@ Trong phần `README.md` hoặc trang download của bạn, luôn đính kèm h�
 
 ## 4. Danh Sách Kiểm Tra Nhanh Trước Khi Bấm Nút Phát Hành (Release Checklist)
 
+- [ ] Định danh tác giả VCS (Jujutsu `jj` / Git) đã đặt chuẩn: `HelloKittyXamKinLung` (`p1rkr41n@users.noreply.github.com`), không dùng danh tính tổ chức (`VNCERT`).
 - [ ] Thông tin Metadata đã nhúng tên `HelloKittyXamKinLung` trong file `package.json` / PE header.
 - [ ] Phiên bản đã được cập nhật đồng bộ (`package.json`, Dialog header, README).
 - [ ] Đã chạy test QA toàn diện và đạt **100% Pass**.
