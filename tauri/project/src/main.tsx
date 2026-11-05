@@ -6,16 +6,37 @@ if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
   };
 }
 
+function forwardLogToBackend(level: string, message: string, details?: any) {
+  try {
+    if (typeof window !== "undefined" && (window as any).__TAURI__?.core?.invoke) {
+      (window as any).__TAURI__.core
+        .invoke("toad:log", {
+          level,
+          message,
+          details: details
+            ? typeof details === "string"
+              ? details
+              : JSON.stringify(details)
+            : null,
+        })
+        .catch(() => {});
+    }
+  } catch {}
+}
+
 if (typeof window !== "undefined") {
   window.addEventListener("error", (e) => {
     console.error("[UNCAUGHT-WINDOW-ERROR]", e.message, e.error?.stack);
+    forwardLogToBackend("error", `[UNCAUGHT-WINDOW-ERROR] ${e.message}`, {
+      stack: e.error?.stack,
+    });
   });
   window.addEventListener("unhandledrejection", (e) => {
-    console.error(
-      "[UNCAUGHT-PROMISE-REJECTION]",
-      e.reason?.message || String(e.reason),
-      e.reason?.stack
-    );
+    const msg = e.reason?.message || String(e.reason);
+    console.error("[UNCAUGHT-PROMISE-REJECTION]", msg, e.reason?.stack);
+    forwardLogToBackend("error", `[UNCAUGHT-PROMISE-REJECTION] ${msg}`, {
+      stack: e.reason?.stack,
+    });
   });
 }
 
@@ -43,7 +64,8 @@ import {
 } from "./toadviewer";
 
 async function bootstrap() {
-  log.setLevel(log.levels.INFO);
+  log.setLevel(log.levels.TRACE);
+  forwardLogToBackend("info", "Toad Desktop Frontend bootstrap started with TRACE log level");
 
   const bridge =
     typeof window !== "undefined" && (window as any).__TAURI__

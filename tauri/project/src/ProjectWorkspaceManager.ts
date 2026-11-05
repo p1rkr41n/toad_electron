@@ -193,9 +193,14 @@ export class ProjectWorkspaceManager {
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
       try {
-        const res = await bridge.invoke("project:getFiles", { projectId });
-        if (res && Array.isArray(res)) return res;
-      } catch {}
+        const res: any = await bridge.invoke("project:getFiles", { projectId });
+        if (res) {
+          if (Array.isArray(res)) return res;
+          if (Array.isArray(res.files)) return res.files;
+        }
+      } catch (err) {
+        log.warn("[ProjectWorkspace] Failed to get files for project " + projectId, err);
+      }
     }
 
     const duckdb = getReltabDuckDB();
@@ -237,12 +242,20 @@ export class ProjectWorkspaceManager {
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
       try {
-        const id = await bridge.invoke("project:create", { projectName, projectId });
+        const res: any = await bridge.invoke("project:create", { projectName, projectId });
+        const id =
+          typeof res === "string"
+            ? res
+            : res && typeof res === "object"
+            ? res.projectId || res.id || String(res)
+            : String(res);
         this.expandedMap.set(id, true);
         this.activeProjectId = id;
         this.notify();
         return id;
-      } catch {}
+      } catch (err) {
+        log.warn("[ProjectWorkspace] Failed to create project via bridge:", err);
+      }
     }
 
     const duckdb = getReltabDuckDB();
@@ -427,10 +440,16 @@ export class ProjectWorkspaceManager {
     const bridge = getBridge();
     if (bridge && typeof bridge.invoke === "function") {
       try {
-        const added = await bridge.invoke("project:addFolder", { projectId, folderPath });
+        const added: any = await bridge.invoke("project:addFolder", { projectId, folderPath });
         this.notify();
-        return added || [];
-      } catch {}
+        if (Array.isArray(added)) return added;
+        if (added && Array.isArray(added.addedFiles)) {
+          return added.addedFiles.map((f: any) => (typeof f === "string" ? f : f.filePath || f.sourcePath || ""));
+        }
+        return [];
+      } catch (err) {
+        log.warn("[ProjectWorkspace] Failed to add folder via bridge:", err);
+      }
     }
 
     const duckdb = getReltabDuckDB();

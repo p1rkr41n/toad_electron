@@ -19,7 +19,12 @@ use tauri::{Emitter, Manager};
 
 #[cfg(not(test))]
 pub fn build_app() -> Result<tauri::Builder<tauri::Wry>, Box<dyn std::error::Error>> {
-    let (paths, config) = portable::ensure_portable_environment(None)?;
+    let (paths, mut config) = portable::ensure_portable_environment(None)?;
+    if let Ok(env_lvl) = std::env::var("TOAD_LOG_LEVEL").or_else(|_| std::env::var("RUST_LOG")) {
+        if !env_lvl.trim().is_empty() {
+            config.system.log_level = env_lvl.trim().to_string();
+        }
+    }
     let _ = logger::init_logger(&paths.logs_dir, &config.system.log_level);
     let app_state = state::AppState::new(paths.app_data_dir, config);
 

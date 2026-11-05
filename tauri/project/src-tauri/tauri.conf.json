@@ -25,7 +25,8 @@
         "transparent": false,
         "theme": null,
         "visible": true,
-        "dragDropEnabled": true
+        "dragDropEnabled": true,
+        "devtools": true
       }
     ],
     "security": {

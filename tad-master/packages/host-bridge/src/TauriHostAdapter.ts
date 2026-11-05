@@ -173,7 +173,7 @@ export class TauriHostAdapter implements IHostBridge {
 
   async showOpenDialog(options: OpenDialogOptions): Promise<string[] | null> {
     try {
-      const res = await this.invoke<any>("plugin:dialog|open", { options });
+      const res: any = await this.invoke("plugin:dialog|open", { options });
       if (!res) return null;
       if (typeof res === "string") return [res];
       if (Array.isArray(res)) return res;
@@ -186,7 +186,9 @@ export class TauriHostAdapter implements IHostBridge {
 
   async showSaveDialog(options: SaveDialogOptions): Promise<string | null> {
     try {
-      return await this.invoke<string | null>("plugin:dialog|save", { options });
+      const res: any = await this.invoke("plugin:dialog|save", { options });
+      if (typeof res === "string") return res;
+      return null;
     } catch (err) {
       console.error("[TauriHostAdapter] Error showing save dialog:", err);
       return null;

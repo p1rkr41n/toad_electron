@@ -28,6 +28,7 @@ pub enum CommandAction {
     NewWindow,
     GetSetupInfo,
     OpenExample,
+    Log,
 
     // Query & Engine Stubs (Milestone M3)
     EvalQuery,
@@ -82,6 +83,7 @@ pub fn route_command(cmd: &str) -> CommandAction {
         "toad:new_window" | "newWindowFromDSPath" | "new_window" => CommandAction::NewWindow,
         "toad:get_setup_info" | "getSetupInfo" | "get_setup_info" => CommandAction::GetSetupInfo,
         "toad:open_example" | "openExample" | "open_example" => CommandAction::OpenExample,
+        "toad:log" | "log" => CommandAction::Log,
 
         // ================================================================
         // Query & Engine Stubs (Milestone M3)
@@ -187,6 +189,8 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
             InvokeBody::Raw(_) => Value::Null,
         };
 
+        tracing::trace!(cmd = %cmd, payload = ?payload, "Tauri IPC Command Received");
+
         match route_command(cmd.as_str()) {
             CommandAction::PluginPassthrough => {
                 tracing::debug!("Bypassing unintercepted/plugin command to Tauri plugin pipeline: {}", cmd);
@@ -225,6 +229,28 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
                         Err(e) => resolver.reject(e),
                     }
                 });
+                true
+            }
+
+            CommandAction::Log => {
+                let resolver = invoke.resolver;
+                let level = payload
+                    .get("level")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("info");
+                let message = payload
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+                let details = payload.get("details");
+                match level.to_lowercase().as_str() {
+                    "trace" => tracing::trace!(details = ?details, "[FRONTEND] {}", message),
+                    "debug" => tracing::debug!(details = ?details, "[FRONTEND] {}", message),
+                    "warn" => tracing::warn!(details = ?details, "[FRONTEND] {}", message),
+                    "error" => tracing::error!(details = ?details, "[FRONTEND] {}", message),
+                    _ => tracing::info!(details = ?details, "[FRONTEND] {}", message),
+                }
+                resolver.resolve(serde_json::json!({ "success": true }));
                 true
             }
 
