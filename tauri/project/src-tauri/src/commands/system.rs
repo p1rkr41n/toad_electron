@@ -27,7 +27,7 @@ pub async fn handle_init_main<R: Runtime>(
     Ok(json!({
         "status": "ready",
         "product": "Toad",
-        "version": "2.5.1",
+        "version": "3.0.0-beta",
         "portableDir": state.portable_dir.to_string_lossy(),
         "config": cfg,
     }))

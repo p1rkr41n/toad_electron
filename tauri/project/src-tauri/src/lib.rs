@@ -58,7 +58,7 @@ pub fn build_app() -> Result<tauri::Builder<tauri::Wry>, Box<dyn std::error::Err
 /// Main application entry point invoked from main.rs
 #[cfg(not(test))]
 pub fn run() {
-    tracing::info!("Starting Toad Desktop v2.5.1 Core Runtime...");
+    tracing::info!("Starting Toad Desktop v3.0.0-beta Core Runtime...");
 
     match build_app() {
         Ok(builder) => {

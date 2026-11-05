@@ -208,10 +208,10 @@ fn build_version_info() -> Vec<u8> {
     let strings = [
         ("CompanyName", "HelloKittyXamKinLung"),
         ("FileDescription", "Toad"),
-        ("FileVersion", "2.5.2"),
+        ("FileVersion", "3.0.0-beta"),
         ("LegalCopyright", "Copyright © 2026 HelloKittyXamKinLung"),
         ("ProductName", "Toad"),
-        ("ProductVersion", "2.5.2"),
+        ("ProductVersion", "3.0.0-beta"),
     ];
 
     let mut str_entries = Vec::new();
@@ -280,10 +280,10 @@ fn build_version_info() -> Vec<u8> {
     vfi[0..2].copy_from_slice(&vfi_len.to_le_bytes());
 
     // VS_FIXEDFILEINFO (52 bytes)
-    let file_ver_ms: u32 = (2 << 16) | 5;
-    let file_ver_ls: u32 = (2 << 16) | 0;
-    let prod_ver_ms: u32 = (2 << 16) | 5;
-    let prod_ver_ls: u32 = (2 << 16) | 0;
+    let file_ver_ms: u32 = (3 << 16) | 0;
+    let file_ver_ls: u32 = (0 << 16) | 0;
+    let prod_ver_ms: u32 = (3 << 16) | 0;
+    let prod_ver_ls: u32 = (0 << 16) | 0;
     let mut ffi = Vec::new();
     ffi.extend_from_slice(&0xFEEF04BDu32.to_le_bytes()); // dwSignature
     ffi.extend_from_slice(&0x00010000u32.to_le_bytes()); // dwStrucVersion
