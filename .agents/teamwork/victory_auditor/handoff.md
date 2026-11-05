@@ -1,150 +1,134 @@
-# Handoff Report — Independent Victory Audit
+# Victory Audit Handoff Report: Configurable Safe Mode Keywords & DuckDB Multi-threaded Ingestion
 
-**Mission**: Independent Victory Audit of Column Resizing and Active Row Auto-Wrap across File Management Table and Main Data Grid in ToadViewer.  
-**Auditor**: Victory Auditor (`critic`, `specialist`, `auditor`, `victory_verifier`)  
-**Verdict**: **VICTORY CONFIRMED**  
-**Target File / Work Products**:
-- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`
-- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`
-- `tad-master/packages/toadviewer/less/sidebar.less`
-- `tad-master/packages/toadviewer/src/slickgrid.scss`
-- `tests/unit/test_project_files_table_wrap_resize.js`
-- `tests/unit/test_datagrid_floating_wrap.js`
-- `tests/qa/test_grid_wrap_concurrency_stress.js`
-- `run_tests.js`
-- `releases/Toad-2.5.1-x64-portable.exe` & `releases/Toad-2.5.1-x64-portable.zip`
+**Mission**: Conduct an independent 3-phase victory audit (timeline analysis, cheating/facade detection, independent test execution) with zero shared context from the implementation swarm.  
+**Author**: Victory Auditor (`ee4207a2-4538-4d15-bab2-e5f5e1a301bb`)  
+**Parent Conversation ID**: `b06c8210-6208-4225-aa57-562693303698`  
+**Date**: 2026-11-05  
+**Verdict**: **VICTORY REJECTED**  
 
 ---
 
 ## 1. Observation
 
-### Phase A: Timeline & Provenance
-- Examined project history in Jujutsu VCS (`jj log -n 10`) and orchestration metadata (`orchestrator/GATE_STATUS.md`, `orchestrator/progress.md`).
-- Found genuine, multi-stage iterative progression:
-  1. Milestone M1–M4 implementation committed at `d5023e36` (2026-11-04 23:06:29).
-  2. Gate Iteration 1 resulted in `FAIL` due to `challenger_2` uncovering edge-case vulnerabilities: missing `onClick` `e.stopPropagation` on `.col-resizer-handle` and potential `NaN` mouse delta.
-  3. Remediation was implemented and verified by `worker_fix`, then re-evaluated in Gate Iteration 2 by `reviewer_fix`, `challenger_fix`, and `auditor_fix` (all `APPROVE`/`CLEAN`).
-  4. Fixes committed at `3403c963` (2026-11-04 23:32:10).
-- Timestamps and commits demonstrate authentic human-style iterative development rather than fabricated batch generation.
+### Verification of Requirements & Acceptance Criteria from `ORIGINAL_REQUEST.md`
 
-### Phase B: Cheating & Integrity Detection
-- `ProjectFilesTable.tsx`:
-  - Authentic drag resizing in `handleResizeMouseDown`: mouse recording, delta calculation with `Number.isFinite(rawDelta)` guard, clamping to `MIN_COL_WIDTH = 45px`, `document.body.classList.add("col-resizing")`, and cleanup on `mouseup`, `window.onblur`, and `document.mouseleave`.
-  - Authentic double-click auto-fit in `handleAutoFit`: measures visible text lengths across displayed files, calculates width via `calculateAutoFitWidth(maxLen) = clamp(45, 400, round(maxLen * 7.0 + 24))`.
-  - Authentic active row wrap in `handleRowClick`: toggles `.is-selected`, sets multiline wrap with custom scrollbars, and collapses on toggle click, outside click, or `Escape` key.
-  - Authentic event shielding on `.col-resizer-handle`: `onClick={(e) => { e.stopPropagation(); e.preventDefault(); }}` prevents column filter toggling when dragging or clicking resizers.
-- `DataGrid.tsx`:
-  - Double-click handler in capture phase on `.slick-resizable-handle`: intercepts double-clicks, prevents default column sorting, and invokes `autoFitGridColumn`.
-  - `autoFitGridColumn`: scans visible viewport rows ($v_{\text{top}}$ to $v_{\text{bottom}}$), computes `clamp(60, 500, round(maxLen * 7.5 + 24))`, updates `grid.setColumns` and persistent column widths map.
-  - Floating cell expansion in `tryExpandCell`: attaches `.slick-cell-active-expanded` to overflowing cells (`scrollWidth > clientWidth` or text length > 28) and `.slick-row-has-expanded` to row (`overflow: visible !important; z-index: 25 !important;`).
-  - Dismissal: automatically collapsed on `grid.onScroll`, `grid.onViewportChanged`, active cell switch, and `Escape` key (`handleGridEscape`).
-- Styles (`sidebar.less` and `slickgrid.scss`):
-  - `.col-resizer-handle` with hover/drag highlight (`rgba(2, 132, 199, 0.75)` light, `rgba(56, 189, 248, 0.85)` dark).
-  - `.slick-cell.slick-cell-active-expanded` with `position: absolute !important; z-index: 20 !important; contain: none !important; max-height: 180px !important; box-shadow: 0 4px 14px rgba(0,0,0,0.15)`.
-  - 4px slim scrollbars (`border-radius: 2px`).
-  - Dark theme rules properly defined for all components.
-- Zero facades, zero dummy constant returns, zero bypassed assertions, and zero hardcoded test outputs.
+1. **R1: Configuration and Auto-Heal in `toad-app` (`tad-master/packages/toad-app/app/portableAppData.ts`)**:
+   - `ToadConfig.duckdb` extended with `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` (lines 40-41).
+   - `DEFAULT_CONFIG.duckdb` defaults to 12 keywords excluding `"mft"`, and `safe_mode_parallel: true` (lines 87-101).
+   - `DEFAULT_CONFIG_INI_TEXT` contains bilingual instructions and parameter templates (lines 172-180).
+   - `stringifyConfig` formats `safe_mode_keywords = ...` and `safe_mode_parallel = ...` (lines 337-363).
+   - `autoHealIniText` parses and injects missing keys into `[duckdb]` preserving comments and custom sections (lines 380-484).
+   - `validateAndEnsureConfig` parses comma-separated keywords with trimming and lowercasing; maps `"none"`, `"off"`, `""` to `[]`; parses boolean `safe_mode_parallel`; and auto-heals missing keys (lines 690-723, 804-827).
+   - `initPortableEnvironment()` exports `TOAD_APP_DATA_DIR`, `TOAD_SAFE_KEYWORDS`, and `TOAD_SAFE_PARALLEL` (lines 1111-1114).
 
-### Phase C: Independent Test & Build Verification
-1. `.\node-v18.20.4-win-x64\node.exe tests/unit/test_project_files_table_wrap_resize.js`:
-   - 15 / 15 tests PASSED (100%).
-2. `.\node-v18.20.4-win-x64\node.exe tests/unit/test_datagrid_floating_wrap.js`:
-   - 15 / 15 tests PASSED (100%).
-3. `.\node-v18.20.4-win-x64\node.exe tests/qa/test_grid_wrap_concurrency_stress.js`:
-   - 10 / 10 tests PASSED (100%). 100K-row virtual scroll verified with 0px coordinate drift, latency 0.011ms (> 55 FPS target), memory heap delta 0.51 MB (< 25 MB limit).
-4. `.\node-v18.20.4-win-x64\node.exe tests/smoke_test.js`:
-   - Process launched and completed cleanly with 100% HEALTHY result.
-5. `.\node-v18.20.4-win-x64\node.exe run_tests.js --all`:
-   - Executed all 18 registered test suites in 46.73s.
-   - All 526 tests PASSED cleanly (100% HEALTHY).
-6. Binary & Packaging Audit:
-   - Root executable `Toad.exe`: 75,892,176 bytes = 72.38 MB (< 75 MB limit).
-   - Release binary `releases/Toad-2.5.1-x64-portable.exe`: 75,892,176 bytes = 72.38 MB (< 75 MB limit).
-   - Zero duplicate historical binaries found in `releases/` or root (adheres strictly to Zero-Duplicate Binary Storage policy).
-   - SHA-256 Checksum Verification:
-     - `releases/SHA256SUMS.txt`: `b9360c9d9db95a0a933f8d62d2e0108c83422adaee98b766982403c430e861c4`
-     - Computed SHA-256 for `Toad-2.5.1-x64-portable.exe`: `b9360c9d9db95a0a933f8d62d2e0108c83422adaee98b766982403c430e861c4`
-     - Computed SHA-256 for `Toad-2.5.1-x64-portable.zip`: `9994c7978abdaba77d450ae9c4b270d11f8571af3db8378f7b59a9c3a31eac56`
-     - 100% exact cryptographic match.
-7. Jujutsu VCS & Workspace Conformance:
-   - Commit Author: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`
-   - Commits: `d5023e36` and `3403c963`
-   - Zero corporate/enterprise credential leaks.
-   - All public commit messages and test logs in professional, concise English.
+2. **R2: Engine Ingestion and Worker in `reltab-duckdb` (`tad-master/packages/reltab-duckdb/src/csvimport.ts` & `ingestWorker.ts`)**:
+   - `IngestConfig` extended with `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` (lines 230-231).
+   - `getIngestConfig()` retrieves config from `env.config.duckdb`, falling back to `process.env.TOAD_SAFE_KEYWORDS` (or 12 default keywords without `"mft"`) and `process.env.TOAD_SAFE_PARALLEL` (lines 266-345).
+   - `isComplexLogFile(filePath, customKeywords)` checks `.log`, `.txt`, `.evtx` and applies cleaned keywords, filtering empty strings (lines 2775-2802).
+   - `streamCsvToParquet` injects `parallel = ${cfg.safe_mode_parallel ? "true" : "false"}` in Stage 1 Safe Profile (line 2907).
+   - `nativeCSVImport` injects `parallel=${cfg.safe_mode_parallel ? "true" : "false"}` in the `CREATE OR REPLACE TABLE` query (line 3787).
+   - In-sync mirror in `tad-master/packages/toad-app/node_modules/reltab-duckdb` is an NTFS junction to `tad-master/packages/reltab-duckdb`.
+   - `ingestWorker.ts` evaluates `safeParallel = (cfg as any).safe_mode_parallel !== false && (cfg as any).safeModeParallel !== false` (line 33) and sets `parallel = ${safeParallel ? "true" : "false"}` in Stage 1 (line 65) and Stage 2 (line 83).
+
+3. **Follow-up User Feedback (Milestone 7 Packaging / WebView2Loader.dll)**:
+   - `WebView2Loader.dll` verified present in repository root (`D:\Shared_UserData\Downloads\tad\WebView2Loader.dll`), `releases\WebView2Loader.dll`, `tauri\project\releases\WebView2Loader.dll`, and inside `releases\Toad-2.5.2-x64-portable.zip` (160,880 bytes).
+   - `tauri\project\tools\package_portable.ps1` verifies `WebView2Loader.dll` presence and deploys it alongside `Toad.exe` everywhere.
+
+4. **Phase C Build & Independent Test Execution**:
+   - TypeScript build:
+     Command: `$env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"; npm --prefix tad-master/packages/reltab-duckdb run build`
+     Result: Exit code `0` (Success).
+   - Webpack build:
+     Command: `$env:PATH = "d:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;$env:PATH"; npm --prefix tad-master/packages/toad-app run build-dev`
+     Result: Exit code `0` (Success in 19.0s).
+   - Safe mode config unit tests:
+     Command: `.\node-v18.20.4-win-x64\node.exe tests/unit/test_safe_mode_config.js`
+     Result: 16 passed, 0 failed, exit code `0`.
+   - Unit test runner:
+     Command: `.\node-v18.20.4-win-x64\node.exe run_tests.js --unit`
+     Result: All 11 suites passed cleanly (100% HEALTHY), exit code `0`.
+   - Deep integration QA:
+     Command: `.\node-v18.20.4-win-x64\node.exe tests/deep_integration_qa.js`
+     Result: 223 passed, 0 failed, exit code `0`.
+   - Empirical adversarial challenge suites:
+     Command: `.\node-v18.20.4-win-x64\node.exe .agents/teamwork/challenger_safe_1/challenge_config.js` -> 42/42 passed (exit code `0`).
+     Command: `.\node-v18.20.4-win-x64\node.exe .agents/teamwork/challenger_safe_2/challenge_duckdb_ingest.js` -> 28/28 passed (exit code `0`).
+   - Master test runner:
+     Command: `.\node-v18.20.4-win-x64\node.exe run_tests.js`
+     Result: Exit code `1` (FAILURE).
+     Verbatim error output:
+     ```
+     >>> Running: Smoke Test (v2.5.2)...
+     ======================================================================
+       SMOKE TEST: TOAD v2.5.2 RUNTIME INTEGRITY & STARTUP VERIFICATION
+     ======================================================================
+     [PASS] Portable Exe verified: D:\Shared_UserData\Downloads\tad\Toad.exe
+            Size: 12.40 MB (Within target budget < 75 MB)
+     FATAL SMOKE TEST FAILURE: AssertionError [ERR_ASSERTION]: Exe size in expected range
+         at runSmokeTest (D:\Shared_UserData\Downloads\tad\tests\smoke_test.js:28:3)
+         at Object.<anonymous> (D:\Shared_UserData\Downloads\tad\tests\smoke_test.js:167:3)
+     ...
+     ======================================================================
+                         OVERALL TEST EXECUTION SUMMARY                    
+     ======================================================================
+       ✖ [FAIL (code 1)] - Smoke Test (v2.5.2) (tests/smoke_test.js)
+       ✔ [PASS] - Safe Mode Config & Ingestion Unit (16 Tests) (tests/unit/test_safe_mode_config.js)
+       ... [15 other suites passed] ...
+       Total Duration : 47.69s
+     ======================================================================
+       RESULT: ONE OR MORE TEST SUITES FAILED!
+     ```
 
 ---
 
 ## 2. Logic Chain
 
-1. **Premise**: Genuine victory requires (a) verifiable provenance of authentic problem-solving without pre-fabricated shortcuts, (b) authentic, non-facade code meeting all specified requirements, (c) 100% passing tests on independent execution, and (d) strict adherence to workspace packaging and branding standards.
-2. **Provenance**: The recorded Jujutsu commit trail, Gate Round 1 failure on adversarial edge cases, and subsequent Round 2 remediation provide unforgeable proof of iterative engineering.
-3. **Integrity**: Source inspection confirms that `ProjectFilesTable.tsx`, `DataGrid.tsx`, `sidebar.less`, and `slickgrid.scss` contain real, production-grade logic for column dragging, clamping, auto-fitting, floating in-place cell wrapping, and coordinate invariance.
-4. **Execution**: Independent execution of all unit, stress, smoke, and master test runners succeeded with 100% pass rates, confirming empirical correctness.
-5. **Standard Compliance**: The binary size is 72.38 MB (< 75 MB), zero duplicate binaries exist, SHA-256 hashes match, and Jujutsu commit author conforms to `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
-6. **Deduction**: All requirements R1–R5 from `ORIGINAL_REQUEST.md` and acceptance criteria are satisfied in full. Therefore, the verdict is VICTORY CONFIRMED.
+1. **Acceptance Criteria Requirement**:
+   `ORIGINAL_REQUEST.md` explicitly lists:
+   - `[ ] Running .\node-v18.20.4-win-x64\node.exe run_tests.js passes with 100% HEALTHY and 0 failed tests.`
+2. **Independent Test Execution Result**:
+   Executing `.\node-v18.20.4-win-x64\node.exe run_tests.js` fails with exit code `1` because `tests/smoke_test.js` terminates on line 28 with an unhandled `AssertionError`.
+3. **Discrepancy with Claimed Completion**:
+   The Project Orchestrator claimed project completion and asserted that all acceptance criteria are 100% satisfied. However, `run_tests.js` fails.
+4. **Root Cause Analysis**:
+   - `Toad.exe` is now compiled via Tauri v2 with Rust MinGW toolchain, yielding an optimized binary of 12.40 MB (13,003,776 bytes).
+   - `tests/smoke_test.js:28` retains a legacy assertion: `assert(exeStats.size > 50 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");`.
+   - Because 12.40 MB is not `> 50 MB`, the assertion fails.
+   - The swarm documented this in caveats but did not update the test to calibrate the lower bound for the Tauri binary, leaving the user's explicit acceptance criterion failing.
+5. **Verdict Rule**:
+   Under the Victory Auditor protocol, "If your independent execution produces different results than the team claimed → VICTORY REJECTED." Therefore, project victory cannot be confirmed until this acceptance criterion passes cleanly.
 
 ---
 
 ## 3. Caveats
 
-- No caveats. All 3 phases were empirically executed and verified directly on the local Windows workspace.
+- **Isolated Functional Quality**: All implementation code for safe mode keywords (`portableAppData.ts`, `csvimport.ts`, `ingestWorker.ts`), all 16 specified unit tests, all 223 deep integration tests, and all 70 empirical adversarial stress tests pass 100%. The sole blocking failure is `tests/smoke_test.js:28` within `run_tests.js`.
+- **Audit-Only Constraint**: As a Victory Auditor, I am strictly prohibited from editing implementation or test files. The fix must be applied by the implementation swarm.
 
 ---
 
 ## 4. Conclusion
 
-The implementation of Column Resizing and Active Row Auto-Wrap across both the File Management Table and Main Data Grid in ToadViewer is genuine, robust, fully tested, and cleanly packaged.
+**Verdict: VICTORY REJECTED**
 
-```
-=== VICTORY AUDIT REPORT ===
+The core functionality requested in R1, R2, and R3 is genuinely implemented and passes forensic integrity checks. However, the project fails the mandatory user acceptance criterion:
+`Running .\node-v18.20.4-win-x64\node.exe run_tests.js passes with 100% HEALTHY and 0 failed tests.`
 
-VERDICT: VICTORY CONFIRMED
-
-PHASE A — TIMELINE:
-  Result: PASS
-  Anomalies: none (genuine 2-round review/challenger iteration and verified Jujutsu commit history)
-
-PHASE B — INTEGRITY CHECK:
-  Result: PASS
-  Details: Zero hardcoded test facades, zero bypassed assertions; authentic logic in ProjectFilesTable.tsx and DataGrid.tsx; authentic styling in sidebar.less and slickgrid.scss.
-
-PHASE C — INDEPENDENT TEST EXECUTION:
-  Test command: node run_tests.js --all (and individual test suites)
-  Your results: 18/18 suites PASS, 526/526 tests PASS (100% HEALTHY, 46.73s)
-  Claimed results: 18/18 suites PASS, 526/526 tests PASS (100% HEALTHY)
-  Match: YES
-  Release Artifacts: Toad-2.5.1-x64-portable.exe (72.38 MB < 75 MB), zero duplicate binaries, SHA-256 matches releases/SHA256SUMS.txt.
-  VCS Identity: Author strictly HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>, English-only commit messages.
-```
+**Actionable Remediation**:
+In `tests/smoke_test.js:28`, calibrate the lower bound of the executable size assertion to reflect the Tauri v2 binary footprint (e.g., `assert(exeStats.size > 10 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");`), then re-run `run_tests.js` to ensure 100% HEALTHY execution.
 
 ---
 
 ## 5. Verification Method
 
-To independently reproduce the entire verification from the project root:
-
+To verify the finding:
 ```powershell
-# 1. Verify ProjectFilesTable wrap and resize unit tests (15/15 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/unit/test_project_files_table_wrap_resize.js
-
-# 2. Verify DataGrid floating wrap and auto-fit unit tests (15/15 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/unit/test_datagrid_floating_wrap.js
-
-# 3. Verify 100K-row virtual scroll concurrency stress tests (10/10 PASS)
-.\node-v18.20.4-win-x64\node.exe tests/qa/test_grid_wrap_concurrency_stress.js
-
-# 4. Verify runtime smoke test (100% HEALTHY)
-.\node-v18.20.4-win-x64\node.exe tests/smoke_test.js
-
-# 5. Verify unified master test runner across all 18 suites (100% HEALTHY)
-.\node-v18.20.4-win-x64\node.exe run_tests.js --all
-
-# 6. Verify release binary size and zero duplicate binaries
-.\node-v18.20.4-win-x64\node.exe -e "const fs = require('fs'); const s = fs.statSync('releases/Toad-2.5.1-x64-portable.exe').size; console.log('Size:', (s/1024/1024).toFixed(2), 'MB');"
-
-# 7. Verify SHA-256 checksum
-.\node-v18.20.4-win-x64\node.exe -e "const crypto = require('crypto'); const fs = require('fs'); console.log('SHA256:', crypto.createHash('sha256').update(fs.readFileSync('releases/Toad-2.5.1-x64-portable.exe')).digest('hex'));"
-
-# 8. Verify Jujutsu commit history and identity
-& "C:\Users\huydq\.cargo\bin\jj.exe" log -n 3
+.\node-v18.20.4-win-x64\node.exe run_tests.js
 ```
+*Expected Failure*: Exits with code 1; `tests/smoke_test.js` fails at line 28 with `AssertionError: Exe size in expected range`.
+
+To verify when remediated:
+```powershell
+.\node-v18.20.4-win-x64\node.exe run_tests.js
+```
+*Expected Success*: Exits with code 0; `RESULT: ALL TEST SUITES PASSED CLEANLY (100% HEALTHY)`.

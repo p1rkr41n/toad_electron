@@ -173,7 +173,7 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-3309
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-3355
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

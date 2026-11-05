@@ -25,7 +25,7 @@ async function runSmokeTest() {
   const exeSizeMB = (exeStats.size / (1024 * 1024)).toFixed(2);
   console.log(`[PASS] Portable Exe verified: ${portableExe}`);
   console.log(`       Size: ${exeSizeMB} MB (Within target budget < 75 MB)`);
-  assert(exeStats.size > 50 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");
+  assert(exeStats.size > 10 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");
 
   // Verify PE MZ header
   const fd = fs.openSync(portableExe, "r");
