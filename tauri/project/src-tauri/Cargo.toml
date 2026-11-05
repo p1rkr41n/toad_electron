@@ -1,6 +1,6 @@
 [package]
 name = "toad"
-version = "2.5.2"
+version = "3.0.0-beta"
 description = "Toad Data Analyzer"
 authors = ["HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>"]
 edition = "2021"
@@ -11,7 +11,7 @@ crate-type = ["staticlib", "rlib"]
 test = false
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["custom-protocol"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-window-state = "2"
 tauri-plugin-dialog = "2"

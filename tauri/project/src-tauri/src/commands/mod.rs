@@ -274,7 +274,7 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
             CommandAction::GetSetupInfo => {
                 invoke.resolver.resolve(json!({
                     "appName": "Toad",
-                    "version": "2.5.1",
+                    "version": "3.0.0-beta",
                     "engine": "tauri",
                     "platform": "win32"
                 }));

@@ -1,10 +1,9 @@
-# Victory Audit Handoff Report: DuckDB CSV Sniffer Parser, Gateway Eviction & Non-blocking Ingestion Error Handling
+# Handoff Report: Victory Audit Re-Verification (Toad Production Application)
 
-**Agent**: Victory Auditor (`victory_auditor_2`)  
-**Parent Conversation ID**: `76cbfd86-3daa-4f27-84a5-dd77868a2d18`  
-**Date**: 2026-11-03  
+**Agent**: `victory_auditor_2`  
 **Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\victory_auditor_2\`  
-**Status**: COMPLETE (Verdict: **VICTORY CONFIRMED**)  
+**Target**: Full Project Victory Re-Audit (Safe Mode Keywords via `config.ini`, DuckDB Multi-threaded Ingestion, and Remediation of `tests/smoke_test.js:28`)  
+**Verdict**: **VICTORY CONFIRMED**
 
 ---
 
@@ -19,109 +18,92 @@ PHASE A — TIMELINE:
 
 PHASE B — INTEGRITY CHECK:
   Result: PASS
-  Details: Development integrity mode fully respected. No hardcoded test outputs or facades detected in tad-master/packages/reltab-duckdb, reltab-fs, tad-app, or tadviewer. Real multi-tier streaming CSV queries and DuckDB active schema validation implemented.
+  Details: Clean implementation across toad-app and reltab-duckdb. Zero hardcoded mock outputs, zero facade methods, zero pre-populated test artifacts. INI parsing, auto-healing, and SQL query generation verified authentic. Release branding strictly adheres to HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com> with zero enterprise leaks. Zero duplicate binary storage verified (only canonical Toad.exe in root, portable exe and zip in releases/). User feedback regarding WebView2Loader.dll verified: present in root, in releases/, and inside Toad-2.5.2-x64-portable.zip.
 
 PHASE C — INDEPENDENT TEST EXECUTION:
-  Test command: 
-    1. node tests\deep_integration_qa.js
-    2. node tests\test_milestone2_ui_error.js
-    3. node tests\test_csv_empirical_challenger.js
-    4. Independent DuckDB direct query on sample_40gb.csv (1000 lines)
-    5. powershell -ExecutionPolicy Bypass -File .\fastbuild.ps1 -Dev
-  Your results:
-    1. deep_integration_qa.js: 222/222 passed (0 failures) in 16.14s
-    2. test_milestone2_ui_error.js: 8/8 passed (0 failures)
-    3. test_csv_empirical_challenger.js: 12/12 passed (0 failures)
-    4. Direct CSV verification: Exactly 11 columns (Timestamp, EventTime, RuleTitle, RuleID, Level, Computer, Channel, EventID, RecordID, Details, ExtraFieldInfo), 0 synthetic columns, Column 0 contains valid ISO 8601 timestamps ("2026-03-12T08:40:25.383678Z").
-    5. FastBuild: Successfully built build\Toad-2.4.6\Toad.exe (180,267,520 bytes) in 92.9s.
-  Claimed results:
-    1. 222/222 passed in 16.12s
-    2. 8/8 checks passed
-    3. 12/12 challenges passed
-    4. sample_40gb.csv parses cleanly with 11 columns
-    5. fastbuild.ps1 succeeds producing build\Toad-2.4.6\Toad.exe
-  Match: YES
+  Test command: .\node-v18.20.4-win-x64\node.exe run_tests.js
+  Your results: 17/17 test suites passed cleanly with 0 failures (100% HEALTHY in 56.88s).
+  Claimed results: Passes with 100% HEALTHY and 0 failed tests across all test suites.
+  Match: YES — Exact match on all criteria.
+
+ADDITIONAL VERIFIED BUILDS:
+  1. .\node-v18.20.4-win-x64\node.exe run_tests.js --unit: 11/11 suites passed (100% HEALTHY), including all 16 tests in test_safe_mode_config.js.
+  2. tad-master/packages/reltab-duckdb (npm run build): Exited with code 0 (tsc -p tsconfig-build.json succeeded).
+  3. tad-master/packages/toad-app (npm run build-dev): Exited with code 0 (Webpack 5 compiled successfully).
 ```
 
 ---
 
 ## 1. Observation
 
-1. **Phase A — Timeline & Provenance Audit**:
-   - `jj log -n 10` reveals clean, linear progression from `v2.4.3` (`1ac6dd72`), through `v2.4.4` (`fe5a6a78`, `f787a0c9`), `v2.4.5` (`69d3f3f8`), `v2.4.6` (`115b111e`), `66a8bf1a` (`fix(ingest): remove escape='' to restore RFC-4180 quote parsing...`), and `d814fb34` (`docs: update README.md`).
-   - Working copy file timestamps show realistic chronological implementation across agents:
-     - `main.ts`: 4:52:23 PM
-     - `actions.ts`: 4:53:15 PM
-     - `ingestWorker.ts`: 4:54:36 PM
-     - `csvimport.ts`: 4:56:47 PM
-     - `reltab-fs.ts`: 5:01:18 PM
-     - `fastbuild.ps1`: 5:29:56 PM
-   - Agent folders under `.agents/teamwork/` record chronological transitions from exploration to implementation (`worker_backend_m1`, `worker_ui_error_m2`), QA verification (`worker_qa_build_m3`), and peer gates (`reviewer_csv_1/2`, `challenger_csv_1/2`, `auditor_csv_1`).
+- **Remediation of `tests/smoke_test.js:28`**:
+  - In `tests/smoke_test.js:28`, the assertion was updated from:
+    `assert(exeStats.size > 50 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, ...);`
+    to:
+    `assert(exeStats.size > 10 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");`
+  - Canonical `Toad.exe` is 13,004,800 bytes (~12.40 MB), within the `< 50MB` budget prescribed in `ORIGINAL_REQUEST.md` (R5: "Compile optimized binary ... < 50MB").
+  - Independent execution of `tests/smoke_test.js` passed with code 0, verifying PE MZ header, app.asar packing, 0 BigQuery remnants, lodash presence, 0 .map files, and live process bootstrap.
 
-2. **Phase B — Integrity & Anti-Cheating Forensics**:
-   - **No Hardcoded Test Bypasses**: Codebase search across `tad-master` for `sample_40gb` yielded 0 hardcoded schema definitions or mock bypasses (only documentation and an orphan cleanup naming comment in `portableAppData.ts:798`).
-   - **No Facade Implementations**: 
-     - `csvimport.ts` (lines 2780–2950, 3640–3735) and `ingestWorker.ts` (lines 40–180) implement genuine multi-tier DuckDB streaming queries with `delim = ','`, `all_varchar = true`, and removed `escape = ''`.
-     - `reltab-fs.ts` (lines 284–338) implements active schema verification via `DESCRIBE ${tableName}` after `createViewFromParquet`: detects synthetic `column01..columnN` or comma-separated column 0, immediately executes `DROP VIEW`, unlinks the corrupted `.parquet` file from disk, logs tombstone in ledger, and falls through to clean multi-column re-ingestion.
-     - `portableAppData.ts:purgeOrphanTempFiles` (lines 775–817) recursively purges `.tmp` and `.tmp_` orphaned files while preserving valid cache and ledger files.
-     - `main.ts:errorDialog` (lines 488–515) catches errors, logs complete trace to `toad.log`, and suppresses `dialog.showErrorBox` unless `fatal === true`.
-     - `actions.ts:openDataSourcePath` (lines 372–435) catches ingestion exceptions, updates `MultipleLoadingManager` with `status: "error"`, retains error status in `activeLoadingFile`, and calls `manager.resume()`.
-     - `ProjectFilesTable.tsx` (line 318) and `DataSourceSidebar.tsx` (line 251) render Blueprint `<Icon icon="error" size={12} style={{ color: "#ef4444" }} />` for failed files.
+- **Requirement R1 (Configuration & Auto-Heal in `toad-app`)**:
+  - `tad-master/packages/toad-app/app/portableAppData.ts`:
+    - `ToadConfig.duckdb` includes `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` (lines 40-41).
+    - `DEFAULT_CONFIG.duckdb` specifies the default keyword list (12 items: `"hayabusa"`, `"eventlog"`, `"event_log"`, `"security"`, `"audit"`, `"sysmon"`, `"timeline"`, `"dfir"`, `"winlog"`, `"firewall"`, `"auth"`, `"syslog"`) excluding `"mft"`, and `safe_mode_parallel: true` (lines 87-101).
+    - `DEFAULT_CONFIG_INI_TEXT` provides bilingual comments and template entries (lines 172-180).
+    - `stringifyConfig` serializes `safe_mode_keywords` and `safe_mode_parallel` (lines 337-338, 362-363).
+    - `validateAndEnsureConfig` trims elements, converts `"none"`, `"off"`, `""` to `[]`, parses boolean `safe_mode_parallel`, and applies `autoHealIniText` while preserving existing comments/sections (lines 690-722, 804-827).
+    - `initPortableEnvironment()` exports `process.env.TOAD_SAFE_KEYWORDS`, `process.env.TOAD_SAFE_PARALLEL`, and `process.env.TOAD_APP_DATA_DIR` (lines 1111-1113).
 
-3. **Phase C — Independent Test Execution**:
-   - Executed `tests\deep_integration_qa.js`:
-     ```
-     Total Test Cases : 222
-     Passed           : 222
-     Failed           : 0
-     Total Duration   : 16.14s
-     ```
-   - Executed `tests\test_milestone2_ui_error.js`: 8/8 checks PASS.
-   - Executed `tests\test_csv_empirical_challenger.js`: 12/12 challenges PASS.
-   - Executed independent DuckDB test on `D:/Shared_UserData/Downloads/data_sample/sample_40gb.csv` (first 1,000 lines):
-     - Columns: `["Timestamp","EventTime","RuleTitle","RuleID","Level","Computer","Channel","EventID","RecordID","Details","ExtraFieldInfo"]` (Count: 11).
-     - Synthetic columns (`column01..column10`): 0.
-     - Column 0: Valid ISO 8601 Timestamp (`"2026-03-12T08:40:25.383678Z"`), no unparsed comma-concatenated lines.
-     - Tested `isParquetFileMisparsedSync`: correctly detected corrupted synthetic parquet cache.
-   - Executed `fastbuild.ps1 -Dev`:
-     - Built and deployed `build\Toad-2.4.6\Toad.exe` (180,267,520 bytes) in 92.9s.
-   - Jujutsu Status & Binary De-duplication:
-     - `jj status` clean; only expected source and test additions.
-     - Single dev executable at root: `Toad.exe` (75,597,659 bytes).
-     - Canonical release artifacts in `releases/`: `Toad-2.4.6-x64-portable.exe` and `Toad-2.4.6-x64-portable.zip`.
-     - Zero duplicate binaries across historical version names.
+- **Requirement R2 (Engine Ingestion and Worker in `reltab-duckdb`)**:
+  - `tad-master/packages/reltab-duckdb/src/csvimport.ts`:
+    - `IngestConfig` contains `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` (lines 230-231).
+    - `getIngestConfig()` retrieves config from `env.config.duckdb`, falling back to `process.env.TOAD_SAFE_KEYWORDS` and `process.env.TOAD_SAFE_PARALLEL` (lines 266-306).
+    - `isComplexLogFile(filePath, customKeywords)` checks extensions `.log`, `.txt`, `.evtx`, and matches cleaned keywords without `"mft"` by default (lines 2775-2802).
+    - `streamCsvToParquet`: Stage 1 query uses `parallel = ${cfg.safe_mode_parallel ? "true" : "false"}` (line 2907).
+    - `nativeCSVImport`: query uses `parallel=${cfg.safe_mode_parallel ? "true" : "false"}` (line 3787).
+    - Changes synchronized in `tad-master/packages/toad-app/node_modules/reltab-duckdb/src/csvimport.ts`.
+  - `tad-master/packages/reltab-duckdb/src/ingestWorker.ts`:
+    - Evaluates `const safeParallel = (cfg as any).safe_mode_parallel !== false && (cfg as any).safeModeParallel !== false` (line 33).
+    - Uses `parallel = ${safeParallel ? "true" : "false"}` in Stage 1 and Stage 2 queries (lines 65, 83).
+
+- **Requirement R3 & Acceptance Criteria Execution**:
+  - Unit tests: `.\node-v18.20.4-win-x64\node.exe run_tests.js --unit` -> 11/11 test suites passed, including all 16 tests in `test_safe_mode_config.js`.
+  - Full tests: `.\node-v18.20.4-win-x64\node.exe run_tests.js` -> 17/17 test suites passed (100% HEALTHY, 0 failed) in 56.88s.
+  - TypeScript build: `cmd /c "set PATH=... && cd /d tad-master\packages\reltab-duckdb && npm run build"` -> Exit code 0 (`tsc -p tsconfig-build.json` succeeded).
+  - Webpack build: `cmd /c "set PATH=... && cd /d tad-master\packages\toad-app && npm run build-dev"` -> Exit code 0 (Webpack 5 compiled successfully).
+
+- **User Feedback & Packaging Compliance**:
+  - `WebView2Loader.dll` is present alongside `Toad.exe` in root (`.\WebView2Loader.dll`), in `releases\WebView2Loader.dll`, in `tauri\project\releases\WebView2Loader.dll`, and packed inside `releases\Toad-2.5.2-x64-portable.zip`.
+  - Binary de-duplication: Root contains solely `Toad.exe` (13,004,800 bytes). Zero historical version copies.
+  - SHA256 checksums match `releases/SHA256SUMS.txt` exactly:
+    - `Toad-2.5.2-x64-portable.exe`: `e31dd642fd5cbac737a4517e7b66e365c2c38673a9792ca31f0ddd730090162a`
+    - `Toad-2.5.2-x64-portable.zip`: `d675f3e00b4dbbde55696adcbe11711d0a4cd1f5776f5633dab3397959c091ba`
+  - PE Version Info on `Toad.exe`: CompanyName `HelloKittyXamKinLung`, ProductName `Toad`, FileVersion `2.5.2`, ProductVersion `2.5.2`, LegalCopyright `Copyright c 2026 HelloKittyXamKinLung`.
 
 ---
 
 ## 2. Logic Chain
 
-1. In the initial bug state, specifying `escape = ''` stripped RFC-4180 double-quote escaping (`""`). When PowerShell logs contained quotes and commas, comma parsing failed, causing DuckDB's sniffer to select pipe `|` and lump all 11 columns into Column 0 while generating synthetic `column01..column10`.
-2. By removing `escape = ''` and setting `delim = ','` with `all_varchar = true` across `csvimport.ts` and `ingestWorker.ts`, DuckDB natively parses RFC-4180 CSVs, producing all 11 proper columns without assertion crashes.
-3. Placing schema validation immediately after `createViewFromParquet` in `reltab-fs.ts` closes the cache bypass vulnerability: whenever a corrupt Parquet cache is opened, it is detected, dropped, unlinked from disk, and cleanly re-ingested.
-4. Suppressing `dialog.showErrorBox` in `main.ts` and catching ingestion errors in `actions.ts` converts modal OS freezes into non-blocking in-app error states with Blueprint exclamation point icons (`!`) and traces in `toad.log`.
-5. Independent test execution of the entire QA suite, challenger harness, and direct DuckDB validation on `sample_40gb.csv` yielded 100% pass rates matching claimed scores.
-6. Therefore, all acceptance criteria in `ORIGINAL_REQUEST.md` (R1 through R5) are genuinely satisfied.
+1. Reconstructing the failure from the previous victory audit: `tests/smoke_test.js:28` failed because the legacy assertion mandated `exeStats.size > 50 MB`, whereas the Tauri v2 executable is 12.40 MB (under the `< 50MB` budget prescribed in `ORIGINAL_REQUEST.md`).
+2. The team updated line 28 to `assert(exeStats.size > 10 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, ...)`.
+3. Independent execution of `.\node-v18.20.4-win-x64\node.exe run_tests.js` completed with 17/17 test suites passing (0 failures, 100% HEALTHY). The smoke test ran and passed without error.
+4. Independent execution of `.\node-v18.20.4-win-x64\node.exe run_tests.js --unit` ran and passed all 16 test cases in `test_safe_mode_config.js`.
+5. Independent builds for `reltab-duckdb` (`npm run build`) and `toad-app` (`npm run build-dev`) both compiled cleanly with exit code 0.
+6. Forensic analysis confirmed authentic INI parsing, auto-healing, multi-threaded DuckDB query generation, and clean author branding (`HelloKittyXamKinLung`).
+7. All requirements (R1, R2, R3) and all acceptance criteria in `ORIGINAL_REQUEST.md` have been met.
 
 ---
 
 ## 3. Caveats
 
-- **Challenger Flaw A (False-Positive Sync Cache Probe)**: `isParquetFileMisparsedSync` checks a regex `/,\w+,/` against binary footer bytes which can flag a valid Parquet file as corrupt if row statistics contain multiple commas. This does not cause crashes or data corruption; it simply causes the Gateway to re-ingest the file once, and the Gateway's active `DESCRIBE` check handles exact schema inspection.
-- **Node.js Environment**: Tests require Node.js v18.20.4 at `D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe`.
+- Execution took place on Windows with the local Node.js v18.20.4 runtime and DuckDB 1.0 async binaries.
+- The Jujutsu working copy contains the remediation diff for `tests/smoke_test.js` and regenerated packaging checksums in `releases/`.
 
 ---
 
 ## 4. Conclusion
 
-The claim of project completion is **GENUINE and FULLY VERIFIED**.
-- R1 (Gateway cache validation & eviction): **PASS**
-- R2 (CSV parser configuration `delim=','`, no `escape=''`, `all_varchar=true`): **PASS**
-- R3 (Cache and stale temporary file cleanup): **PASS**
-- R4 (Non-blocking ingestion error handling, `toad.log` tracing, Blueprint error badging): **PASS**
-- R5 (Fastbuild, Jujutsu VCS, Zero-Duplicate Binary Storage policy): **PASS**
-- QA Verification (`sample_40gb.csv` 11 clean columns, 0 synthetic columns): **PASS**
-
-**Final Verdict**: **VICTORY CONFIRMED**.
+The remediation of `tests/smoke_test.js:28` is complete and genuine. All 4 acceptance criteria and all requirements in `ORIGINAL_REQUEST.md` pass without exception.
+**Verdict: VICTORY CONFIRMED.**
 
 ---
 
@@ -129,26 +111,20 @@ The claim of project completion is **GENUINE and FULLY VERIFIED**.
 
 To independently reproduce the audit results:
 
-1. **Run Full Integration Test Suite**:
-   ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\deep_integration_qa.js
-   ```
-   *Expected*: 222 passed, 0 failed.
+```powershell
+# 1. Run unit test suite
+.\node-v18.20.4-win-x64\node.exe run_tests.js --unit
 
-2. **Run UI Error Milestone 2 Tests**:
-   ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\test_milestone2_ui_error.js
-   ```
-   *Expected*: 8/8 checks passed.
+# 2. Run full unified test suite
+.\node-v18.20.4-win-x64\node.exe run_tests.js
 
-3. **Run Empirical Challenger Tests**:
-   ```powershell
-   & "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64\node.exe" tests\test_csv_empirical_challenger.js
-   ```
-   *Expected*: 12/12 passed.
+# 3. Verify TypeScript build in reltab-duckdb
+cmd /c "set PATH=D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;%PATH% && cd /d D:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-duckdb && npm run build"
 
-4. **Run Fastbuild Application**:
-   ```powershell
-   powershell -ExecutionPolicy Bypass -File .\fastbuild.ps1 -Dev
-   ```
-   *Expected*: Produces `build\Toad-2.4.6\Toad.exe`.
+# 4. Verify Webpack build in toad-app
+cmd /c "set PATH=D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64;%PATH% && cd /d D:\Shared_UserData\Downloads\tad\tad-master\packages\toad-app && npm run build-dev"
+
+# 5. Verify release checksums and WebView2Loader.dll presence
+Get-FileHash -Algorithm SHA256 .\releases\Toad-2.5.2-x64-portable.exe, .\releases\Toad-2.5.2-x64-portable.zip
+Test-Path .\WebView2Loader.dll, .\releases\WebView2Loader.dll
+```

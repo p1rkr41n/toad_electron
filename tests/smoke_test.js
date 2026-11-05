@@ -7,7 +7,7 @@ const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "..");
 
 async function runSmokeTest() {
   console.log("======================================================================");
-  console.log("  SMOKE TEST: TOAD v2.5.2 RUNTIME INTEGRITY & STARTUP VERIFICATION");
+  console.log("  SMOKE TEST: TOAD v2.5.2.1 RUNTIME INTEGRITY & STARTUP VERIFICATION");
   console.log("======================================================================");
 
   // 1. Check Portable Exe (Canonical Toad.exe or releases/Toad-*-x64-portable.exe)
@@ -25,7 +25,7 @@ async function runSmokeTest() {
   const exeSizeMB = (exeStats.size / (1024 * 1024)).toFixed(2);
   console.log(`[PASS] Portable Exe verified: ${portableExe}`);
   console.log(`       Size: ${exeSizeMB} MB (Within target budget < 75 MB)`);
-  assert(exeStats.size > 10 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range");
+  assert(exeStats.size > 50 * 1024 * 1024 && exeStats.size < 75 * 1024 * 1024, "Exe size in expected range for Electron portable core (50MB - 75MB)");
 
   // Verify PE MZ header
   const fd = fs.openSync(portableExe, "r");
