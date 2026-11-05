@@ -227,12 +227,66 @@ export interface IngestConfig {
   temp_dir: string | null;
   ledger_path: string;
   temp_cleanup: boolean;
+  safe_mode_keywords: string[];
+  safe_mode_parallel: boolean;
+}
+
+export const DEFAULT_SAFE_MODE_KEYWORDS: string[] = [
+  "hayabusa",
+  "eventlog",
+  "event_log",
+  "security",
+  "audit",
+  "sysmon",
+  "timeline",
+  "dfir",
+  "winlog",
+  "firewall",
+  "auth",
+  "syslog",
+];
+
+export function parseSafeModeKeywords(raw: string | string[] | undefined | null): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw
+      .map((k) => (typeof k === "string" ? k.trim().toLowerCase() : ""))
+      .filter((k) => k.length > 0 && k !== "none" && k !== "off");
+  }
+  const str = String(raw).trim();
+  if (str === "" || str.toLowerCase() === "none" || str.toLowerCase() === "off") {
+    return [];
+  }
+  return str
+    .split(",")
+    .map((k) => k.trim().toLowerCase())
+    .filter((k) => k.length > 0 && k !== "none" && k !== "off");
 }
 
 export function getIngestConfig(): IngestConfig {
   const env = (global as any).toadPortableEnv;
 
   if (env && env.config) {
+    const rawDuckdbKeywords = env.config.duckdb?.safe_mode_keywords;
+    let safe_mode_keywords: string[];
+    if (rawDuckdbKeywords !== undefined && rawDuckdbKeywords !== null) {
+      safe_mode_keywords = parseSafeModeKeywords(rawDuckdbKeywords);
+    } else if (process.env.TOAD_SAFE_KEYWORDS !== undefined) {
+      safe_mode_keywords = parseSafeModeKeywords(process.env.TOAD_SAFE_KEYWORDS);
+    } else {
+      safe_mode_keywords = [...DEFAULT_SAFE_MODE_KEYWORDS];
+    }
+
+    const rawDuckdbParallel = env.config.duckdb?.safe_mode_parallel;
+    let safe_mode_parallel: boolean;
+    if (rawDuckdbParallel !== undefined && rawDuckdbParallel !== null) {
+      safe_mode_parallel = Boolean(rawDuckdbParallel);
+    } else if (process.env.TOAD_SAFE_PARALLEL !== undefined) {
+      safe_mode_parallel = process.env.TOAD_SAFE_PARALLEL.toLowerCase() !== "false";
+    } else {
+      safe_mode_parallel = true;
+    }
+
     return {
       max_memory: env.config.duckdb.max_memory,
       threads: env.config.duckdb.threads,
@@ -247,6 +301,8 @@ export function getIngestConfig(): IngestConfig {
           ? path.join(env.appDataDir, "toad_ledger.parquet")
           : path.join(env.tempDir || os.tmpdir(), "toad_ledger.parquet")),
       temp_cleanup: env.config.system.temp_cleanup ?? false,
+      safe_mode_keywords,
+      safe_mode_parallel,
     };
   }
 
@@ -259,6 +315,20 @@ export function getIngestConfig(): IngestConfig {
     }
   } catch { }
 
+  let fallbackKeywords: string[];
+  if (process.env.TOAD_SAFE_KEYWORDS !== undefined) {
+    fallbackKeywords = parseSafeModeKeywords(process.env.TOAD_SAFE_KEYWORDS);
+  } else {
+    fallbackKeywords = [...DEFAULT_SAFE_MODE_KEYWORDS];
+  }
+
+  let fallbackParallel: boolean;
+  if (process.env.TOAD_SAFE_PARALLEL !== undefined) {
+    fallbackParallel = process.env.TOAD_SAFE_PARALLEL.toLowerCase() !== "false";
+  } else {
+    fallbackParallel = true;
+  }
+
   return {
     max_memory: "auto",
     threads: 0,
@@ -269,6 +339,8 @@ export function getIngestConfig(): IngestConfig {
     temp_dir: fallbackTempDir,
     ledger_path: path.join(fallbackTempDir, "toad_ledger.parquet"),
     temp_cleanup: false,
+    safe_mode_keywords: fallbackKeywords,
+    safe_mode_parallel: fallbackParallel,
   };
 }
 
@@ -2700,7 +2772,10 @@ export async function applyEngineConfig(
  * where heterogeneous numeric/text fields require Safe Ingest Profile (all_varchar = true)
  * to prevent native C++ D_ASSERT(vector.GetType().InternalType() == PhysicalType::VARCHAR).
  */
-export function isComplexLogFile(filePath: string): boolean {
+export function isComplexLogFile(
+  filePath: string,
+  customKeywords?: string[]
+): boolean {
   if (!filePath) return false;
   const lower = filePath.toLowerCase().replace(/\\/g, "/");
   const base = path.basename(lower);
@@ -2710,23 +2785,20 @@ export function isComplexLogFile(filePath: string): boolean {
     return true;
   }
 
-  const complexKeywords = [
-    "hayabusa",
-    "eventlog",
-    "event_log",
-    "security",
-    "audit",
-    "sysmon",
-    "mft",
-    "timeline",
-    "dfir",
-    "winlog",
-    "firewall",
-    "auth",
-    "syslog",
-  ];
+  const keywords =
+    customKeywords !== undefined && customKeywords !== null
+      ? customKeywords
+      : getIngestConfig().safe_mode_keywords;
 
-  return complexKeywords.some((kw) => lower.includes(kw));
+  if (!keywords || !Array.isArray(keywords) || keywords.length === 0) {
+    return false;
+  }
+
+  const cleanedKeywords = keywords
+    .map((k) => (typeof k === "string" ? k.trim().toLowerCase() : ""))
+    .filter((k) => k.length > 0 && k !== "none" && k !== "off");
+
+  return cleanedKeywords.some((kw) => lower.includes(kw));
 }
 
 /**
@@ -2742,6 +2814,8 @@ export function runIngestInWorker(params: {
   threads?: number;
   maxMemory?: string;
   isComplex?: boolean;
+  safe_mode_parallel?: boolean;
+  safeModeParallel?: boolean;
   format?: "csv" | "json" | "raw";
 }): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -2757,6 +2831,8 @@ export function runIngestInWorker(params: {
         threads: params.threads,
         maxMemory: params.maxMemory,
         isComplex: params.isComplex,
+        safe_mode_parallel: params.safe_mode_parallel ?? params.safeModeParallel,
+        safeModeParallel: params.safeModeParallel ?? params.safe_mode_parallel,
         format: params.format,
       }),
     ];
@@ -2807,7 +2883,7 @@ export async function streamCsvToParquet(
   const safeDst = escapeSqlPath(parquetPath);
   const compression = cfg.compression.toUpperCase();
   const rowGroupSize = cfg.row_group_size;
-  const isComplex = isComplexLogFile(filePath);
+  const isComplex = isComplexLogFile(filePath, cfg.safe_mode_keywords);
 
   // Layer 1: Neu la file log phuc tap (Hayabusa, Security, EventLog, v.v.):
   // Kich hoat thang Safe Ingest Profile (all_varchar = true, parallel = false, delim = ',')
@@ -2828,7 +2904,7 @@ export async function streamCsvToParquet(
           sample_size = 100000,
           ignore_errors = true,
           null_padding = true,
-          parallel = false,
+          parallel = ${cfg.safe_mode_parallel ? "true" : "false"},
           all_varchar = true
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
@@ -3706,9 +3782,9 @@ export const nativeCSVImport = async (
     const memDelimClause = isCsvFile ? "delim=','," : isTsvFile ? "delim='\\t'," : "";
 
     // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
-    if (isComplexLogFile(filePath)) {
+    if (isComplexLogFile(filePath, cfg.safe_mode_keywords)) {
       try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=${cfg.safe_mode_parallel ? "true" : "false"}, all_varchar=true)`;
         await dbConn.all(query);
         const importTime = process.hrtime(importStart);
         log.info(

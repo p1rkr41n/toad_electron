@@ -6,26 +6,19 @@ if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
 }
 
 import * as actions from "./actions";
-require("./slickgrid.scss");
-require("../less/tadviewer.less");
-
-require("../less/activityBar.less");
-require("../less/sidebar.less");
-
-require("../less/columnSelector.less");
-
-require("../less/columnList.less");
-
-require("../less/singleColumnSelect.less");
-
-require("../less/modal.less");
-
-require("../less/footer.less");
-
-require("../less/filterEditor.less");
-require("../less/delayedCalcFooter.less");
-require("../less/eventDetailSidebar.less");
-require("../less/nested-dialog.less");
+import "./slickgrid.scss";
+import "../less/tadviewer.less";
+import "../less/activityBar.less";
+import "../less/sidebar.less";
+import "../less/columnSelector.less";
+import "../less/columnList.less";
+import "../less/singleColumnSelect.less";
+import "../less/modal.less";
+import "../less/footer.less";
+import "../less/filterEditor.less";
+import "../less/delayedCalcFooter.less";
+import "../less/eventDetailSidebar.less";
+import "../less/nested-dialog.less";
 
 export { initAppState } from "./actions";
 export * from "./AppState";

@@ -10,7 +10,6 @@ import {
   ValExp,
   ColumnMapInfo,
 } from "reltab"; // eslint-disable-line
-import { convertTypeAcquisitionFromJson } from "typescript";
 
 export * from "./PathTree";
 

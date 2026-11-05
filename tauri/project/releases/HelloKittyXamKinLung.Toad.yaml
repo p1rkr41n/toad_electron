@@ -1,0 +1,19 @@
+﻿PackageIdentifier: HelloKittyXamKinLung.Toad
+PackageVersion: 2.5.2
+PackageName: Toad
+Publisher: HelloKittyXamKinLung
+License: MIT
+ShortDescription: High-Performance Tabular Data & Security Log Analyzer
+Tags:
+  - csv
+  - parquet
+  - duckdb
+  - security
+  - forensic
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.5.2/Toad-2.5.2-x64-portable.exe
+    InstallerSha256: A2CF8CB4990AA9F4E56C844C89184CCC91019AECDE95E42F341BC7EFB3452E36
+ManifestType: singleton
+ManifestVersion: 1.6.0

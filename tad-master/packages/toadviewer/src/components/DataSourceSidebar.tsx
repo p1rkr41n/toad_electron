@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Sidebar } from "./Sidebar";
-import { StateRef, mutableGet } from "oneref";
+import { StateRef, mutableGet, awaitableUpdate_ } from "oneref";
+import { getHostBridge } from "host-bridge";
 import { AppState } from "../AppState";
 import * as reltab from "reltab";
 import * as log from "loglevel";
@@ -740,7 +741,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
           (f) => f.filePath && normPath(f.filePath) === normPath(curCanon)
         );
         if (isCurFileDeleted) {
-          const { awaitableUpdate_ } = require("oneref");
           await awaitableUpdate_(stateRef, (st: AppState) => st.set("viewState", null) as AppState);
         }
       }
@@ -792,7 +792,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
     try {
       const curState = mutableGet(stateRef);
       if (curState.viewState) {
-        const { awaitableUpdate_ } = require("oneref");
         await awaitableUpdate_(stateRef, (st: AppState) => st.set("viewState", null) as AppState);
       }
       await pwManager.deleteAllProjects();
@@ -914,7 +913,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     onAddFile={async (e) => {
                       e.stopPropagation();
                       try {
-                        const { getHostBridge } = require("host-bridge");
                         const bridge = getHostBridge();
                         const chosen = await bridge.showOpenDialog({
                           title: `Add Files to ${project.projectName}`,
@@ -931,7 +929,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     onAddFolder={async (e) => {
                       e.stopPropagation();
                       try {
-                        const { getHostBridge } = require("host-bridge");
                         const bridge = getHostBridge();
                         const chosen = await bridge.showOpenDialog({
                           title: `Add Folder to ${project.projectName}`,
@@ -1010,7 +1007,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     const proj = projectContextMenu.project;
                     setProjectContextMenu(null);
                     try {
-                      const { getHostBridge } = require("host-bridge");
                       const bridge = getHostBridge();
                       const chosen = await bridge.showOpenDialog({
                         title: `Add Files to ${proj.projectName}`,
@@ -1032,7 +1028,6 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                     const proj = projectContextMenu.project;
                     setProjectContextMenu(null);
                     try {
-                      const { getHostBridge } = require("host-bridge");
                       const bridge = getHostBridge();
                       const chosen = await bridge.showOpenDialog({
                         title: `Add Folder to ${proj.projectName}`,

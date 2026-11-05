@@ -46,6 +46,8 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
+    "publisher": "HelloKittyXamKinLung",
+    "copyright": "Copyright © 2026 HelloKittyXamKinLung",
     "icon": ["icons/icon.ico"],
     "windows": {
       "webviewInstallMode": {

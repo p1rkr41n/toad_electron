@@ -15,10 +15,34 @@ import { REVERSE_COMMAND_ALIAS_MAP, COMMAND_ALIAS_MAP } from "./commandAliases";
  */
 export class TauriHostAdapter implements IHostBridge {
   readonly engineName: EngineName = "tauri";
+  public readonly dataPort: boolean = true; // ACTIVATION GATE FOR ZERO-COPY ARROW IPC
   private clipboardText = "";
   private currentTheme: "light" | "dark" = "light";
 
   constructor() {}
+
+  public setupDataPort(port: any): void {
+    // In Tauri v2, binary IPC response is streamed directly through core.invoke
+  }
+
+  private normalizeArgs(args?: any): any {
+    if (!args) return {};
+    if (typeof args === "string") {
+      try {
+        const parsed = JSON.parse(args);
+        if (parsed && typeof parsed === "object" && parsed.req && typeof parsed.req === "object") {
+          return { ...parsed, ...parsed.req };
+        }
+        return parsed;
+      } catch {
+        return { raw: args };
+      }
+    }
+    if (typeof args === "object" && args.req && typeof args.req === "object") {
+      return { ...args, ...args.req };
+    }
+    return args;
+  }
 
   /**
    * Resolve a command to its canonical Tauri namespace
@@ -44,12 +68,13 @@ export class TauriHostAdapter implements IHostBridge {
   async invoke<T = any>(cmd: string, args?: Record<string, unknown> | any): Promise<T> {
     const tauriCmd = this.resolveTauriCommand(cmd);
     const tauri = this.getTauri();
+    const cleanArgs = this.normalizeArgs(args);
     if (tauri?.core?.invoke) {
-      return await tauri.core.invoke(tauriCmd, args || {});
+      return await tauri.core.invoke(tauriCmd, cleanArgs);
     }
     // Fallback for mock/test environments
     if ((global as any).__tauriMockInvoke) {
-      return await (global as any).__tauriMockInvoke(tauriCmd, args);
+      return await (global as any).__tauriMockInvoke(tauriCmd, cleanArgs);
     }
     throw new Error(
       `[TauriHostAdapter] Tauri runtime not detected for invoking '${cmd}' (mapped to '${tauriCmd}')`
@@ -59,8 +84,18 @@ export class TauriHostAdapter implements IHostBridge {
   async invokeBinary(cmd: string, args?: Record<string, unknown> | any): Promise<Uint8Array> {
     const tauriCmd = this.resolveTauriCommand(cmd);
     const tauri = this.getTauri();
+    const cleanArgs = this.normalizeArgs(args);
     if (tauri?.core?.invoke) {
-      const res = await tauri.core.invoke(tauriCmd, args || {});
+      const res = await tauri.core.invoke(tauriCmd, cleanArgs);
+      if (res instanceof Uint8Array) return res;
+      if (res instanceof ArrayBuffer) return new Uint8Array(res);
+      if (typeof Buffer !== "undefined" && Buffer.isBuffer(res)) {
+        return new Uint8Array(res.buffer, res.byteOffset, res.byteLength);
+      }
+      return new Uint8Array(res);
+    }
+    if ((global as any).__tauriMockInvoke) {
+      const res = await (global as any).__tauriMockInvoke(tauriCmd, cleanArgs);
       if (res instanceof Uint8Array) return res;
       if (res instanceof ArrayBuffer) return new Uint8Array(res);
       if (typeof Buffer !== "undefined" && Buffer.isBuffer(res)) {

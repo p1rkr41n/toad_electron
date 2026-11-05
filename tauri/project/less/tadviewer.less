@@ -1,0 +1,360 @@
+@import "~normalize.css";
+@import "~@blueprintjs/core/lib/less/variables.less";
+@import "~@blueprintjs/core/lib/css/blueprint.css";
+@import "~@blueprintjs/icons/lib/css/blueprint-icons.css";
+@import "~@blueprintjs/popover2/lib/css/blueprint-popover2.css";
+
+.toad-app-pane,
+.tad-app-pane {
+  font-family: var(--toad-font-family, var(--tad-font-family, "Helvetica Neue", Helvetica, Arial, sans-serif));
+  font-size: var(--toad-font-size, var(--tad-font-size, 8pt));
+  margin: 0;
+  font-weight: 400;
+  height: 100%;
+  overflow: hidden;
+}
+
+
+.cell-story {
+  white-space: normal !important;
+  line-height: 19px !important;
+}
+
+.loading-spinner {
+  background: rgba(0, 0, 0, 0.6);
+  border: none;
+}
+
+.loading-indicator {
+  display: inline-block;
+  padding: 12px;
+  background: white;
+  -opacity: 0.5;
+  color: black;
+  font-weight: bold;
+  z-index: 9999;
+  border: 1px solid red;
+  border-radius: 10px;
+  -moz-border-radius: 10px;
+  -webkit-border-radius: 10px;
+  box-shadow: 0 0 5px red;
+  -moz-box-shadow: 0 0 5px red;
+  -webkit-box-shadow: 0px 0px 5px red;
+  -text-shadow: 1px 1px 1px white;
+}
+
+.loading-indicator label {
+  padding-left: 20px;
+  background: url("~slickgrid-es6/images/ajax-loader-small.gif") no-repeat
+    center left;
+}
+
+.pivot-column {
+  /*  background: white; */
+  border: none;
+  border-right: 1px dotted silver;
+}
+
+.pivot-column.active {
+  border-color: none;
+  border-style: none;
+  border-right: 1px dotted silver;
+  border-top: 1px dotted silver;
+  border-bottom: 1px dotted silver;
+}
+
+.data-cell-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+
+.bp4-label,
+.bp4-control {
+  font-size: 10pt;
+}
+
+.full-height {
+  height: 100%;
+}
+
+.no-pad {
+  padding: 0;
+}
+
+.main-container {
+  display: flex;
+  flex-wrap: nowrap;
+  padding: 0;
+}
+
+.grid-aggregate-row {
+  font-weight: 600;
+}
+
+.gridPaneOuter {
+  flex: 1 1 auto;
+  height: 100%;
+  overflow: hidden;
+  min-width: 0;
+}
+.gridPaneInner {
+  width: 100%;
+  height: 100%;
+}
+
+.columnHeaderCell {
+  width: 100%;
+  height: 100%;
+}
+
+.columnHeaderCell rect {
+  fill: steelblue;
+  shape-rendering: crispEdges;
+}
+
+#epGrid {
+  border-left: 1px solid #c0c0c0;
+  width: 100%;
+  height: 100%;
+}
+
+.ui-subtext {
+  font-weight: normal;
+  font-size: 8pt;
+}
+
+.ui-block {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+table {
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+.table-hover > tbody > tr:hover {
+  background-color: #f5f5f5;
+}
+.table > thead > tr > th,
+.table > thead > tr > td,
+.table > tbody > tr > td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-top: 1px solid #ddd;
+}
+
+.center-app-pane {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   Center Loading, Empty & Error Panes (Multiple Loading v1.3.10)
+   ========================================================================== */
+
+.center-loading-pane,
+.center-empty-pane,
+.center-error-pane {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: #f8fafc;
+}
+
+.main-loading-card,
+.main-empty-card,
+.main-error-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 48px;
+  max-width: 520px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.02);
+  border: 1px solid #e2e8f0;
+}
+
+.main-loading-spinner-wrap {
+  margin-bottom: 20px;
+}
+
+.main-loading-title,
+.main-empty-title,
+.main-error-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.main-error-title {
+  color: #ef4444;
+}
+
+.main-loading-subtitle,
+.main-empty-desc,
+.main-error-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 20px 0;
+  line-height: 1.5;
+}
+
+.main-loading-progress-wrap {
+  width: 100%;
+  min-width: 320px;
+}
+
+.main-loading-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.main-loading-hint {
+  margin-top: 18px;
+  font-size: 11.5px;
+  color: #64748b;
+  font-style: italic;
+  max-width: 440px;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Google Material Design 3 Native Dark & Light Theme System (Toad v2.1)
+   Replaces legacy CSS Inversion Filter with First-Class Semantic Design Tokens
+   ========================================================================== */
+
+:root {
+  /* Google Material 3 Light Baseline Tokens */
+  --md-sys-color-surface: #ffffff;
+  --md-sys-color-surface-dim: #f8fafc;
+  --md-sys-color-surface-container-low: #f8fafc;
+  --md-sys-color-surface-container: #f1f5f9;
+  --md-sys-color-surface-container-high: #ffffff;
+  --md-sys-color-on-surface: #1f1f1f;
+  --md-sys-color-on-surface-variant: #444746;
+  --md-sys-color-outline: #747775;
+  --md-sys-color-outline-variant: #c4c7c5;
+  --md-sys-color-primary: #1a73e8; /* Google Blue */
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-secondary: #00796b;
+  --md-sys-color-tertiary: #b06000; /* Google Amber */
+  --md-sys-color-error: #ba1a1a;
+  --toad-col-auto-str: #b45309;
+  --toad-grid-row-even: #ffffff;
+  --toad-grid-row-odd: #f8fafc;
+  --toad-grid-header: #f1f5f9;
+  --toad-scrollbar-thumb: #cbd5e1;
+}
+
+html.toad-dark,
+html.bp4-dark,
+body.toad-dark,
+body.bp4-dark {
+  /* Google Material 3 Dark Baseline Ergonomic Slate Tokens */
+  --md-sys-color-surface: #1e1f24; /* M3 Dark baseline */
+  --md-sys-color-surface-dim: #18181c; /* Deepest canvas - gentle ergonomic slate (replaces OLED #0e0f12) */
+  --md-sys-color-surface-container-low: #1b1c21; /* Inner container & sidebar canvas */
+  --md-sys-color-surface-container: #25262c; /* Elevated container & ActivityBar */
+  --md-sys-color-surface-container-high: #2d2f36; /* Modal / Dialog surface */
+  --md-sys-color-on-surface: #e3e3e8; /* 87% High Emphasis */
+  --md-sys-color-on-surface-variant: #9da1b0; /* 60% Medium Emphasis */
+  --md-sys-color-outline: #8e9099;
+  --md-sys-color-outline-variant: #3c3e47;
+  --md-sys-color-primary: #8ab4f8; /* Google Blue Dark */
+  --md-sys-color-primary-container: #1f385c;
+  --md-sys-color-on-primary: #041e49;
+  --md-sys-color-secondary: #80cbc4;
+  --md-sys-color-tertiary: #fdd663; /* Google Amber Dark */
+  --md-sys-color-error: #f28b82;
+  --toad-col-auto-str: #fdd663; /* Soft Gold for str001 in Dark Mode */
+  --toad-grid-row-even: #1e1f24;
+  --toad-grid-row-odd: #23252b;
+  --toad-grid-header: #25262c;
+  --toad-scrollbar-thumb: #3c3e47;
+
+  background-color: var(--md-sys-color-surface-dim) !important;
+  color: var(--md-sys-color-on-surface) !important;
+}
+
+/* Material 3 Custom Dark Scrollbars */
+html.toad-dark ::-webkit-scrollbar,
+html.bp4-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.toad-dark ::-webkit-scrollbar-track,
+html.bp4-dark ::-webkit-scrollbar-track {
+  background: var(--md-sys-color-surface-dim);
+}
+
+html.toad-dark ::-webkit-scrollbar-thumb,
+html.bp4-dark ::-webkit-scrollbar-thumb {
+  background: var(--toad-scrollbar-thumb);
+  border-radius: 4px;
+}
+
+html.toad-dark ::-webkit-scrollbar-thumb:hover,
+html.bp4-dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--md-sys-color-outline);
+}
+
+/* Smooth background transition */
+html, body, .toad-app-pane, .tad-app-pane {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ==========================================================================
+   Google Material 3 Dark Theme for Center Cards & Grid Borders (Toad v2.3.2)
+   ========================================================================== */
+.bp4-dark, .toad-dark {
+  #epGrid {
+    border-left-color: var(--md-sys-color-outline-variant, #3c3e47) !important;
+  }
+
+  .center-loading-pane,
+  .center-empty-pane,
+  .center-error-pane {
+    background-color: var(--md-sys-color-surface-dim, #18181c) !important;
+  }
+
+  .main-loading-card,
+  .main-empty-card,
+  .main-error-card {
+    background: var(--md-sys-color-surface-container, #25262c) !important;
+    border-color: var(--md-sys-color-outline-variant, #3c3e47) !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  .main-loading-title,
+  .main-empty-title {
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+  }
+
+  .main-loading-subtitle,
+  .main-empty-desc,
+  .main-loading-progress-stats,
+  .main-loading-hint {
+    color: var(--md-sys-color-on-surface-variant, #9da1b0) !important;
+  }
+}
+

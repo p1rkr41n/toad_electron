@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": false,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["src/*"],
+      "path": ["node_modules/path-browserify"],
+      "toadviewer/*": ["src/*"],
+      "toadviewer": ["src/toadviewer.ts"],
+      "reltab": ["../../tad-master/packages/reltab/src/reltab.ts"],
+      "reltab/*": ["../../tad-master/packages/reltab/src/*"],
+      "aggtree": ["../../tad-master/packages/aggtree/src/aggtree.ts"],
+      "aggtree/*": ["../../tad-master/packages/aggtree/src/*"],
+      "host-bridge": ["../../tad-master/packages/host-bridge/src/index.ts"],
+      "host-bridge/*": ["../../tad-master/packages/host-bridge/src/*"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}

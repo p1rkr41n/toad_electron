@@ -1,4 +1,4 @@
-import _ = require("lodash");
+import * as _ from "lodash";
 import { ColumnType } from "./ColumnType";
 import { SQLDialect, ensureDialectColumnType } from "./dialect";
 import { dialects } from "./dialectRegistry";

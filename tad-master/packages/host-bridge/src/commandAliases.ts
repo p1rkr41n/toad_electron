@@ -48,6 +48,12 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   "toad:run_sql_arrow": "DataSourceConnection.runSqlQueryArrow",
   "toad:get_table_name": "DataSourceConnection.getTableName",
   "getTableName": "DataSourceConnection.getTableName",
+
+  // Forensics & Ingestion Commands
+  "toad:ingest_file": "ingest_file",
+  "toad:ingest_cancel": "ingest_cancel",
+  "toad:ingest_vip": "ingest_vip",
+  "toad:get_ingest_queue": "get_ingest_queue",
 };
 
 /**
@@ -58,4 +64,9 @@ export const REVERSE_COMMAND_ALIAS_MAP: Record<string, string> = Object.entries(
 ).reduce((acc, [tauriCmd, legacyCmd]) => {
   acc[legacyCmd] = tauriCmd;
   return acc;
-}, {} as Record<string, string>);
+}, {
+  ingestFile: "toad:ingest_file",
+  cancelIngest: "toad:ingest_cancel",
+  prioritizeIngest: "toad:ingest_vip",
+  getIngestQueue: "toad:get_ingest_queue",
+} as Record<string, string>);

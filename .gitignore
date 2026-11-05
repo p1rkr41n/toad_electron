@@ -10,6 +10,7 @@ buildRes/
 target/
 **/target/
 *.exe
+*.dll
 *.zip
 *.7z
 *.7z.*

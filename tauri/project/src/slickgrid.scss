@@ -1,0 +1,263 @@
+@import "~slickgrid-es6/dist/slick.grid.variables.scss";
+@import "~slickgrid-es6/dist/slick.grid.scss";
+@import "~slickgrid-es6/dist/slick-default-theme.scss";
+
+/* --- TOAD Hover-to-Sort Header Styles --- */
+.slick-header-column {
+  position: relative;
+  user-select: none;
+
+  /* Hide default slick-sort-indicator in favor of our modern hover sort button */
+  .slick-sort-indicator {
+    display: none !important;
+  }
+
+  .slick-column-name {
+    padding-right: 22px;
+  }
+
+  .toad-header-sort-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #8a9ba8;
+    opacity: 0;
+    font-size: 11px;
+    line-height: 1;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    z-index: 10;
+
+    &:hover {
+      background: #106ba3 !important;
+      border-color: #0e5a8a !important;
+      color: #ffffff !important;
+    }
+  }
+
+  &:hover .toad-header-sort-btn {
+    opacity: 1;
+    background: rgba(16, 107, 163, 0.12);
+    border-color: rgba(16, 107, 163, 0.25);
+    color: #106ba3;
+  }
+
+  &.slick-header-column-sorted {
+    .toad-header-sort-btn {
+      opacity: 1 !important;
+      color: #106ba3;
+      font-weight: bold;
+      background: rgba(16, 107, 163, 0.15);
+      border-color: #106ba3;
+    }
+  }
+}
+
+/* --- TOAD Large Column Virtual Containment & Fast Reflow (v2.0.5) --- */
+.slick-cell {
+  contain: strict;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* --- TOAD Resizer Handle Styling & Hover Drag Line (Stream 5) --- */
+.slick-header-column .slick-resizable-handle {
+  width: 6px !important;
+  right: -3px !important;
+  z-index: 12 !important;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    width: 2px;
+    background: transparent;
+    transition: background-color 0.15s ease;
+  }
+
+  &:hover::after,
+  &.slick-resizable-handle-hover::after {
+    background-color: rgba(2, 132, 199, 0.75) !important;
+  }
+}
+
+/* Global Cursor during column drag */
+body.col-resizing,
+body.col-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+
+/* --- TOAD Floating In-Place Active Cell Wrap (Stream 4 & 5) --- */
+.slick-row.slick-row-has-expanded,
+.slick-row.slick-row-active-expanded {
+  overflow: visible !important;
+  z-index: 25 !important;
+}
+
+.slick-cell.slick-cell-active-expanded {
+  position: absolute !important;
+  z-index: 20 !important;
+  contain: none !important; /* CRITICAL: overrides contain: strict! */
+  min-height: 24px;
+  overflow-x: hidden !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #0284c7 !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
+  border-radius: 3px;
+  padding: 3px 6px !important;
+  box-sizing: border-box !important;
+
+  /* Custom Slim Scrollbars (4px, 2px radius) */
+  &::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.5);
+    border-radius: 2px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(100, 116, 139, 0.8);
+  }
+}
+
+/* Modal Overlay Active Cell Suppression (Squad 3: E11 & Squad 5: E17) */
+body.bp4-overlay-open {
+  .slick-cell.active,
+  .slick-row.active,
+  .slick-cell.selected {
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
+    border-color: transparent !important;
+  }
+  .slick-cell-active-expanded,
+  .slick-row-has-expanded,
+  .slick-row-active-expanded {
+    display: none !important;
+  }
+}
+
+/* --- TOAD Google Material 3 Dark Theme for SlickGrid (v2.1) --- */
+.toad-dark, .bp4-dark {
+
+  .slick-header.ui-state-default,
+  .slick-header-columns {
+    background: var(--md-sys-color-surface-container, #25262c) !important;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant, #3c3e47) !important;
+  }
+
+  .slick-header-column.ui-state-default {
+    background: var(--md-sys-color-surface-container, #25262c) !important;
+    border-right: 1px solid var(--md-sys-color-outline-variant, #3c3e47) !important;
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+
+    .slick-column-name {
+      color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+      font-weight: 600;
+    }
+
+    &:hover {
+      background: var(--md-sys-color-surface-container-high, #2d2f36) !important;
+    }
+  }
+
+  .grid-canvas {
+    background: var(--md-sys-color-surface-dim, #18181c) !important;
+  }
+
+  /* Override hardcoded #D6D7D6 border and white cell background with soft M3 lines */
+  .slickgrid-container .slick-row {
+    border-top: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-left: none !important;
+    border-right: none !important;
+  }
+
+  .slickgrid-container .slick-row .slick-cell,
+  .slickgrid-container .slick-row.odd .slick-cell {
+    background: transparent !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-bottom: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+  }
+
+  .slick-row {
+    background: var(--toad-grid-row-even, #1e1f24) !important;
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+
+    &.odd {
+      background: var(--toad-grid-row-odd, #23252b) !important;
+    }
+
+    &:hover,
+    &:hover .slick-cell,
+    &:hover .slick-cell-expand-col {
+      background: rgba(138, 180, 248, 0.08) !important;
+    }
+
+    &.active,
+    &.active .slick-cell,
+    &.active .slick-cell-expand-col {
+      background: rgba(138, 180, 248, 0.16) !important;
+    }
+  }
+
+  .slickgrid-container .slick-row .slick-cell.selected {
+    background-color: rgba(138, 180, 248, 0.22) !important;
+    outline: 1px solid var(--md-sys-color-primary, #8ab4f8);
+  }
+
+  .slick-viewport {
+    background: var(--md-sys-color-surface-dim, #18181c) !important;
+  }
+
+  /* --- Dark Theme Overrides for Resizers & Floating Cell Wrap (Stream 5) --- */
+  .slick-header-column .slick-resizable-handle:hover::after,
+  .slick-header-column .slick-resizable-handle.slick-resizable-handle-hover::after {
+    background-color: rgba(56, 189, 248, 0.85) !important;
+  }
+
+  .slick-row.slick-row-has-expanded,
+  .slick-row.slick-row-active-expanded {
+    z-index: 25 !important;
+    overflow: visible !important;
+  }
+
+  .slick-cell.slick-cell-active-expanded {
+    background: var(--md-sys-color-surface-container-high, #25262c) !important;
+    border: 1px solid var(--md-sys-color-primary, #38bdf8) !important;
+    color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.3);
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.6);
+    }
+  }
+}

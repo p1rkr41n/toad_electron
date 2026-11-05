@@ -3,6 +3,7 @@ import { default as ReactDefault, useEffect, useRef, useCallback } from "react";
 import _ from "lodash";
 import { ActivityBar } from "./ActivityBar";
 import { PivotSidebar } from "./PivotSidebar";
+import { getHostBridge } from "host-bridge";
 import { DataSourceSidebar } from "./DataSourceSidebar";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
@@ -513,7 +514,6 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
   useEffect(() => {
     let bridge: any = null;
     try {
-      const { getHostBridge } = require("host-bridge");
       bridge = getHostBridge();
     } catch {}
 

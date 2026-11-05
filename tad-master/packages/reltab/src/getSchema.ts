@@ -19,7 +19,7 @@ import { Schema, ColumnMetadata } from "./Schema";
 import { ColumnExtendExp, safeJsonReplacer } from "./defs";
 import { LeafSchemaMap } from "./TableRep";
 import { ColumnType } from "./ColumnType";
-import _ = require("lodash");
+import * as _ from "lodash";
 
 const sqlGetSchema = (
   dialect: SQLDialect,
