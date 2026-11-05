@@ -1,6 +1,6 @@
 [package]
 name = "toad"
-version = "2.5.1"
+version = "2.5.2"
 description = "Toad Data Analyzer"
 authors = ["HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>"]
 edition = "2021"

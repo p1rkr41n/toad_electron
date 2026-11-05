@@ -102,6 +102,28 @@ function main() {
     updatePackageJson(viewerRel, targetVersion);
   }
 
+  // 1.1 Tauri files
+  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/package.json"))) {
+    updatePackageJson("tauri/project/package.json", targetVersion);
+  }
+  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/Cargo.toml"))) {
+    updateFile("tauri/project/src-tauri/Cargo.toml", (content) => {
+      return content.replace(/^version = "[\d\.]+"/m, `version = "${targetVersion}"`);
+    });
+  }
+  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/tauri.conf.json"))) {
+    updateFile("tauri/project/src-tauri/tauri.conf.json", (content) => {
+      return content.replace(/"version": "[\d\.]+"/, `"version": "${targetVersion}"`);
+    });
+  }
+  if (fs.existsSync(path.join(ROOT_DIR, "PROJECT.md"))) {
+    updateFile("PROJECT.md", (content) => {
+      return content
+        .replace(/Toad v[\d\.]+/g, `Toad v${targetVersion}`)
+        .replace(/Toad-[\d\.]+-x64-portable\.exe/g, `Toad-${targetVersion}-x64-portable.exe`);
+    });
+  }
+
   // 2. RegexDialog.tsx
   const regexDialogRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"))
     ? "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"
@@ -149,20 +171,18 @@ function main() {
   updateFile("tests/deep_integration_qa.js", (content) => {
     let res = content;
     if (!res.includes(`"${targetVersion}"`)) {
-      res = res.replace(/(pkgApp\.version === "2\.5\.0\.5")/g, `$1 || pkgApp.version === "${targetVersion}"`);
-      res = res.replace(/(pkgBridge\.version === "2\.5\.0\.5")/g, `$1 || pkgBridge.version === "${targetVersion}"`);
-      res = res.replace(/(pkgDuck\.version === "2\.5\.0\.5")/g, `$1 || pkgDuck.version === "${targetVersion}"`);
-      res = res.replace(/(pkgViewer\.version === "2\.5\.0\.5")/g, `$1 || pkgViewer.version === "${targetVersion}"`);
-      res = res.replace(/(dialogSrc\.includes\("v2\.5\.0\.5"\))/g, `$1 || dialogSrc.includes("v${targetVersion}")`);
-      res = res.replace(/(dialogContent\.includes\("v2\.5\.0\.5"\))/g, `$1 || dialogContent.includes("v${targetVersion}")`);
-      res = res.replace(/(includes\("v2\.5\.0\.4"\)\.replace\("v2\.5\.0\.4", "v2\.5\.0\.5"\))/g, `$1 || includes("v2.5.0.4").replace("v2.5.0.4", "v${targetVersion}")`);
-      res = res.replace(/(v === "2\.5\.0\.4")/g, `$1 || v === "${targetVersion}"`);
-      res = res.replace(/(v === "2\.5\.0\.5")/g, `$1 || v === "${targetVersion}"`);
-      res = res.replace(/(distPs1\.includes\("Toad-2\.5\.0\.5-x64-portable\.exe"\))/g, `$1 || distPs1.includes("Toad-${targetVersion}-x64-portable.exe")`);
-      res = res.replace(/(pkgPs1\.includes\('"2\.5\.0\.5"'\))/g, `$1 || pkgPs1.includes('"${targetVersion}"')`);
-      res = res.replace(/(readmeSrc\.includes\("Toad \(v2\.5\.0\.5\)"\))/g, `$1 || readmeSrc.includes("Toad (v${targetVersion})")`);
-      res = res.replace(/(readmeSrc\.includes\("Version-2\.5\.0"\))/g, `$1 || readmeSrc.includes("Version-${targetVersion}")`);
-      res = res.replace(/(wingetYaml\.includes\("PackageVersion: 2\.5\.0\.5"\))/g, `$1 || wingetYaml.includes("PackageVersion: ${targetVersion}")`);
+      res = res.replace(/(pkgApp\.version === "2\.5\.1")/g, `$1 || pkgApp.version === "${targetVersion}"`);
+      res = res.replace(/(pkgBridge\.version === "2\.5\.1")/g, `$1 || pkgBridge.version === "${targetVersion}"`);
+      res = res.replace(/(pkgDuck\.version === "2\.5\.1")/g, `$1 || pkgDuck.version === "${targetVersion}"`);
+      res = res.replace(/(pkgViewer\.version === "2\.5\.1")/g, `$1 || pkgViewer.version === "${targetVersion}"`);
+      res = res.replace(/(dialogSrc\.includes\("v2\.5\.1"\))/g, `$1 || dialogSrc.includes("v${targetVersion}")`);
+      res = res.replace(/(dialogContent\.includes\("v2\.5\.1"\))/g, `$1 || dialogContent.includes("v${targetVersion}")`);
+      res = res.replace(/(v === "2\.5\.1")/g, `$1 || v === "${targetVersion}"`);
+      res = res.replace(/(distPs1\.includes\("Toad-2\.5\.1-x64-portable\.exe"\))/g, `$1 || distPs1.includes("Toad-${targetVersion}-x64-portable.exe")`);
+      res = res.replace(/(pkgPs1\.includes\('"2\.5\.1"'\))/g, `$1 || pkgPs1.includes('"${targetVersion}"')`);
+      res = res.replace(/(readmeSrc\.includes\("Toad \(v2\.5\.1\)"\))/g, `$1 || readmeSrc.includes("Toad (v${targetVersion})")`);
+      res = res.replace(/(readmeSrc\.includes\("Version-2\.5\.1"\))/g, `$1 || readmeSrc.includes("Version-${targetVersion}")`);
+      res = res.replace(/(wingetYaml\.includes\("PackageVersion: 2\.5\.1"\))/g, `$1 || wingetYaml.includes("PackageVersion: ${targetVersion}")`);
     }
     return res;
   });
