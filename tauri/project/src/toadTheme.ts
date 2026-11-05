@@ -8,16 +8,24 @@ export const getActiveTheme = (): ToadTheme => {
     if (saved === "dark") return "dark";
     if (saved === "light") return "light";
   } catch {}
-  // Default to light mode out of the box for clean forensic analysis
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    return "dark";
+  }
   return "light";
 };
 
-export const applyTheme = (theme: ToadTheme) => {
-  try {
-    localStorage.setItem("toad-theme-v2", theme);
-    // Clean up legacy key to prevent stale state across updates
-    localStorage.removeItem("toad-theme");
-  } catch {}
+export const applyTheme = (theme: ToadTheme, persist: boolean = true) => {
+  if (persist) {
+    try {
+      localStorage.setItem("toad-theme-v2", theme);
+      // Clean up legacy key to prevent stale state across updates
+      localStorage.removeItem("toad-theme");
+    } catch {}
+  }
   if (typeof document !== "undefined") {
     const isDark = theme === "dark" || theme === "dracula";
     if (isDark) {
@@ -26,6 +34,13 @@ export const applyTheme = (theme: ToadTheme) => {
     } else {
       document.documentElement.classList.remove("toad-dark", "bp4-dark", "theme-dracula");
       document.body.classList.remove("toad-dark", "bp4-dark", "theme-dracula");
+    }
+    if (typeof window !== "undefined" && (window as any).__TAURI__) {
+      try {
+        import("@tauri-apps/api/window").then(({ getCurrentWindow }) => {
+          getCurrentWindow().setTheme(isDark ? "dark" : "light").catch(() => {});
+        }).catch(() => {});
+      } catch {}
     }
   }
 };
@@ -45,7 +60,14 @@ export const toggleActiveTheme = (): ToadTheme => {
 export const useToadTheme = (): [ToadTheme, () => void] => {
   const [theme, setTheme] = useState<ToadTheme>(() => {
     const t = getActiveTheme();
-    applyTheme(t);
+    const hasExplicit = (() => {
+      try {
+        return !!localStorage.getItem("toad-theme-v2");
+      } catch {
+        return false;
+      }
+    })();
+    applyTheme(t, hasExplicit);
     return t;
   });
 
@@ -67,6 +89,13 @@ export const useToadTheme = (): [ToadTheme, () => void] => {
 if (typeof window !== "undefined" && typeof document !== "undefined") {
   try {
     const initialTheme = getActiveTheme();
-    applyTheme(initialTheme);
+    const hasExplicit = (() => {
+      try {
+        return !!localStorage.getItem("toad-theme-v2");
+      } catch {
+        return false;
+      }
+    })();
+    applyTheme(initialTheme, hasExplicit);
   } catch {}
 }

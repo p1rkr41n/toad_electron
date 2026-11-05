@@ -70,6 +70,10 @@ export class ProjectWorkspaceManager {
   private cachedProjects: ProjectWorkspaceProject[] = [];
   private activeProjectId: string = "";
 
+  public getActiveProjectId(): string {
+    return this.activeProjectId;
+  }
+
   public static getInstance(): ProjectWorkspaceManager {
     if (!ProjectWorkspaceManager.instance) {
       ProjectWorkspaceManager.instance = new ProjectWorkspaceManager();

@@ -100,6 +100,104 @@ async function bootstrap() {
       ProjectWorkspaceManager.getInstance().notify();
     });
 
+    // =========================================================================
+    // Native Drag-and-Drop Ingestion for Tauri v2 (Requirement R3)
+    // =========================================================================
+    const handleNativeFileDrop = async (rawPaths: string[]) => {
+      if (!rawPaths || !Array.isArray(rawPaths) || rawPaths.length === 0) return;
+
+      const supportedExts = new Set([".csv", ".tsv", ".parquet", ".json", ".evtx"]);
+      const validPaths = rawPaths.filter((p) => {
+        if (!p || typeof p !== "string") return false;
+        const lastDot = p.lastIndexOf(".");
+        if (lastDot === -1) return false;
+        const ext = p.substring(lastDot).toLowerCase();
+        return supportedExts.has(ext);
+      });
+
+      if (validPaths.length === 0) return;
+
+      try {
+        const pwManager = ProjectWorkspaceManager.getInstance();
+        const ws = await pwManager.getWorkspace();
+        let activeProjectId = ws.activeProjectId || (ws.projects && ws.projects[0]?.projectId);
+        if (!activeProjectId) {
+          activeProjectId = await pwManager.createProject("Untitled-1");
+        }
+
+        // 1. Add files to active project catalog
+        await pwManager.addFilesToProject(activeProjectId, validPaths);
+
+        // 2. Trigger background ingestion
+        for (const p of validPaths) {
+          try {
+            if (bridge && typeof bridge.invoke === "function") {
+              bridge.invoke("toad:ingest_file", { filePath: p, projectId: activeProjectId }).catch(() => {});
+            }
+          } catch {}
+        }
+
+        // 3. Automatically open the first dropped file in Main DataGrid
+        const firstFile = validPaths[0];
+        const dsPath: DataSourcePath = {
+          sourceId: { providerName: "localfs", resourceId: firstFile },
+          path: ["."],
+        };
+        await actions.openDataSourcePath(dsPath, stateRef);
+      } catch (dropErr) {
+        console.error("[main.tsx] Error handling native dropped files:", dropErr);
+      }
+    };
+
+    const onDropPayload = (payload: any) => {
+      let paths: string[] = [];
+      if (Array.isArray(payload)) {
+        paths = payload;
+      } else if (payload && Array.isArray(payload.paths)) {
+        paths = payload.paths;
+      } else if (payload && payload.type === "drop" && Array.isArray(payload.paths)) {
+        paths = payload.paths;
+      }
+      if (paths.length > 0) {
+        handleNativeFileDrop(paths);
+      }
+    };
+
+    // Register Tauri v2 native drag-drop listeners
+    try {
+      bridge.onEvent("tauri://drag-drop", (payload: any) => {
+        onDropPayload(payload);
+      });
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("dragover", (e) => e.preventDefault(), false);
+      window.addEventListener("drop", (e) => e.preventDefault(), false);
+
+      if ((window as any).__TAURI__) {
+        try {
+          import("@tauri-apps/api/webviewWindow").then(({ getCurrentWebviewWindow }) => {
+            const win = getCurrentWebviewWindow();
+            if (win && typeof win.onDragDropEvent === "function") {
+              win.onDragDropEvent((event) => {
+                if (event.payload.type === "drop") {
+                  onDropPayload(event.payload.paths);
+                }
+              });
+            }
+          }).catch(() => {});
+        } catch {}
+
+        try {
+          import("@tauri-apps/api/event").then(({ listen }) => {
+            listen("tauri://drag-drop", (event: any) => {
+              onDropPayload(event.payload);
+            });
+          }).catch(() => {});
+        } catch {}
+      }
+    }
+
     const container = document.getElementById("app") || document.getElementById("root");
     if (container) {
       const root = ReactDOM.createRoot(container);

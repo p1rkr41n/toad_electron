@@ -103,34 +103,34 @@ const defaultAppStateProps: AppStateProps = {
   viewConfirmDialogOpen: false,
   viewConfirmSourcePath: null,
   appLoadingTimer: new Timer(),
-  activity: "None",
+  activity: "DataSource",
   showRecordCount: true,
   ingestProgress: defaultIngestProgressInfo,
   activeLoadingFile: null,
 };
 
 export class AppState extends Immutable.Record(defaultAppStateProps) {
-  public readonly initialized!: boolean; // Has main process initialization completed?
+  public readonly declare initialized: boolean; // Has main process initialization completed?
 
-  public readonly windowTitle!: string; // Usually just the table name or file name
+  public readonly declare windowTitle: string; // Usually just the table name or file name
 
-  public readonly rtc!: reltab.ReltabConnection;
+  public readonly declare rtc: reltab.ReltabConnection;
 
-  public readonly viewState!: ViewState;
-  public readonly regexDialogOpen!: boolean;
-  public readonly parseTargetCol!: string | null;
-  public readonly exportBeginDialogOpen!: boolean;
-  public readonly exportProgressDialogOpen!: boolean;
-  public readonly exportFormat!: ExportFormat;
-  public readonly exportPath!: string;
-  public readonly exportPathBaseName!: string;
-  public readonly exportPercent!: number;
-  public readonly viewConfirmDialogOpen!: boolean;
-  public readonly viewConfirmSourcePath!: DataSourcePath | null;
-  public readonly appLoadingTimer!: Timer;
-  public readonly activity!: Activity;
-  public readonly showRecordCount!: boolean;
-  public readonly ingestProgress!: IngestProgressInfo;
-  public readonly activeLoadingFile!: ActiveLoadingFileInfo | null;
+  public readonly declare viewState: ViewState;
+  public readonly declare regexDialogOpen: boolean;
+  public readonly declare parseTargetCol: string | null;
+  public readonly declare exportBeginDialogOpen: boolean;
+  public readonly declare exportProgressDialogOpen: boolean;
+  public readonly declare exportFormat: ExportFormat;
+  public readonly declare exportPath: string;
+  public readonly declare exportPathBaseName: string;
+  public readonly declare exportPercent: number;
+  public readonly declare viewConfirmDialogOpen: boolean;
+  public readonly declare viewConfirmSourcePath: DataSourcePath | null;
+  public readonly declare appLoadingTimer: Timer;
+  public readonly declare activity: Activity;
+  public readonly declare showRecordCount: boolean;
+  public readonly declare ingestProgress: IngestProgressInfo;
+  public readonly declare activeLoadingFile: ActiveLoadingFileInfo | null;
 }
 

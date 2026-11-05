@@ -1,0 +1,19 @@
+﻿PackageIdentifier: HelloKittyXamKinLung.Pulex
+PackageVersion: 3.0.0-beta
+PackageName: Pulex
+Publisher: HelloKittyXamKinLung
+License: MIT
+ShortDescription: High-Performance Tabular Data & Security Log Analyzer
+Tags:
+  - csv
+  - parquet
+  - duckdb
+  - security
+  - forensic
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v3.0.0-beta/Pulex-3.0.0-beta-x64-portable.exe
+    InstallerSha256: 5ED229B1D2C3A44A7C45D5C48E04014CF990ADBDFCF42092C6F04504A09221A1
+ManifestType: singleton
+ManifestVersion: 1.6.0

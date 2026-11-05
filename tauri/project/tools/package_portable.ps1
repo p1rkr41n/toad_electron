@@ -1,20 +1,20 @@
 <#
 .SYNOPSIS
-    Production Packaging Script for Toad Tauri v2 (Milestone 7)
+    Production Packaging Script for Pulex Tauri v2 (Milestone 7)
     Standard: HelloKittyXamKinLung Indie Release Pipeline
 
 .DESCRIPTION
     1. Builds Vite 5 production frontend bundle (`npm run build`).
     2. Compiles optimized Rust core (`cargo build --release`).
     3. Validates footprint gate (< 50MB).
-    4. Creates dual distribution (`Toad-2.5.2-x64-portable.exe` + `Toad-2.5.2-x64-portable.zip`).
+    4. Creates dual distribution (`Pulex-3.0.0-beta-x64-portable.exe` + `Pulex-3.0.0-beta-x64-portable.zip`).
     5. Enforces Zero-Duplicate Binary storage policy.
     6. Generates SHA256SUMS.txt cryptographic checksums and Winget manifest.
-    7. Deploys canonical executable to project root `Toad.exe`.
+    7. Deploys canonical executable to project root `Pulex.exe`.
 #>
 
 param (
-    [string]$AppName = "Toad",
+    [string]$AppName = "Pulex",
     [string]$Version = "3.0.0-beta",
     [string]$Publisher = "HelloKittyXamKinLung"
 )
@@ -35,7 +35,7 @@ $tauriReleasesDir = "$tauriProjectDir\releases"
 $rootReleasesDir = "$projectRoot\releases"
 
 Write-Output "======================================================================"
-Write-Output "  TOAD TAURI v2 PRODUCTION PORTABLE PACKAGING PIPELINE"
+Write-Output "  PULEX TAURI v2 PRODUCTION PORTABLE PACKAGING PIPELINE"
 Write-Output "  App: $AppName | Version: $Version | Publisher: $Publisher"
 Write-Output "======================================================================"
 
@@ -52,8 +52,12 @@ Write-Output "           Frontend bundle verified in dist/"
 Write-Output "[STEP 2/6] Compiling Native Rust Core with cargo build --release..."
 Set-Location $srcTauriDir
 & cargo build --release
-if (-not (Test-Path "$targetReleaseDir\toad.exe")) {
-    throw "ERROR: Target release toad.exe not found!"
+$builtExe = if (Test-Path "$targetReleaseDir\pulex.exe") {
+    "$targetReleaseDir\pulex.exe"
+} elseif (Test-Path "$targetReleaseDir\toad.exe") {
+    "$targetReleaseDir\toad.exe"
+} else {
+    throw "ERROR: Neither pulex.exe nor toad.exe found in $targetReleaseDir!"
 }
 if (-not (Test-Path "$targetReleaseDir\duckdb.dll")) {
     throw "ERROR: duckdb.dll missing from target/release!"
@@ -61,11 +65,11 @@ if (-not (Test-Path "$targetReleaseDir\duckdb.dll")) {
 if (-not (Test-Path "$targetReleaseDir\WebView2Loader.dll")) {
     throw "ERROR: WebView2Loader.dll missing from target/release!"
 }
-Write-Output "           Backend binary and native DLL dependencies verified."
+Write-Output "           Backend binary ($builtExe) and native DLL dependencies verified."
 
 # 3. Footprint Gate Assertion (< 50MB)
 Write-Output "[STEP 3/6] Verifying Footprint Gate (< 50MB)..."
-$exeItem = Get-Item "$targetReleaseDir\toad.exe"
+$exeItem = Get-Item $builtExe
 $duckdbItem = Get-Item "$targetReleaseDir\duckdb.dll"
 $webviewItem = Get-Item "$targetReleaseDir\WebView2Loader.dll"
 $totalMB = [math]::Round(($exeItem.Length + $duckdbItem.Length + $webviewItem.Length) / 1MB, 2)
@@ -84,13 +88,13 @@ foreach ($dir in @($tauriReleasesDir, $rootReleasesDir)) {
     if (-not (Test-Path $dir)) {
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
     }
-    $duplicates = Get-ChildItem -Path $dir -Filter "Toad *.exe" -ErrorAction SilentlyContinue
+    $duplicates = Get-ChildItem -Path $dir -Include "Toad *.exe", "Pulex *.exe" -Recurse:$false -ErrorAction SilentlyContinue
     if ($duplicates.Count -gt 0) {
         Write-Warning "Pruning duplicate historical binaries from $($dir): $($duplicates.Name)"
         $duplicates | Remove-Item -Force
     }
 }
-$rootDuplicates = Get-ChildItem -Path $projectRoot -Filter "Toad *.exe" -ErrorAction SilentlyContinue
+$rootDuplicates = Get-ChildItem -Path $projectRoot -Include "Toad *.exe", "Pulex *.exe" -ErrorAction SilentlyContinue
 if ($rootDuplicates.Count -gt 0) {
     Write-Warning "Pruning duplicate historical binaries from root: $($rootDuplicates.Name)"
     $rootDuplicates | Remove-Item -Force
@@ -102,12 +106,12 @@ $portableExeName = "$AppName-$Version-x64-portable.exe"
 $portableZipName = "$AppName-$Version-x64-portable.zip"
 
 # Create a clean temporary staging directory for zip archive packaging
-$stageDir = Join-Path $env:TEMP "toad_package_stage_$Version"
+$stageDir = Join-Path $env:TEMP "${AppName}_package_stage_$Version"
 if (Test-Path $stageDir) { Remove-Item -Recurse -Force $stageDir }
 New-Item -ItemType Directory -Path $stageDir | Out-Null
 
-Copy-Item "$targetReleaseDir\toad.exe" "$stageDir\Toad.exe"
-Copy-Item "$targetReleaseDir\toad.exe" "$stageDir\$portableExeName"
+Copy-Item $builtExe "$stageDir\$AppName.exe"
+Copy-Item $builtExe "$stageDir\$portableExeName"
 Copy-Item "$targetReleaseDir\duckdb.dll" "$stageDir\duckdb.dll"
 Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$stageDir\WebView2Loader.dll"
 
@@ -120,7 +124,7 @@ Copy-Item $zipDestTauri $zipDestRoot -Force
 # Package portable standalone EXE and companion DLLs in releases
 $exeDestTauri = Join-Path $tauriReleasesDir $portableExeName
 $exeDestRoot = Join-Path $rootReleasesDir $portableExeName
-Copy-Item "$targetReleaseDir\toad.exe" $exeDestTauri -Force
+Copy-Item $builtExe $exeDestTauri -Force
 Copy-Item $exeDestTauri $exeDestRoot -Force
 
 # Copy runtime DLL dependencies to release folders for instant execution
@@ -129,14 +133,14 @@ Copy-Item "$targetReleaseDir\duckdb.dll" "$rootReleasesDir\duckdb.dll" -Force
 Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$tauriReleasesDir\WebView2Loader.dll" -Force
 Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$rootReleasesDir\WebView2Loader.dll" -Force
 
-# Update canonical project root Toad.exe and companion DLLs
+# Update canonical project root $AppName.exe and companion DLLs
 try {
-    Copy-Item "$targetReleaseDir\toad.exe" "$projectRoot\Toad.exe" -Force
+    Copy-Item $builtExe "$projectRoot\$AppName.exe" -Force
     Copy-Item "$targetReleaseDir\duckdb.dll" "$projectRoot\duckdb.dll" -Force
     Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$projectRoot\WebView2Loader.dll" -Force
-    Write-Output "           Updated canonical root\Toad.exe and native DLLs."
+    Write-Output "           Updated canonical root\$AppName.exe and native DLLs."
 } catch {
-    Write-Warning "Could not overwrite root\Toad.exe (file locked by active process): $_"
+    Write-Warning "Could not overwrite root\$AppName.exe (file locked by active process): $_"
 }
 
 Remove-Item -Recurse -Force $stageDir -ErrorAction SilentlyContinue

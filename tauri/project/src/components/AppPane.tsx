@@ -714,7 +714,7 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
           <Icon icon="th" iconSize={48} color="#94a3b8" />
           <h3 className="main-empty-title">Ready for Analysis</h3>
           <p className="main-empty-desc">
-            Select a file from the Data Sources panel on the left to start analyzing.
+            Select a file from the Data Sources panel on the left or drop files here to start analyzing.
           </p>
         </div>
       </div>
