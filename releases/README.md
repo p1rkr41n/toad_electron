@@ -1,11 +1,11 @@
-# Toad (v1.2.7) - High-Performance Tabular Data Viewer & Pivot Table Analyzer
+# Toad (v2.5.2 - Tauri v2 Edition) - High-Performance Forensic Data Explorer
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Engine](https://img.shields.io/badge/Engine-DuckDB%20%7C%20Rust%20SIMD-green.svg)](https://duckdb.org/)
-[![Version](https://img.shields.io/badge/Version-1.2.7-brightgreen.svg)](releases/)
+[![Engine](https://img.shields.io/badge/Engine-DuckDB%201.0%20%7C%20Rust%20SIMD%20%7C%20Tauri%20v2-green.svg)](https://duckdb.org/)
+[![Version](https://img.shields.io/badge/Version-2.5.2-brightgreen.svg)](releases/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64%20(Portable)-orange.svg)](releases/)
 
-> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale. Powered by **DuckDB** and an embedded **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with interactive drag-and-drop rule reordering and nesting, dynamic regex column extraction, row event inspection, and instant visualization over millions of records.
+> **Toad** is a blazing-fast, lightweight, and modern desktop application designed for querying, exploring, and analyzing tabular data files of virtually any scale. Ported to **Tauri v2** with **DuckDB 1.0** and a **Rust SIMD Core**, Toad delivers sub-second pivot tables, compound filtering with interactive drag-and-drop rule reordering and nesting, dynamic regex column extraction, row event inspection, and instant visualization over millions of records.
 
 ---
 
@@ -13,13 +13,14 @@
 
 Toad is packaged as a completely self-contained portable Windows executable—no administrator privileges, background daemons, or installation wizards required.
 
-| Executable | Size | Description |
+| Executable / Package | Size | Description |
 | :--- | :--- | :--- |
-| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | ~92 MB | Primary standalone portable executable (v1.2.7) |
-| **[`releases/toad_v1.2.7_portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/toad_v1.2.7_portable.exe)** | ~92 MB | Versioned portable release binary |
+| **[`Toad.exe`](file:///D:/Shared_UserData/Downloads/tad/Toad.exe)** | 12.4 MB | Primary standalone portable development executable (v2.5.2) |
+| **[`releases/Toad-2.5.2-x64-portable.exe`](file:///D:/Shared_UserData/Downloads/tad/releases/Toad-2.5.2-x64-portable.exe)** | 12.4 MB | Production portable standalone release binary |
+| **[`releases/Toad-2.5.2-x64-portable.zip`](file:///D:/Shared_UserData/Downloads/tad/releases/Toad-2.5.2-x64-portable.zip)** | 18.8 MB | Complete standalone release zip bundled with companion DLLs |
 
 ### Non-Polluting Portable Architecture
-Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configuration (`config.ini`), query filters (`filters_preset.json`), logs, and transient Parquet caches are encapsulated within a local folder named `toadAppData_[id]` created right alongside the executable.
+Toad does not write into `C:\Users\<user>\AppData\Roaming`. Instead, all configuration (`config.ini`), state ledger WAL (`toad_ledger.parquet`), logs, and transient Parquet caches are encapsulated within a local folder named `toadAppData_[id]` created right alongside the executable.
 
 ---
 
