@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-05T03:08:00Z
+# BRIEFING — 2026-11-05T03:22:00Z
 
 ## Mission
 Independently review and adversarial stress-test packaging implementation and release build artifacts for Milestone 7 (F29-F33) of Toad v2.5.2.
@@ -21,7 +21,7 @@ Independently review and adversarial stress-test packaging implementation and re
 
 ## Current Parent
 - Conversation ID: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Updated: 2026-11-05T03:08:00Z
+- Updated: 2026-11-05T03:22:00Z
 
 ## Review Scope
 - **Files to review**:
@@ -36,8 +36,13 @@ Independently review and adversarial stress-test packaging implementation and re
 - **Review criteria**: Correctness, integrity, packaging automation quality, security/branding hygiene, binary execution, footprint gate.
 
 ## Key Decisions Made
-- Executing thorough independent verification rather than trusting worker's logs.
-- Performing adversarial binary analysis (PE header parsing, string inspection, runtime launch, SHA256 integrity check, test execution).
+- Executed thorough independent verification rather than trusting worker's logs.
+- Confirmed zero integrity violations, no facade code, no bypassed tests.
+- Re-tested all test targets independently; verified 139 Rust backend tests, 55 Node master tests, 25 cell line calc tests, 10 modal cell glow tests (total 229 tests executed in review).
+- Confirmed PE subsystem is value 2 (IMAGE_SUBSYSTEM_WINDOWS_GUI).
+- Confirmed companion DLLs (`duckdb.dll`, `WebView2Loader.dll`) co-located in project root, releases directories, and inside portable zip.
+- Confirmed root `Toad.exe` and release `Toad-2.5.2-x64-portable.exe` launch and run with zero missing DLL dialogs.
+- Verdict: **APPROVE**.
 
 ## Artifact Index
 - `BRIEFING.md` — Agent persistent state and context tracker.
@@ -46,26 +51,23 @@ Independently review and adversarial stress-test packaging implementation and re
 
 ## Review Checklist
 - **Items reviewed**:
-  - Worker handoff report: [x]
-  - `tauri.conf.json`: [ ]
-  - `package_portable.ps1`: [ ]
-  - Build artifacts & DLL co-location: [ ]
-  - PE metadata and Subsystem 2 GUI: [ ]
-  - SHA256 verification: [ ]
-  - Automated test runs: [ ]
-  - Binary runtime test: [ ]
-- **Verdict**: pending
-- **Unverified claims**:
-  - Footprint gate < 50MB for both .exe and .zip
-  - WebView2Loader.dll present and prevents 0xC0000135 error
-  - PE metadata company name & copyright HelloKittyXamKinLung
-  - Subsystem 2 (Windows GUI, no console popup)
-  - 139/139 Rust tests passing
-  - 55/55 Node tests passing
-  - 25/25 cell line calc tests passing
-  - 10/10 modal cell glow tests passing
+  - Worker handoff report: [x] Verified
+  - `tauri.conf.json`: [x] Verified
+  - `package_portable.ps1`: [x] Verified
+  - Build artifacts & DLL co-location: [x] Verified
+  - PE metadata and Subsystem 2 GUI: [x] Verified (Subsystem 2 GUI confirmed)
+  - SHA256 verification: [x] Verified (100% byte match)
+  - Automated test runs: [x] Verified (139 Rust + 90 Node tests passed)
+  - Binary runtime test: [x] Verified (no 0xC0000135 error)
+- **Verdict**: APPROVE
+- **Unverified claims**: None. All claims verified.
 
 ## Attack Surface
-- **Hypotheses tested**: [TBD]
-- **Vulnerabilities found**: [TBD]
-- **Untested angles**: [TBD]
+- **Hypotheses tested**:
+  - Footprint gate < 50MB: PASS (Exe: 12.40 MB, Zip: 18.81 MB, Package: 40.62 MB)
+  - Missing WebView2Loader.dll error: PASS (DLL co-located everywhere, runtime launched successfully)
+  - DLL hijacking / path separation: PASS (Both DLLs bundled adjacent to exe and inside zip)
+  - Flaky/stale test binaries: Tested and resolved (cleared process lock, full test suite passes 139/139)
+  - PE Subsystem console leak: PASS (Binary NT OptionalHeader Subsystem = 2, GUI mode)
+- **Vulnerabilities found**: None.
+- **Untested angles**: Network downloads via bootstrapper (tested in offline portable mode per constraints).
