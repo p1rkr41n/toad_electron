@@ -817,6 +817,57 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                 onClick={() => setNewProjectOpen(true)}
               />
             </Tooltip>
+            <Tooltip content="Add Files to Active Project" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn"
+                icon="document-open"
+                minimal={true}
+                small={true}
+                onClick={async () => {
+                  try {
+                    const bridge = getHostBridge();
+                    const chosen = await bridge.showOpenDialog({
+                      title: "Add Files to Active Project",
+                      multiple: true,
+                    });
+                    if (chosen && chosen.length > 0) {
+                      const ws = await pwManager.getWorkspace();
+                      const targetProjId = ws.activeProjectId || (ws.projects[0]?.projectId) || "prj_untitled_1";
+                      await pwManager.addFilesToProject(targetProjId, chosen);
+                      refreshWorkspaceData();
+                    }
+                  } catch (err) {
+                    console.error("Error adding files from toolbar:", err);
+                  }
+                }}
+              />
+            </Tooltip>
+            <Tooltip content="Add Folder to Active Project" position={Position.BOTTOM} hoverOpenDelay={300}>
+              <Button
+                className="project-toolbar-btn"
+                icon="folder-open"
+                minimal={true}
+                small={true}
+                onClick={async () => {
+                  try {
+                    const bridge = getHostBridge();
+                    const chosen = await bridge.showOpenDialog({
+                      title: "Add Folder to Active Project",
+                      directory: true,
+                    });
+                    const folderPath = Array.isArray(chosen) ? chosen[0] : (typeof chosen === "string" ? chosen : null);
+                    if (folderPath) {
+                      const ws = await pwManager.getWorkspace();
+                      const targetProjId = ws.activeProjectId || (ws.projects[0]?.projectId) || "prj_untitled_1";
+                      await pwManager.addFolderToProject(targetProjId, folderPath);
+                      refreshWorkspaceData();
+                    }
+                  } catch (err) {
+                    console.error("Error adding folder from toolbar:", err);
+                  }
+                }}
+              />
+            </Tooltip>
             <Tooltip content="Refresh Workspace (Sync Ledger state)" position={Position.BOTTOM} hoverOpenDelay={300}>
               <Button
                 className="project-toolbar-btn"
@@ -872,7 +923,62 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
       <div className="project-workspace-body">
         {filteredProjects.length === 0 ? (
           <div className="project-search-empty">
-            {q ? `No files matching "${searchQuery}"` : "No projects available"}
+            {q ? (
+              `No files matching "${searchQuery}"`
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", padding: "24px 12px", textAlign: "center" }}>
+                <span style={{ color: "#94a3b8", fontSize: "13px" }}>No projects available</span>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%", maxWidth: "180px" }}>
+                  <Button
+                    icon="document-open"
+                    intent={Intent.PRIMARY}
+                    small={true}
+                    text="Add Files to Project"
+                    onClick={async () => {
+                      try {
+                        const bridge = getHostBridge();
+                        const chosen = await bridge.showOpenDialog({
+                          title: "Add Files to Project",
+                          multiple: true,
+                        });
+                        if (chosen && chosen.length > 0) {
+                          const ws = await pwManager.getWorkspace();
+                          const targetProjId = ws.activeProjectId || (ws.projects[0]?.projectId) || "prj_untitled_1";
+                          await pwManager.addFilesToProject(targetProjId, chosen);
+                          refreshWorkspaceData();
+                        }
+                      } catch (err) {
+                        console.error("Error adding files:", err);
+                      }
+                    }}
+                  />
+                  <Button
+                    icon="folder-open"
+                    minimal={true}
+                    small={true}
+                    text="Add Folder"
+                    onClick={async () => {
+                      try {
+                        const bridge = getHostBridge();
+                        const chosen = await bridge.showOpenDialog({
+                          title: "Add Folder to Project",
+                          directory: true,
+                        });
+                        const folderPath = Array.isArray(chosen) ? chosen[0] : (typeof chosen === "string" ? chosen : null);
+                        if (folderPath) {
+                          const ws = await pwManager.getWorkspace();
+                          const targetProjId = ws.activeProjectId || (ws.projects[0]?.projectId) || "prj_untitled_1";
+                          await pwManager.addFolderToProject(targetProjId, folderPath);
+                          refreshWorkspaceData();
+                        }
+                      } catch (err) {
+                        console.error("Error adding folder:", err);
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           filteredProjects.map(({ project, files, isExpanded }) => {
@@ -934,8 +1040,9 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                           title: `Add Folder to ${project.projectName}`,
                           directory: true,
                         });
-                        if (chosen && chosen.length > 0) {
-                          await pwManager.addFolderToProject(project.projectId, chosen[0]);
+                        const folderPath = Array.isArray(chosen) ? chosen[0] : (typeof chosen === "string" ? chosen : null);
+                        if (folderPath) {
+                          await pwManager.addFolderToProject(project.projectId, folderPath);
                           refreshWorkspaceData();
                         }
                       } catch (err) {
@@ -1033,8 +1140,9 @@ export const DataSourceSidebar: React.FC<DataSourceSidebarProps> = ({
                         title: `Add Folder to ${proj.projectName}`,
                         directory: true,
                       });
-                      if (chosen && chosen.length > 0) {
-                        await pwManager.addFolderToProject(proj.projectId, chosen[0]);
+                      const folderPath = Array.isArray(chosen) ? chosen[0] : (typeof chosen === "string" ? chosen : null);
+                      if (folderPath) {
+                        await pwManager.addFolderToProject(proj.projectId, folderPath);
                         refreshWorkspaceData();
                       }
                     } catch (err) {

@@ -205,6 +205,20 @@ impl ParquetLedger {
                 apply_events_to_state(&events, &mut st);
             }
         }
+        if st.projects.is_empty() {
+            let default_id = "prj_untitled_1".to_string();
+            st.projects.insert(
+                default_id.clone(),
+                ProjectInfo {
+                    project_id: default_id.clone(),
+                    project_name: "Untitled-1".to_string(),
+                    status: "READY".to_string(),
+                    created_at: current_time_ms(),
+                    is_orphan: false,
+                },
+            );
+            st.active_project_id = default_id;
+        }
         let active_id = if st.active_project_id.is_empty() {
             st.projects.keys().next().cloned()
         } else {
@@ -265,13 +279,29 @@ impl ParquetLedger {
         // Sort projects by createdAt ascending
         projects.sort_by_key(|p| p.created_at);
 
+        if projects.is_empty() {
+            let default_id = "prj_untitled_1".to_string();
+            projects.push(ProjectWorkspaceProjectDto {
+                project_id: default_id.clone(),
+                project_name: "Untitled-1".to_string(),
+                status: "READY".to_string(),
+                created_at: current_time_ms(),
+                is_orphan: Some(false),
+                file_count: 0,
+                total_bytes: 0,
+                id: Some(default_id.clone()),
+                name: Some("Untitled-1".to_string()),
+                files_count: Some(0),
+            });
+        }
+
         let active_id = if state.projects.contains_key(&state.active_project_id) {
             state.active_project_id.clone()
         } else {
             projects
                 .first()
                 .map(|p| p.project_id.clone())
-                .unwrap_or_else(|| "default".to_string())
+                .unwrap_or_else(|| "prj_untitled_1".to_string())
         };
 
         (active_id, projects)

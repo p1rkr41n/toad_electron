@@ -138,6 +138,22 @@ export class ProjectWorkspaceManager {
       try {
         const res = await bridge.invoke("project:getWorkspace", {});
         if (res && res.projects) {
+          if (res.projects.length === 0) {
+            try {
+              const newId = await this.createProject("Untitled-1");
+              const defaultProj: ProjectWorkspaceProject = {
+                projectId: newId,
+                projectName: "Untitled-1",
+                status: "READY",
+                createdAt: Date.now(),
+                fileCount: 0,
+                totalBytes: 0,
+              };
+              this.cachedProjects = [defaultProj];
+              this.activeProjectId = newId;
+              return { projects: [defaultProj], activeProjectId: newId };
+            } catch {}
+          }
           this.cachedProjects = res.projects;
           this.activeProjectId = res.activeProjectId || (res.projects[0]?.projectId) || "";
           return { projects: res.projects, activeProjectId: this.activeProjectId };

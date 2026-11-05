@@ -136,6 +136,7 @@ Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$rootReleasesDir\WebView2Loade
 # Update canonical project root $AppName.exe and companion DLLs
 try {
     Copy-Item $builtExe "$projectRoot\$AppName.exe" -Force
+    Copy-Item $builtExe "$projectRoot\Toad.exe" -Force
     Copy-Item "$targetReleaseDir\duckdb.dll" "$projectRoot\duckdb.dll" -Force
     Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$projectRoot\WebView2Loader.dll" -Force
     Write-Output "           Updated canonical root\$AppName.exe and native DLLs."
