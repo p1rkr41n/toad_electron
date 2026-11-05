@@ -1,0 +1,61 @@
+.activityBar {
+  background-color: #efefef;
+  display: flex;
+  width: 50px;
+  min-width: 50px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  overflow: hidden;
+  border-right: 1px solid #d2d8df;
+  box-sizing: border-box;
+}
+
+.bp4-dark .activityBar,
+.toad-dark .activityBar {
+  background-color: var(--md-sys-color-surface-container, #25262c);
+  border-right: 1px solid var(--md-sys-color-outline-variant, #3c3e47);
+}
+
+.activityBar > button {
+  margin-left: 5px;
+  margin-right: 5px;
+  margin-top: 15px;
+  margin-bottom: 10px;
+}
+
+.bp4-dark .activityBar .bp4-button,
+.toad-dark .activityBar .bp4-button {
+  color: var(--md-sys-color-on-surface-variant, #9da1b0);
+
+  &:hover {
+    color: var(--md-sys-color-on-surface, #e3e3e8);
+    background-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  &.bp4-active {
+    color: var(--md-sys-color-primary, #8ab4f8) !important;
+    background-color: rgba(138, 180, 248, 0.15) !important;
+  }
+}
+
+.theme-toggle-activity-btn {
+  color: #b45309 !important;
+  font-size: 16px;
+  transition: all 0.15s ease;
+}
+
+.theme-toggle-activity-btn:hover {
+  background-color: rgba(180, 83, 9, 0.12) !important;
+}
+
+.bp4-dark .theme-toggle-activity-btn,
+.toad-dark .theme-toggle-activity-btn {
+  color: var(--md-sys-color-tertiary, #fdd663) !important;
+}
+
+.bp4-dark .theme-toggle-activity-btn:hover,
+.toad-dark .theme-toggle-activity-btn:hover {
+  background-color: rgba(253, 214, 99, 0.16) !important;
+}

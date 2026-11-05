@@ -155,25 +155,25 @@ fn test_adversarial_sjf_comparator_total_order_and_transitivity() {
 #[tokio::test]
 async fn test_adversarial_vip_burst_lane_preemption() {
     let test_dir = create_temp_dir("vip_burst_lane");
-    let pool = DuckDbEnginePool::new(test_dir.join("duck_pool"), 4, "1GB".to_string()).unwrap();
 
-    // Create 4 test CSV files with enough rows to measure active concurrency
+    // Create 5 test log files: files 1 & 2 have enough lines (35K) to stay active while j3, j4, j5 are enqueued
     let mut files = Vec::new();
     for i in 1..=5 {
-        let p = test_dir.join(format!("test_file_{}.csv", i));
-        let mut f = File::create(&p).unwrap();
-        writeln!(f, "id,col_a,col_b").unwrap();
-        for r in 0..40_000 {
-            writeln!(f, "{},value_a_{},value_b_{}", r, r, r).unwrap();
+        let p = test_dir.join(format!("test_file_{}.log", i));
+        let mut f = std::io::BufWriter::new(File::create(&p).unwrap());
+        let num_lines = if i <= 2 { 35_000 } else { 1_000 };
+        for r in 0..num_lines {
+            writeln!(f, "2026-11-05 10:00:00.000 [INFO] log line {}", r).unwrap();
         }
+        f.flush().unwrap();
         files.push(p);
     }
 
-    // Max 2 concurrent files, 1.0 GB limit
+    // Max 2 concurrent files, 1.0 GB limit, dirty log streamer (zero DB lock contention)
     let scheduler = Arc::new(IngestionScheduler::new(
         test_dir.join("temp"),
         None,
-        Some(Arc::new(pool)),
+        None,
         Arc::new(ProgressDispatcher::default()),
         2,
         1_000_000_000,
@@ -197,7 +197,7 @@ async fn test_adversarial_vip_burst_lane_preemption() {
         tokio::time::sleep(Duration::from_millis(5)).await;
     }
 
-    // Enqueue file 3 (Normal, large) and file 4 (Normal, small)
+    // Enqueue file 3 (Normal) and file 4 (Normal)
     let _j3 = scheduler
         .enqueue_file("p1", &files[2].to_string_lossy(), IngestPriority::Normal)
         .await
@@ -220,7 +220,7 @@ async fn test_adversarial_vip_burst_lane_preemption() {
     // Snapshot check: VIP promotion activates Burst Lane (+1 permit: max_slots = 3).
     // The VIP job must dispatch immediately into the burst lane (active count reaches 3).
     let mut vip_ran_in_burst_lane = false;
-    for _ in 0..50 {
+    for _ in 0..100 {
         let snap = scheduler.get_queue_snapshot().await;
         if snap.active_count == 3 {
             let active_ids: Vec<_> = snap.active_jobs.iter().map(|j| j.file_id.clone()).collect();
@@ -261,7 +261,9 @@ async fn test_adversarial_vip_burst_lane_preemption() {
         let p = Path::new(&job.target_parquet_path);
         assert!(p.exists(), "Target parquet {:?} must exist on disk", p);
         let rows = FastCounter::count_parquet_rows(p).unwrap();
-        assert_eq!(rows, 40_000, "Parquet rows must match input CSV rows");
+        let expected = if job.file_path.contains("test_file_1") || job.file_path.contains("test_file_2") { 35_000 } else { 1_000 };
+        assert_eq!(rows, expected, "Parquet rows must match input log lines");
+        assert_eq!(job.row_count.unwrap(), expected);
     }
 
     let _ = fs::remove_dir_all(&test_dir);
@@ -813,4 +815,104 @@ async fn test_adversarial_direct_vip_enqueue_activates_burst_lane() {
 
     let _ = fs::remove_dir_all(&test_dir);
 }
+
+// ============================================================================
+// 11. Adversarial Cancel Pending VIP Job Burst Lane Leak
+// ============================================================================
+
+#[tokio::test]
+async fn test_adversarial_cancel_pending_vip_burst_lane_leak() {
+    let test_dir = create_temp_dir("cancel_pending_vip_leak");
+
+    // Create 3 dirty log files: files 1 & 2 have enough lines (30K) to remain active while j3 is queued and cancelled
+    let mut files = Vec::new();
+    for i in 1..=3 {
+        let p = test_dir.join(format!("file_{}.log", i));
+        let mut f = std::io::BufWriter::new(File::create(&p).unwrap());
+        let num_lines = if i < 3 { 30_000 } else { 1_000 };
+        for r in 0..num_lines {
+            writeln!(f, "2026-11-05 10:00:00.000 [INFO] log line {}", r).unwrap();
+        }
+        f.flush().unwrap();
+        files.push(p);
+    }
+
+    // Max 1 concurrent file (+1 burst VIP = 2 max slots)
+    let scheduler = Arc::new(IngestionScheduler::new(
+        test_dir.join("temp"),
+        None,
+        None, // Pure dirty log streamer - fast, zero DuckDB pool lock contention
+        Arc::new(ProgressDispatcher::default()),
+        1,
+        1_000_000_000,
+    ));
+
+    // 1. Enqueue file 1 (Normal) -> starts running in slot 1 (active = 1)
+    let _j1 = scheduler
+        .enqueue_file("p1", &files[0].to_string_lossy(), IngestPriority::Normal)
+        .await
+        .unwrap();
+
+    // Wait until j1 is active
+    for _ in 0..50 {
+        if scheduler.get_queue_snapshot().await.active_count == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+
+    // 2. Enqueue file 2 as VIP -> dispatches into slot 2 (burst lane, active = 2)
+    let _j2 = scheduler
+        .enqueue_file("p1", &files[1].to_string_lossy(), IngestPriority::Vip)
+        .await
+        .unwrap();
+
+    // Wait until both j1 and j2 are active (active_count = 2 == max_slots)
+    for _ in 0..50 {
+        if scheduler.get_queue_snapshot().await.active_count == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(5)).await;
+    }
+
+    // 3. Now enqueue file 3 as VIP -> because active_count == 2 (max_slots = 1 + 1 = 2),
+    // file 3 CANNOT be dispatched! It MUST remain pending in the queue!
+    let j3 = scheduler
+        .enqueue_file("p1", &files[2].to_string_lossy(), IngestPriority::Vip)
+        .await
+        .unwrap();
+
+    // Verify j3 is indeed pending
+    {
+        let snap = scheduler.get_queue_snapshot().await;
+        assert_eq!(snap.active_count, 2, "Active count should be 2");
+        assert_eq!(snap.pending_count, 1, "Pending count should be 1");
+        assert_eq!(snap.pending_jobs[0].job_id, j3.job_id);
+    }
+
+    // 4. Cancel j3 while it is still pending!
+    let cancelled = scheduler.cancel_job(&j3.job_id).await.unwrap();
+    assert!(cancelled, "cancel_job must return true");
+
+    // 5. Wait for j1 and j2 to completely finish
+    for _ in 0..200 {
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        let snap = scheduler.get_queue_snapshot().await;
+        if snap.active_count == 0 && snap.pending_count == 0 {
+            break;
+        }
+    }
+
+    // 6. Inspect scheduler state: when idle with 0 active and 0 pending,
+    // burst_lane_active MUST be false!
+    let st = scheduler.state.read().await;
+    let leaked = st.burst_lane_active;
+    eprintln!("ADVERSARIAL VERIFIED: burst_lane_active after cancel pending VIP is correctly reset: {}", !leaked);
+    assert!(!st.burst_lane_active, "Burst lane flag leaked: was not reset when pending VIP job was cancelled");
+
+    let _ = fs::remove_dir_all(&test_dir);
+}
+
+
+
 

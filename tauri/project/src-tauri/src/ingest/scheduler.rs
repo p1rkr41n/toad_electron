@@ -376,6 +376,9 @@ impl IngestionScheduler {
         // Check pending
         if let Some(pos) = st.pending.iter().position(|j| j.job_id == job_or_file_id || j.file_id == job_or_file_id) {
             let mut job = st.pending.remove(pos);
+            if job.priority == IngestPriority::Vip && !st.pending.iter().any(|j| j.priority == IngestPriority::Vip) {
+                st.burst_lane_active = false;
+            }
             job.status = IngestStatus::Cancelled;
             self.dispatcher.emit_cancelled(&job.file_id, &job.file_path, 0);
             st.completed.insert(job.job_id.clone(), job);

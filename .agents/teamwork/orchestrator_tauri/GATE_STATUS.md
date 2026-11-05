@@ -108,4 +108,43 @@ Remediation required:
 2. In `src-tauri/src/ingest/scheduler.rs:342, 354, 361`, add `j.job_id == file_id_or_path` so `promote_to_vip` properly recognizes `jobId` from `handle_ingest_vip`.
 3. In `src-tauri/src/ingest/scheduler.rs:331`, set `st.burst_lane_active = true` when a job is enqueued directly with `priority == IngestPriority::Vip`.
 
+## Gate — Milestone 5 (Iteration 9: Post-Remediation Recheck)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m5_remediation | teamwork_worker | DONE (commit 40a881d8, 127 tests passed) | handoff.md |
+| reviewer_m5_recheck_1 | teamwork_reviewer | REQUEST_CHANGES (burst lane permit leak on pending VIP cancellation) | handoff.md |
+| reviewer_m5_recheck_2 | teamwork_reviewer | REQUEST_CHANGES (burst lane permit leak on pending VIP cancellation) | handoff.md |
+| challenger_m5_recheck_1 | teamwork_challenger | APPROVE (EVTX RAM delta 19.18MB < 30MB, zero disk churn, 132/132 tests passed) | handoff.md |
+| challenger_m5_recheck_2 | teamwork_challenger | REQUEST_CHANGES (adversarial test 13 confirmed pending VIP cancellation leak) | handoff.md |
+| auditor_m5_recheck_1 | teamwork_auditor | CLEAN (0 hardcoding, 0 facades, author HelloKittyXamKinLung) | handoff.md |
+
+Gate Result: **FAIL** (reviewer_m5_recheck_1, reviewer_m5_recheck_2, challenger_m5_recheck_2 REQUEST_CHANGES)
+## Gate — Milestone 5 (Iteration 10: Final Recheck)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m5_remediation_2 | teamwork_worker | DONE (commit 31cdbb66, 129 Rust tests, 55 Node tests) | handoff.md |
+| reviewer_m5_final_1 | teamwork_reviewer | APPROVE (cancel_job burst lane permit reset verified) | handoff.md |
+| reviewer_m5_final_2 | teamwork_reviewer | APPROVE (all IPC commands, progress dispatch, 3-tier fallback verified) | handoff.md |
+| challenger_m5_final_1 | teamwork_challenger | APPROVE (EVTX flat RAM 18.26MB < 30MB, zero disk churn, 0% crashes) | handoff.md |
+| challenger_m5_final_2 | teamwork_challenger | APPROVE (10/10 multi-run stress pass on pending VIP cancel leak, 13/13 passed) | handoff.md |
+| auditor_m5_final_1 | teamwork_auditor | CLEAN (zero hardcoded values, zero facades, 135/135 Rust & 55/55 Node tests pass) | handoff.md |
+
+Gate Result: **PASS**
+Milestone 5 (Forensics & Ingestion Pipelines: F18, F19, F20, F21, F22) is 100% COMPLETE, authentic, verified across 135 unit/stress tests and 55 E2E tests, memory-bounded < 30MB, audited CLEAN with zero violations, and approved by all reviewers and challengers.
+
+## Gate — Milestone 6 (Iteration 11)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m6_frontend | teamwork_worker | DONE (npm run build passed, 9 Node suites passed, 135 Rust tests passed, commit b783a378) | handoff.md |
+| reviewer_m6_1 | teamwork_reviewer | APPROVE (npm run build in 28.35s passed, 17/17 Arrow, 55/55 E2E master passed) | handoff.md |
+| reviewer_m6_2 | teamwork_reviewer | APPROVE (25/25 CellLine, 10/10 Glow, 15/15 Dropdown, 15/15 Floating, 10/10 Filter, npm build clean) | handoff.md |
+| challenger_m6_1 | teamwork_challenger | APPROVE (16/16 scroll stress passed, FPS 58,961, heap delta 1.00MB < 25MB, 17/17 Arrow passed) | handoff.md |
+| challenger_m6_2 | teamwork_challenger | APPROVE (25/25 CellLine, 10/10 Glow, 15/15 Floating, 15/15 Dropdown, 38/38 Stress passed) | handoff.md |
+| auditor_m6_1 | teamwork_auditor | CLEAN (0 hardcoding, 0 facades, author HelloKittyXamKinLung, 265/265 tests passed) | handoff.md |
+
+Gate Result: **PASS**
+Milestone 6 (Frontend Porting & Host Bridge Integration: F23, F24, F25, F26, F27, F28) is 100% COMPLETE, authentic, verified across 265 unit/stress/E2E tests, clean Vite 5 bundle in `tauri/project/dist/`, zero-copy Arrow IPC active via `dataPort: true`, dynamic auto-wrap height formula & glow suppression verified, audited CLEAN with zero violations, and approved by all reviewers and challengers.
+
+
+
 

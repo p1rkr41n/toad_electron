@@ -30,6 +30,7 @@ async function runWorker() {
   } catch {}
 
   const isComplexLog = process.argv[5] === "1" || cfg.isComplex === true;
+  const safeParallel = (cfg as any).safe_mode_parallel !== false && (cfg as any).safeModeParallel !== false;
 
   const compression = (cfg.compression || "snappy").toUpperCase();
   const rowGroupSize = cfg.row_group_size || 122880;
@@ -61,7 +62,7 @@ async function runWorker() {
             sample_size = 100000,
             ignore_errors = true,
             null_padding = true,
-            parallel = false,
+            parallel = ${safeParallel ? "true" : "false"},
             all_varchar = true,
             delim = ','
           )
@@ -79,7 +80,7 @@ async function runWorker() {
               delim = ',',
               ignore_errors = true,
               null_padding = true,
-              parallel = false,
+              parallel = ${safeParallel ? "true" : "false"},
               all_varchar = true
             )
           ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});

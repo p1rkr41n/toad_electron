@@ -1,83 +1,85 @@
-## 2026-11-04T18:47:10Z
-[Message] timestamp=2026-11-04T18:47:10Z sender=07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d priority=MESSAGE_PRIORITY_HIGH content=You are Worker M1 (Squad 1: Toolchain, Scaffolding & Manifests) for the Toad Tauri v2 migration project.
-Your working directory is: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1`
+## 2026-11-05T02:55:34Z
+You are the Worker for Milestone 1: "Configuration and Auto-Heal in toad-app".
 
-MANDATORY INPUTS (You MUST read before starting work):
-- `ORIGINAL_REQUEST.md`: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md`
-- `PROJECT.md`: `d:\Shared_UserData\Downloads\tad\PROJECT.md`
-- Survey Spec: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\specminer_survey_2\tauri_spec_report.md`
-- Backend Infra Report: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_3\backend_infra_report.md`
-- Frontend Survey Report: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\explorer_survey_1\survey_frontend_report.md`
+Your working directory is:
+`d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1`
 
 MANDATORY INTEGRITY WARNING:
 DO NOT CHEAT. All implementations must be genuine. DO NOT hardcode test results, create dummy/facade implementations, or circumvent the intended task. A teamwork_auditor will independently verify your work. Integrity violations WILL be detected and your work WILL be rejected.
 
-EXCLUSIVE WRITE OWNERSHIP:
-You own exclusively:
-- `d:\Shared_UserData\Downloads\tad\.gitignore`
-- `tauri/project/package.json`
-- `tauri/project/vite.config.ts`
-- `tauri/project/index.html`
-- `tauri/project/src/main.tsx`
-- `tauri/project/src-tauri/Cargo.toml`
-- `tauri/project/src-tauri/tauri.conf.json`
-- `tauri/project/src-tauri/capabilities/default.json`
-- `tauri/project/src-tauri/src/main.rs` (initial minimal skeleton)
-- `tauri/project/src-tauri/src/lib.rs` (initial minimal skeleton)
+Scope & File Ownership:
+You EXCLUSIVELY own and modify:
+`tad-master/packages/toad-app/app/portableAppData.ts`
 
-TASK OBJECTIVES:
-1. Reconfigure root `.gitignore`:
-   - Replace line 44 (`tauri/`) with precise rules:
-     ```gitignore
-     !tauri/
-     !tauri/project/
-     tauri/project/src-tauri/target/
-     tauri/project/node_modules/
-     tauri/project/dist/
-     tauri/project/toadAppData*/
-     ```
-2. Scaffold `tauri/project/package.json`:
-   - React 18, `@tauri-apps/api@^2.0.0`, `@tauri-apps/plugin-dialog@^2.0.0`, `@tauri-apps/plugin-opener@^2.0.0`, `@tauri-apps/plugin-clipboard-manager@^2.0.0`, `@tauri-apps/plugin-window-state@^2.0.0`, `@apache-arrow/es2015-cjs`, `slickgrid-es6`, Less, Sass, TypeScript, Vite 5.
-3. Configure `tauri/project/vite.config.ts`:
-   - React plugin, alias `{ find: /^~/, replacement: '' }`, `css.preprocessorOptions.less: { javascriptEnabled: true }`.
-4. Create `tauri/project/index.html` and `tauri/project/src/main.tsx`.
-5. Create `tauri/project/src-tauri/Cargo.toml`:
-   - `tauri = { version = "2", features = [] }`
-   - `tauri-plugin-single-instance = "2"`
-   - `tauri-plugin-window-state = "2"`
-   - `tauri-plugin-dialog = "2"`
-   - `tauri-plugin-opener = "2"`
-   - `tauri-plugin-clipboard-manager = "2"`
-   - `tauri-plugin-fs = "2"`
-   - `duckdb = { version = "1.0", features = ["bundled", "parquet"] }`
-   - `arrow = { version = "53", default-features = false, features = ["ipc"] }`
-   - `evtx = "0.8"`
-   - `tokio = { version = "1", features = ["full"] }`
-   - `serde = { version = "1", features = ["derive"] }`
-   - `serde_json = "1"`
-   - `tracing = "0.1"`
-   - `tracing-subscriber = "0.3"`
-6. Create `tauri/project/src-tauri/tauri.conf.json`:
-   - Follow specifications from `tauri_spec_report.md` Section 4.1:
-     - `app.withGlobalTauri: true`
-     - `app.appDirectoriesOverride: "./toadAppData"`
-     - `app.windows[0]`: title "Toad Data Analyzer", 1280x980, `visible: false` (for window-state).
-7. Create `tauri/project/src-tauri/capabilities/default.json`:
-   - Follow specifications from `tauri_spec_report.md` Section 4.2.
-8. Create minimal initial `src-tauri/src/main.rs` and `src-tauri/src/lib.rs` that compile cleanly.
-9. Verify:
-   - Check with `C:\Users\huydq\.cargo\bin\jj.exe status`.
-   - Record snapshot commit via `C:\Users\huydq\.cargo\bin\jj.exe commit -m "feat(scaffold): initialize Tauri v2 project structure, manifests, and .gitignore"` under author identity `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+Relevant Reference Files:
+- Mandatory: Read `d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md` before starting.
+- Read `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`.
+- Read detailed findings and code templates in `d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey_config\analysis.md`.
 
-OUTPUT:
-Write your completion handoff report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md`.
-Update `progress.md` after each step.
-Notify orchestrator when complete.
+Tasks to Implement:
+1. In `ToadConfig` interface (under `duckdb`):
+   Add:
+   ```typescript
+   safe_mode_keywords: string[];
+   safe_mode_parallel: boolean;
+   ```
+2. In `DEFAULT_CONFIG.duckdb`:
+   Set:
+   ```typescript
+   safe_mode_keywords: [
+     "hayabusa",
+     "eventlog",
+     "event_log",
+     "security",
+     "audit",
+     "sysmon",
+     "timeline",
+     "dfir",
+     "winlog",
+     "firewall",
+     "auth",
+     "syslog",
+   ],
+   safe_mode_parallel: true,
+   ```
+   (Verify: `"mft"` is NOT present).
+3. In `DEFAULT_CONFIG_INI_TEXT`:
+   Add bilingual comments and template entries under `[duckdb]`:
+   ```ini
+   # Safe mode keywords (comma-separated, case-insensitive). Triggers safe all_varchar ingestion for large complex logs.
+   # Set to none or off or empty to disable safe mode heuristics.
+   # Tu khoa che do an toan (ngan cach bang dau phay). Dat thanh none hoac off de tat.
+   safe_mode_keywords = hayabusa, eventlog, event_log, security, audit, sysmon, timeline, dfir, winlog, firewall, auth, syslog
 
+   # Multi-threaded ingestion for safe mode (true = fast parallel scan, false = single-threaded fallback)
+   # Doc da luong cho che do an toan (true = quet da luong nhanh, false = don luong)
+   safe_mode_parallel = true
+   ```
+4. In `stringifyConfig`:
+   Serialize under `[duckdb]`:
+   ```typescript
+   safe_mode_keywords = ${cfg.duckdb.safe_mode_keywords.join(", ")}
+   safe_mode_parallel = ${cfg.duckdb.safe_mode_parallel}
+   ```
+5. In `validateAndEnsureConfig`:
+   - Parse `safe_mode_keywords` from INI section `[duckdb]`:
+     If present, split by comma, trim each element, lowercase. If element is empty, skip. If the raw string or parsed result is `"none"`, `"off"`, or empty, set `safe_mode_keywords = []`.
+     If key missing from `[duckdb]`, assign default array and set `needRewrite = true` to auto-heal.
+   - Parse `safe_mode_parallel`:
+     Parse boolean (check `"true"`, `"false"`, or boolean). Default to `true`.
+     If key missing, assign default `true` and set `needRewrite = true` to auto-heal.
+   - Ensure auto-heal preserves existing user sections and comments.
+6. In `initPortableEnvironment()`:
+   Export environment variables:
+   ```typescript
+   process.env.TOAD_SAFE_KEYWORDS = config.duckdb.safe_mode_keywords.join(",");
+   process.env.TOAD_SAFE_PARALLEL = String(config.duckdb.safe_mode_parallel);
+   process.env.TOAD_APP_DATA_DIR = appDataDir;
+   ```
+   and ensure `(global as any).toadPortableEnv = envResult;`.
 
-## 2026-11-04T19:01:14Z
-[Message] timestamp=2026-11-04T19:01:14Z sender=07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d priority=MESSAGE_PRIORITY_HIGH content=**Context**: Milestone 1 Rust Toolchain Verification
-**Content**: If GCC `crtbegin.o` is missing for GNU target, please check whether MSVC target is available:
-`rustup show` or `rustc -vV`
-If `x86_64-pc-windows-msvc` is installed or default on Windows, you can compile/check with `--target x86_64-pc-windows-msvc` or set the default rustup toolchain to MSVC without needing chocolatey MinGW.
-**Action**: Please verify if MSVC target resolves the compilation check.
+Verification:
+- Compile `toad-app` via webpack:
+  `.\node-v18.20.4-win-x64\node.exe .\node-v18.20.4-win-x64\node_modules\npm\bin\npm-cli.js --prefix tad-master/packages/toad-app run build-dev` (or using `npm.cmd`).
+- Write complete handoff report to `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md`.
+- Send message to orchestrator upon completion.

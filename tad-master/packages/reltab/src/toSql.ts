@@ -28,7 +28,7 @@ import {
 } from "./SQLQuery";
 import { ppSQLQuery } from "./pp";
 import { defaultDialect, col, ColumnExtendExp, safeJsonReplacer } from "./defs";
-import _ = require("lodash");
+import * as _ from "lodash";
 import { AggFn } from "./AggFn";
 import { LeafSchemaMap } from "./TableRep";
 import { ColumnType, colIsString } from "./ColumnType";

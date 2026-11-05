@@ -1,24 +1,19 @@
-# Progress Tracker — Worker M1 (Toolchain, Scaffolding & Manifests)
+# Progress Tracker — Milestone 1 (worker_m1)
 
-Last visited: 2026-11-04T19:09:00Z
+Last visited: 2026-11-05T03:05:00Z
 
 ## Status
-All tasks complete. Verified with `cargo check` and `cargo test`. Snapshot commit recorded in Jujutsu. Handoff report prepared.
-
-## Completed Tasks
 - [x] Initialized DISPATCH.md and BRIEFING.md
-- [x] Read mandatory input documents
-- [x] Reconfigured root `.gitignore` to track `tauri/project/` while excluding build artifacts
-- [x] Scaffolded `tauri/project/package.json` with React 18, Vite 5, Tauri v2 plugins, SlickGrid, Arrow
-- [x] Configured `tauri/project/vite.config.ts` with React plugin, `~` alias resolver, Less preprocessor
-- [x] Created `tauri/project/index.html` and `tauri/project/src/main.tsx` with BigInt serialization polyfill
-- [x] Created `tauri/project/src-tauri/Cargo.toml` with Tauri v2, Arrow 53, EVTX 0.8, Tokio, Serde, Tracing, DuckDB
-- [x] Created `tauri/project/src-tauri/tauri.conf.json` adhering to spec report Section 4.1 (`withGlobalTauri: true`, `appDirectoriesOverride: "./toadAppData"`, 1280x980 hidden window)
-- [x] Created `tauri/project/src-tauri/capabilities/default.json` adhering to spec report Section 4.2
-- [x] Created minimal initial `src-tauri/src/main.rs` and `src-tauri/src/lib.rs` with passing unit tests
-- [x] Configured global `~/.cargo/config.toml` to use bundled `rust-lld` linker
-- [x] Verified `cargo check` and `cargo test` pass with 100% success
-- [x] Recorded snapshot commit in `jj` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`: `feat(scaffold): initialize Tauri v2 project structure, manifests, and .gitignore` (revision `cd863254`)
-
-## In Progress
-- [ ] Deliver handoff report and notify orchestrator
+- [x] Read ORIGINAL_REQUEST.md, PROJECT.md, and spec_miner_survey_config/analysis.md
+- [x] Inspect existing `tad-master/packages/toad-app/app/portableAppData.ts`
+- [x] Plan modifications according to dispatch instructions
+- [x] Apply changes to `portableAppData.ts`:
+  - [x] Task 1: `ToadConfig.duckdb` extended with `safe_mode_keywords` and `safe_mode_parallel`
+  - [x] Task 2: `DEFAULT_CONFIG.duckdb` defaults set (12 keywords, no mft, parallel=true)
+  - [x] Task 3: `DEFAULT_CONFIG_INI_TEXT` bilingual comments and template entries added
+  - [x] Task 4: `stringifyConfig` serializes safe_mode_keywords and safe_mode_parallel
+  - [x] Task 5: `validateAndEnsureConfig` parses keywords, boolean, and auto-heals non-destructively
+  - [x] Task 6: `initPortableEnvironment` exports `TOAD_SAFE_KEYWORDS`, `TOAD_SAFE_PARALLEL`, `TOAD_APP_DATA_DIR`, and sets `global.toadPortableEnv`
+- [x] Verify build via webpack build-dev (`exit code 0`)
+- [x] Verify parsing and auto-heal logic via node test script (`exit code 0`)
+- [ ] Write handoff report and notify orchestrator

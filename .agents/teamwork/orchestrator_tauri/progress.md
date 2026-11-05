@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-05T00:48:45Z
+Last visited: 2026-11-05T03:19:00Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -65,7 +65,7 @@ Last visited: 2026-11-05T00:48:45Z
   - Gate Result: PASS.
   - Milestone 4 marked DONE in PROJECT.md.
   - Features verified: F13 (toad_ledger.parquet WAL), F14 (Tombstone logging), F15 (Startup reconciliation <5ms), F16 (Cascade cache purge), F17 (Workspace CRUD commands).
-- [ ] Milestone 5 (M5) Forensics & Ingestion Pipelines (Squad 5):
+- [x] Milestone 5 (M5) Forensics & Ingestion Pipelines (Squad 5):
   - Scope: F18 (RFC-4180 CSV/TSV streaming ingest), F19 (EVTX Rust SIMD binary decoder), F20 (JSONL/NDJSON stream ingestion), F21 (SJF ingestion queue & VIP preemption), F22 (Multi-stage progress dispatcher).
   - Step 2B.a Survey & Exploration:
     - Explorer M5 CSV & JSONL (988e7ae8): COMPLETED (RFC-4180 delimiter sniffer, 3-tier all_varchar fallback matrix, JSONL 2-phase unnesting, dirty log raw_event engine)
@@ -73,19 +73,48 @@ Last visited: 2026-11-05T00:48:45Z
     - Explorer M5 Scheduler & Progress (c3e1b6a6): COMPLETED (SJF priority comparator, dual-bound concurrency, VIP burst lane, 4-stage progress dispatcher)
   - Step 2B.b Implementation:
     - Worker M5 Ingest (379e6086): COMPLETED (15/15 ingest tests, 115/115 cargo tests, 55/55 node tests, commit c8998f06)
-  - Step 2B.c–e Gate Verification (Iteration 8):
-    - Reviewer M5-1 (c51b2424): APPROVE
-    - Reviewer M5-2 (dff7f2ef): APPROVE
-    - Challenger M5-1 (1f5c8b8e): APPROVE (RAM delta 20.4MB <30MB, 7,097 rows/s on System.evtx, 15 polymorphic EventID variants, 0% crash)
-    - Challenger M5-2 (bca50540): REQUEST_CHANGES (burst lane permit leak on idle dispatch, jobId missing in promote_to_vip)
-    - Forensic Auditor M5 (6d4d9732): CLEAN (0 hardcoding, 0 facades, 0 pre-populated artifacts, author HelloKittyXamKinLung, 123/123 tests passed)
-    - Gate Result: FAIL (challenger_m5_2 REQUEST_CHANGES)
+  - Step 2B.c–e Gate Verification (Iteration 8): FAIL (challenger_m5_2 REQUEST_CHANGES)
   - Iteration 9 Remediation:
-    - Step 2B.a Remediation Strategy: Formulated from challenger_m5_2 findings.
-    - Step 2B.b Remediation Implementation:
-      - Worker M5 Remediation (e0defccc): IN PROGRESS
+    - Worker M5 Remediation (e0defccc): COMPLETED (commit 40a881d8, 127 Rust tests, 55 Node tests)
+    - Gate Verification (Iteration 9): FAIL (reviewer_m5_recheck_1, reviewer_m5_recheck_2, challenger_m5_recheck_2 REQUEST_CHANGES on pending VIP cancellation permit leak)
+  - Iteration 10 Remediation:
+    - Worker M5 Remediation 2 (df138fab): COMPLETED (commit 31cdbb66, 129 Rust tests, 55 Node tests, 13 adversarial scheduler tests)
+    - Gate Verification (Iteration 10):
+      - Reviewer M5-Final-1 (44e8c890): APPROVE
+      - Reviewer M5-Final-2 (90c16567): APPROVE
+      - Challenger M5-Final-1 (b56558be): APPROVE (EVTX flat RAM 18.26MB < 30MB, zero disk churn, 0% crashes)
+      - Challenger M5-Final-2 (04d632e6): APPROVE (10/10 multi-run stress pass on pending VIP cancel leak, 13/13 passed)
+      - Forensic Auditor M5-Final-1 (706ec163): CLEAN (zero hardcoded values, zero facades, 135/135 Rust & 55/55 Node tests pass)
+    - Gate Result: PASS.
+    - Milestone 5 marked DONE in PROJECT.md.
+    - Features verified: F18 (CSV/TSV streaming), F19 (EVTX SIMD parser < 30MB RAM), F20 (JSONL dynamic unnesting), F21 (SJF queue & burst lane), F22 (Multi-stage progress dispatcher).
+- [x] Milestone 6 (M6) Frontend Porting & Host Bridge Integration (Squad 6):
+  - Scope: F23 (Port toadviewer into tauri/project/src), F24 (Host Bridge Activation dataPort=true), F25 (Zero-copy Arrow IPC decoding into SlickGrid), F26 (Dynamic auto-wrap column calculation), F27 (Active cell glow suppression), F28 (ArcSight ESM filter & pivot UI condition tree).
+  - Step 2B.a Survey & Exploration: COMPLETED
+    - Explorer M6 Vite (88c9939b): COMPLETED (Less/SCSS dual ~ resolver, missing packages, CommonJS require migration, tsconfig)
+    - Explorer M6 Bridge (bf39e321): COMPLETED (dataPort=true activation gate, ingestion aliases in commandAliases.ts, auto __TAURI__ detection)
+    - Explorer M6 Grid (ab4dccd8): COMPLETED (PagedDataView Arrow IPC, dynamic auto-wrap height formula, GridOverlayBus glow suppression, ArcSight ESM filter tree)
+  - Step 2B.b Implementation: Worker M6 Frontend (35bc8ebc-f3e3-4384-ba53-c334c36fcc62): COMPLETED (npm run build in 27.87s, 9 Node suites passed, 135 Rust tests passed, commit b783a378)
+  - Step 2B.c–e Gate Verification (Iteration 11):
+    - Reviewer 1 (f67a0a1e): APPROVE (npm build, Arrow IPC & master E2E passed)
+    - Reviewer 2 (7c9588a2): APPROVE (25/25 CellLine, 10/10 Glow, 15/15 Dropdown, 15/15 Floating, 10/10 Filter, npm build clean)
+    - Challenger 1 (67e97240): APPROVE (100K rows scroll stress, FPS 58,961, heap delta 1.00MB)
+    - Challenger 2 (4de85eba): APPROVE (25/25 CellLine, 10/10 Glow, 15/15 Floating, 38/38 Stress passed)
+    - Forensic Auditor (76ed648a): CLEAN (0 hardcoding, 0 facades, author HelloKittyXamKinLung, 265/265 tests passed)
+  - Gate Result: PASS.
+  - Milestone 6 marked DONE in PROJECT.md.
+  - Features verified: F23 (Frontend porting & Vite 5 bundling), F24 (Host bridge dataPort=true), F25 (Zero-copy Arrow IPC decoding into SlickGrid), F26 (Dynamic auto-wrap column formula), F27 (Active cell glow suppression behind modals), F28 (ArcSight ESM condition tree & pivot UI).
+- [ ] Milestone 7 (M7) Final Verification, Packaging & Release Audit (Squad 7):
+  - Scope: F29 (Rust Core Unit & Command Tests), F30 (Arrow IPC Stream QA Suite), F31 (100K Rows Concurrency & Stress Tests), F32 (Production Portable Packaging Script), F33 (Release Verification & SHA256SUMS).
+  - Step 2B.a Survey & Exploration: Explorer M7 Packaging (68803da1): COMPLETED (dual packaging blueprint, companion DLL placement, PE headers, toadAppData verification)
+  - Step 2B.b Implementation: Worker M7 Packaging (d906e0ee): COMPLETED (commit mvxwrymp, 139 Rust tests, 123 Node tests, Toad-2.5.2-x64-portable.exe 12.4MB, zip 18.81MB, companion DLLs co-located, SHA256SUMS.txt, Winget manifest)
+  - Step 2B.c–e Gate Verification (Iteration 12): IN-PROGRESS
+    - Reviewer M7 1 (009bf6e9): in-progress
+    - Reviewer M7 2 (06cd0bbf): in-progress
+    - Challenger M7 1 (cde985d3): in-progress
+    - Challenger M7 2 (802f19b5): in-progress
+    - Forensic Auditor M7 1 (28aa06b3): in-progress
 
 ## Iteration Status
-Current iteration: 9 / 32
-
+Current iteration: 12 / 32
 

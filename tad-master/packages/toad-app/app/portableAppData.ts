@@ -37,6 +37,8 @@ export interface ToadConfig {
     threads: number;
     background_threads: number | "auto";
     add_raw_event: boolean;
+    safe_mode_keywords: string[];
+    safe_mode_parallel: boolean;
   };
   parquet: {
     compression: "zstd" | "snappy" | "gzip" | "none";
@@ -82,6 +84,21 @@ export const DEFAULT_CONFIG: ToadConfig = {
     threads: 0,
     background_threads: "auto",
     add_raw_event: false,
+    safe_mode_keywords: [
+      "hayabusa",
+      "eventlog",
+      "event_log",
+      "security",
+      "audit",
+      "sysmon",
+      "timeline",
+      "dfir",
+      "winlog",
+      "firewall",
+      "auth",
+      "syslog",
+    ],
+    safe_mode_parallel: true,
   },
   parquet: {
     compression: "snappy",
@@ -98,7 +115,7 @@ export const DEFAULT_CONFIG: ToadConfig = {
 // CONFIG.INI TEMPLATE (English configuration and guidelines)
 // =============================================================================
 
-const DEFAULT_CONFIG_INI_TEXT = `# ==============================================================================
+export const DEFAULT_CONFIG_INI_TEXT = `# ==============================================================================
 #                      TOAD VIEWER SYSTEM CONFIGURATION (CONFIG.INI)
 # ==============================================================================
 # This file is automatically validated and read before each file ingestion.
@@ -151,6 +168,15 @@ background_threads = auto
 #   - false : (RECOMMENDED) Preserves lightning-fast columnar analytics
 #   - true  : Concatenates all row values into a raw text string
 add_raw_event = false
+
+# Safe mode keywords (comma-separated, case-insensitive). Triggers safe all_varchar ingestion for large complex logs.
+# Set to none or off or empty to disable safe mode heuristics.
+# Tu khoa che do an toan (ngan cach bang dau phay). Dat thanh none hoac off de tat.
+safe_mode_keywords = hayabusa, eventlog, event_log, security, audit, sysmon, timeline, dfir, winlog, firewall, auth, syslog
+
+# Multi-threaded ingestion for safe mode (true = fast parallel scan, false = single-threaded fallback)
+# Doc da luong cho che do an toan (true = quet da luong nhanh, false = don luong)
+safe_mode_parallel = true
 
 [parquet]
 # Temporary Parquet cache compression algorithm:
@@ -273,7 +299,7 @@ type IniData = Record<string, Record<string, string>>;
 /**
  * Parse nội dung file INI thành object { section: { key: value } }
  */
-function parseIni(content: string): IniData {
+export function parseIni(content: string): IniData {
   const result: IniData = {};
   let currentSection = "__root__";
   result[currentSection] = {};
@@ -307,7 +333,10 @@ function parseIni(content: string): IniData {
 /**
  * Stringify ToadConfig thành nội dung INI có comment hướng dẫn
  */
-function stringifyConfig(cfg: ToadConfig): string {
+export function stringifyConfig(cfg: ToadConfig): string {
+  const safeKeywords = (cfg.duckdb?.safe_mode_keywords || []).join(", ");
+  const safeParallel = cfg.duckdb?.safe_mode_parallel ?? true;
+
   return `# ==============================================================================
 #                      TOAD VIEWER SYSTEM CONFIGURATION (CONFIG.INI)
 # ==============================================================================
@@ -330,6 +359,8 @@ max_memory = ${cfg.duckdb.max_memory}
 threads = ${cfg.duckdb.threads}
 background_threads = ${cfg.duckdb.background_threads}
 add_raw_event = ${cfg.duckdb.add_raw_event}
+safe_mode_keywords = ${safeKeywords}
+safe_mode_parallel = ${safeParallel}
 
 [parquet]
 compression = ${cfg.parquet.compression}
@@ -340,6 +371,117 @@ temp_cleanup = ${cfg.system.temp_cleanup}
 binary_guard = ${cfg.system.binary_guard}
 uv_threadpool_size = ${cfg.system.uv_threadpool_size ?? "auto"}
 `;
+}
+
+/**
+ * Tự động vá nội dung file INI: bảo toàn tối đa các dòng comment, section tùy biến của người dùng
+ * và chỉ chèn/bổ sung các section/key còn thiếu.
+ */
+export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
+  if (!rawContent || !rawContent.trim()) {
+    return stringifyConfig(cfg);
+  }
+
+  const lines = rawContent.split(/\r?\n/);
+  const sectionLines: { [section: string]: { start: number; end: number; keys: Record<string, number> } } = {};
+  let currentSection = "__root__";
+  sectionLines[currentSection] = { start: 0, end: 0, keys: {} };
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      if (currentSection && sectionLines[currentSection]) {
+        sectionLines[currentSection].end = i;
+      }
+      currentSection = trimmed.substring(1, trimmed.length - 1).trim().toLowerCase();
+      if (!sectionLines[currentSection]) {
+        sectionLines[currentSection] = { start: i, end: lines.length, keys: {} };
+      }
+      continue;
+    }
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx !== -1 && !trimmed.startsWith("#") && !trimmed.startsWith(";")) {
+      const key = trimmed.substring(0, eqIdx).trim().toLowerCase();
+      if (currentSection && sectionLines[currentSection]) {
+        sectionLines[currentSection].keys[key] = i;
+      }
+    }
+  }
+  if (currentSection && sectionLines[currentSection]) {
+    sectionLines[currentSection].end = lines.length;
+  }
+
+  const requiredKeys: Record<string, Record<string, string>> = {
+    duckdb: {
+      max_memory: String(cfg.duckdb.max_memory),
+      threads: String(cfg.duckdb.threads),
+      background_threads: String(cfg.duckdb.background_threads),
+      add_raw_event: String(cfg.duckdb.add_raw_event),
+      safe_mode_keywords: (cfg.duckdb.safe_mode_keywords || []).join(", "),
+      safe_mode_parallel: String(cfg.duckdb.safe_mode_parallel ?? true),
+    },
+    general: {
+      viewer: cfg.general.viewer,
+      language: cfg.general.language,
+      page_size: String(cfg.general.page_size),
+      max_concurrent_files: String(cfg.general.max_concurrent_files),
+      max_concurrent_gb: String(cfg.general.max_concurrent_gb),
+      auto_restore_last_directory: String(cfg.general.auto_restore_last_directory),
+      last_directory: cfg.general.last_directory,
+    },
+    runtime: {
+      engine: cfg.runtime?.engine ?? "utility",
+      auto_fallback: String(cfg.runtime?.auto_fallback ?? true),
+    },
+    parquet: {
+      compression: cfg.parquet.compression,
+      row_group_size: String(cfg.parquet.row_group_size),
+    },
+    system: {
+      temp_cleanup: String(cfg.system.temp_cleanup),
+      binary_guard: String(cfg.system.binary_guard),
+      uv_threadpool_size: String(cfg.system.uv_threadpool_size ?? "auto"),
+    },
+  };
+
+  const modifiedLines = [...lines];
+  const sectionsInReverse = Object.keys(sectionLines).sort(
+    (a, b) => (sectionLines[b]?.start ?? 0) - (sectionLines[a]?.start ?? 0)
+  );
+
+  for (const sec of sectionsInReverse) {
+    if (!requiredKeys[sec]) continue;
+    const secInfo = sectionLines[sec];
+    const missingInSec: string[] = [];
+
+    for (const [k, v] of Object.entries(requiredKeys[sec])) {
+      if (secInfo.keys[k] === undefined) {
+        missingInSec.push(`${k} = ${v}`);
+      } else if (k === "safe_mode_parallel") {
+        const lineIdx = secInfo.keys[k];
+        if (!/^\s*safe_mode_parallel\s*=\s*(true|false)\s*$/i.test(modifiedLines[lineIdx])) {
+          modifiedLines[lineIdx] = `safe_mode_parallel = ${v}`;
+        }
+      }
+    }
+
+    if (missingInSec.length > 0) {
+      const insertIdx = secInfo.end;
+      modifiedLines.splice(insertIdx, 0, ...missingInSec);
+    }
+  }
+
+  for (const [sec, keysObj] of Object.entries(requiredKeys)) {
+    if (!sectionLines[sec]) {
+      const newSecLines = [`\n[${sec}]`];
+      for (const [k, v] of Object.entries(keysObj)) {
+        newSecLines.push(`${k} = ${v}`);
+      }
+      modifiedLines.push(...newSecLines);
+    }
+  }
+
+  return modifiedLines.join("\n");
 }
 
 // =============================================================================
@@ -544,6 +686,41 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       ? String(parsed.duckdb.add_raw_event).toLowerCase() === "true"
       : DEFAULT_CONFIG.duckdb.add_raw_event;
 
+  // safe_mode_keywords
+  let safe_mode_keywords: string[];
+  if (parsed.duckdb?.safe_mode_keywords !== undefined) {
+    const rawKw = String(parsed.duckdb.safe_mode_keywords).trim();
+    const rawKwLower = rawKw.toLowerCase();
+    if (rawKwLower === "" || rawKwLower === "none" || rawKwLower === "off") {
+      safe_mode_keywords = [];
+    } else {
+      safe_mode_keywords = rawKw
+        .split(",")
+        .map((k) => k.trim().toLowerCase())
+        .filter((k) => k.length > 0 && k !== "none" && k !== "off");
+    }
+  } else {
+    safe_mode_keywords = [...DEFAULT_CONFIG.duckdb.safe_mode_keywords];
+    needRewrite = true;
+  }
+
+  // safe_mode_parallel
+  let safe_mode_parallel: boolean;
+  if (parsed.duckdb?.safe_mode_parallel !== undefined) {
+    const rawParallel = String(parsed.duckdb.safe_mode_parallel).trim().toLowerCase();
+    if (rawParallel === "true") {
+      safe_mode_parallel = true;
+    } else if (rawParallel === "false") {
+      safe_mode_parallel = false;
+    } else {
+      safe_mode_parallel = DEFAULT_CONFIG.duckdb.safe_mode_parallel;
+      needRewrite = true;
+    }
+  } else {
+    safe_mode_parallel = DEFAULT_CONFIG.duckdb.safe_mode_parallel;
+    needRewrite = true;
+  }
+
   // [parquet]
   let compression = (
     parsed.parquet?.compression || DEFAULT_CONFIG.parquet.compression
@@ -608,7 +785,14 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       last_directory,
     },
     runtime: { engine, auto_fallback },
-    duckdb: { max_memory, threads, background_threads, add_raw_event },
+    duckdb: {
+      max_memory,
+      threads,
+      background_threads,
+      add_raw_event,
+      safe_mode_keywords,
+      safe_mode_parallel,
+    },
     parquet: {
       compression: compression as ToadConfig["parquet"]["compression"],
       row_group_size,
@@ -620,7 +804,23 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
   if (needRewrite) {
     log.info("[ConfigValidation] Da phat hien key thieu/sai, tu dong va (Auto-Heal)");
     try {
-      fs.writeFileSync(configPath, stringifyConfig(validatedConfig), "utf8");
+      let healedContent: string | null = null;
+      try {
+        if (fs.existsSync(configPath)) {
+          const currentText = fs.readFileSync(configPath, "utf8");
+          if (currentText.trim().length > 0) {
+            healedContent = autoHealIniText(currentText, validatedConfig);
+          }
+        }
+      } catch (patchErr) {
+        log.warn("[ConfigValidation] Khong the patch in-place, fallback ve stringifyConfig:", patchErr);
+      }
+
+      if (!healedContent) {
+        healedContent = stringifyConfig(validatedConfig);
+      }
+
+      fs.writeFileSync(configPath, healedContent, "utf8");
     } catch (err) {
       log.warn("[ConfigValidation] Khong the ghi lai config.ini:", err);
     }
@@ -907,6 +1107,22 @@ export function initPortableEnvironment(): PortableEnvironment {
     log.info("[PortableAppData] temp_cleanup = false -> Bao luu toan bo cache Parquet trong temp/");
   }
 
+  // Export environment variables for IPC and child processes
+  process.env.TOAD_APP_DATA_DIR = appDataDir;
+  process.env.TOAD_SAFE_KEYWORDS = config.duckdb.safe_mode_keywords.join(",");
+  process.env.TOAD_SAFE_PARALLEL = String(config.duckdb.safe_mode_parallel);
+
+  const envResult: PortableEnvironment = {
+    exeDir,
+    appDataDir,
+    tempDir,
+    electronDataDir,
+    logsDir,
+    ledgerPath,
+    config,
+  };
+  (global as any).toadPortableEnv = envResult;
+
   log.info("=== [PortableAppData] Khoi tao hoan tat ===");
   log.info(`    AppData    : ${appDataDir}`);
   log.info(`    Temp       : ${tempDir}`);
@@ -916,14 +1132,8 @@ export function initPortableEnvironment(): PortableEnvironment {
   log.info(`    Electron   : ${electronDataDir}`);
   log.info(`    Logs       : ${logsDir}`);
   log.info(`    Libuv Pool : ${process.env.UV_THREADPOOL_SIZE}`);
+  log.info(`    Safe Keys  : ${process.env.TOAD_SAFE_KEYWORDS}`);
+  log.info(`    Safe Paral : ${process.env.TOAD_SAFE_PARALLEL}`);
 
-  return {
-    exeDir,
-    appDataDir,
-    tempDir,
-    electronDataDir,
-    logsDir,
-    ledgerPath,
-    config,
-  };
+  return envResult;
 }

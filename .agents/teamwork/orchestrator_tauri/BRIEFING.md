@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-04T19:24:00Z
+# BRIEFING — 2026-11-05T01:36:00Z
 
 ## Mission
 Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Windows on Tauri v2 at tauri/project and package portable release.
@@ -26,11 +26,11 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
   4. Core Rust Engine & DuckDB (Squad 2 / M2) [DONE - Gate PASSED]
   5. DuckDB Engine & Arrow IPC Protocol (Squad 3 / M3) [DONE - Gate PASSED]
   6. Parquet Ledger & Workspace (Squad 4 / M4) [DONE - Gate PASSED]
-  7. Ingestion & Forensics Pipelines (Squad 5 / M5) [in-progress]
-  8. Frontend Porting & Host Bridge (Squad 6 / M6) [pending]
-  9. Final Verification & Packaging (Squad 7 / M7) [pending]
-- **Current phase**: 5 (Milestone 5 Implementation)
-- **Current focus**: Milestone 5: Forensics & Ingestion Pipelines (Squad 5 / M5)
+  7. Ingestion & Forensics Pipelines (Squad 5 / M5) [DONE - Gate PASSED]
+  8. Frontend Porting & Host Bridge (Squad 6 / M6) [DONE - Gate PASSED]
+  9. Final Verification & Packaging (Squad 7 / M7) [in-progress]
+- **Current phase**: 7 (Milestone 7 Final Verification & Production Packaging)
+- **Current focus**: Milestone 7: Final Verification & Production Portable Packaging (Squad 7 / M7)
 
 ## 🔒 Key Constraints
 - NEVER write, modify, or create source code files directly.
@@ -52,7 +52,11 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - Milestone 3 Iteration 5 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M3 marked DONE in PROJECT.md. Commit cd5a501f verified.
 - Milestone 4 Iteration 6 Gate FAILED on Challenger findings (EBUSY open handle purge & startup latency). Remediated via Iteration 7.
 - Milestone 4 Iteration 7 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). Commit 4904b89a verified (100/100 Rust tests, 55/55 Node tests, 1.82ms latency, per-file move fallback). M4 marked DONE in PROJECT.md.
-- Milestone 5 Iteration 8 Gate FAILED on Challenger finding (challenger_m5_2: burst lane permit leak on idle dispatch, jobId missing in promote_to_vip). Remediating via Iteration 9.
+- Milestone 5 Iteration 8 Gate FAILED on Challenger finding (challenger_m5_2: burst lane permit leak on idle dispatch, jobId missing in promote_to_vip). Remediated via Iteration 9.
+- Milestone 5 Iteration 9 Gate FAILED on Reviewer & Challenger findings (burst lane permit leak when cancelling pending VIP job before dispatch). Remediated via Iteration 10.
+- Milestone 5 Iteration 10 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). Commit 31cdbb66 verified (135/135 Rust tests, 55/55 Node tests, RAM delta 18.26MB, zero disk churn, permit leak eradicated). M5 marked DONE in PROJECT.md.
+- Milestone 6 Iteration 11 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). Commit b783a378 verified (Vite 5 build 27.87s, 265/265 tests passed, zero-copy Arrow IPC active, dynamic auto-wrap & glow suppression verified). M6 marked DONE in PROJECT.md.
+- Milestone 7 User Feedback: Windows GNU target requires WebView2Loader.dll co-located with Toad.exe and duckdb.dll in root directory, releases directory, and inside portable zip. Forwarded to worker_m7_packaging.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -127,18 +131,45 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | challenger_m5_1 | teamwork_challenger | EVTX SIMD & Forensics Adversarial Challenger 1 | completed | 1f5c8b8e-448e-4ad0-bdad-e22e79b79f5c |
 | challenger_m5_2 | teamwork_challenger | Queue Scheduling & Concurrency Adversarial Challenger 2 | completed | bca50540-5625-4448-9495-a6cf06d4b111 |
 | auditor_m5_1 | teamwork_auditor | Forensic Integrity Auditor M5 | completed | 6d4d9732-3051-43b0-90ea-4b8e4457d6a2 |
-| worker_m5_remediation | teamwork_worker | Milestone 5 Remediation Worker | in-progress | e0defccc-8c6a-41aa-86aa-b84f746a05fa |
+| worker_m5_remediation | teamwork_worker | Milestone 5 Remediation Worker | completed | e0defccc-8c6a-41aa-86aa-b84f746a05fa |
+| reviewer_m5_recheck_1 | teamwork_reviewer | Scheduler Remediation Reviewer 1 | completed | ae3f0a43-aea0-4a4d-8046-78c6ab46ea69 |
+| reviewer_m5_recheck_2 | teamwork_reviewer | Interface Conformance Reviewer 2 | completed | 1d9d4a14-23cc-4167-95a3-fee2088fca30 |
+| challenger_m5_recheck_1 | teamwork_challenger | EVTX SIMD Challenger 1 | completed | d376577a-7270-4db7-8b69-09491d949a69 |
+| challenger_m5_recheck_2 | teamwork_challenger | Queue Concurrency Challenger 2 | completed | 6b3ac8e5-468a-47f7-aa4a-e99b69ad8b45 |
+| auditor_m5_recheck_1 | teamwork_auditor | Forensic Auditor M5 Recheck | completed | 9f5151e6-2417-462d-9322-f5d394acc933 |
+| worker_m5_remediation_2 | teamwork_worker | Milestone 5 Remediation Worker 2 | completed | df138fab-e1fa-4ddb-a1f4-9f6a1abadf8a |
+| reviewer_m5_final_1 | teamwork_reviewer | Scheduler Final Reviewer 1 | completed | 44e8c890-713a-42e6-bddc-9ab27b01d3c8 |
+| reviewer_m5_final_2 | teamwork_reviewer | Interface Final Reviewer 2 | completed | 90c16567-412d-4201-b65c-52326692c18c |
+| challenger_m5_final_1 | teamwork_challenger | EVTX Final Challenger 1 | completed | b56558be-bc4b-4598-aa37-9c7852bc6ba3 |
+| challenger_m5_final_2 | teamwork_challenger | Queue Final Challenger 2 | completed | 04d632e6-5dd0-426c-88b9-e912669b1877 |
+| auditor_m5_final_1 | teamwork_auditor | Forensic Auditor M5 Final | completed | 706ec163-ef12-4186-bd08-629367b0d88b |
+| explorer_m6_vite | teamwork_explorer | Frontend Build Explorer | completed | 88c9939b-b38c-4e12-be5c-3c0ca1ae5660 |
+| explorer_m6_bridge | teamwork_explorer | Host Bridge Explorer | completed | bf39e321-756e-4eae-8211-c376ffe4c159 |
+| explorer_m6_grid | teamwork_explorer | Grid UI Explorer | completed | ab4dccd8-8618-4378-b488-73f231f87c45 |
+| worker_m6_frontend | teamwork_worker | Milestone 6 Frontend Worker | completed | 35bc8ebc-f3e3-4384-ba53-c334c36fcc62 |
+| reviewer_m6_1 | teamwork_reviewer | Frontend & Host Bridge Reviewer 1 | completed | f67a0a1e-d38c-4775-b1ad-695f47821c91 |
+| reviewer_m6_2 | teamwork_reviewer | UI & Formatting Reviewer 2 | completed | 7c9588a2-cbd9-4a8e-b618-e39898d7fd96 |
+| challenger_m6_1 | teamwork_challenger | Virtual Scroll & Arrow Challenger 1 | completed | 67e97240-e8db-4650-bcfc-17793824b30b |
+| challenger_m6_2 | teamwork_challenger | Wrap Boundaries & Glow Challenger 2 | completed | 4de85eba-ea2d-4790-9ce3-2f76c12c9346 |
+| auditor_m6_1 | teamwork_auditor | Forensic Auditor M6 | completed | 76ed648a-120b-478b-9424-21108e08ffd8 |
+| explorer_m7_packaging | teamwork_explorer | Packaging & Release Explorer | completed | 68803da1-76a7-4b37-a741-3d2f8f89b2da |
+| worker_m7_packaging | teamwork_worker | Packaging & Release Worker | completed | d906e0ee-cfd6-42db-8654-31f1bd7564a2 |
+| reviewer_m7_1 | teamwork_reviewer | Packaging & Build Quality Reviewer 1 | in-progress | 009bf6e9-9550-401e-9636-7a0231c87025 |
+| reviewer_m7_2 | teamwork_reviewer | Release Compliance & Startup Reviewer 2 | in-progress | 06cd0bbf-17c7-4c47-9a48-cdf0ee01ca26 |
+| challenger_m7_1 | teamwork_challenger | Portable Execution & Latency Challenger 1 | in-progress | cde985d3-36b7-4296-950d-19ed4ac350f8 |
+| challenger_m7_2 | teamwork_challenger | Zero-Duplicate & Checksum Challenger 2 | in-progress | 802f19b5-a76a-4da3-8320-8fc116dc40a8 |
+| auditor_m7_1 | teamwork_auditor | Forensic Integrity Auditor M7 | in-progress | 28aa06b3-f5db-4176-8b52-b42e9dc12f35 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 71 / 128
-- Pending subagents: e0defccc-8c6a-41aa-86aa-b84f746a05fa
+- Spawn count: 98 / 128
+- Pending subagents: 009bf6e9-9550-401e-9636-7a0231c87025, 06cd0bbf-17c7-4c47-9a48-cdf0ee01ca26, cde985d3-36b7-4296-950d-19ed4ac350f8, 802f19b5-a76a-4da3-8320-8fc116dc40a8, 28aa06b3-f5db-4176-8b52-b42e9dc12f35
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-2093
+- Safety timer: none
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

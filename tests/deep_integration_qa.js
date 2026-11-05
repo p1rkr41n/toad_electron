@@ -5686,7 +5686,8 @@ async function main() {
     assert.strictEqual(isComplexLogFile("TimelineExplorer/output.csv"), true);
     assert.strictEqual(isComplexLogFile("C:/temp/sysmon_events.log"), true);
     assert.strictEqual(isComplexLogFile("audit_trail.txt"), true);
-    assert.strictEqual(isComplexLogFile("mft_dump.csv"), true);
+    assert.strictEqual(isComplexLogFile("mft_dump.csv"), false);
+    assert.strictEqual(isComplexLogFile("mft_dump.csv", ["mft"]), true);
 
     // Standard non-complex files
     assert.strictEqual(isComplexLogFile("sales_2026.csv"), false);

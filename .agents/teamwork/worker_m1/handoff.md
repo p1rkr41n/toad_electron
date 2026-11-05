@@ -1,127 +1,200 @@
-# Milestone 1 Handoff Report: Toolchain, Scaffolding & Manifests
+# Milestone 1 Handoff Report: Configuration and Auto-Heal in toad-app
 
-**Author**: Worker M1 (`worker_m1`)  
-**Publisher/Identity**: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`  
-**Date**: 2026-11-04  
-**Project**: Toad Tauri v2 Migration (`TOAD-TAURI-V2`)  
+**Author**: worker_m1 (implementer / qa / specialist)  
+**Date**: 2026-11-05  
+**Working Directory**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1`  
+**Target File Exclusively Owned**: `tad-master/packages/toad-app/app/portableAppData.ts`  
 
 ---
 
 ## 1. Observation
 
-1. **Root `.gitignore` Configuration**:
-   - Replaced line 44 (`tauri/`) in `d:\Shared_UserData\Downloads\tad\.gitignore` with:
-     ```gitignore
-     !tauri/
-     !tauri/project/
-     tauri/project/src-tauri/target/
-     tauri/project/node_modules/
-     tauri/project/dist/
-     tauri/project/toadAppData*/
+1. **Interface Contract (`ToadConfig.duckdb`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts` (lines 35-42):
+   ```typescript
+   duckdb: {
+     max_memory: string;
+     threads: number;
+     background_threads: number | "auto";
+     add_raw_event: boolean;
+     safe_mode_keywords: string[];
+     safe_mode_parallel: boolean;
+   };
+   ```
+
+2. **Default Values (`DEFAULT_CONFIG.duckdb`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts` (lines 84-102):
+   ```typescript
+   safe_mode_keywords: [
+     "hayabusa",
+     "eventlog",
+     "event_log",
+     "security",
+     "audit",
+     "sysmon",
+     "timeline",
+     "dfir",
+     "winlog",
+     "firewall",
+     "auth",
+     "syslog",
+   ],
+   safe_mode_parallel: true,
+   ```
+   Direct check: `"mft"` is absent from `DEFAULT_CONFIG.duckdb.safe_mode_keywords`.
+
+3. **Template & Bilingual Documentation (`DEFAULT_CONFIG_INI_TEXT`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts` (lines 172-180):
+   ```ini
+   # Safe mode keywords (comma-separated, case-insensitive). Triggers safe all_varchar ingestion for large complex logs.
+   # Set to none or off or empty to disable safe mode heuristics.
+   # Tu khoa che do an toan (ngan cach bang dau phay). Dat thanh none hoac off de tat.
+   safe_mode_keywords = hayabusa, eventlog, event_log, security, audit, sysmon, timeline, dfir, winlog, firewall, auth, syslog
+
+   # Multi-threaded ingestion for safe mode (true = fast parallel scan, false = single-threaded fallback)
+   # Doc da luong cho che do an toan (true = quet da luong nhanh, false = don luong)
+   safe_mode_parallel = true
+   ```
+   Exported as `export const DEFAULT_CONFIG_INI_TEXT`.
+
+4. **Serialization (`stringifyConfig`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts` (lines 354-365):
+   ```typescript
+   [duckdb]
+   max_memory = ${cfg.duckdb.max_memory}
+   threads = ${cfg.duckdb.threads}
+   background_threads = ${cfg.duckdb.background_threads}
+   add_raw_event = ${cfg.duckdb.add_raw_event}
+   safe_mode_keywords = ${safeKeywords}
+   safe_mode_parallel = ${safeParallel}
+   ```
+   Where `safeKeywords = (cfg.duckdb?.safe_mode_keywords || []).join(", ")` and `safeParallel = cfg.duckdb?.safe_mode_parallel ?? true`. Exported as `export function stringifyConfig`.
+
+5. **Validation, Parsing & Auto-Healing (`validateAndEnsureConfig`, `autoHealIniText`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts`:
+   - Keyword parsing (lines 689-706):
+     ```typescript
+     let safe_mode_keywords: string[];
+     if (parsed.duckdb?.safe_mode_keywords !== undefined) {
+       const rawKw = String(parsed.duckdb.safe_mode_keywords).trim();
+       const rawKwLower = rawKw.toLowerCase();
+       if (rawKwLower === "" || rawKwLower === "none" || rawKwLower === "off") {
+         safe_mode_keywords = [];
+       } else {
+         safe_mode_keywords = rawKw
+           .split(",")
+           .map((k) => k.trim().toLowerCase())
+           .filter((k) => k.length > 0 && k !== "none" && k !== "off");
+       }
+     } else {
+       safe_mode_keywords = [...DEFAULT_CONFIG.duckdb.safe_mode_keywords];
+       needRewrite = true;
+     }
      ```
-   - Verified that `tauri/project/` source files are tracked by Jujutsu (`jj`) and Git while build artifacts (`target/`, `node_modules/`, `dist/`, `toadAppData*/`) remain excluded.
+   - Parallel parsing (lines 708-723):
+     ```typescript
+     let safe_mode_parallel: boolean;
+     if (parsed.duckdb?.safe_mode_parallel !== undefined) {
+       const rawParallel = String(parsed.duckdb.safe_mode_parallel).trim().toLowerCase();
+       if (rawParallel === "true") {
+         safe_mode_parallel = true;
+       } else if (rawParallel === "false") {
+         safe_mode_parallel = false;
+       } else {
+         safe_mode_parallel = DEFAULT_CONFIG.duckdb.safe_mode_parallel;
+         needRewrite = true;
+       }
+     } else {
+       safe_mode_parallel = DEFAULT_CONFIG.duckdb.safe_mode_parallel;
+       needRewrite = true;
+     }
+     ```
+   - Non-destructive Auto-Healing (`autoHealIniText`, lines 380-480, 804-826):
+     Preserves existing comments (`# ...`, `; ...`), preserves arbitrary user-defined custom sections, preserves existing keys and user values (e.g. `page_size = 5000`, `threads = 8`), and injects missing keys/sections in-place, falling back cleanly to `stringifyConfig` if unparseable.
 
-2. **Frontend Scaffolding & Configuration**:
-   - `tauri/project/package.json`: Configured with React 18, `@tauri-apps/api@^2.0.0`, plugins (`@tauri-apps/plugin-dialog@^2.0.0`, `@tauri-apps/plugin-opener@^2.0.0`, `@tauri-apps/plugin-clipboard-manager@^2.0.0`, `@tauri-apps/plugin-window-state@^2.0.0`), `@apache-arrow/es2015-cjs`, `slickgrid-es6`, Less, Sass, TypeScript, and Vite 5.
-   - `tauri/project/vite.config.ts`: Configured with React plugin `@vitejs/plugin-react`, module path aliases, regex prefix resolver `{ find: /^~/, replacement: '' }` to handle Webpack Less/Sass tilde imports, and preprocessor options `less: { javascriptEnabled: true, math: 'always' }`.
-   - `tauri/project/index.html`: Configured HTML5 entrypoint with dark theme classes (`bp4-dark toad-dark`), viewport metadata, title "Toad Data Analyzer", root container `<div id="app"></div>`, and module script `/src/main.tsx`.
-   - `tauri/project/src/main.tsx`: React 18 Concurrent root entrypoint with global `BigInt.prototype.toJSON` serialization polyfill required for Apache Arrow / DuckDB query payloads.
+6. **Environment Variable & Global State Export (`initPortableEnvironment`)**:
+   In `tad-master/packages/toad-app/app/portableAppData.ts` (lines 1110-1139):
+   ```typescript
+   process.env.TOAD_APP_DATA_DIR = appDataDir;
+   process.env.TOAD_SAFE_KEYWORDS = config.duckdb.safe_mode_keywords.join(",");
+   process.env.TOAD_SAFE_PARALLEL = String(config.duckdb.safe_mode_parallel);
 
-3. **Backend Scaffolding & Manifests**:
-   - `tauri/project/src-tauri/Cargo.toml`: Configured package `toad` v2.5.1 with dependencies:
-     - `tauri = { version = "2", features = [] }`
-     - `tauri-plugin-single-instance = "2"`
-     - `tauri-plugin-window-state = "2"`
-     - `tauri-plugin-dialog = "2"`
-     - `tauri-plugin-opener = "2"`
-     - `tauri-plugin-clipboard-manager = "2"`
-     - `tauri-plugin-fs = "2"`
-     - `duckdb = "1.0"`
-     - `arrow = { version = "53", default-features = false, features = ["ipc"] }`
-     - `evtx = "0.8"`
-     - `tokio = { version = "1", features = ["full"] }`
-     - `serde = { version = "1", features = ["derive"] }`
-     - `serde_json = "1"`
-     - `tracing = "0.1"`
-     - `tracing-subscriber = "0.3"`
-     - Size-optimized release profile (`opt-level = 3`, `lto = true`, `codegen-units = 1`, `panic = "abort"`, `strip = true`).
-   - `tauri/project/src-tauri/tauri.conf.json`:
-     - Schema: `https://schema.tauri.app/config/2`
-     - `app.withGlobalTauri: true` (ensuring `window.__TAURI__` is injected for `TauriHostAdapter.ts`)
-     - `app.appDirectoriesOverride: "./toadAppData"` (portable adjacent data directory)
-     - `app.windows[0]`: title `"Toad Data Analyzer"`, width `1280`, height `980`, minWidth `960`, minHeight `600`, theme `"Dark"`, `visible: false` (to prevent position jumping during window-state restore).
-     - Security: CSP configured with `'unsafe-inline'` styles for SlickGrid/BlueprintJS, asset protocol schemas, and capabilities `["default"]`.
-   - `tauri/project/src-tauri/capabilities/default.json`:
-     - Identifier `"default"`, targeting window `"main"`.
-     - Granted permissions: `core:default`, window mutating permissions (`core:window:allow-set-title`, `maximize`, `minimize`, `close`, `show`, `hide`, `start-dragging`, `toggle-maximize`), `dialog:default` (`allow-open`, `allow-save`, `allow-message`), `fs:default` (`allow-read-file`, `write-file`, `exists`, `read-dir`, `mkdir`, `remove`), `opener:default` (`allow-open-url`, `allow-open-path`, `allow-reveal-item-in-dir`), `clipboard-manager:allow-write-text` / `allow-read-text` / `allow-clear`, and `window-state:default`.
-   - `tauri/project/src-tauri/src/lib.rs` and `main.rs`:
-     - Initial minimal skeleton integrating `tracing` and running unit test `test_skeleton_initialization`.
+   const envResult: PortableEnvironment = {
+     exeDir,
+     appDataDir,
+     tempDir,
+     electronDataDir,
+     logsDir,
+     ledgerPath,
+     config,
+   };
+   (global as any).toadPortableEnv = envResult;
+   ```
 
-4. **Toolchain Resolution & Compilation Verification**:
-   - Initial `cargo check` under `stable-x86_64-pc-windows-gnu` encountered missing `crtbegin.o` when invoking GCC as a linker for build scripts.
-   - Configured `rust-lld` as the native linker in `C:\Users\huydq\.cargo\config.toml` (`[target.x86_64-pc-windows-gnu] linker = "rust-lld"`).
-   - Executed `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml` with exit code 0 (`Finished dev profile [unoptimized + debuginfo] target(s) in 2m 31s`).
-   - Executed `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml` with exit code 0 (`test tests::test_skeleton_initialization ... ok. 1 passed; 0 failed`).
-
-5. **Version Control Commit**:
-   - Committed via `jj commit -m "feat(scaffold): initialize Tauri v2 project structure, manifests, and .gitignore"` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
-   - Commit revision ID: `cd863254`.
+7. **Compilation & Verification Tool Runs**:
+   - Webpack build command:
+     `$env:PATH = "$pwd\node-v18.20.4-win-x64;$env:PATH"; npm --prefix tad-master/packages/toad-app run build-dev`
+     Result: Exit code 0.
+     Outputs: `main.bundle.js` (260 KiB), `toadapp.bundle.js` (11.8 MiB), `engineService.bundle.js` (40.4 KiB), `app/portableAppData.d.ts` (8.3 KiB emitted).
+   - In-memory node runtime verification:
+     Executed test exercising missing keys auto-heal, disabling tokens (`none`, `off`, `""`), whitespace/case trimming, and `initPortableEnvironment` env variable propagation.
+     Result: Exit code 0, 100% assertions passed.
 
 ---
 
 ## 2. Logic Chain
 
-1. In the legacy Electron build, the root `.gitignore` ignored all of `tauri/`, which prevented any new Tauri files from being tracked in version control. By un-ignoring `!tauri/` and `!tauri/project/` while keeping exclusions for `target/`, `node_modules/`, `dist/`, and `toadAppData*/`, version control is cleanly scoped to source and configuration files only.
-2. In Tauri v2, permissions default to zero-trust deny. The specifications derived by `specminer_survey_2` identified that window mutators (`set-title`, `maximize`), dialog pickers, and clipboard access require explicit capability declarations in `capabilities/default.json`. Furthermore, `withGlobalTauri: true` in `tauri.conf.json` is mandatory so `TauriHostAdapter.ts` can bind `window.__TAURI__.core.invoke`.
-3. In `tauri/project/vite.config.ts`, legacy SCSS/Less imports in `toadviewer` use Webpack's `~` prefix (e.g. `~slickgrid-es6`). Setting alias `{ find: /^~/, replacement: '' }` and `less.javascriptEnabled = true` ensures frictionless compilation of styles in Vite 5.
-4. On Windows, the rustup GNU toolchain relies on `rust-lld` for linking when MinGW GCC build tools are not installed. Adding `[target.x86_64-pc-windows-gnu] linker = "rust-lld"` in `~/.cargo/config.toml` completely bypassed external GCC linker dependencies, allowing all Rust dependencies (`tauri`, `tokio`, `arrow`, `evtx`, `duckdb`) to compile cleanly.
+1. From Requirement R1 and Task 1, `ToadConfig.duckdb` requires `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` (Observation 1).
+2. From Requirement R1 and Task 2, `DEFAULT_CONFIG.duckdb` must supply the 12 specified keywords while strictly excluding `"mft"`, and set `safe_mode_parallel: true` (Observation 2).
+3. From Requirement R1 and Task 3, `DEFAULT_CONFIG_INI_TEXT` must include the bilingual template so new installations generate commented INI files with clear guidance (Observation 3).
+4. From Requirement R1 and Task 4, `stringifyConfig` must serialize the newly configured keys under `[duckdb]`. Empty arrays produce empty values (`safe_mode_keywords = `), which parse back cleanly (Observation 4).
+5. From Requirement R1 and Task 5, `validateAndEnsureConfig` splits comma-separated strings, strips whitespace, converts to lowercase, skips empty tokens, detects disabling tokens (`none`, `off`, `""`), parses booleans, flags `needRewrite = true` on missing/invalid keys, and applies non-destructive auto-healing via `autoHealIniText` while preserving user comments and sections (Observation 5).
+6. From Requirement R1 and Task 6, `initPortableEnvironment()` exports `process.env.TOAD_APP_DATA_DIR`, `process.env.TOAD_SAFE_KEYWORDS`, and `process.env.TOAD_SAFE_PARALLEL`, and assigns `(global as any).toadPortableEnv = envResult`, ensuring child utility processes and workers inherit configuration (Observation 6).
+7. Running the webpack build and runtime test suite confirms TypeScript compilation and runtime invariants succeed with exit code 0 (Observation 7).
 
 ---
 
 ## 3. Caveats
 
-1. DuckDB C++ bundled compilation from source (`features = ["bundled"]`) requires a full C++ compiler (`g++.exe` or MSVC `cl.exe`). Under the pure Rust toolchain environment on this machine, `duckdb = "1.0"` links dynamically or uses precompiled C FFI bindings without requiring a local C++ compilation toolchain.
-2. The initial `main.rs` and `lib.rs` provide a functional skeleton with unit testing. Downstream squads (Squad 2 for OS plugins/commands, Squad 3 for DuckDB pool/Arrow IPC, Squad 4 for Parquet Ledger, Squad 5 for Ingestion) will expand the respective modules under `src-tauri/src/`.
+No caveats. All 6 tasks have been completely implemented in `tad-master/packages/toad-app/app/portableAppData.ts` without touching any external or out-of-scope files.
 
 ---
 
 ## 4. Conclusion
 
-Milestone 1 is 100% complete:
-- Root `.gitignore` is reconfigured and verified.
-- Frontend manifests (`package.json`, `vite.config.ts`, `index.html`, `src/main.tsx`) are created and aligned with Tauri v2 and React 18 standards.
-- Backend manifests (`Cargo.toml`, `tauri.conf.json`, `capabilities/default.json`) and minimal code skeleton (`main.rs`, `lib.rs`) are scaffolded.
-- Toolchain linker was resolved using bundled `rust-lld`, passing both `cargo check` and `cargo test` with 0 errors.
-- Version control snapshot commit `cd863254` is recorded in Jujutsu under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+Milestone 1 is complete. `portableAppData.ts` satisfies all Requirement R1 specifications, successfully compiles under webpack development builds, and correctly handles configuration validation, non-destructive auto-healing, and cross-process environment variable propagation.
 
 ---
 
 ## 5. Verification Method
 
-To independently verify this milestone:
-1. **Check Jujutsu Version Control**:
+To independently verify Milestone 1:
+
+1. **Webpack Compilation**:
    ```powershell
-   C:\Users\huydq\.cargo\bin\jj.exe log -n 3
-   C:\Users\huydq\.cargo\bin\jj.exe diff -r cd863254
+   $env:PATH = "$pwd\node-v18.20.4-win-x64;$env:PATH"
+   npm --prefix tad-master/packages/toad-app run build-dev
    ```
-2. **Check Rust Compilation**:
+   Verification passes when exit code is 0 and `main.bundle.js` is generated without TypeScript/webpack errors.
+
+2. **Runtime Invariant Test**:
    ```powershell
-   cargo check --manifest-path tauri/project/src-tauri/Cargo.toml
+   .\node-v18.20.4-win-x64\node.exe -e "
+   const path = require('path');
+   const fs = require('fs');
+   const assert = require('assert');
+   const ROOT_DIR = process.cwd();
+   const ts = require(path.resolve(ROOT_DIR, 'tad-master/node_modules/typescript'));
+   require.extensions['.ts'] = function (module, filename) {
+     const content = fs.readFileSync(filename, 'utf8');
+     const result = ts.transpileModule(content, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } });
+     module._compile(result.outputText, filename);
+   };
+   const { DEFAULT_CONFIG, DEFAULT_CONFIG_INI_TEXT, stringifyConfig, validateAndEnsureConfig } = require(path.resolve(ROOT_DIR, 'tad-master/packages/toad-app/app/portableAppData.ts'));
+   assert.strictEqual(DEFAULT_CONFIG.duckdb.safe_mode_parallel, true);
+   assert.strictEqual(DEFAULT_CONFIG.duckdb.safe_mode_keywords.length, 12);
+   assert.strictEqual(DEFAULT_CONFIG.duckdb.safe_mode_keywords.includes('mft'), false);
+   console.log('PASS: Milestone 1 invariants verified');
+   "
    ```
-   *Expected output*: `Finished dev profile [unoptimized + debuginfo] target(s)` with exit code 0.
-3. **Check Rust Unit Tests**:
-   ```powershell
-   cargo test --manifest-path tauri/project/src-tauri/Cargo.toml
-   ```
-   *Expected output*: `test tests::test_skeleton_initialization ... ok. 1 passed; 0 failed` with exit code 0.
-4. **Inspect Files**:
-   - `.gitignore` (lines 43-49)
-   - `tauri/project/package.json`
-   - `tauri/project/vite.config.ts`
-   - `tauri/project/index.html`
-   - `tauri/project/src/main.tsx`
-   - `tauri/project/src-tauri/Cargo.toml`
-   - `tauri/project/src-tauri/tauri.conf.json`
-   - `tauri/project/src-tauri/capabilities/default.json`
-   - `tauri/project/src-tauri/src/lib.rs`
-   - `tauri/project/src-tauri/src/main.rs`
+   Invalidation conditions: Any compilation error or assertion failure.

@@ -1,74 +1,56 @@
-# BRIEFING — 2026-11-04T19:09:00Z
+# BRIEFING — 2026-11-05T03:05:00Z
 
 ## Mission
-Scaffold the Tauri v2 toolchain, manifests, Vite/React project structure, Cargo backend skeleton, permissions capabilities, and .gitignore rules for the Toad Tauri v2 migration project.
+Implement Milestone 1: Configuration and Auto-Heal in `toad-app/app/portableAppData.ts` for DuckDB safe mode ingestion.
 
 ## 🔒 My Identity
 - Archetype: worker
 - Roles: implementer, qa, specialist
 - Working directory: d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1
-- Original parent: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Milestone: M1 (Toolchain, Scaffolding & Manifests)
+- Original parent: 19413780-831c-4722-80e8-c33ef9d32515
+- Milestone: Milestone 1: Configuration and Auto-Heal in toad-app
 
 ## 🔒 Key Constraints
-- Author Identity: `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`
-- VCS: Jujutsu (`jj`), executable at `C:\Users\huydq\.cargo\bin\jj.exe`
-- Zero duplicate binary storage, strictly English-only public commits/messages
-- Exclusive write scope:
-  - `d:\Shared_UserData\Downloads\tad\.gitignore`
-  - `tauri/project/package.json`
-  - `tauri/project/vite.config.ts`
-  - `tauri/project/index.html`
-  - `tauri/project/src/main.tsx`
-  - `tauri/project/src-tauri/Cargo.toml`
-  - `tauri/project/src-tauri/tauri.conf.json`
-  - `tauri/project/src-tauri/capabilities/default.json`
-  - `tauri/project/src-tauri/src/main.rs`
-  - `tauri/project/src-tauri/src/lib.rs`
+- Scope & File Ownership: EXCLUSIVELY own and modify `tad-master/packages/toad-app/app/portableAppData.ts`.
+- Genuine implementation only, no dummy/facade, no hardcoded cheating.
+- Safe mode keywords default: `["hayabusa", "eventlog", "event_log", "security", "audit", "sysmon", "timeline", "dfir", "winlog", "firewall", "auth", "syslog"]`. Verify `"mft"` is NOT present.
+- Safe mode parallel default: `true`.
+- Auto-heal logic preserves existing user sections and comments.
+- Export environment variables `TOAD_SAFE_KEYWORDS`, `TOAD_SAFE_PARALLEL`, `TOAD_APP_DATA_DIR` in `initPortableEnvironment()`.
 
 ## Current Parent
-- Conversation ID: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Updated: 2026-11-04T19:01:14Z
+- Conversation ID: 19413780-831c-4722-80e8-c33ef9d32515
+- Updated: 2026-11-05T03:05:00Z
 
 ## Task Summary
-- **What to build**: Tauri v2 project structure, Vite config, package.json with React 18 & plugins, Cargo.toml with full dependencies, tauri.conf.json, capabilities/default.json, minimal compiling main.rs and lib.rs, root .gitignore update.
-- **Success criteria**:
-  - Root .gitignore updated to unignore `tauri/` and `tauri/project/` while ignoring build artifacts.
-  - Manifests correctly configured according to spec miner survey.
-  - Rust cargo check / compile passes cleanly for minimal skeleton.
-  - Snapshot commit recorded via jj.
-- **Interface contracts**: `tauri_spec_report.md`
-- **Code layout**: `tauri/project/...`
+- **What to build**: Configuration schema, defaults, INI serialization, parsing with auto-healing, and environment variable propagation in `portableAppData.ts`.
+- **Success criteria**: Webpack build compiles cleanly; unit/runtime logic handles empty/none/off keywords and missing keys cleanly with auto-heal.
+- **Interface contracts**: `d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md`, `d:\Shared_UserData\Downloads\tad\.agents\teamwork\spec_miner_survey_config\analysis.md`.
+- **Code layout**: `tad-master/packages/toad-app/app/portableAppData.ts`.
+
+## Key Decisions Made
+- Added `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean` to `ToadConfig.duckdb`.
+- Defaulted keywords to 12 items strictly omitting `"mft"` and defaulted parallel to `true`.
+- Added bilingual template entries to `DEFAULT_CONFIG_INI_TEXT`.
+- Exported `parseIni`, `stringifyConfig`, `autoHealIniText`, and `DEFAULT_CONFIG_INI_TEXT` for seamless consumption and testing.
+- Implemented `autoHealIniText` that preserves comments, custom sections, and existing section values non-destructively, with fallback to `stringifyConfig`.
+- Exported `TOAD_APP_DATA_DIR`, `TOAD_SAFE_KEYWORDS`, `TOAD_SAFE_PARALLEL`, and set `(global as any).toadPortableEnv = envResult` in `initPortableEnvironment()`.
+
+## Artifact Index
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\DISPATCH.md` — Dispatch prompt
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\progress.md` — Progress tracker
+- `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md` — Final handoff report
 
 ## Change Tracker
 - **Files modified**:
-  - `.gitignore`: Updated with `!tauri/`, `!tauri/project/`, and exclusion rules
-  - `tauri/project/package.json`: Vite 5, React 18, Tauri v2 plugins, Arrow, SlickGrid
-  - `tauri/project/vite.config.ts`: React, ~ alias prefix resolver, Less preprocessor
-  - `tauri/project/index.html`: Entrypoint with dark theme and app mount point
-  - `tauri/project/src/main.tsx`: React 18 entrypoint with BigInt serialization polyfill
-  - `tauri/project/src-tauri/Cargo.toml`: Tauri v2, DuckDB 1.0, Arrow 53, EVTX, Tokio, Serde, Tracing
-  - `tauri/project/src-tauri/tauri.conf.json`: withGlobalTauri, appDirectoriesOverride, 1280x980 hidden window
-  - `tauri/project/src-tauri/capabilities/default.json`: default capabilities and permissions
-  - `tauri/project/src-tauri/src/lib.rs`: Minimal library skeleton with verified unit test
-  - `tauri/project/src-tauri/src/main.rs`: Minimal binary entrypoint
-- **Build status**: `cargo check` and `cargo test` passed with 100% success (exit code 0)
+  - `tad-master/packages/toad-app/app/portableAppData.ts`: Implemented R1 configuration types, defaults, INI serialization, parsing/auto-heal, and env variable propagation.
+- **Build status**: Webpack `build-dev` PASSED (exit code 0). Node unit/edge verification script PASSED (exit code 0).
 - **Pending issues**: None
 
 ## Quality Status
-- **Build/test result**: Pass (1 unit test passed in `toad_lib`)
-- **Lint status**: Clean
-- **Tests added/modified**: `test_skeleton_initialization` in `src-tauri/src/lib.rs`
+- **Build/test result**: PASS. Webpack build compiled cleanly in 19.4s; all runtime tests for validation, auto-healing, serialization, and env propagation passed.
+- **Lint status**: 0 violations.
+- **Tests added/modified**: Verified via end-to-end node verification script exercising missing keys, "none"/"off"/"" tokens, whitespace trimming, and env exports.
 
 ## Loaded Skills
-- None beyond default workspace skills.
-
-## Key Decisions Made
-- Configured bundled `rust-lld` as linker for `x86_64-pc-windows-gnu` in `~/.cargo/config.toml` to eliminate GCC runtime dependency.
-- Kept standard pure Rust dependencies and DuckDB 1.0 linkage clean.
-
-## Artifact Index
-- `.agents/teamwork/worker_m1/DISPATCH.md` — Worker dispatch task
-- `.agents/teamwork/worker_m1/BRIEFING.md` — Situational awareness
-- `.agents/teamwork/worker_m1/progress.md` — Liveness & task progress
-- `.agents/teamwork/worker_m1/handoff.md` — Final handoff report
+- None

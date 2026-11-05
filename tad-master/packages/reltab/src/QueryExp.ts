@@ -49,7 +49,7 @@ import {
 } from "./SQLQuery";
 import { Row, LeafSchemaMap, TableRep } from "./TableRep";
 import { unpagedQueryToSql } from "./toSql";
-import _ = require("lodash");
+import * as _ from "lodash";
 
 type QueryOp =
   | "sql"

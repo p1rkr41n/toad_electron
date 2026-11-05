@@ -3,16 +3,15 @@ import * as log from "loglevel";
 import * as path from "path";
 import { StateRef, mutableGet } from "oneref";
 import { AppState } from "./AppState";
+import { getHostBridge } from "host-bridge";
+import { MultipleLoadingManager } from "./MultipleLoadingManager";
 
-let _bridge: any = null;
 function getBridge(): any {
-  if (!_bridge) {
-    try {
-      const { getHostBridge } = require("host-bridge");
-      _bridge = getHostBridge();
-    } catch {}
+  try {
+    return getHostBridge();
+  } catch {
+    return null;
   }
-  return _bridge;
 }
 
 let _reltabDuckDB: any = null;
@@ -262,7 +261,6 @@ export class ProjectWorkspaceManager {
 
   public async deleteProject(projectId: string): Promise<{ deletedFiles: number; freedBytes: number }> {
     try {
-      const { MultipleLoadingManager } = require("./MultipleLoadingManager");
       const files = await this.getProjectFiles(projectId);
       for (const f of files) {
         if (f.filePath) {
@@ -488,7 +486,6 @@ export class ProjectWorkspaceManager {
     filePath: string
   ): Promise<{ freedBytes: number }> {
     try {
-      const { MultipleLoadingManager } = require("./MultipleLoadingManager");
       MultipleLoadingManager.getInstance().unregisterFile(filePath);
     } catch {}
 

@@ -1,7 +1,7 @@
-# BRIEFING — 2026-11-04T19:04:00Z
+# BRIEFING — 2026-11-05T03:16:00Z
 
 ## Mission
-Deploy a team of 20 engineers across 5 squads to implement intelligent line calculation & auto-wrap across all three tables, refactor Parse Columns dialog, and suppress background active cell highlights behind modal overlays in ToadViewer.
+Implement configurable safe mode keywords via `config.ini` and optimize DuckDB multi-threaded ingestion for the Toad production application.
 
 ## 🔒 My Identity
 - Archetype: orchestrator
@@ -36,6 +36,18 @@ Deploy a team of 20 engineers across 5 squads to implement intelligent line calc
 - **Current phase**: Complete
 - **Current focus**: Final Hard Handoff & Human Reporting
 
+### Workflow Extension — 2026-11-05 Safe Mode Keywords & DuckDB Ingestion
+- **Scope document**: d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md
+- **Decompose**: Survey existing config and DuckDB ingestion; implement M1 (Config & Auto-Heal), M2 (Engine Ingestion & Worker), M3 (Unit & Integration Test Suite), and Gate Verification.
+- **Work items**:
+  1. Phase 0: Survey (3 parallel spec miner / explorers) [completed]
+  2. Milestone 1: Config & Auto-Heal in toad-app [completed]
+  3. Milestone 2: DuckDB Ingestion & Worker Optimization [completed]
+  4. Milestone 3: Unit Tests (16 cases) & Runner Integration [in-progress]
+  5. Milestone 4: Gate Verification (Reviewers, Challengers, Auditor) [pending]
+- **Current phase**: 3 (Milestone 3 Implementation)
+- **Current focus**: Milestone 3 Implementation
+
 ## 🔒 Key Constraints
 - NEVER write source code directly.
 - NEVER run build/test commands yourself.
@@ -49,62 +61,50 @@ Deploy a team of 20 engineers across 5 squads to implement intelligent line calc
   - N > 5: expand to 5 * 17px + 8px (~93-95px), overflow-y: auto (slim 4px scrollbar)
 - Parse Columns: only [Visual] and [Regex] tabs in header; [Nested JSON] in format dropdown; auto-scan on select; #btn-switch-nested removed.
 - Modal active cell highlight suppression: dismiss floating cells, grid.resetActiveCell(), and suppress .slick-cell.active / .slick-row.active in body.bp4-overlay-open.
+- Additional Constraints for 2026-11-05:
+  - Configurable safe mode keywords via config.ini: default excludes "mft".
+  - Boolean safe_mode_parallel defaults to true.
+  - "none", "off", "" disables safe mode (empty array []).
+  - Auto-heal config.ini preserving comments and existing sections.
+  - Export TOAD_SAFE_KEYWORDS, TOAD_SAFE_PARALLEL, TOAD_APP_DATA_DIR.
+  - TypeScript build & Webpack build-dev must pass with 0 exit code.
+  - Commit author HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>, zero enterprise leaks, English only.
 
 ## Current Parent
-- Conversation ID: b268bea6-87c9-43fa-bf35-9d706f4e4801
-- Updated: 2026-11-04T17:55:00Z
+- Conversation ID: b06c8210-6208-4225-aa57-562693303698
+- Updated: 2026-11-05T02:43:28Z
 
 ## Key Decisions Made
-- All milestones M1-M6 passed with 100% compliance.
-- Gate verification passed unconditionally:
-  - Reviewer Squad 1: APPROVE
-  - Reviewer Squad 2: APPROVE
-  - Challenger Squad 1: APPROVE (41/41 stress tests pass)
-  - Challenger Squad 2: APPROVE (18/18 stress tests pass)
-  - Auditor Squad: CLEAN (zero integrity violations)
+- Milestone 1 and Milestone 2 completed and verified.
+- Milestone 3 dispatched to worker_m3_tests (`test_safe_mode_config.js`, `run_tests.js`).
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |---|---|---|---|---|
-| spec_miner_survey_squads | teamwork_spec_miner | Survey: Spec mining from 20-engineer plan | completed | ca595706-c00c-4ab6-ad83-309c354baeda |
-| explorer_survey_tables | teamwork_explorer | Survey: Tables architecture & DOM | completed | 4322ce08-f7ca-4070-9828-fe67dd81ee9a |
-| explorer_survey_qa_release | teamwork_explorer | Survey: QA runner & packaging | completed | e365f2bb-e264-4251-8d94-29d31620169a |
-| worker_squad1 | teamwork_worker | M1: Squad 1 Foundation Implementation | completed | 25dc8fc4-a59e-4b90-bd8f-3ac962742195 |
-| worker_squad2 | teamwork_worker | M2: Squad 2 Sidebar Table & Wrap | completed | 7e3a8a5d-ec84-4a9c-a665-42f5c227b6b7 |
-| worker_squad3 | teamwork_worker | M3: Squad 3 DataGrid Floating Wrap | completed | a2de21b9-dfcc-43a9-a909-f12646b5ab9a |
-| worker_squad4 | teamwork_worker | M4: Squad 4 Parse Columns Refactor | completed | fc24d223-a3a1-47fa-942b-2ab947e4a59e |
-| worker_squad5 | teamwork_worker | M5: Squad 5 Systems QA & Packaging | completed | f5e9481c-66da-43bd-9bdd-fd30ab4cc79f |
-| reviewer_squad_1 | teamwork_reviewer | Gate: Code & Architecture Review | completed (APPROVE) | f395f7ee-5323-470b-867a-5de424878b7a |
-| reviewer_squad_2 | teamwork_reviewer | Gate: Modal & Regression Review | completed (APPROVE) | 49ea8cc4-2160-467f-9046-194ce965e800 |
-| challenger_squad_1 | teamwork_challenger | Gate: Math & Line Boundary Challenge | completed (APPROVE) | c9915bd1-bd8b-4aed-9837-7a32cc45fc2e |
-| challenger_squad_2 | teamwork_challenger | Gate: Modal & Lifecycle Challenge | completed (APPROVE) | 9e12455e-41a0-4397-a842-31c20ec02ec3 |
-| auditor_squad | teamwork_auditor | Gate: Forensic Integrity Audit | completed (CLEAN) | 7222b989-5494-4cc8-94bc-a4a59a73b2bd |
+| spec_miner_survey_config | teamwork_spec_miner | Survey: Config Spec Mining | completed | 0244db1a-d925-4f44-99ef-fa99e35427d5 |
+| explorer_survey_duckdb | teamwork_explorer | Survey: DuckDB Ingestion | completed | 6973cc2b-6b0a-437c-9ba0-fe53a60abf0f |
+| explorer_survey_tests | teamwork_explorer | Survey: Test Infrastructure | completed | 87c5271f-0776-450e-a49c-706e6bac18ff |
+| worker_m1 | teamwork_worker | M1: Config Auto-Heal Worker | completed | f92ed7c0-790b-4d0c-bf6d-380ca77d378e |
+| worker_m2_duckdb | teamwork_worker | M2: DuckDB Ingestion Worker | completed | f2e6ba74-d4b9-42cc-b487-5af42bc6beb3 |
+| worker_m3_tests | teamwork_worker | M3: Test Suite Worker | in-progress | 1767c173-26f9-4448-8db2-1ff4e0abfc97 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 13 / 16
-- Pending subagents: none
+- Spawn count: 6 / 16
+- Pending subagents: 1767c173-26f9-4448-8db2-1ff4e0abfc97
 - Predecessor: none
-- Successor: not needed (all milestones completed and verified)
+- Successor: not yet spawned
 
 ## Active Timers
-- Heartbeat cron: cancelled (all tasks finished)
-- Safety timer: none
+- Heartbeat cron: 19413780-831c-4722-80e8-c33ef9d32515/task-38
+- Safety timer: 19413780-831c-4722-80e8-c33ef9d32515/task-150
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Original user request
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\DISPATCH.md — Dispatch instructions
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\BRIEFING.md — Persistent working memory
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\progress.md — Progress heartbeat
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\orchestrator\GATE_STATUS.md — Gate status tracking (PASS)
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\PROJECT.md — Master project and milestone plan
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad1\handoff.md — Squad 1 completion handoff
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad2\handoff.md — Squad 2 completion handoff
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad3\handoff.md — Squad 3 completion handoff
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad4\handoff.md — Squad 4 completion handoff
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_squad5\handoff.md — Squad 5 completion handoff
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_squad_1\handoff.md — Reviewer Squad 1 handoff (APPROVE)
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\reviewer_squad_2\handoff.md — Reviewer Squad 2 handoff (APPROVE)
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_squad_1\handoff.md — Challenger Squad 1 handoff (APPROVE)
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_squad_2\handoff.md — Challenger Squad 2 handoff (APPROVE)
-- d:\Shared_UserData\Downloads\tad\.agents\teamwork\auditor_squad\handoff.md — Auditor Squad handoff (CLEAN)
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m1\handoff.md — M1 worker handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m2_duckdb\handoff.md — M2 worker handoff
+- d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m3_tests\handoff.md — M3 worker handoff

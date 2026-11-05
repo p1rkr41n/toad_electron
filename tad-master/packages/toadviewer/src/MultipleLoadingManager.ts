@@ -3,13 +3,11 @@ import * as log from "loglevel";
 import { StateRef, mutableGet } from "oneref";
 import { AppState } from "./AppState";
 import { getDefaultPageSize } from "./ViewState";
+import * as actions from "./actions";
+import { getHostBridge } from "host-bridge";
 
-let _actions: any = null;
-function getActions(): typeof import("./actions") {
-  if (!_actions) {
-    _actions = require("./actions");
-  }
-  return _actions;
+function getActions(): typeof actions {
+  return actions;
 }
 
 export type FileIngestStatus = "idle" | "pending" | "processing" | "ready" | "error" | "modified";
@@ -119,7 +117,6 @@ export class MultipleLoadingManager {
 
   private async loadConfig() {
     try {
-      const { getHostBridge } = require("host-bridge");
       const bridge = getHostBridge();
       const cfg = await bridge.getConfig();
       if (cfg && cfg.general) {

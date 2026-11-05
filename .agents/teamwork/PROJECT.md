@@ -1,184 +1,75 @@
-# Project: Intelligent Line Calculation, Dynamic Auto-Wrap & Parse Columns Refactor
+# Project: Configurable Safe Mode Keywords & DuckDB Multi-threaded Ingestion
 
 ## Architecture
-- **Squad 1: Core Mathematical Engine & Global Event Bus (`CellLineCalculator.ts`, `GridOverlayBus.ts`)**:
-  - Pure mathematical line calculation module (`calculateLineCount(text, colWidth, options)`):
-    - Uses Canvas 2D context (`measureText`) in browser environment.
-    - Uses deterministic character-width heuristic fallback ($C_w = 7.5\text{px}$ or $7.0\text{px}$) in headless Node.js CLI testing environments.
-    - Preserves explicit newlines (`\r\n|\r|\n`), handles null/undefined/empty string ($N=1$), numbers, timestamps, and unbroken strings.
-  - Height & Scroll State Mapper (`getHeightAndScrollState(N, lineHeight = 17, padding = 8, defaultHeight = 24)`):
-    - $N \le 1$: `{ shouldExpand: false, height: 24, overflowY: "hidden", hasScrollbar: false }` (flat single-line, no expansion, no scrollbar).
-    - $2 \le N \le 5$: `{ shouldExpand: true, height: N * 17 + 8, overflowY: "hidden", hasScrollbar: false }` (exact fit, no scrollbar).
-    - $N > 5$: `{ shouldExpand: true, height: 93, overflowY: "auto", hasScrollbar: true }` (capped at 5 lines, 4px slim scrollbar).
-  - Cross-Component Overlay Event Bus (`GridOverlayBus.ts`):
-    - Standardized events: `"dismiss-grid-cell-expand"`, `"parse-dialog-opened"`, `"parse-dialog-closed"`.
-    - Typed dispatch and subscription helpers with safe in-memory fallback for non-DOM test environments.
+- **Configuration & Environment Layer (`toad-app/app/portableAppData.ts`)**:
+  - `ToadConfig.duckdb`: adds `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean`.
+  - `DEFAULT_CONFIG.duckdb`: default keywords `["hayabusa", "eventlog", "event_log", "security", "audit", "sysmon", "timeline", "dfir", "winlog", "firewall", "auth", "syslog"]` (excluding `"mft"`), and `safe_mode_parallel: true`.
+  - `DEFAULT_CONFIG_INI_TEXT`: bilingual comments and template entries for `safe_mode_keywords` and `safe_mode_parallel`.
+  - `stringifyConfig`: serializes `safe_mode_keywords` and `safe_mode_parallel`.
+  - `validateAndEnsureConfig`: robust parsing of comma-separated keywords (trimming, lowercasing, `"none"`, `"off"`, `""` -> `[]`), parsing boolean `safe_mode_parallel`, and auto-healing missing keys without altering existing sections.
+  - `initPortableEnvironment()`: exports `process.env.TOAD_SAFE_KEYWORDS`, `process.env.TOAD_SAFE_PARALLEL`, and `process.env.TOAD_APP_DATA_DIR`.
 
-- **Squad 2: Sidebar File Management Table (`ProjectFilesTable.tsx`, `sidebar.less`)**:
-  - HTML table layout (`table-layout: fixed; width: 100%`).
-  - Draggable divider handles (`col-resizer-handle`) on `name`, `dir`, `size`, `status` with $\ge 45\text{px}$ minWidth clamping.
-  - Double-click auto-fit calculates width from visible rows.
-  - Active Row Dynamic Auto-Wrap:
-    - Selected row receives `.is-selected` (strictly blue highlight, white text, compact 25px height, `nowrap`).
-    - When $N \ge 2$, row also receives `.is-expanded` and inline `height: heightState.height` and `overflow-y: heightState.overflowY`.
-    - `sidebar.less`: Removes unconditional `height: auto !important` and `max-height: 180px` from `.is-selected`.
-  - 4-Way Collapse Lifecycle: Re-click active row, click another file, click outside table, or press `Escape`.
+- **Engine Ingestion & Worker Layer (`reltab-duckdb/src/csvimport.ts`, `ingestWorker.ts`)**:
+  - `IngestConfig`: adds `safe_mode_keywords: string[]` and `safe_mode_parallel: boolean`.
+  - `getIngestConfig()`: retrieves config from `env.config.duckdb`, falling back to `process.env.TOAD_SAFE_KEYWORDS` (or default 12 keywords without `"mft"`) and `process.env.TOAD_SAFE_PARALLEL`.
+  - `isComplexLogFile(filePath, customKeywords?)`: uses `customKeywords || getIngestConfig().safe_mode_keywords`, skipping whitespace/empty tokens. Returns `false` by default for `Windows.NTFS.MFT.csv`.
+  - `streamCsvToParquet`: sets `parallel = ${cfg.safe_mode_parallel ? "true" : "false"}` in Stage 1 Safe Profile.
+  - `nativeCSVImport`: sets `parallel=${cfg.safe_mode_parallel ? "true" : "false"}` in `CREATE OR REPLACE TABLE` query.
+  - `ingestWorker.ts`: evaluates `safeParallel = cfg.safe_mode_parallel !== false && cfg.safeModeParallel !== false` and applies `parallel = ${safeParallel ? "true" : "false"}` in Stage 1 and Stage 2 Safe Ingest Profiles.
+  - Synchronization: `toad-app/node_modules/reltab-duckdb` is an NTFS junction to `packages/reltab-duckdb`. `npm run build` compiles TypeScript to `dist/`.
 
-- **Squad 3: Main SlickGrid Data Table (`DataGrid.tsx`, `slickgrid.scss`)**:
-  - Virtual scrolling table (SlickGrid) with fixed 24px row height invariant.
-  - Double-click header auto-fit: auto-fits column width on visible rows (clamped 60px to 500px).
-  - Floating In-Place Active Cell Dynamic Wrap:
-    - `tryExpandCell(row, cell)` calls `calculateLineCount`.
-    - $N \le 1$: Returns immediately (flat cell, no floating element, no `.slick-cell-active-expanded`).
-    - $2 \le N \le 5$: Applies inline `height = N * 17 + 8` and `overflowY = "hidden"`, `.slick-cell-active-expanded`.
-    - $N > 5$: Applies inline `height = 93px` and `overflowY = "auto"`, `.slick-cell-active-expanded`.
-    - Removes `max-height: 180px !important;` from `slickgrid.scss` so inline styles govern.
-  - 4-Way Dismissal Lifecycle: Re-click active cell, click another cell, click outside grid (`document.mousedown`), press `Escape`, or scroll viewport.
-  - Event Bus Integration: Listens for `"dismiss-grid-cell-expand"` to dismiss floating cells immediately.
-  - Modal Overlay Dimming: Adds `body.bp4-overlay-open` rules in `slickgrid.scss` suppressing `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected` (transparent background, transparent border, no shadow, no outline).
-
-- **Squad 4: Parse Columns & Nested JSON Dialog (`RegexDialog.tsx`, `NestedFieldsTable.tsx`)**:
-  - Header Mode Switcher: Removes `#ntab-nested`. Header displays strictly two tabs: `[Visual]` (`#ntab-simple`) and `[Regex]` (`#ntab-adv`).
-  - Unified Format Dropdown: Adds `<option value="nested_json">Nested JSON</option>` to `#minFormatSelect`.
-  - Removes redundant `#btn-switch-nested` (`Auto-Flatten Available ➔`).
-  - View Switch & Auto-Scan Trigger:
-    - When `nested_json` selected: triggers `triggerNestedScan(100)` if fields empty and switches body to Nested JSON view (`SampleScanController`, `NestedFieldsTable`, live DuckDB SQL preview).
-    - When any other format selected: reverts body to Visual sample view.
-  - `handleApply`: Supports both `formatType === "nested_json"` and `mode === "nested_json"`.
-  - Nested & Discovered Fields Tables: Adds column resizer handles and dynamic cell auto-wrap.
-
-- **Squad 5: Systems QA, Packaging & Release Pipeline (`tests/`, `dist_package.ps1`, `package_release.ps1`, `jj`)**:
-  - 3 New Test Suites:
-    - `tests/unit/test_cell_line_calculator.js`: 25 test cases for boundary line counts ($N=1,2,5,6,100$), widths ($45\text{px}-1200\text{px}$), special characters, and nested JSON.
-    - `tests/unit/test_parse_dialog_nested_dropdown.js`: 15 test cases verifying tab switcher, format dropdown switching, and auto-scan trigger.
-    - `tests/qa/test_modal_cell_glow_suppression.js`: 10 test cases verifying grid active cell reset and highlight suppression on modal open.
-  - Existing Test Suite Updates: Updates assertions in `test_project_files_table_wrap_resize.js`, `test_datagrid_floating_wrap.js`, and `test_grid_wrap_concurrency_stress.js` from static 180px to dynamic $N$-line boundaries.
-  - Runner Registration: Registers all 21 suites in `run_tests.js` (target 575+ tests, 100% PASS).
-  - Production Packaging: Clean cache via `tools/clean_cache.ps1`, compile TypeScript, build Webpack, package single `Toad.exe` at root and `Toad-2.5.1-x64-portable.*` in `releases/`.
-  - Jujutsu VCS: Commit under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>` with 100% professional English messages.
-
----
+- **Testing & Verification Layer (`tests/unit/test_safe_mode_config.js`, `run_tests.js`)**:
+  - Unit test suite `test_safe_mode_config.js` implementing all 16 test cases covering parsing, whitespace, "none"/"off"/"" disable, auto-healing, MFT classification, boolean parsing, env fallback, serialization, DuckDB query generation, unicode paths, and INI comments.
+  - Registered in `run_tests.js` under `--unit` and default runner.
+  - Regression fix in `tests/deep_integration_qa.js:5689` to verify MFT classification with custom keywords.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| F01 | Pure Math Line Calculator | Canvas 2D measurement + Node character heuristic ($C_w = 7.5\text{px}$) in `CellLineCalculator.ts` | M1 | Plan E01 |
-| F02 | Height & Scroll State Mapper | $N \le 1$ flat (24px), $2 \le N \le 5$ fit ($N \times 17 + 8$), $N > 5$ cap (93px) with scrollbar | M1 | Plan E02 |
-| F03 | Global Overlay Event Bus | Standardized `"dismiss-grid-cell-expand"` event dispatcher/subscriber in `GridOverlayBus.ts` | M1 | Plan E03 |
-| F04 | Unit Tests: Line Calculator | 25 test cases covering boundary counts, widths, JSON in `test_cell_line_calculator.js` | M1 | Plan E04 |
-| F05 | Sidebar Row Height & Wrap | `ProjectFilesTable.tsx` calculates line counts, applies `.is-expanded` and inline height | M2 | Plan E05 |
-| F06 | Sidebar Column Resizer Handles | Draggable divider handles with $\ge 45\text{px}$ minWidth clamping and double-click auto-fit | M2 | Plan E06 |
-| F07 | Sidebar Styles & Slim Scrollbar | `sidebar.less` separates `.is-selected` from `.is-expanded`, adds 4px slim scrollbar | M2 | Plan E07 |
-| F08 | Sidebar 4-Way Collapse & QA | Toggle click, other row, click outside, Escape; update `test_project_files_table_wrap_resize.js` | M2 | Plan E08 |
-| F09 | DataGrid Dynamic Floating Sizer | `tryExpandCell` in `DataGrid.tsx` calculates $N$ lines, applies exact fit or 5-line cap | M3 | Plan E09 |
-| F10 | DataGrid 4-Way Dismissal & Bus | Re-click collapse, outside click, Escape, scroll, `"dismiss-grid-cell-expand"` listener | M3 | Plan E10 |
-| F11 | DataGrid Styles & Overlay Dimming | `slickgrid.scss` removes 180px override, adds `body.bp4-overlay-open` highlight suppression | M3 | Plan E11 |
-| F12 | DataGrid Floating Wrap QA | Update `test_datagrid_floating_wrap.js` for dynamic $N$-line boundaries and coordinate invariance | M3 | Plan E12 |
-| F13 | Parse Dialog Header Switcher | In `RegexDialog.tsx`, remove `#ntab-nested`; tabs strictly `[Visual]` and `[Regex]` | M4 | Plan E13 |
-| F14 | Parse Dialog Format Dropdown | Add `nested_json` to `minFormatSelect`, remove `#btn-switch-nested`, auto-scan trigger | M4 | Plan E14 |
-| F15 | Parse Dialog Apply & Table Wrap | Support `formatType === "nested_json"` in `handleApply`; add resizers/wrap in `NestedFieldsTable` | M4 | Plan E15 |
-| F16 | Parse Dialog Dropdown QA | 15 test cases in `test_parse_dialog_nested_dropdown.js` for tabs, dropdown, auto-scan | M4 | Plan E16 |
-| F17 | Modal Cell Glow Suppression QA | 10 test cases in `test_modal_cell_glow_suppression.js` verifying active cell reset & suppression | M5 | Plan E17 |
-| F18 | Multi-Table Stress Testing | 10 test cases in `test_grid_wrap_concurrency_stress.js` (100K rows, memory guard, FPS) | M5 | Plan E18 |
-| F19 | Master Test Runner Integration | Register all 21 suites in `run_tests.js`, achieving 575+ tests 100% PASS | M5 | Plan E18 |
-| F20 | Production Packaging Pipeline | `clean_cache.ps1`, `dist_package.ps1`, `package_release.ps1`, zero-duplicate binaries | M5 | Plan E19 |
-| F21 | Final Release & Jujutsu Audit | Zero-duplicate binary check, Jujutsu commits under HelloKittyXamKinLung, 100% English | M5 | Plan E20 |
-| F22 | Gate Verification & Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor gate verification | M6 | Process |
-
----
+| 1 | ToadConfig type definition | Add safe_mode_keywords and safe_mode_parallel to ToadConfig.duckdb | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | Default config values | DEFAULT_CONFIG.duckdb defaults to 12 keywords (no mft) and parallel=true | M1 | ORIGINAL_REQUEST §R1 |
+| 3 | INI template & comments | Bilingual comments and template entries in DEFAULT_CONFIG_INI_TEXT | M1 | ORIGINAL_REQUEST §R1 |
+| 4 | INI serialization | stringifyConfig writes safe_mode_keywords and safe_mode_parallel | M1 | ORIGINAL_REQUEST §R1 |
+| 5 | INI parsing & auto-heal | validateAndEnsureConfig parses keywords array, boolean, and auto-heals missing keys | M1 | ORIGINAL_REQUEST §R1 |
+| 6 | Environment variable export | initPortableEnvironment exports TOAD_SAFE_KEYWORDS, TOAD_SAFE_PARALLEL, TOAD_APP_DATA_DIR | M1 | ORIGINAL_REQUEST §R1 |
+| 7 | IngestConfig type definition | Add safe_mode_keywords and safe_mode_parallel to IngestConfig | M2 | ORIGINAL_REQUEST §R2 |
+| 8 | getIngestConfig fallback | Fallback hierarchy: env.config.duckdb -> process.env -> default keywords (no mft) | M2 | ORIGINAL_REQUEST §R2 |
+| 9 | isComplexLogFile classifier | Prioritize customKeywords, fallback to safe_mode_keywords, ignore empty tokens, default mft=false | M2 | ORIGINAL_REQUEST §R2 |
+| 10 | Multi-threaded Safe Profile | streamCsvToParquet Stage 1 uses parallel=${cfg.safe_mode_parallel ? "true" : "false"} | M2 | ORIGINAL_REQUEST §R2 |
+| 11 | Multi-threaded Native Import | nativeCSVImport query uses parallel=${cfg.safe_mode_parallel ? "true" : "false"} | M2 | ORIGINAL_REQUEST §R2 |
+| 12 | Worker safeParallel | ingestWorker.ts evaluates safeParallel and applies to Stage 1 & 2 queries | M2 | ORIGINAL_REQUEST §R2 |
+| 13 | Deep Integration QA update | Update tests/deep_integration_qa.js:5689 to align with new mft default behavior | M2 | Survey findings |
+| 14 | Unit test suite (16 cases) | Create tests/unit/test_safe_mode_config.js covering all 16 specified cases | M3 | ORIGINAL_REQUEST §R3 |
+| 15 | Test runner registration | Register test_safe_mode_config.js in run_tests.js (--unit and default) | M3 | ORIGINAL_REQUEST §R3 |
+| 16 | TypeScript & Webpack build | Compile reltab-duckdb and toad-app with exit code 0 | M4 | ORIGINAL_REQUEST Acceptance |
+| 17 | Gate & Integrity audit | Independent Reviewers, Challengers, and Forensic Auditor verification | M4 | Orchestration protocol |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Squad 1: Core Mathematical Engine & Foundation | `CellLineCalculator.ts`, `GridOverlayBus.ts`, `test_cell_line_calculator.js` (F01–F04) | none | DONE |
-| M2 | Squad 2: Sidebar File Management Table | `ProjectFilesTable.tsx`, `sidebar.less`, `test_project_files_table_wrap_resize.js` (F05–F08) | M1 | DONE |
-| M3 | Squad 3: Main SlickGrid Data Table | `DataGrid.tsx`, `slickgrid.scss`, `test_datagrid_floating_wrap.js` (F09–F12) | M1 | DONE |
-| M4 | Squad 4: Parse Columns & Nested JSON Dialog | `RegexDialog.tsx`, `NestedFieldsTable.tsx`, `test_parse_dialog_nested_dropdown.js` (F13–F16) | M1 | DONE |
-| M5 | Squad 5: Systems QA, Packaging & Release | `test_modal_cell_glow_suppression.js`, `test_grid_wrap_concurrency_stress.js`, `run_tests.js`, packaging, jj (F17–F21) | M2, M3, M4 | DONE |
-| M6 | Milestone 6: Gate Verification | Full test suite execution, 2 Reviewers, 2 Challengers, 1 Forensic Auditor (F22) | M5 | DONE |
-
----
+| 1 | M1: Configuration & Auto-Heal | `portableAppData.ts` (Features 1-6) | none | DONE |
+| 2 | M2: DuckDB Ingestion & Worker | `csvimport.ts`, `ingestWorker.ts`, `deep_integration_qa.js` (Features 7-13) | M1 | DONE |
+| 3 | M3: Unit Tests & Runner Integration | `tests/unit/test_safe_mode_config.js`, `run_tests.js` (Features 14-15) | M1, M2 | IN_PROGRESS |
+| 4 | M4: Gate Verification & Audit | Builds (`tsc`, `webpack`), test suites (`--unit`, full), dual reviewers, dual challengers, forensic auditor (Features 16-17) | M1, M2, M3 | PLANNED |
 
 ## Interface Contracts
+### `portableAppData.ts` <-> `csvimport.ts`
+- Environment Variables:
+  - `process.env.TOAD_SAFE_KEYWORDS`: comma-separated string (e.g. `"hayabusa,eventlog,..."` or `""` or `"none"`)
+  - `process.env.TOAD_SAFE_PARALLEL`: `"true"` | `"false"`
+  - `process.env.TOAD_APP_DATA_DIR`: string path
+- Global Object:
+  - `(global as any).toadPortableEnv.config.duckdb.safe_mode_keywords`: `string[]`
+  - `(global as any).toadPortableEnv.config.duckdb.safe_mode_parallel`: `boolean`
 
-### 1. `CellLineCalculator.ts` Contracts
-```typescript
-export interface LineCalculationOptions {
-  charWidth?: number;       // Default: 7.5px (or 7.0px for proportional text)
-  padding?: number;         // Horizontal cell padding (default: 16px)
-  font?: string;            // Default: '11px sans-serif'
-}
-
-export interface CellHeightState {
-  shouldExpand: boolean;
-  lineCount: number;
-  height: number;
-  overflowY: "hidden" | "auto";
-  hasScrollbar: boolean;
-  className?: string;
-}
-
-export function calculateLineCount(
-  text: any,
-  colWidth: number,
-  options?: LineCalculationOptions
-): number;
-
-export function getHeightAndScrollState(
-  lineCount: number,
-  lineHeight?: number,      // Default: 17px
-  vertPadding?: number,     // Default: 8px
-  defaultHeight?: number    // Default: 24px (or 25px for sidebar)
-): CellHeightState;
-```
-- Mapping rules:
-  - $N \le 1$: `{ shouldExpand: false, lineCount, height: defaultHeight, overflowY: "hidden", hasScrollbar: false }`
-  - $2 \le N \le 5$: `{ shouldExpand: true, lineCount, height: N * lineHeight + vertPadding, overflowY: "hidden", hasScrollbar: false }`
-  - $N > 5$: `{ shouldExpand: true, lineCount, height: 5 * lineHeight + vertPadding, overflowY: "auto", hasScrollbar: true }`
-
-### 2. `GridOverlayBus.ts` Contracts
-```typescript
-export const EVENT_DISMISS_GRID_CELL_EXPAND = "dismiss-grid-cell-expand";
-export const EVENT_PARSE_DIALOG_OPENED = "parse-dialog-opened";
-export const EVENT_PARSE_DIALOG_CLOSED = "parse-dialog-closed";
-
-export function emitDismissGridCellExpand(): void;
-export function onDismissGridCellExpand(callback: () => void): () => void;
-
-export function emitParseDialogOpened(): void;
-export function onParseDialogOpened(callback: () => void): () => void;
-
-export function emitParseDialogClosed(): void;
-export function onParseDialogClosed(callback: () => void): () => void;
-```
-
-### 3. Modal Overlay Highlight Suppression Contract
-- When `body.bp4-overlay-open` is present:
-  - `.slick-cell.active`, `.slick-row.active`, `.slick-cell.selected`:
-    `background: transparent !important; box-shadow: none !important; outline: none !important; border-color: transparent !important;`
-  - `.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded`:
-    `display: none !important;`
-- In `RegexDialog.tsx` on `isOpen === true`:
-  - Calls `emitDismissGridCellExpand()`
-  - Removes `.slick-cell-active-expanded`, `.slick-row-has-expanded`, `.slick-row-active-expanded` DOM elements
-  - Calls `grid.resetActiveCell()` if grid instance available.
-
----
+### `csvimport.ts` <-> `ingestWorker.ts`
+- Worker arguments JSON payload:
+  - `cfg.safe_mode_parallel` (or `cfg.safeModeParallel`): `boolean`
 
 ## Code Layout
-- `tad-master/packages/toadviewer/src/utils/CellLineCalculator.ts`: Owned by Squad 1 (M1)
-- `tad-master/packages/toadviewer/src/utils/GridOverlayBus.ts`: Owned by Squad 1 (M1)
-- `tests/unit/test_cell_line_calculator.js`: Owned by Squad 1 (M1)
-- `tad-master/packages/toadviewer/src/components/ProjectFilesTable.tsx`: Owned by Squad 2 (M2)
-- `tad-master/packages/toadviewer/less/sidebar.less`: Owned by Squad 2 (M2)
-- `tests/unit/test_project_files_table_wrap_resize.js`: Owned by Squad 2 (M2)
-- `tad-master/packages/toadviewer/src/components/DataGrid.tsx`: Owned by Squad 3 (M3)
-- `tad-master/packages/toadviewer/src/slickgrid.scss`: Owned by Squad 3 (M3)
-- `tests/unit/test_datagrid_floating_wrap.js`: Owned by Squad 3 (M3)
-- `tad-master/packages/toadviewer/src/components/RegexDialog.tsx`: Owned by Squad 4 (M4)
-- `tad-master/packages/toadviewer/src/components/NestedFieldsTable.tsx`: Owned by Squad 4 (M4)
-- `tests/unit/test_parse_dialog_nested_dropdown.js`: Owned by Squad 4 (M4)
-- `tests/qa/test_modal_cell_glow_suppression.js`: Owned by Squad 5 (M5)
-- `tests/qa/test_grid_wrap_concurrency_stress.js`: Owned by Squad 5 (M5)
-- `run_tests.js`: Owned by Squad 5 (M5)
-- Packaging and Release Scripts (`dist_package.ps1`, `package_release.ps1`, `tools/clean_cache.ps1`): Owned by Squad 5 (M5)
+- `tad-master/packages/toad-app/app/portableAppData.ts` (owned by M1)
+- `tad-master/packages/reltab-duckdb/src/csvimport.ts` (owned by M2)
+- `tad-master/packages/reltab-duckdb/src/ingestWorker.ts` (owned by M2)
+- `tests/deep_integration_qa.js` (owned by M2)
+- `tests/unit/test_safe_mode_config.js` (owned by M3)
+- `run_tests.js` (owned by M3)

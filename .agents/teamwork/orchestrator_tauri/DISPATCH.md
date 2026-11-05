@@ -17,3 +17,25 @@ Reference material:
 ### R3. Frontend Porting & Host Bridge Integration
 ### R4. Automated Testing & Verification
 ### R5. Production Portable Packaging & Release Audit
+
+
+## 2026-11-05T02:44:51Z
+[User Feedback / Bug Report for Milestone 7 Packaging]
+The user encountered a Windows System Error dialog when executing Toad.exe:
+"---------------------------
+Toad.exe - System Error
+---------------------------
+The code execution cannot proceed because WebView2Loader.dll was not found. Reinstalling the program may fix this problem. 
+---------------------------
+OK   
+---------------------------"
+
+Root Cause Analysis:
+1. The host Rust toolchain is x86_64-pc-windows-gnu (MinGW). In webview2-com-sys (src/lib.rs):
+   #[cfg_attr(target_env = "msvc", link(name = "WebView2LoaderStatic", kind = "static"))]
+   #[cfg_attr(not(target_env = "msvc"), link(name = "WebView2Loader.dll"))]
+   Under the GNU toolchain (not msvc), webview2-com-sys dynamically links against WebView2Loader.dll rather than embedding it statically.
+2. Therefore, on Windows GNU targets, WebView2Loader.dll MUST always be present alongside Toad.exe and duckdb.dll in any directory where Toad.exe is executed (including root directory D:\Shared_UserData\Downloads\tad\, release folders, and inside portable zip archives).
+3. In package_portable.ps1, ensure WebView2Loader.dll is reliably deployed alongside Toad.exe everywhere Toad.exe is placed, or consider packaging options.
+
+Please incorporate this fix into Milestone 7 packaging and release verification. This requirement has also been recorded in ORIGINAL_REQUEST.md.

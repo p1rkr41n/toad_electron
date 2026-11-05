@@ -20,12 +20,12 @@ Orchestrate execution and oversight of the 50-engineer Tauri v2 port and rebuild
 - 50 engineers across 7 squads structure
 
 ## User Context
-- **Last user request**: Approved task prompt received and dispatched to orchestrator
+- **Last user request**: User feedback received regarding WebView2Loader.dll presence alongside Toad.exe on Windows GNU targets; recorded in ORIGINAL_REQUEST.md and relayed to orchestrator.
 - **Pending clarifications**: none
 - **Delivered results**: Run started notification sent
 
 ## Project Status
-- **Phase**: in progress (Milestones 1, 2, 3, 4 PASSED Gate with 100% consensus; Milestone 5 Implementation completed with 115/115 cargo tests, Gate verification currently in progress by Reviewers, Challengers, and Forensic Auditor)
+- **Phase**: in progress (Milestones 1, 2, 3, 4, 5, 6 PASSED Gate with 100% consensus; Milestone 7: Portable Packaging & Release Audit starting)
 - **Route**: General (teamwork_orchestrator)
 - **Active Orchestrator**: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
 - **Crons**: Progress reporting (task-36), Liveness check (task-37)
