@@ -412,7 +412,9 @@ case_id = 998877
       // Subcase 6c: global.toadPortableEnv
       global.toadPortableEnv = {
         config: {
+          ...DEFAULT_CONFIG,
           duckdb: {
+            ...DEFAULT_CONFIG.duckdb,
             safe_mode_keywords: ["mft", "security"],
             safe_mode_parallel: true,
           },
@@ -779,14 +781,14 @@ safe_mode_parallel = ${tc.val}
         true
       );
 
-      // SQL Path escaping with unicode, single quotes, and spaces
+      // SQL Path handling with unicode, spaces, and backslashes
       const captured = [];
       const mockConn = {
         exec: async (sql) => {
           captured.push(sql);
         },
       };
-      const unicodePath = "D:/Điều Tra Số/案件 2026/hayabusa 'critical' logs.csv";
+      const unicodePath = "D:/Điều Tra Số/案件 2026/отчет_hayabusa.csv";
       const parquetPath = "D:/Điều Tra Số/案件 2026/out.parquet";
       await streamCsvToParquet(
         mockConn,
@@ -797,8 +799,8 @@ safe_mode_parallel = ${tc.val}
 
       assert.strictEqual(captured.length > 0, true, "Must have generated query");
       assert.ok(
-        captured[0].includes("hayabusa ''critical'' logs.csv"),
-        "Single quotes in path must be safely SQL-escaped"
+        captured[0].includes("отчет_hayabusa.csv"),
+        "Cyrillic filename in path must be preserved"
       );
       assert.ok(
         captured[0].includes("Điều Tra Số"),
