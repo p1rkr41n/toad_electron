@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-05T00:18:50Z
+Last visited: 2026-11-05T00:37:30Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -72,7 +72,13 @@ Last visited: 2026-11-05T00:18:50Z
     - Explorer M5 EVTX (b863a767): COMPLETED (SIMD evtx crate, direct Arrow RecordBatch -> Parquet stream, 9-column schema, 35k rows/s, <30MB RAM)
     - Explorer M5 Scheduler & Progress (c3e1b6a6): COMPLETED (SJF priority comparator, dual-bound concurrency, VIP burst lane, 4-stage progress dispatcher)
   - Step 2B.b Implementation:
-    - Worker M5 Ingest (379e6086): IN PROGRESS
+    - Worker M5 Ingest (379e6086): COMPLETED (15/15 ingest tests, 115/115 cargo tests, 55/55 node tests, commit c8998f06)
+  - Step 2B.c–e Gate Verification (Iteration 8):
+    - Reviewer M5-1 (c51b2424): APPROVE
+    - Reviewer M5-2 (dff7f2ef): APPROVE
+    - Challenger M5-1 (1f5c8b8e): APPROVE (RAM delta 20.4MB <30MB, 7,097 rows/s on System.evtx, 15 polymorphic EventID variants, 0% crash)
+    - Challenger M5-2 (bca50540): IN PROGRESS
+    - Forensic Auditor M5 (6d4d9732): CLEAN (0 hardcoding, 0 facades, 0 pre-populated artifacts, author HelloKittyXamKinLung, 123/123 tests passed)
 
 ## Iteration Status
 Current iteration: 8 / 32

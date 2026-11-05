@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-05T07:05:00Z
+# BRIEFING — 2026-11-05T07:25:00Z
 
 ## Mission
 Implement the complete Forensics & Ingestion Subsystem for Toad Tauri v2 in `src-tauri/src/ingest/` (CSV sniffer, EVTX SIMD parser, JSONL streamer, dirty log fallback, SJF scheduler, and progress dispatcher) and wire IPC commands and Parquet Ledger WAL updates.
@@ -20,7 +20,7 @@ Implement the complete Forensics & Ingestion Subsystem for Toad Tauri v2 in `src
 
 ## Current Parent
 - Conversation ID: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Updated: 2026-11-05T07:05:00Z
+- Updated: 2026-11-05T07:25:00Z
 
 ## Task Summary
 - **What to build**:
@@ -35,17 +35,18 @@ Implement the complete Forensics & Ingestion Subsystem for Toad Tauri v2 in `src
   9. `state.rs`: Replace `IngestionQueuePlaceholder` with `Arc<IngestionScheduler>`.
   10. `tests/ingest_tests.rs`: Comprehensive test suite for all M5 components.
 - **Success criteria**:
-  - `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml` passes.
-  - `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml` passes 100%.
+  - `cargo check --manifest-path tauri/project/src-tauri/Cargo.toml` passes with 0 warnings.
+  - `cargo test --manifest-path tauri/project/src-tauri/Cargo.toml` passes 100% (all 115 tests).
   - Clean Jujutsu commit under `HelloKittyXamKinLung`.
 - **Interface contracts**: `d:\Shared_UserData\Downloads\tad\PROJECT.md`
 - **Code layout**: `d:\Shared_UserData\Downloads\tad\PROJECT.md` § Code Layout
 
 ## Key Decisions Made
-- Use pure Rust SIMD `evtx` with Apache Arrow builders directly into `parquet::arrow::ArrowWriter`, avoiding intermediate JSONL disk write (benchmark proved 2.3x speedup, 0 disk churn, <30MB RAM).
-- Pre-sniff CSV/TSV delimiters using line consistency scoring across first 50 lines before issuing DuckDB COPY statements.
-- Equip IngestionScheduler with cooperative cancellation (`CancellationToken`) that automatically purges orphaned `.tmp` files.
-- Wire IngestionScheduler into `AppState` with background dispatch loop triggered by `tokio::sync::Notify`.
+- Used pure Rust SIMD `evtx` with Apache Arrow builders directly into `parquet::arrow::ArrowWriter`, avoiding intermediate JSONL disk write (benchmark proved 2.3x speedup, 0 disk churn, <30MB RAM).
+- Pre-sniffed CSV/TSV delimiters using line consistency scoring across first 50 lines before issuing DuckDB COPY statements.
+- Equipped IngestionScheduler with cooperative cancellation (`CancellationToken`) that automatically purges orphaned `.tmp` files.
+- Wired IngestionScheduler into `AppState` with background dispatch loop triggered by `tokio::sync::Notify`.
+- Recorded dedicated Jujutsu commit `zknmrntn c8998f06` under `HelloKittyXamKinLung`.
 
 ## Artifact Index
 - `tauri/project/src-tauri/src/ingest/` — Ingestion modules
@@ -54,14 +55,26 @@ Implement the complete Forensics & Ingestion Subsystem for Toad Tauri v2 in `src
 - `d:\Shared_UserData\Downloads\tad\.agents\teamwork\worker_m5_ingest\handoff.md` — Final handoff report
 
 ## Change Tracker
-- **Files modified**: None yet.
-- **Build status**: Ready to implement.
+- **Files modified**:
+  - `src-tauri/src/ingest/progress.rs`: Multi-stage progress dispatcher (5% -> 45% -> 90% -> 100%).
+  - `src-tauri/src/ingest/dirty_log.rs`: 3-column unstructured log fallback with Howard Hinnant timestamp parser.
+  - `src-tauri/src/ingest/evtx_parser.rs`: SIMD EVTX binary decoder streaming to 32K Arrow RecordBatches.
+  - `src-tauri/src/ingest/csv_streamer.rs`: RFC-4180 delimiter sniffer and 3-tier DuckDB fallback matrix.
+  - `src-tauri/src/ingest/jsonl_streamer.rs`: Dynamic schema unnester into dot-notated columns in Parquet.
+  - `src-tauri/src/ingest/scheduler.rs`: SJF priority queue, dual-bound throttling, Exclusive Big File Mode, VIP Burst Lane.
+  - `src-tauri/src/ingest/mod.rs`: Facade re-exports for ingest module.
+  - `src-tauri/src/commands/ingest.rs`: IPC command handlers for toad:ingest_*.
+  - `src-tauri/src/commands/mod.rs`: IPC router registration for Ingestion commands.
+  - `src-tauri/src/state.rs`: AppState replacement of IngestionQueuePlaceholder with IngestionScheduler.
+  - `src-tauri/src/lib.rs`: Registered pub mod ingest.
+  - `src-tauri/tests/ingest_tests.rs`: Comprehensive test suite (15/15 passed).
+- **Build status**: PASS (cargo check: 0 warnings, cargo test: 115/115 passed).
 - **Pending issues**: None.
 
 ## Quality Status
-- **Build/test result**: Not started yet.
-- **Lint status**: None.
-- **Tests added/modified**: Pending.
+- **Build/test result**: 115/115 Rust tests passed (including 15/15 M5 ingest tests). All 3 Node test suites passed.
+- **Lint status**: 0 warnings.
+- **Tests added/modified**: 15 comprehensive tests covering all F18-F22 features.
 
 ## Loaded Skills
 - None loaded from task prompt.

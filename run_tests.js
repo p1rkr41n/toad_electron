@@ -29,7 +29,7 @@ const unitOnly = args.includes("--unit");
 const testsToRun = [];
 
 if (smokeOnly) {
-  testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
+  testsToRun.push({ name: "Smoke Test (v2.5.2)", file: "tests/smoke_test.js" });
 } else if (qaOnly) {
   testsToRun.push({ name: "Deep Integration QA (223 Tests)", file: "tests/deep_integration_qa.js" });
   testsToRun.push({ name: "Real-World Windows EVTX JSON Parity (35 Tests)", file: "tests/qa/test_realworld_evtx_json.js" });
@@ -53,7 +53,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "Filter Editor Apply Lifecycle Unit (10 Tests)", file: "tests/unit/test_filter_editor_apply_lifecycle.js" });
 } else {
   // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites + Table/Grid Wrap Suites
-  testsToRun.push({ name: "Smoke Test (v2.5.1)", file: "tests/smoke_test.js" });
+  testsToRun.push({ name: "Smoke Test (v2.5.2)", file: "tests/smoke_test.js" });
   testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (15 Tests)", file: "tests/test_arrow_ipc_stream.js" });
   testsToRun.push({ name: "EVTX Parsing & Schema Validation (6 Tests)", file: "tests/test_evtx_parsing_schema.js" });
   testsToRun.push({ name: "Nested JSON & Semi-Structured Ingestion (6 Tests)", file: "tests/test_nested_json.js" });

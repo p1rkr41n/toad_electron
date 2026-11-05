@@ -7,7 +7,7 @@ const ROOT_DIR = process.env.TOAD_ROOT || path.resolve(__dirname, "..");
 
 async function runSmokeTest() {
   console.log("======================================================================");
-  console.log("  SMOKE TEST: TOAD v2.5.1 RUNTIME INTEGRITY & STARTUP VERIFICATION");
+  console.log("  SMOKE TEST: TOAD v2.5.2 RUNTIME INTEGRITY & STARTUP VERIFICATION");
   console.log("======================================================================");
 
   // 1. Check Portable Exe (Canonical Toad.exe or releases/Toad-*-x64-portable.exe)

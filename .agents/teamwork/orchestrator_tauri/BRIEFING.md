@@ -120,18 +120,23 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | explorer_m5_csv | teamwork_explorer | CSV & JSONL Ingestion Explorer | completed | 988e7ae8-909f-4416-93ce-326b65c473fe |
 | explorer_m5_evtx | teamwork_explorer | EVTX Forensics Parser Explorer | completed | b863a767-4992-4a8c-b0df-ee7b6d71eb6d |
 | explorer_m5_scheduler | teamwork_explorer | SJF Ingestion Scheduler & Progress Dispatcher Explorer | completed | c3e1b6a6-386c-4da2-a5d1-5ef375ff3bce |
-| worker_m5_ingest | teamwork_worker | Milestone 5 Implementation Worker | in-progress | 379e6086-c46d-40dd-8104-97bd2151ffc1 |
+| worker_m5_ingest | teamwork_worker | Milestone 5 Implementation Worker | completed | 379e6086-c46d-40dd-8104-97bd2151ffc1 |
+| reviewer_m5_1 | teamwork_reviewer | Forensics Ingestion Engine Reviewer 1 | completed | c51b2424-1743-4b67-a07b-fdd8bf748732 |
+| reviewer_m5_2 | teamwork_reviewer | Scheduler & Interface Conformance Reviewer 2 | completed | dff7f2ef-419d-44a3-9c44-3bd581cf1cc5 |
+| challenger_m5_1 | teamwork_challenger | EVTX SIMD & Forensics Adversarial Challenger 1 | completed | 1f5c8b8e-448e-4ad0-bdad-e22e79b79f5c |
+| challenger_m5_2 | teamwork_challenger | Queue Scheduling & Concurrency Adversarial Challenger 2 | in-progress | bca50540-5625-4448-9495-a6cf06d4b111 |
+| auditor_m5_1 | teamwork_auditor | Forensic Integrity Auditor M5 | completed | 6d4d9732-3051-43b0-90ea-4b8e4457d6a2 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 65 / 128
-- Pending subagents: 379e6086-c46d-40dd-8104-97bd2151ffc1
+- Spawn count: 70 / 128
+- Pending subagents: bca50540-5625-4448-9495-a6cf06d4b111
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-1934
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-2051
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

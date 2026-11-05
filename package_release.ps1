@@ -1,6 +1,6 @@
 param (
     [string]$AppName = "Toad",
-    [string]$Version = "2.5.1",
+    [string]$Version = "2.5.2",
     [string]$Publisher = "HelloKittyXamKinLung",
     [string]$ReleaseDir = "releases"
 )
@@ -10,8 +10,8 @@ $ErrorActionPreference = "Stop"
 Write-Output "=== Toad Release Packager v$Version ==="
 
 # 1. Version assertion to 2.5.0
-if ($Version -ne "2.5.1") {
-    Write-Warning "Target version is '$Version'. Standard target for Milestone 4 is '2.5.1'."
+if ($Version -ne "2.5.2") {
+    Write-Warning "Target version is '$Version'. Standard target for Milestone 4 is '2.5.2'."
 }
 
 # 2. Verify native binary rule: duckdb.node in app.asar.unpacked

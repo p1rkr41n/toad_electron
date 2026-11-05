@@ -1,7 +1,7 @@
 # Project: Toad Tauri v2 Migration (TOAD-TAURI-V2)
 
 ## Architecture
-Toad v2.5.1 is an enterprise-grade forensic data analysis and log exploration tool, re-engineered from Electron into a high-performance Windows desktop application using **Tauri v2**.
+Toad v2.5.2 is an enterprise-grade forensic data analysis and log exploration tool, re-engineered from Electron into a high-performance Windows desktop application using **Tauri v2**.
 
 - **Frontend (`tauri/project/dist/`):** React 18, Vite 5, virtualized SlickGrid, pivot table, ArcSight ESM filter, Slate Dark Theme, and pure Web Canvas UI.
 - **IPC Protocol (`packages/host-bridge`):** `TauriHostAdapter` connecting to `window.__TAURI__.core.invoke` and `invokeBinary`, transmitting tabular query results as streaming binary **Apache Arrow IPC Stream** (`0xFFFFFFFF` continuation indicator) via `tauri::ipc::Response`.
@@ -10,7 +10,7 @@ Toad v2.5.1 is an enterprise-grade forensic data analysis and log exploration to
   - **Forensics Ingestion:** RFC-4180 CSV/TSV streaming sniffer (`all_varchar = true` assertion protection), Rust SIMD `evtx` binary decoder, and dynamic JSONL/NDJSON parser.
   - **Parquet State Ledger WAL:** Append-only `toad_ledger.parquet` state ledger with 6 startup reconciliation scenarios, tombstone isolation, cascade cache cleanup, and 500ms debounce `Untitled-1` recovery.
   - **Portable Isolation:** Detects adjacent directory, self-contained in `toadAppData_[5chars]` (`temp/`, `logs/`, `config.ini`, `toad_ledger.parquet`).
-  - **Packaging:** Standalone executable `Toad-2.5.1-x64-portable.exe` (< 50MB) and compressed archive in `releases/` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
+  - **Packaging:** Standalone executable `Toad-2.5.2-x64-portable.exe` (< 50MB) and compressed archive in `releases/` under author `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
@@ -46,7 +46,7 @@ Toad v2.5.1 is an enterprise-grade forensic data analysis and log exploration to
 | F29 | Rust Core Unit & Command Tests | 100% passing `cargo test` in `src-tauri` for engine, AST compiler, ledger, and parsers. | M7 | survey |
 | F30 | Arrow IPC Stream QA Suite | `node tests/test_tauri_arrow_ipc.js` roundtrip verification with 100% bit accuracy. | M7 | survey |
 | F31 | 100K Rows Concurrency & Stress Tests | `node tests/test_grid_scroll_stress.js` validating FPS > 55, memory leak < 25MB. | M7 | survey |
-| F32 | Production Portable Packaging Script | `tools/package_portable.ps1` compiling standalone `Toad-2.5.1-x64-portable.exe` (< 50MB) and `.zip`. | M7 | survey |
+| F32 | Production Portable Packaging Script | `tools/package_portable.ps1` compiling standalone `Toad-2.5.2-x64-portable.exe` (< 50MB) and `.zip`. | M7 | survey |
 | F33 | Release Verification & SHA256SUMS | Zero-duplicate binary check, PE branding `HelloKittyXamKinLung`, and `SHA256SUMS.txt`. | M7 | survey |
 
 ## Milestones
@@ -148,7 +148,7 @@ tauri/project/
 ├── tools/
 │   └── package_portable.ps1
 └── releases/
-    ├── Toad-2.5.1-x64-portable.exe
+    ├── Toad-2.5.2-x64-portable.exe
     ├── Toad-2.5.1-x64-portable.zip
     └── SHA256SUMS.txt
 ```
