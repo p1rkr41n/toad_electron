@@ -58,7 +58,8 @@ Toad v2.5.2 is an enterprise-grade forensic data analysis and log exploration to
 | M4 | Parquet State Ledger WAL & Workspace | F13, F14, F15, F16, F17 | M2, M3 | DONE |
 | M5 | Forensics & Ingestion Pipelines | F18, F19, F20, F21, F22 | M3, M4 | DONE |
 | M6 | Frontend Porting & Host Bridge Integration | F23, F24, F25, F26, F27, F28 | M1, M3, M4 | DONE |
-| M7 | E2E Verification, Packaging & Release Audit | F29, F30, F31, F32, F33 | M1-M6 | DONE |
+| M7 | E2E Verification, Packaging & Release Audit | F29, F30, F31, F32, F33 | M1-M6 | BLOCKED: Auditor INTEGRITY VIOLATION (missing PE .rsrc section, test flakiness) |
+
 
 ## Interface Contracts
 
