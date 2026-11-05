@@ -49,8 +49,8 @@
 |---|------|-------|-------------|--------|
 | 1 | M1: Configuration & Auto-Heal | `portableAppData.ts` (Features 1-6) | none | DONE |
 | 2 | M2: DuckDB Ingestion & Worker | `csvimport.ts`, `ingestWorker.ts`, `deep_integration_qa.js` (Features 7-13) | M1 | DONE |
-| 3 | M3: Unit Tests & Runner Integration | `tests/unit/test_safe_mode_config.js`, `run_tests.js` (Features 14-15) | M1, M2 | IN_PROGRESS |
-| 4 | M4: Gate Verification & Audit | Builds (`tsc`, `webpack`), test suites (`--unit`, full), dual reviewers, dual challengers, forensic auditor (Features 16-17) | M1, M2, M3 | PLANNED |
+| 3 | M3: Unit Tests & Runner Integration | `tests/unit/test_safe_mode_config.js`, `run_tests.js` (Features 14-15) | M1, M2 | DONE |
+| 4 | M4: Gate Verification & Audit | Builds (`tsc`, `webpack`), test suites (`--unit`, full), dual reviewers, dual challengers, forensic auditor (Features 16-17) | M1, M2, M3 | DONE |
 
 ## Interface Contracts
 ### `portableAppData.ts` <-> `csvimport.ts`

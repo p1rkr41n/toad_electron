@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-05T03:23:30Z
+# BRIEFING — 2026-11-05T03:31:30Z
 
 ## Mission
 Investigate the uncommitted working-copy diff in `adversarial_scheduler_queue_tests.rs`, verify mathematical and logical correctness of row expectations (35k vs 1k), inspect Jujutsu VCS status and `package_portable.ps1`, and formulate an end-to-end plan for committing and packaging under `HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>`.
@@ -24,12 +24,22 @@ Investigate the uncommitted working-copy diff in `adversarial_scheduler_queue_te
 - Updated: 2026-11-05T03:22:51Z
 
 ## Investigation State
-- **Explored paths**: `DISPATCH.md`, `ORIGINAL_REQUEST.md`, `PROJECT.md`, `auditor_m7_1/handoff.md`
-- **Key findings**: Auditor flagged uncommitted diff in `adversarial_scheduler_queue_tests.rs` causing assertion failure on clean checkouts. Need deep dive into test logic, Jujutsu status, and packaging script.
-- **Unexplored areas**: `adversarial_scheduler_queue_tests.rs` source, `jj status`, `jj diff`, `package_portable.ps1`, `build.rs`, PE resource generation pipeline.
+- **Explored paths**:
+  - `tauri/project/src-tauri/tests/adversarial_scheduler_queue_tests.rs` (lines 150-270)
+  - `tauri/project/src-tauri/src/ingest/scheduler.rs` (concurrency slot logic & burst lane preemption)
+  - `tauri/project/tools/package_portable.ps1` (production packaging pipeline)
+  - Jujutsu VCS repository history (`mvxwrymp`, `rxuqyyzx`, `@`)
+  - Full Rust test suite execution (15 suites, 139 tests)
+- **Key findings**:
+  1. The diff in `adversarial_scheduler_queue_tests.rs` was committed in `mvxwrymp` by `HelloKittyXamKinLung`. Working copy `@` is clean regarding this test.
+  2. The differential row expectation (35,000 for files 1 & 2 vs 1,000 for files 3, 4, 5) is 100% mathematically and architecturally necessary: files 1 & 2 saturate the 2 worker slots long enough for files 3-5 to queue and trigger VIP burst lane preemption.
+  3. All 139 tests in the Rust test suite pass cleanly (including `test_adversarial_vip_burst_lane_preemption` in 0.37s).
+  4. Jujutsu configuration has `user.name = "HelloKittyXamKinLung"` and `user.email = "p1rkr41n@users.noreply.github.com"` set permanently.
+  5. `package_portable.ps1` builds Vite frontend, compiles release Rust backend, checks < 50MB footprint, generates dual distribution (.exe + .zip), updates root `Toad.exe` + DLLs, and writes SHA256SUMS.txt & winget manifest.
+- **Unexplored areas**: None within scope.
 
 ## Key Decisions Made
-- Proceed with thorough read-only investigation and verification of `test_adversarial_vip_burst_lane_preemption` line-by-line.
+- Formulate a 4-phase execution plan for Worker M7 Remediation: (1) Process guard, (2) Jujutsu commit under HelloKittyXamKinLung, (3) Execution of `package_portable.ps1`, (4) 4-point verification method.
 
 ## Artifact Index
 - `DISPATCH.md` — Inbound tasks and prompts

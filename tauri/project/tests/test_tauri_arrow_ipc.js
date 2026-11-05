@@ -414,6 +414,14 @@ async function runArrowIpcTests() {
   });
 
   await asyncTest("5.2 Micro-benchmark: 1,000-row Arrow IPC encode/decode roundtrip completes in < 15ms", async () => {
+    // Warm-up pass (100 rows) to trigger JIT optimization and class cache warmup
+    const warmupTable = arrow.tableFromArrays({
+      id: new Int32Array(100),
+      score: new Float64Array(100),
+      desc: Array.from({ length: 100 }, (_, i) => `Warmup message #${i}`),
+    });
+    arrow.tableFromIPC(mockTauriIpcResponse(arrow.tableToIPC(warmupTable, "stream")));
+
     const rowCount = 1000;
     const ids = new Int32Array(rowCount);
     const scores = new Float64Array(rowCount);

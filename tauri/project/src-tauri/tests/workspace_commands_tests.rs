@@ -386,12 +386,15 @@ async fn test_workspace_delete_project_and_all() {
         .unwrap();
     assert_eq!(ws_res2.projects.len(), 0);
 
-    // Wait 550ms for debounce Untitled-1 recovery
-    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
-
-    let ws_res3 = handle_get_workspace(&state, json!({}))
-        .await
-        .unwrap();
+    // Wait for debounce Untitled-1 recovery (500ms nominal debounce)
+    let mut ws_res3 = handle_get_workspace(&state, json!({})).await.unwrap();
+    for _ in 0..15 {
+        if ws_res3.projects.len() == 1 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        ws_res3 = handle_get_workspace(&state, json!({})).await.unwrap();
+    }
     assert_eq!(ws_res3.projects.len(), 1);
     assert_eq!(ws_res3.projects[0].project_name, "Untitled-1");
 

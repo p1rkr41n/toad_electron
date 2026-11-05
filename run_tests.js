@@ -41,6 +41,7 @@ if (smokeOnly) {
 } else if (fuzzOnly) {
   testsToRun.push({ name: "Adversarial Robustness & Fuzzing (40 Tests)", file: "tests/qa/test_json_adversarial_fuzz.js" });
 } else if (unitOnly) {
+  testsToRun.push({ name: "Safe Mode Config & Ingestion Unit (16 Tests)", file: "tests/unit/test_safe_mode_config.js" });
   testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });
   testsToRun.push({ name: "DuckDB JSON Builder Unit (10 Tests)", file: "tests/unit/test_duckdb_json_builder.js" });
   testsToRun.push({ name: "JSON Schema Introspect Unit (50 Tests)", file: "tests/unit/test_json_schema_introspect.js" });
@@ -54,6 +55,7 @@ if (smokeOnly) {
 } else {
   // Default: Smoke Test + Arrow IPC + EVTX Parsing + Nested JSON + Deep Integration QA + Preload 3 Pages + QA Suites + Table/Grid Wrap Suites
   testsToRun.push({ name: "Smoke Test (v2.5.2)", file: "tests/smoke_test.js" });
+  testsToRun.push({ name: "Safe Mode Config & Ingestion Unit (16 Tests)", file: "tests/unit/test_safe_mode_config.js" });
   testsToRun.push({ name: "Apache Arrow IPC & invokeBinary (15 Tests)", file: "tests/test_arrow_ipc_stream.js" });
   testsToRun.push({ name: "EVTX Parsing & Schema Validation (6 Tests)", file: "tests/test_evtx_parsing_schema.js" });
   testsToRun.push({ name: "Nested JSON & Semi-Structured Ingestion (6 Tests)", file: "tests/test_nested_json.js" });
@@ -70,6 +72,7 @@ if (smokeOnly) {
   testsToRun.push({ name: "Filter Editor Apply Lifecycle Unit (10 Tests)", file: "tests/unit/test_filter_editor_apply_lifecycle.js" });
   testsToRun.push({ name: "Modal Cell Glow Suppression QA (10 Tests)", file: "tests/qa/test_modal_cell_glow_suppression.js" });
   if (runAll) {
+    testsToRun.push({ name: "Safe Mode Config & Ingestion Unit (16 Tests)", file: "tests/unit/test_safe_mode_config.js" });
     testsToRun.push({ name: "Legacy Use Cases (19 Tests)", file: "tests/legacy_use_cases.js" });
     testsToRun.push({ name: "Nested Traverser Unit (10 Tests)", file: "tests/unit/test_nested_traverser.js" });
     testsToRun.push({ name: "DuckDB JSON Builder Unit (10 Tests)", file: "tests/unit/test_duckdb_json_builder.js" });

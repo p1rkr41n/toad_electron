@@ -25,7 +25,7 @@ Orchestrate execution and oversight of the 50-engineer Tauri v2 port and rebuild
 - **Delivered results**: Run started notification sent
 
 ## Project Status
-- **Phase**: in progress (Milestones 1, 2, 3, 4, 5, 6 PASSED Gate with 100% consensus; Milestone 7: Portable Packaging & Release Audit starting)
+- **Phase**: in progress (Milestones 1–6 PASSED Gate; Milestone 7 in Iteration 13 Remediation: PE resource embedding, test stabilization, clean Jujutsu commit)
 - **Route**: General (teamwork_orchestrator)
 - **Active Orchestrator**: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
 - **Crons**: Progress reporting (task-36), Liveness check (task-37)
