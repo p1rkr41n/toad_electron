@@ -1,4 +1,4 @@
-# BRIEFING — 2026-11-05T03:07:04Z
+# BRIEFING — 2026-11-05T03:20:55Z
 
 ## Mission
 Adversarially challenge and stress-test portable executable execution and startup latency for Toad v2.5.2 (Milestone 7).
@@ -20,25 +20,34 @@ Adversarially challenge and stress-test portable executable execution and startu
 
 ## Current Parent
 - Conversation ID: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d
-- Updated: not yet
+- Updated: 2026-11-05T03:20:55Z
 
 ## Review Scope
-- **Files to review**: `releases/`, `Toad.exe`, companion DLLs (`duckdb.dll`, `WebView2Loader.dll`), `tools/package_portable.ps1`, `worker_m7_packaging/handoff.md`
-- **Interface contracts**: PROJECT.md, ORIGINAL_REQUEST.md
+- **Files reviewed**: `releases/Toad-2.5.2-x64-portable.exe`, `releases/Toad-2.5.2-x64-portable.zip`, `duckdb.dll`, `WebView2Loader.dll`, `SHA256SUMS.txt`, `HelloKittyXamKinLung.Toad.yaml`, `package_portable.ps1`.
+- **Interface contracts**: PROJECT.md, ORIGINAL_REQUEST.md.
 - **Review criteria**: Standalone portable execution, zero DLL dialogs, `toadAppData_[5chars]` creation, startup latency < 300ms, clean exit without orphan processes, stress testing (spaces, non-ASCII paths, missing DLL failure modes).
 
 ## Attack Surface
-- **Hypotheses tested**: None yet
-- **Vulnerabilities found**: None yet
-- **Untested angles**: Standalone zip extraction, path with spaces and non-ASCII, missing DLL behavior, latency measurement, child process cleanup
+- **Hypotheses tested**:
+  1. Does unzipping `Toad-2.5.2-x64-portable.zip` run standalone without host dependencies? -> YES, passed.
+  2. Does missing `WebView2Loader.dll` or `duckdb.dll` cause loader failure? -> YES, exits with code 0xC0000135; verified that release artifacts bundle both DLLs co-located.
+  3. Does directory with spaces and Unicode (e.g. `Tôad_テスト_with spaces`) break portable paths? -> NO, handles cleanly.
+  4. Does consecutive launch satisfy < 300ms latency requirement? -> YES, warm average 15ms << 300ms.
+  5. Does terminating Toad leave orphan WebView2 subprocesses? -> NO, 0 orphan processes.
+  6. Does single-instance plugin handle second instance correctly? -> YES, second instance exits code 0 and forwards CLI args.
+- **Vulnerabilities found**: None. All packaging requirements and edge cases are robustly handled.
+- **Untested angles**: None within M7 packaging scope.
 
 ## Loaded Skills
 - None explicitly loaded
 
 ## Key Decisions Made
-- Initialized adversarial challenge test harness plan.
+- Confirmed PE Import Table entries for `duckdb.dll` and `WebView2Loader.dll` using binary parsing.
+- Characterized isolated DLL search behavior and confirmed why co-location is essential.
+- Issued clear verdict: **APPROVE**.
 
 ## Artifact Index
 - D:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_m7_1\DISPATCH.md — Dispatch instructions
 - D:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_m7_1\BRIEFING.md — Situational awareness
 - D:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_m7_1\progress.md — Progress heartbeat
+- D:\Shared_UserData\Downloads\tad\.agents\teamwork\challenger_m7_1\handoff.md — Final adversarial report
