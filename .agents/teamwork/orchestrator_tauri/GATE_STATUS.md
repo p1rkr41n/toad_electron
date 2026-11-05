@@ -92,4 +92,20 @@ Remediation required:
 Gate Result: **PASS**
 Milestone 4 (Parquet State Ledger WAL & Workspace Engine) is 100% COMPLETE, authentic, verified across 100 unit/stress tests and 55 E2E tests, latency strictly < 5ms (1.82-1.93ms median), audited CLEAN with zero violations, and approved by all reviewers and challengers.
 
+## Gate — Milestone 5 (Iteration 8)
+| Agent | Role | Verdict | Source |
+|-------|------|---------|--------|
+| worker_m5_ingest | teamwork_worker | DONE (15/15 ingest tests, 115/115 cargo tests, commit c8998f06) | handoff.md |
+| reviewer_m5_1 | teamwork_reviewer | APPROVE (delimiter sniffer, 3-tier fallback, EVTX Arrow stream, JSONL unnesting) | handoff.md |
+| reviewer_m5_2 | teamwork_reviewer | APPROVE (SJF queue, dual-bound throttle, VIP burst lane, cancellation) | handoff.md |
+| challenger_m5_1 | teamwork_challenger | APPROVE (RAM delta 20.4MB <30MB, 7,097 rows/s on System.evtx, 15 polymorphic EventIDs) | handoff.md |
+| challenger_m5_2 | teamwork_challenger | REQUEST_CHANGES (burst lane permit leak on idle dispatch, jobId missing in promote_to_vip) | handoff.md |
+| auditor_m5_1 | teamwork_auditor | CLEAN (0 hardcoding, 0 facades, 0 pre-populated artifacts, author HelloKittyXamKinLung) | handoff.md |
+
+Gate Result: **FAIL** (challenger_m5_2 REQUEST_CHANGES)
+Remediation required:
+1. In `src-tauri/src/ingest/scheduler.rs:446`, clear `st.burst_lane_active = false` when dispatching from `active_count == 0` when popped job is VIP.
+2. In `src-tauri/src/ingest/scheduler.rs:342, 354, 361`, add `j.job_id == file_id_or_path` so `promote_to_vip` properly recognizes `jobId` from `handle_ingest_vip`.
+3. In `src-tauri/src/ingest/scheduler.rs:331`, set `st.burst_lane_active = true` when a job is enqueued directly with `priority == IngestPriority::Vip`.
+
 

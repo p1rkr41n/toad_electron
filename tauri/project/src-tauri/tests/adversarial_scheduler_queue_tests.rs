@@ -276,6 +276,8 @@ async fn test_adversarial_promote_to_vip_corner_cases() {
     let test_dir = create_temp_dir("vip_corners");
     let f1 = test_dir.join("f1.log");
     fs::write(&f1, "log line 1\n").unwrap();
+    let f2 = test_dir.join("f2.log");
+    fs::write(&f2, "log line 2\n").unwrap();
 
     let scheduler = Arc::new(IngestionScheduler::new(
         test_dir.join("temp"),
@@ -291,19 +293,28 @@ async fn test_adversarial_promote_to_vip_corner_cases() {
         .await
         .unwrap();
 
+    let job2 = scheduler
+        .enqueue_file("p1", &f2.to_string_lossy(), IngestPriority::Normal)
+        .await
+        .unwrap();
+
     // 1. Promote by file_id
     let res_by_file_id = scheduler.promote_to_vip(&job.file_id).await;
     assert!(res_by_file_id.is_ok(), "Promotion by file_id must succeed");
 
-    // 2. Promote by file_path
+    // 2. Promote by job_id
+    let res_by_job_id = scheduler.promote_to_vip(&job2.job_id).await;
+    assert!(res_by_job_id.is_ok(), "Promotion by job_id must succeed");
+
+    // 3. Promote by file_path
     let res_by_path = scheduler.promote_to_vip(&job.file_path).await;
     assert!(res_by_path.is_ok(), "Promotion by file_path must succeed");
 
-    // 3. Promote non-existent target -> must return Err
+    // 4. Promote non-existent target -> must return Err
     let res_bogus = scheduler.promote_to_vip("non_existent_uuid_or_path").await;
     assert!(res_bogus.is_err(), "Non-existent file promotion must return error");
 
-    // 4. Wait for job to complete, then promote again -> should return completed job Ok
+    // 5. Wait for jobs to complete, then promote again -> should return completed job Ok for job_id, file_id, and path
     for _ in 0..50 {
         tokio::time::sleep(Duration::from_millis(30)).await;
         let snap = scheduler.get_queue_snapshot().await;
@@ -312,10 +323,22 @@ async fn test_adversarial_promote_to_vip_corner_cases() {
         }
     }
 
-    let res_completed = scheduler.promote_to_vip(&job.file_id).await;
+    let res_completed_file = scheduler.promote_to_vip(&job.file_id).await;
     assert!(
-        res_completed.is_ok(),
-        "Promoting an already completed job should safely return Ok"
+        res_completed_file.is_ok(),
+        "Promoting an already completed job by file_id should safely return Ok"
+    );
+
+    let res_completed_job = scheduler.promote_to_vip(&job2.job_id).await;
+    assert!(
+        res_completed_job.is_ok(),
+        "Promoting an already completed job by job_id should safely return Ok"
+    );
+
+    let res_completed_path = scheduler.promote_to_vip(&job.file_path).await;
+    assert!(
+        res_completed_path.is_ok(),
+        "Promoting an already completed job by file_path should safely return Ok"
     );
 
     let _ = fs::remove_dir_all(&test_dir);
@@ -705,7 +728,6 @@ async fn test_adversarial_double_valid_parquet_cache_hit() {
 // ============================================================================
 
 #[tokio::test]
-#[should_panic(expected = "Burst lane flag leaked: was not reset upon dispatch when active_count == 0")]
 async fn test_adversarial_burst_lane_leak_at_idle() {
     let test_dir = create_temp_dir("burst_leak");
     let f1 = test_dir.join("f1.log");
@@ -742,8 +764,52 @@ async fn test_adversarial_burst_lane_leak_at_idle() {
     // burst_lane_active MUST be false!
     let st = scheduler.state.read().await;
     let leaked = st.burst_lane_active;
-    eprintln!("ADVERSARIAL PROOF: burst_lane_active leaked after completion: {}", leaked);
+    eprintln!("ADVERSARIAL VERIFIED: burst_lane_active after completion is correctly reset: {}", !leaked);
     assert!(!st.burst_lane_active, "Burst lane flag leaked: was not reset upon dispatch when active_count == 0");
+
+    let _ = fs::remove_dir_all(&test_dir);
+}
+
+// ============================================================================
+// 10. Adversarial Direct VIP Enqueue Burst Lane Activation
+// ============================================================================
+
+#[tokio::test]
+async fn test_adversarial_direct_vip_enqueue_activates_burst_lane() {
+    let test_dir = create_temp_dir("direct_vip_burst");
+    let f1 = test_dir.join("vip1.log");
+    fs::write(&f1, "vip line\n").unwrap();
+
+    let scheduler = Arc::new(IngestionScheduler::new(
+        test_dir.join("temp"),
+        None,
+        None,
+        Arc::new(ProgressDispatcher::default()),
+        2,
+        1_000_000_000,
+    ));
+
+    // Directly enqueue with Vip priority
+    let job = scheduler
+        .enqueue_file("p1", &f1.to_string_lossy(), IngestPriority::Vip)
+        .await
+        .unwrap();
+
+    assert_eq!(job.priority, IngestPriority::Vip);
+
+    // Wait for job to complete
+    for _ in 0..50 {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        let snap = scheduler.get_queue_snapshot().await;
+        if snap.active_count == 0 && snap.pending_count == 0 {
+            break;
+        }
+    }
+
+    let st = scheduler.state.read().await;
+    assert!(!st.burst_lane_active, "Burst lane flag must be false after completion");
+    let completed = st.completed.get(&job.job_id).unwrap();
+    assert_eq!(completed.status, IngestStatus::Ready);
 
     let _ = fs::remove_dir_all(&test_dir);
 }

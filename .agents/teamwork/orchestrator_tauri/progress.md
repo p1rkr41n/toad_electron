@@ -1,7 +1,7 @@
 # Progress — orchestrator_tauri
 
 ## Current Status
-Last visited: 2026-11-05T00:37:30Z
+Last visited: 2026-11-05T00:48:45Z
 - [x] Initialized workspace and recorded dispatch
 - [x] Initialized BRIEFING.md
 - [x] Phase 0 Survey completed by 3 parallel subagents:
@@ -77,10 +77,15 @@ Last visited: 2026-11-05T00:37:30Z
     - Reviewer M5-1 (c51b2424): APPROVE
     - Reviewer M5-2 (dff7f2ef): APPROVE
     - Challenger M5-1 (1f5c8b8e): APPROVE (RAM delta 20.4MB <30MB, 7,097 rows/s on System.evtx, 15 polymorphic EventID variants, 0% crash)
-    - Challenger M5-2 (bca50540): IN PROGRESS
+    - Challenger M5-2 (bca50540): REQUEST_CHANGES (burst lane permit leak on idle dispatch, jobId missing in promote_to_vip)
     - Forensic Auditor M5 (6d4d9732): CLEAN (0 hardcoding, 0 facades, 0 pre-populated artifacts, author HelloKittyXamKinLung, 123/123 tests passed)
+    - Gate Result: FAIL (challenger_m5_2 REQUEST_CHANGES)
+  - Iteration 9 Remediation:
+    - Step 2B.a Remediation Strategy: Formulated from challenger_m5_2 findings.
+    - Step 2B.b Remediation Implementation:
+      - Worker M5 Remediation (e0defccc): IN PROGRESS
 
 ## Iteration Status
-Current iteration: 8 / 32
+Current iteration: 9 / 32
 
 

@@ -52,6 +52,7 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 - Milestone 3 Iteration 5 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). M3 marked DONE in PROJECT.md. Commit cd5a501f verified.
 - Milestone 4 Iteration 6 Gate FAILED on Challenger findings (EBUSY open handle purge & startup latency). Remediated via Iteration 7.
 - Milestone 4 Iteration 7 Gate PASSED (Auditor: CLEAN, Reviewers: APPROVE, Challengers: APPROVE). Commit 4904b89a verified (100/100 Rust tests, 55/55 Node tests, 1.82ms latency, per-file move fallback). M4 marked DONE in PROJECT.md.
+- Milestone 5 Iteration 8 Gate FAILED on Challenger finding (challenger_m5_2: burst lane permit leak on idle dispatch, jobId missing in promote_to_vip). Remediating via Iteration 9.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
@@ -124,19 +125,20 @@ Orchestrate the 50-engineer team across 7 squads to port and rebuild Toad for Wi
 | reviewer_m5_1 | teamwork_reviewer | Forensics Ingestion Engine Reviewer 1 | completed | c51b2424-1743-4b67-a07b-fdd8bf748732 |
 | reviewer_m5_2 | teamwork_reviewer | Scheduler & Interface Conformance Reviewer 2 | completed | dff7f2ef-419d-44a3-9c44-3bd581cf1cc5 |
 | challenger_m5_1 | teamwork_challenger | EVTX SIMD & Forensics Adversarial Challenger 1 | completed | 1f5c8b8e-448e-4ad0-bdad-e22e79b79f5c |
-| challenger_m5_2 | teamwork_challenger | Queue Scheduling & Concurrency Adversarial Challenger 2 | in-progress | bca50540-5625-4448-9495-a6cf06d4b111 |
+| challenger_m5_2 | teamwork_challenger | Queue Scheduling & Concurrency Adversarial Challenger 2 | completed | bca50540-5625-4448-9495-a6cf06d4b111 |
 | auditor_m5_1 | teamwork_auditor | Forensic Integrity Auditor M5 | completed | 6d4d9732-3051-43b0-90ea-4b8e4457d6a2 |
+| worker_m5_remediation | teamwork_worker | Milestone 5 Remediation Worker | in-progress | e0defccc-8c6a-41aa-86aa-b84f746a05fa |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 70 / 128
-- Pending subagents: bca50540-5625-4448-9495-a6cf06d4b111
+- Spawn count: 71 / 128
+- Pending subagents: e0defccc-8c6a-41aa-86aa-b84f746a05fa
 - Predecessor: none
 - Successor: none
 
 ## Active Timers
 - Heartbeat cron: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-554
-- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-2051
+- Safety timer: 07d008aa-f3ed-4ce7-a8fd-c78e0cce0e4d/task-2093
 
 ## Artifact Index
 - d:\Shared_UserData\Downloads\tad\.agents\teamwork\ORIGINAL_REQUEST.md — Authoritative user request

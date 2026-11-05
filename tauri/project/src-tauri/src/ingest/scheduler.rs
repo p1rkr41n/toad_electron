@@ -326,6 +326,9 @@ impl IngestionScheduler {
 
         {
             let mut st = self.state.write().await;
+            if priority == IngestPriority::Vip {
+                st.burst_lane_active = true;
+            }
             st.pending.push(job.clone());
             st.pending.sort_by(|a, b| a.cmp_sjf(b));
         }
@@ -339,7 +342,7 @@ impl IngestionScheduler {
     /// Activates the Burst Lane (+1 concurrency limit) if all slots are occupied.
     pub async fn promote_to_vip(&self, file_id_or_path: &str) -> Result<IngestJob, String> {
         let mut st = self.state.write().await;
-        if let Some(pos) = st.pending.iter().position(|j| j.file_id == file_id_or_path || j.file_path == file_id_or_path) {
+        if let Some(pos) = st.pending.iter().position(|j| j.job_id == file_id_or_path || j.file_id == file_id_or_path || j.file_path == file_id_or_path) {
             st.pending[pos].priority = IngestPriority::Vip;
             let job = st.pending[pos].clone();
             st.pending.sort_by(|a, b| a.cmp_sjf(b));
@@ -351,14 +354,14 @@ impl IngestionScheduler {
 
         // Check if already active
         for handle in st.active.values() {
-            if handle.job.file_id == file_id_or_path || handle.job.file_path == file_id_or_path {
+            if handle.job.job_id == file_id_or_path || handle.job.file_id == file_id_or_path || handle.job.file_path == file_id_or_path {
                 return Ok(handle.job.clone());
             }
         }
 
         // Check completed
         for job in st.completed.values() {
-            if job.file_id == file_id_or_path || job.file_path == file_id_or_path {
+            if job.job_id == file_id_or_path || job.file_id == file_id_or_path || job.file_path == file_id_or_path {
                 return Ok(job.clone());
             }
         }
@@ -444,7 +447,11 @@ impl IngestionScheduler {
 
                     if active_count == 0 {
                         // Exclusive Big File Mode: run pending[0] regardless of size
-                        Some(st.pending.remove(0))
+                        let job = st.pending.remove(0);
+                        if job.priority == IngestPriority::Vip {
+                            st.burst_lane_active = false;
+                        }
+                        Some(job)
                     } else if active_count < max_slots {
                         // Look for the first job that fits under max_concurrent_bytes, or VIP job
                         let mut selected_idx = None;
