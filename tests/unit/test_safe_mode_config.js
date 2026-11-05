@@ -97,7 +97,7 @@ const origEnv = {
   TOAD_APP_DATA_DIR: process.env.TOAD_APP_DATA_DIR,
   TOAD_TEMP_DIR: process.env.TOAD_TEMP_DIR,
 };
-const origGlobalEnv = (global asAny => asAny.toadPortableEnv)(global);
+const origGlobalEnv = global.toadPortableEnv;
 
 function restoreEnvironment() {
   for (const [k, v] of Object.entries(origEnv)) {
