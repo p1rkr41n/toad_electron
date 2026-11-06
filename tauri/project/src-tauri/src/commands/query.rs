@@ -6,6 +6,7 @@
 use crate::engine::query_compiler::{QueryExpCompiler, QueryRep};
 use crate::state::AppState;
 use serde_json::{json, Value};
+use std::path::{Path, PathBuf};
 use tauri::ipc::Response;
 use tauri::AppHandle;
 
@@ -92,13 +93,155 @@ pub async fn handle_run_sql_arrow(
     pool.eval_query_arrow(sql.to_string()).await
 }
 
-/// Retrieves the active main table name
+/// Retrieves the active main table name, dynamically binding the target file to DuckDB views
 pub async fn handle_get_table_name(
     _app: AppHandle,
-    _state: &AppState,
-    _payload: Value,
+    state: &AppState,
+    payload: Value,
 ) -> Result<Value, String> {
-    Ok(json!("main_table"))
+    // 1. Robustly extract file path from diverse frontend RPC payloads
+    let file_path = payload
+        .get("resourceId")
+        .or_else(|| payload.get("filePath"))
+        .or_else(|| payload.get("file_path"))
+        .or_else(|| payload.get("path").and_then(|p| p.get("sourceId")).and_then(|s| s.get("resourceId")))
+        .or_else(|| payload.get("req").and_then(|r| r.get("path")).and_then(|p| p.get("sourceId")).and_then(|s| s.get("resourceId")))
+        .or_else(|| payload.get("engine").and_then(|e| e.get("resourceId")))
+        .and_then(|v| v.as_str());
+
+    let file_path = match file_path {
+        Some(p) if !p.trim().is_empty() => p.trim(),
+        _ => return Ok(json!("main_table")),
+    };
+
+    let path_obj = Path::new(file_path);
+    if !path_obj.exists() {
+        tracing::warn!("Target file does not exist on disk: {}", file_path);
+        return Ok(json!("main_table"));
+    }
+
+    let (size, mtime) = if let Ok(meta) = std::fs::metadata(path_obj) {
+        let size = meta.len();
+        let mtime = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        (size, mtime)
+    } else {
+        (0, 0)
+    };
+
+    let path_hash = (mtime ^ ((size as i64) << 16) ^ 0x5a5a5a5a) as u32;
+    let view_name = format!("tbl_{:08x}", path_hash);
+
+    let stem = path_obj
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_string();
+    let cache_name = format!("{}_cached_{:08x}.parquet", stem, path_hash);
+
+    let temp_dir = state.portable_dir.join("temp");
+
+    // 2. Check if a pre-computed Parquet cache exists in temp_dir or any project subdirectory
+    let mut cached_parquet_path: Option<PathBuf> = None;
+    if temp_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                if p.is_dir() {
+                    let candidate = p.join(&cache_name);
+                    if candidate.exists() && candidate.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+                        cached_parquet_path = Some(candidate);
+                        break;
+                    }
+                } else if p.is_file() && p.file_name().map(|n| n == cache_name.as_str()).unwrap_or(false) {
+                    if p.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+                        cached_parquet_path = Some(p);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let ext = path_obj
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    // 3. Special handling for EVTX (if not already cached into parquet, parse synchronously)
+    if ext == "evtx" && cached_parquet_path.is_none() {
+        let target = temp_dir.join(&cache_name);
+        let fid = format!("direct_evtx_{:08x}", path_hash);
+        let ct = crate::ingest::scheduler::CancellationToken::new();
+        let src = path_obj.to_path_buf();
+        let dst = target.clone();
+        let ingest_res = tokio::task::spawn_blocking(move || {
+            crate::ingest::evtx_parser::ingest_evtx_file(&fid, &src, &dst, 4, &ct, None)
+        })
+        .await;
+
+        if let Ok(Ok(_)) = ingest_res {
+            cached_parquet_path = Some(target);
+        }
+    }
+
+    // 4. Construct SQL source expression
+    let sanitized_target = if let Some(ref pq) = cached_parquet_path {
+        pq.to_string_lossy().replace('\\', "/").replace('\'', "''")
+    } else {
+        file_path.replace('\\', "/").replace('\'', "''")
+    };
+
+    let source_expr = if cached_parquet_path.is_some() || ext == "parquet" {
+        format!("read_parquet('{}')", sanitized_target)
+    } else {
+        match ext.as_str() {
+            "json" | "jsonl" | "ndjson" => {
+                format!("read_json_auto('{}', sample_size = 2048, ignore_errors = true)", sanitized_target)
+            }
+            "csv" | "tsv" | "tab" | "txt" => {
+                format!(
+                    "read_csv('{}', auto_detect = true, sample_size = 100000, ignore_errors = true, null_padding = true, all_varchar = true)",
+                    sanitized_target
+                )
+            }
+            _ => {
+                format!(
+                    "read_csv('{}', auto_detect = true, sample_size = 100000, ignore_errors = true, null_padding = true, all_varchar = true)",
+                    sanitized_target
+                )
+            }
+        }
+    };
+
+    // 5. Execute DDL to create/replace unique view and default main_table alias
+    let ddl = format!(
+        "CREATE OR REPLACE VIEW \"{}\" AS SELECT * FROM {};\nCREATE OR REPLACE VIEW \"main_table\" AS SELECT * FROM \"{}\";",
+        view_name, source_expr, view_name
+    );
+
+    tracing::info!(
+        "[query] Dynamic View Binding: view='{}', file='{}', expr='{}'",
+        view_name,
+        file_path,
+        source_expr
+    );
+
+    let pool = state.get_duckdb_pool().await;
+    let ddl_to_exec = ddl.clone();
+    pool.eval_ui_conn(move |conn| {
+        conn.execute_batch(&ddl_to_exec)
+            .map_err(|e| format!("Failed to create DuckDB view for file: {}", e))?;
+        Ok(())
+    })
+    .await?;
+
+    Ok(json!(view_name))
 }
 
 /// Helper to extract QueryRep, offset, and limit from diverse payload formats

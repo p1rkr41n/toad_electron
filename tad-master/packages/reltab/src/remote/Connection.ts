@@ -84,7 +84,19 @@ async function invokeDbFunction<T>(
     const tableRep = decodeTableRepBinary((retStr as any).buffer);
     return { status: "Ok", value: tableRep };
   }
-  const ret = typeof retStr === "string" ? deserializeTableRepStr(retStr) : retStr;
+  let ret: any = retStr;
+  if (typeof retStr === "string") {
+    const trimmed = retStr.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        ret = deserializeTableRepStr(retStr);
+      } catch {
+        ret = retStr;
+      }
+    } else {
+      ret = retStr;
+    }
+  }
   return ret;
 }
 
@@ -434,7 +446,17 @@ async function jsonInvoke(
 ): Promise<any> {
   const reqStr = JSON.stringify(req, safeJsonReplacer);
   const retStr = await tconn.invoke(functionName, reqStr);
-  const ret = typeof retStr === "string" ? JSON.parse(retStr) : retStr;
+  let ret: any = retStr;
+  if (typeof retStr === "string") {
+    const trimmed = retStr.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        ret = JSON.parse(retStr);
+      } catch {
+        ret = retStr;
+      }
+    }
+  }
   return ret;
 }
 
