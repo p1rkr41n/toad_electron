@@ -40,6 +40,7 @@ pub enum CommandAction {
     GetChildren,
     GetColumnStatsMap,
     RunSql,
+    GetDataSources,
 
     // Project Workspace CRUD Stubs (Milestone M4)
     ProjectGetWorkspace,
@@ -138,6 +139,10 @@ pub fn route_command(cmd: &str) -> CommandAction {
         | "DataSourceConnection.runSqlQuery"
         | "runSqlQuery"
         | "run_sql" => CommandAction::RunSql,
+
+        "toad:get_data_sources"
+        | "getDataSources"
+        | "get_data_sources" => CommandAction::GetDataSources,
 
         // ================================================================
         // Project Workspace CRUD Stubs (Milestone M4)
@@ -465,6 +470,21 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
                         Err(e) => resolver.reject(e),
                     }
                 });
+                true
+            }
+
+            CommandAction::GetDataSources => {
+                let resolver = invoke.resolver;
+                resolver.resolve(serde_json::json!([
+                    {
+                        "providerName": "localfs",
+                        "displayName": "Local Filesystem"
+                    },
+                    {
+                        "providerName": "duckdb",
+                        "displayName": "DuckDB"
+                    }
+                ]));
                 true
             }
 

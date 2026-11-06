@@ -1,4 +1,51 @@
-# VCS & Tools
+# ==============================================================================
+# VCS, IDE & User Local Files
+# ==============================================================================
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.user
+*.local
+*.userosv
+*.sln.docstates
+
+# ==============================================================================
+# AI Assistants, Prompts & Multi-Agent Metadata (DO NOT UPLOAD)
+# ==============================================================================
+.agents/
+**/.agents/
+.gemini/
+**/.gemini/
+.claude/
+**/.claude/
+*prompt*
+*_prompt*.md
+prompt_*.md
+*.prompt
+
+# ==============================================================================
+# Project Meta, Telegram Bridge & Temporary QA/Dev Scratch
+# ==============================================================================
+tmp_prj/
+**/tmp_prj/
+PROJECT.md
+TEST_INFRA.md
+TEST_READY.md
+telegram_inbox.jsonl
+tools/.telegram*
+*telegram*
+scratch/
+**/scratch/
+tmp_*/
+**/tmp_*/
+temp/
+**/temp/
+qa_test_folder/
+
+# ==============================================================================
+# Build Outputs, Dependencies & Package Artifacts
+# ==============================================================================
 node_modules/
 **/node_modules/
 dist/
@@ -9,45 +56,62 @@ build/
 buildRes/
 target/
 **/target/
-*.exe
-*.dll
-*.zip
-*.7z
-*.7z.*
-*.tar.gz
-*.parquet
-*.log
-*.map
-.DS_Store
-npm-debug.log
-lerna-debug.log
-.vscode/
-.idea/
-
-# Portable app test data & runtime dirs
-toadAppData*/
-releases/toadAppData*/
-data_sample/
-mingit/
-node-v18.20.4-win-x64/
-node-v18.20.4-win-x64/**
-tools/jj/jj.exe
-scratch/
-
-tmp_qa_test*/
-tmp_test*/
-
-.git_tadmaster_bak/
-**/.git_tadmaster_bak/
-
-
-ponytail/
-!tauri/
-!tauri/project/
 tauri/project/src-tauri/target/
 tauri/project/node_modules/
 tauri/project/dist/
 tauri/project/toadAppData*/
 
+# ==============================================================================
+# Binaries, Libraries & Native Code Artifacts
+# ==============================================================================
+*.exe
+*.dll
+*.so
+*.dylib
+*.node
+*.pdb
+*.dmp
+*.zip
+*.7z
+*.7z.*
+*.tar.gz
+*.map
+Toad.exe
+Pulex.exe
+duckdb.dll
+WebView2Loader.dll
+
+# ==============================================================================
+# Logs & Diagnostic Outputs
+# ==============================================================================
+*.log
+npm-debug.log
+lerna-debug.log
+releases/err.txt
+releases/out.txt
+releases/stderr.log
+releases/stdout.log
+releases/*.log
+
+# ==============================================================================
+# Runtime Data, Databases, Caches & Large Parquet
+# ==============================================================================
+toadAppData*/
+**/toadAppData*/
+releases/toadAppData*/
+data_sample/
+*.parquet
 __pycache__/
 *.pyc
+*.pyo
+
+# ==============================================================================
+# Retained Repository Toolchains & Assets (Exceptions)
+# ==============================================================================
+!mingit/
+tools/jj/jj.exe
+!tauri/
+!tauri/project/
+ponytail/
+.git_tadmaster_bak/
+**/.git_tadmaster_bak/

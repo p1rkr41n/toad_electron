@@ -56,6 +56,8 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   "getColumnStatsMap": "DataSourceConnection.getColumnStatsMap",
   "toad:run_sql": "DataSourceConnection.runSqlQuery",
   "runSqlQuery": "DataSourceConnection.runSqlQuery",
+  "toad:get_data_sources": "getDataSources",
+  "getDataSources": "getDataSources",
 
   // Forensics & Ingestion Commands
   "toad:ingest_file": "ingest_file",
