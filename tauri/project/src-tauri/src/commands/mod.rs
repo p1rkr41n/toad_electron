@@ -234,21 +234,42 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
 
             CommandAction::Log => {
                 let resolver = invoke.resolver;
-                let level = payload
-                    .get("level")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("info");
-                let message = payload
-                    .get("message")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("");
-                let details = payload.get("details");
-                match level.to_lowercase().as_str() {
-                    "trace" => tracing::trace!(details = ?details, "[FRONTEND] {}", message),
-                    "debug" => tracing::debug!(details = ?details, "[FRONTEND] {}", message),
-                    "warn" => tracing::warn!(details = ?details, "[FRONTEND] {}", message),
-                    "error" => tracing::error!(details = ?details, "[FRONTEND] {}", message),
-                    _ => tracing::info!(details = ?details, "[FRONTEND] {}", message),
+                if let Some(entries) = payload.get("entries").and_then(|v| v.as_array()) {
+                    for entry in entries {
+                        let level = entry
+                            .get("level")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("info");
+                        let message = entry
+                            .get("message")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let details = entry.get("details");
+                        match level.to_lowercase().as_str() {
+                            "trace" => tracing::trace!(details = ?details, "[FRONTEND] {}", message),
+                            "debug" => tracing::debug!(details = ?details, "[FRONTEND] {}", message),
+                            "warn" => tracing::warn!(details = ?details, "[FRONTEND] {}", message),
+                            "error" => tracing::error!(details = ?details, "[FRONTEND] {}", message),
+                            _ => tracing::info!(details = ?details, "[FRONTEND] {}", message),
+                        }
+                    }
+                } else {
+                    let level = payload
+                        .get("level")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("info");
+                    let message = payload
+                        .get("message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    let details = payload.get("details");
+                    match level.to_lowercase().as_str() {
+                        "trace" => tracing::trace!(details = ?details, "[FRONTEND] {}", message),
+                        "debug" => tracing::debug!(details = ?details, "[FRONTEND] {}", message),
+                        "warn" => tracing::warn!(details = ?details, "[FRONTEND] {}", message),
+                        "error" => tracing::error!(details = ?details, "[FRONTEND] {}", message),
+                        _ => tracing::info!(details = ?details, "[FRONTEND] {}", message),
+                    }
                 }
                 resolver.resolve(serde_json::json!({ "success": true }));
                 true

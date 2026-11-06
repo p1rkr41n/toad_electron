@@ -124,14 +124,23 @@ Copy-Item $zipDestTauri $zipDestRoot -Force
 # Package portable standalone EXE and companion DLLs in releases
 $exeDestTauri = Join-Path $tauriReleasesDir $portableExeName
 $exeDestRoot = Join-Path $rootReleasesDir $portableExeName
-Copy-Item $builtExe $exeDestTauri -Force
-Copy-Item $exeDestTauri $exeDestRoot -Force
+try {
+    Copy-Item $builtExe $exeDestTauri -Force
+    Copy-Item $exeDestTauri $exeDestRoot -Force
+    Write-Output "           Updated portable release executables in releases/."
+} catch {
+    Write-Warning "Could not overwrite $exeDestRoot (file locked by active process, please close Toad/Pulex): $_"
+}
 
 # Copy runtime DLL dependencies to release folders for instant execution
-Copy-Item "$targetReleaseDir\duckdb.dll" "$tauriReleasesDir\duckdb.dll" -Force
-Copy-Item "$targetReleaseDir\duckdb.dll" "$rootReleasesDir\duckdb.dll" -Force
-Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$tauriReleasesDir\WebView2Loader.dll" -Force
-Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$rootReleasesDir\WebView2Loader.dll" -Force
+try {
+    Copy-Item "$targetReleaseDir\duckdb.dll" "$tauriReleasesDir\duckdb.dll" -Force
+    Copy-Item "$targetReleaseDir\duckdb.dll" "$rootReleasesDir\duckdb.dll" -Force
+    Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$tauriReleasesDir\WebView2Loader.dll" -Force
+    Copy-Item "$targetReleaseDir\WebView2Loader.dll" "$rootReleasesDir\WebView2Loader.dll" -Force
+} catch {
+    Write-Warning "Could not overwrite companion DLLs (file locked by active process): $_"
+}
 
 # Update canonical project root $AppName.exe and companion DLLs
 try {

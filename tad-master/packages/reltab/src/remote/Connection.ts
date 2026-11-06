@@ -206,12 +206,13 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
   constructor(tconn: TransportClient, sourceId: DataSourceId, dataPort?: any) {
     this.tconn = tconn;
     this.sourceId = sourceId;
-    if (dataPort) {
+    if (dataPort && (typeof dataPort.postMessage === "function" || dataPort instanceof MessagePortTransport)) {
       this.setDataPort(dataPort);
     } else if (
       tconn &&
       typeof (tconn as any).setupDataPort === "function" &&
-      (tconn as any).dataPort
+      (tconn as any).dataPort &&
+      typeof (tconn as any).dataPort.postMessage === "function"
     ) {
       this.setDataPort((tconn as any).dataPort);
     } else if (
@@ -224,7 +225,7 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
   }
 
   public setDataPort(port: any): void {
-    if (!port) {
+    if (!port || (typeof port.postMessage !== "function" && !(port instanceof MessagePortTransport))) {
       this.portTransport = null;
       return;
     }
@@ -258,8 +259,7 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
     };
     if (
       this.tconn &&
-      typeof (this.tconn as any).invokeBinary === "function" &&
-      (this.tconn as any).dataPort
+      typeof (this.tconn as any).invokeBinary === "function"
     ) {
       try {
         const u8 = await (this.tconn as any).invokeBinary("evalQuery", payload);
@@ -304,9 +304,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
       queryStr: JSON.stringify(query, safeJsonReplacer),
       options: options ? options : defaultEvalQueryOptions,
     };
-    return invokeDbFunction(this.tconn, this.sourceId, "rowCount", req).then(
+    const res: any = await invokeDbFunction(this.tconn, this.sourceId, "rowCount", req).then(
       decodeResult
     );
+    return typeof res === "number" ? res : res?.rowCount ?? res;
   }
 
   async getTableSchema(tableName: string): Promise<Schema> {
@@ -318,12 +319,16 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
       return Schema.fromJSON(res);
     }
     const req: DbConnGetTableSchemaRequest = { tableName };
-    return invokeDbFunction(
+    const res: any = await invokeDbFunction(
       this.tconn,
       this.sourceId,
       "getTableSchema",
       req
     ).then(decodeResult);
+    if (res instanceof Schema) {
+      return res;
+    }
+    return Schema.fromJSON(res);
   }
 
   async getColumnStatsMap(query: QueryExp): Promise<ColumnStatsMap> {
@@ -429,19 +434,23 @@ async function jsonInvoke(
 ): Promise<any> {
   const reqStr = JSON.stringify(req, safeJsonReplacer);
   const retStr = await tconn.invoke(functionName, reqStr);
-  const ret = JSON.parse(retStr);
+  const ret = typeof retStr === "string" ? JSON.parse(retStr) : retStr;
   return ret;
 }
 
-async function decodeResult<T>(res: Result<T>): Promise<T> {
-  switch (res.status) {
-    case "Ok":
-      return res.value;
-    case "Err":
-      console.log("decodeResult: got error result: ", res);
-      const errVal = deserializeError(res.errVal);
-      throw errVal;
+async function decodeResult(res: any): Promise<any> {
+  if (!res) return res;
+  if (typeof res === "object" && res.status) {
+    switch (res.status) {
+      case "Ok":
+        return res.value;
+      case "Err":
+        console.error("decodeResult: got error result: ", res);
+        const errVal = deserializeError(res.errVal);
+        throw errVal;
+    }
   }
+  return res;
 }
 
 /**
@@ -454,12 +463,13 @@ export class RemoteReltabConnection implements ReltabConnection {
 
   constructor(tconn: TransportClient, dataPort?: any) {
     this.tconn = tconn;
-    if (dataPort) {
+    if (dataPort && (typeof dataPort.postMessage === "function" || dataPort instanceof MessagePortTransport)) {
       this.setDataPort(dataPort);
     } else if (
       tconn &&
       typeof (tconn as any).setupDataPort === "function" &&
-      (tconn as any).dataPort
+      (tconn as any).dataPort &&
+      typeof (tconn as any).dataPort.postMessage === "function"
     ) {
       this.setDataPort((tconn as any).dataPort);
     } else if (
@@ -472,6 +482,10 @@ export class RemoteReltabConnection implements ReltabConnection {
   }
 
   public setDataPort(port: any): void {
+    if (!port || (typeof port.postMessage !== "function" && !(port instanceof MessagePortTransport))) {
+      this.dataPort = null;
+      return;
+    }
     this.dataPort = port;
   }
 
@@ -483,13 +497,13 @@ export class RemoteReltabConnection implements ReltabConnection {
     const conn = new RemoteDataSourceConnection(
       this.tconn,
       sourceId,
-      this.dataPort
+      this.dataPort && typeof this.dataPort.postMessage === "function" ? this.dataPort : undefined
     );
     return conn;
   }
 
   async getDataSources(): Promise<DataSourceId[]> {
-    if (this.dataPort) {
+    if (this.dataPort && (typeof this.dataPort.postMessage === "function" || this.dataPort instanceof MessagePortTransport)) {
       const transport =
         this.dataPort instanceof MessagePortTransport
           ? this.dataPort
@@ -500,7 +514,7 @@ export class RemoteReltabConnection implements ReltabConnection {
     const ret = (await jsonInvoke(this.tconn, "getDataSources", {}).then(
       decodeResult
     )) as any;
-    return ret["dataSourceIds"];
+    return ret?.["dataSourceIds"] || ret;
   }
 }
 

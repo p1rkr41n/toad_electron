@@ -15,7 +15,7 @@ import { REVERSE_COMMAND_ALIAS_MAP, COMMAND_ALIAS_MAP } from "./commandAliases";
  */
 export class TauriHostAdapter implements IHostBridge {
   readonly engineName: EngineName = "tauri";
-  public readonly dataPort: boolean = true; // ACTIVATION GATE FOR ZERO-COPY ARROW IPC
+  public readonly dataPort: any = null;
   private clipboardText = "";
   private currentTheme: "light" | "dark" = "light";
 
