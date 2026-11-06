@@ -11,10 +11,13 @@ export default defineConfig({
       { find: /^~\//, replacement: path.resolve(__dirname, 'src/') + '/' },
       { find: /^~/, replacement: '' },
       { find: 'path', replacement: 'path-browserify' },
+      { find: 'events', replacement: path.resolve(__dirname, 'node_modules/events') },
       { find: 'toadviewer', replacement: path.resolve(__dirname, 'src') },
       { find: 'reltab', replacement: path.resolve(__dirname, '../../tad-master/packages/reltab/src/reltab.ts') },
       { find: 'aggtree', replacement: path.resolve(__dirname, '../../tad-master/packages/aggtree/src/aggtree.ts') },
       { find: 'host-bridge', replacement: path.resolve(__dirname, '../../tad-master/packages/host-bridge/src/index.ts') },
+      { find: 'loglevel', replacement: path.resolve(__dirname, 'node_modules/loglevel') },
+      { find: 'pretty-hrtime', replacement: path.resolve(__dirname, 'node_modules/pretty-hrtime') },
     ],
   },
   css: {

@@ -1,5 +1,5 @@
 ﻿PackageIdentifier: HelloKittyXamKinLung.Toad
-PackageVersion: 2.5.2
+PackageVersion: 3.0.0-beta
 PackageName: Toad
 Publisher: HelloKittyXamKinLung
 License: MIT
@@ -12,8 +12,8 @@ Tags:
   - forensic
 Installers:
   - Architecture: x64
-    InstallerType: portable
-    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.5.2/Toad-2.5.2-x64-portable.exe
-    InstallerSha256: E31DD642FD5CBAC737A4517E7B66E365C2C38673A9792CA31F0DDD730090162A
+  - InstallerType: portable
+  - InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v3.0.0-beta/Toad-3.0.0-beta-x64-portable.exe
+  - InstallerSha256: F9F4984E0BD06D980392598CDCA7D532D18AEBE8379667567FEFE827E8DED20D
 ManifestType: singleton
 ManifestVersion: 1.6.0

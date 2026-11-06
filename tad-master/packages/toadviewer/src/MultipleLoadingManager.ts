@@ -436,6 +436,35 @@ export class MultipleLoadingManager {
 
     this.pendingActiveOpenKey = key;
 
+    // Nếu tệp này hoặc bất kỳ sibling nào cùng canonicalPath đang được worker xử lý (processing),
+    // chỉ cần tăng độ ưu tiên, đánh dấu pendingActiveOpenKey và return ngay lập tức mà không demote về pending!
+    const siblingKeys = this.canonicalMap.get(item.canonicalPath);
+    let isAlreadyProcessing = item.status === "processing" || this.activeItems.has(item.key);
+    if (!isAlreadyProcessing && siblingKeys) {
+      for (const sKey of siblingKeys) {
+        const sib = this.files.get(sKey);
+        if (sib && (sib.status === "processing" || this.activeItems.has(sKey))) {
+          isAlreadyProcessing = true;
+          break;
+        }
+      }
+    }
+
+    if (isAlreadyProcessing) {
+      const updated: FileIngestItem = {
+        ...item,
+        priority: Date.now() + 1000000,
+        version: (item.version || 0) + 1,
+      };
+      this.files.set(key, updated);
+      if (this.activeItems.has(key)) {
+        this.activeItems.set(key, updated);
+      }
+      this.pendingActiveOpenKey = item.key;
+      this.notify();
+      return;
+    }
+
     // Nếu là "modified", kích hoạt nạp lại từ nguồn (forceReopen)
     if (item.status === "modified") {
       log.info(`[MultipleLoading] File ${item.fileName} bi MODIFIED, uu tien nap lai tu nguon voi forceReopen=true`);
@@ -767,26 +796,33 @@ export class MultipleLoadingManager {
 
       const currentBytes = this.currentInFlightBytes;
 
+      // Tập hợp các canonicalPath đang được xử lý bởi active worker để ngăn chặn chạy trùng lặp
+      const activeCanonicals = new Set<string>();
+      for (const active of this.activeItems.values()) {
+        if (active.canonicalPath) {
+          activeCanonicals.add(active.canonicalPath);
+        }
+      }
+
       // Kiểm tra ngân sách dung lượng (Data Size Budget):
       // - Nếu queue đang hoàn toàn rảnh (activeItems.size === 0): cho phép nạp tệp đầu tiên kể cả khi dung lượng > maxBytes (Exclusive Big File Mode)
       // - Nếu đang có tệp chạy (activeItems.size > 0): tìm tệp đầu tiên thỏa mãn currentBytes + candidateSize <= maxBytes
       let candidateIndex = -1;
-      if (this.activeItems.size === 0) {
-        candidateIndex = 0;
-      } else {
-        for (let i = 0; i < pendingList.length; i++) {
-          const candidate = pendingList[i];
-          const candidateSize = candidate.fileSizeBytes !== undefined ? candidate.fileSizeBytes : 0;
-          if (currentBytes + candidateSize <= maxBytes) {
-            candidateIndex = i;
-            break;
-          }
+      for (let i = 0; i < pendingList.length; i++) {
+        const candidate = pendingList[i];
+        if (candidate.canonicalPath && activeCanonicals.has(candidate.canonicalPath)) {
+          continue; // Không bao giờ spawn nhiều worker cùng xử lý một tệp vật lý
+        }
+        const candidateSize = candidate.fileSizeBytes !== undefined ? candidate.fileSizeBytes : 0;
+        if (this.activeItems.size === 0 || currentBytes + candidateSize <= maxBytes) {
+          candidateIndex = i;
+          break;
         }
       }
 
       if (candidateIndex === -1) {
-        // Không có file pending nào thỏa mãn ngân sách dung lượng còn lại khi các file khác đang chạy.
-        // Chờ ít nhất một file active hoàn tất giải phóng ngân sách.
+        // Không có file pending nào thỏa mãn điều kiện chạy (hoặc tệp đang được worker khác xử lý,
+        // hoặc vượt ngân sách dung lượng khi queue bận). Chờ worker hoàn tất.
         break;
       }
 
@@ -850,12 +886,42 @@ export class MultipleLoadingManager {
         `[MultipleLoading] Hoan tat nạp file ${processingItem.fileName} thanh cong -> Bang: ${tableName}`
       );
 
-      // RAM 3-Page Micro-Cache: Pre-warm first 3 pages into RAM buffer cache (< 5ms instant open)
+      // RAM Micro-Cache: Adaptive cell-budget pre-warm into RAM buffer cache (< 5ms instant open)
       try {
         const pSize = getDefaultPageSize();
         const baseQuery = reltab.tableQuery(tableName);
+        let colCount = 0;
+        let schema: reltab.Schema | undefined;
+        try {
+          if (typeof processingItem.dsc.getTableSchema === "function") {
+            schema = await processingItem.dsc.getTableSchema(tableName);
+          } else if (typeof (processingItem.dsc as any).getSchema === "function") {
+            schema = await (processingItem.dsc as any).getSchema(baseQuery);
+          }
+          if (schema && schema.columns) {
+            colCount = schema.columns.length;
+          }
+        } catch (schemaErr) {
+          log.warn(`[MultipleLoading] Khong the lay schema cho ${tableName}:`, schemaErr);
+        }
+
         const totalRowCount = await processingItem.dsc.rowCount(baseQuery);
-        const preloadLimit = Math.min(totalRowCount, pSize * 3);
+        let preloadLimit: number;
+        let bufferPages = 3;
+
+        if (colCount <= 50) {
+          bufferPages = 3;
+          preloadLimit = Math.min(totalRowCount, pSize * 3);
+        } else if (colCount <= 200) {
+          bufferPages = 1;
+          preloadLimit = Math.min(totalRowCount, pSize * 1);
+        } else {
+          bufferPages = 1;
+          preloadLimit = Math.min(
+            totalRowCount,
+            Math.max(100, Math.floor(150000 / colCount))
+          );
+        }
 
         const tableRep = await processingItem.dsc.evalQuery(baseQuery, 0, preloadLimit);
         const cacheEntry: FirstPageCacheEntry = {
@@ -864,13 +930,13 @@ export class MultipleLoadingManager {
           tableRep,
           totalRowCount,
           pageSize: pSize,
-          bufferPages: 3,
+          bufferPages,
           cachedAt: Date.now(),
         };
         this.setFirstPageCache(processingItem.canonicalPath, cacheEntry);
         this.setFirstPageCache(processingItem.key, cacheEntry);
         log.info(
-          `[MultipleLoading] Pre-warmed RAM 3-Page Cache cho ${processingItem.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, pageSize: ${pSize})`
+          `[MultipleLoading] Pre-warmed RAM Cache cho ${processingItem.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, cols: ${colCount}, pageSize: ${pSize}, bufferPages: ${bufferPages})`
         );
       } catch (cacheErr: any) {
         log.warn(
@@ -998,20 +1064,48 @@ export class MultipleLoadingManager {
       try {
         const existing =
           this.getFirstPageCache(it.canonicalPath) || this.getFirstPageCache(it.key);
-        if (
-          existing &&
-          existing.pageSize === newSize &&
-          existing.tableRep.rowData.length === Math.min(existing.totalRowCount, newSize * 3)
-        ) {
-          continue;
-        }
         const tableName =
           existing?.tableName ||
           (await it.dsc.getTableName(it.dsPath, { isBackground: true } as any));
         const baseQuery = reltab.tableQuery(tableName);
+
+        let colCount = existing?.schema?.columns ? existing.schema.columns.length : 0;
+        if (!colCount && typeof it.dsc.getTableSchema === "function") {
+          try {
+            const sc = await it.dsc.getTableSchema(tableName);
+            if (sc && sc.columns) {
+              colCount = sc.columns.length;
+            }
+          } catch {}
+        }
+
         const totalRowCount =
           existing?.totalRowCount ?? (await it.dsc.rowCount(baseQuery));
-        const limit = Math.min(totalRowCount, newSize * 3);
+
+        let limit: number;
+        let bufferPages = 3;
+        if (colCount <= 50) {
+          bufferPages = 3;
+          limit = Math.min(totalRowCount, newSize * 3);
+        } else if (colCount <= 200) {
+          bufferPages = 1;
+          limit = Math.min(totalRowCount, newSize * 1);
+        } else {
+          bufferPages = 1;
+          limit = Math.min(
+            totalRowCount,
+            Math.max(100, Math.floor(150000 / colCount))
+          );
+        }
+
+        if (
+          existing &&
+          existing.pageSize === newSize &&
+          existing.tableRep.rowData.length === limit
+        ) {
+          continue;
+        }
+
         const tableRep = await it.dsc.evalQuery(baseQuery, 0, limit);
 
         if (this.currentRewarmSize !== newSize) {
@@ -1024,13 +1118,13 @@ export class MultipleLoadingManager {
           tableRep,
           totalRowCount,
           pageSize: newSize,
-          bufferPages: 3,
+          bufferPages,
           cachedAt: Date.now(),
         };
         this.setFirstPageCache(it.canonicalPath, updated);
         this.setFirstPageCache(it.key, updated);
         log.info(
-          `[MultipleLoading] Re-warmed RAM 3-Page Cache cho ${it.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, pageSize: ${newSize})`
+          `[MultipleLoading] Re-warmed RAM Cache cho ${it.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, cols: ${colCount}, pageSize: ${newSize}, bufferPages: ${bufferPages})`
         );
       } catch (err) {
         log.warn(`[MultipleLoading] Loi khi rewarm cache cho ${it.fileName}:`, err);

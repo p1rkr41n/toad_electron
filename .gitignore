@@ -39,6 +39,8 @@ scratch/
 **/scratch/
 tmp_*/
 **/tmp_*/
+tools/temp_*
+**/tools/temp_*
 temp/
 **/temp/
 qa_test_folder/

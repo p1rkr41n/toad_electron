@@ -98,8 +98,11 @@ export const setQueryView = async (
     appState.showRecordCount
   );
 
-  // start off with all columns displayed:
-  const displayColumns = baseSchema.columns.slice();
+  // start off with all columns displayed (capped to first 100 for ultra-wide schemas):
+  const displayColumns =
+    baseSchema.columns.length > 100
+      ? baseSchema.columns.slice(0, 100)
+      : baseSchema.columns.slice();
 
   const openPaths = new PathTree();
   const initialViewParams = new ViewParams({
@@ -203,8 +206,11 @@ export const replaceCurrentView = async (
 
   const baseQuery = reltab.tableQuery(queryTableName);
 
-  // start off with all columns displayed:
-  const displayColumns = baseSchema.columns.slice();
+  // start off with all columns displayed (capped to first 100 for ultra-wide schemas):
+  const displayColumns =
+    baseSchema.columns.length > 100
+      ? baseSchema.columns.slice(0, 100)
+      : baseSchema.columns.slice();
 
   const openPaths = new PathTree();
   if (!viewParams) {

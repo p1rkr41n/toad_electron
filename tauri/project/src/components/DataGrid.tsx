@@ -11,7 +11,7 @@ import _ from "lodash";
 import * as React from "react";
 
 /* /// <reference path="slickgrid-es6.d.ts"> */
-import { ResizeSensor, Menu, MenuItem, MenuDivider, Spinner } from "@blueprintjs/core";
+import { Menu, MenuItem, MenuDivider, Spinner } from "@blueprintjs/core";
 import * as he from "he";
 import { useRef, useState, useEffect } from "react";
 import ReactDOM from "react-dom/client";
@@ -48,6 +48,8 @@ const genContainerId = (): string => `epGrid${divCounter++}`;
 const baseGridOptions = {
   multiColumnSort: true,
   headerRowHeight: 80,
+  rowHeight: 25,
+  explicitInitialization: true,
 };
 
 const INDENT_PER_LEVEL = 15; // pixels
@@ -144,7 +146,7 @@ const getColWidth = (
   let displayName = cnm;
   try {
     displayName = dataView.schema.displayName(cnm) || cnm;
-  } catch {}
+  } catch { }
   const headerStrWidth = measureHeaderStringWidth(displayName);
   colWidth = Math.min(
     MAXCOLWIDTH,
@@ -308,8 +310,8 @@ interface NumericColumnHistogramProps {
 function round(value: number, decimals: number): number {
   return Number(
     Math.round(Number(value.toString() + "e" + decimals.toString())) +
-      "e-" +
-      decimals
+    "e-" +
+    decimals
   );
 }
 const NumericColumnHistogram = ({
@@ -447,10 +449,10 @@ export const autoFitGridColumn = (
         val != null && cf
           ? cf(val) ?? val.toString()
           : val != null
-          ? typeof val === "object"
-            ? JSON.stringify(val)
-            : val.toString()
-          : "";
+            ? typeof val === "object"
+              ? JSON.stringify(val)
+              : val.toString()
+            : "";
     } catch {
       sf = (val: any) =>
         val != null
@@ -476,7 +478,7 @@ export const autoFitGridColumn = (
     } else if (cols[targetColIdx].name) {
       displayName = cols[targetColIdx].name;
     }
-  } catch {}
+  } catch { }
   if (typeof displayName === "string") {
     const cleanName = displayName.replace(/<[^>]*>?/gm, "").trim();
     maxLen = Math.max(maxLen, cleanName.length);
@@ -486,8 +488,8 @@ export const autoFitGridColumn = (
     typeof dataView.getLength === "function"
       ? dataView.getLength()
       : Array.isArray(dataView)
-      ? dataView.length
-      : 0;
+        ? dataView.length
+        : 0;
   const vp = (typeof grid.getViewport === "function" && grid.getViewport()) || {
     top: 0,
     bottom: Math.min(100, Math.max(0, dataLength - 1)),
@@ -504,8 +506,8 @@ export const autoFitGridColumn = (
       typeof dataView.getItem === "function"
         ? dataView.getItem(i)
         : Array.isArray(dataView)
-        ? dataView[i]
-        : null;
+          ? dataView[i]
+          : null;
     if (!item) continue;
     const val = item[colId];
     if (val != null) {
@@ -566,7 +568,16 @@ const createGrid = (
     embedded,
   } = props;
 
-  const gridOptions = getGridOptions(props);
+  // Layer 2: Clean DOM container to avoid leftover elements or duplicate headers
+  const container = document.getElementById(containerId);
+  if (container) {
+    container.innerHTML = "";
+  }
+
+  const gridOptions = {
+    ...getGridOptions(props),
+    explicitInitialization: true,
+  };
   let grid = new Slick.Grid(`#${containerId}`, dataView, columns, gridOptions);
   (grid as any)._tadProps = props;
   if (Array.isArray(columns)) {
@@ -590,7 +601,7 @@ const createGrid = (
       try {
         currentExpandedCellNode.style.removeProperty("height");
         currentExpandedCellNode.style.removeProperty("overflow-y");
-      } catch (err) {}
+      } catch (err) { }
       currentExpandedCellNode = null;
     }
     if (currentExpandedRowNode) {
@@ -611,7 +622,7 @@ const createGrid = (
         try {
           el.style.removeProperty("height");
           el.style.removeProperty("overflow-y");
-        } catch (err) {}
+        } catch (err) { }
       });
       const rows = container.querySelectorAll(
         ".slick-row-has-expanded, .slick-row-active-expanded"
@@ -676,7 +687,7 @@ const createGrid = (
     try {
       cellNode.style.setProperty("height", heightState.height + "px", "important");
       cellNode.style.setProperty("overflow-y", heightState.overflowY, "important");
-    } catch (err) {}
+    } catch (err) { }
     currentExpandedCellNode = cellNode;
     currentExpandedPos = { row, cell };
 
@@ -1133,8 +1144,20 @@ const createGrid = (
     onSetColumnOrder?.(displayColIds);
   });
 
-  // load the first page
-  grid.onViewportChanged.notify();
+  // Layer 2: Explicit Initialization with container dimension guarding
+  const hasDimensions =
+    container && container.clientHeight > 0 && container.clientWidth > 0;
+
+  if (typeof grid.init === "function") {
+    try {
+      if (hasDimensions) {
+        grid.init();
+        (grid as any)._tadInitialized = true;
+      }
+    } catch (err) {
+      console.warn("[DataGrid] Error during explicit grid.init():", err);
+    }
+  }
 
   setTimeout(() => {
     updateHeaderSortButtons(containerId, grid);
@@ -1240,15 +1263,7 @@ const getGridCols = (
       gridCols.map((gc) => gc.field)
     );
     const hiddenCols = hiddenColIds
-      .filter(
-        (cid) =>
-          cid !== "_expand" &&
-          cid !== "_id" &&
-          cid !== "_parentId" &&
-          cid !== "_isOpen" &&
-          cid !== "_isLeaf" &&
-          cid !== "_depth"
-      )
+      .filter((cid) => !cid.startsWith("_") && cid !== "Rec")
       .map((cid) => gs.slickColMap[cid]);
     gridCols = gridCols.concat(hiddenCols);
   }
@@ -1258,6 +1273,24 @@ const getGridCols = (
     gridCols.unshift(expandCol);
   }
   return gridCols;
+};
+
+const areColumnsEqual = (
+  prevCols: any[] | null | undefined,
+  nextCols: any[] | null | undefined
+): boolean => {
+  if (!prevCols || !nextCols) return false;
+  if (prevCols.length !== nextCols.length) return false;
+  for (let i = 0; i < prevCols.length; i++) {
+    const p = prevCols[i];
+    const n = nextCols[i];
+    if (!p || !n) return false;
+    if (p.id !== n.id) return false;
+    if (p.width !== n.width) return false;
+    if (p.name !== n.name) return false;
+    if (p.field !== n.field) return false;
+  }
+  return true;
 };
 
 /*
@@ -1310,7 +1343,14 @@ const updateGrid = (gs: GridState, props: DataGridProps) => {
 
   grid.setOptions(gridOptions);
   grid.setHeaderRowVisibility(gridOptions.showHeaderRow);
-  grid.setColumns(gridCols);
+
+  // Guard setColumns: avoid destroying and recreating <style> rules on every pass
+  const currentCols =
+    typeof grid.getColumns === "function" ? grid.getColumns() : null;
+  const colsChanged = !areColumnsEqual(currentCols, gridCols);
+  if (colsChanged) {
+    grid.setColumns(gridCols);
+  }
 
   const prevDataView = (grid as any)._tadPrevDataView;
   const isSameDataView = prevDataView === dataView;
@@ -1322,20 +1362,59 @@ const updateGrid = (gs: GridState, props: DataGridProps) => {
     : [];
   grid.setSortColumns(vpSortKey);
 
+  const container = document.getElementById(gs.containerId);
+  const hasDimensions =
+    container && container.clientHeight > 0 && container.clientWidth > 0;
+
+  if (
+    hasDimensions &&
+    !(grid as any)._tadInitialized &&
+    typeof grid.init === "function"
+  ) {
+    try {
+      grid.init();
+      (grid as any)._tadInitialized = true;
+    } catch (err) {
+      console.warn(
+        "[DataGrid] Error during explicit grid.init() in updateGrid:",
+        err
+      );
+    }
+  }
+
   if (!isSameDataView) {
     grid.setData(dataView);
     grid.invalidateAllRows();
     grid.updateRowCount();
-    grid.render();
-    grid.resizeCanvas();
+    if (hasDimensions) {
+      grid.resizeCanvas(); // resize BEFORE render so viewport height is correct
+      grid.render();
+    }
   } else {
     // Fast path (Toad v2.0.5): Data has not changed.
     // Only column order/layout was updated; avoid full row invalidation & DOM reconstruction!
-    grid.render();
+    if (hasDimensions) {
+      grid.resizeCanvas();
+      grid.render();
+    }
   }
+
+  // Double-frame layout stabilization: guarantee viewport height & rows are painted after DOM reflow
+  requestAnimationFrame(() => {
+    const c = document.getElementById(gs.containerId);
+    if (c && c.clientHeight > 0) {
+      grid.resizeCanvas();
+      grid.render();
+    }
+  });
   setTimeout(() => {
+    const c = document.getElementById(gs.containerId);
+    if (c && c.clientHeight > 0) {
+      grid.resizeCanvas();
+      grid.render();
+    }
     updateHeaderSortButtons(gs.containerId, gs.grid);
-  }, 0);
+  }, 50);
 };
 
 const createGridState = (
@@ -1463,7 +1542,58 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
     showHiddenColumns,
   } = props;
   const containerIdRef = useRef(genContainerId());
+  const containerElementRef = useRef<HTMLDivElement | null>(null);
   const [gridState, setGridState] = useState<GridState | null>(null);
+  const gridRef = useRef<any>(null);
+
+  // Keep gridRef in sync with gridState
+  useEffect(() => {
+    gridRef.current = gridState?.grid ?? null;
+  }, [gridState]);
+
+  // Native ResizeObserver with mutable gridRef to guarantee valid layout dimensions
+  useEffect(() => {
+    const container =
+      containerElementRef.current ||
+      document.getElementById(containerIdRef.current);
+    if (!container) return;
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const cr = entry.contentRect;
+        if (cr.height > 0 && cr.width > 0) {
+          const grid = gridRef.current;
+          if (grid) {
+            try {
+              if (
+                !(grid as any)._tadInitialized &&
+                typeof grid.init === "function"
+              ) {
+                grid.init();
+                (grid as any)._tadInitialized = true;
+              }
+              if (typeof grid.updateRowCount === "function") {
+                grid.updateRowCount();
+              }
+              if (typeof grid.resizeCanvas === "function") {
+                grid.resizeCanvas();
+              }
+              if (typeof grid.render === "function") {
+                grid.render();
+              }
+            } catch (e) {
+              console.warn("[DataGrid] ResizeObserver callback error:", e);
+            }
+          }
+        }
+      }
+    });
+
+    ro.observe(container);
+    return () => {
+      ro.disconnect();
+    };
+  }, []);
 
   const prevShowColumnHistograms = useRef(showColumnHistograms);
   const displayColumnsKey = displayColumns ? displayColumns.join(",") : "";
@@ -1481,13 +1611,55 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
       gs === null ||
       (prevShowColumnHistograms.current !== showColumnHistograms && histoMap)
     ) {
-      // log.debug("RawGridPane: creating grid state");
-      gs = createGridState(containerIdRef.current, props);
-      if (gs && gs.grid) {
-        gs.grid.resizeCanvas();
-        setGridState(gs);
+      try {
+        gs = createGridState(containerIdRef.current, props);
+        if (gs && gs.grid) {
+          gridRef.current = gs.grid;
+          const container =
+            containerElementRef.current ||
+            document.getElementById(containerIdRef.current);
+          if (
+            container &&
+            container.clientHeight > 0 &&
+            container.clientWidth > 0
+          ) {
+            gs.grid.resizeCanvas();
+          }
+          setGridState(gs);
+          requestAnimationFrame(() => {
+            if (gs && gs.grid) {
+              gs.grid.resizeCanvas();
+              gs.grid.render();
+            }
+          });
+        }
+      } catch (gridErr) {
+        console.warn("Failed to create grid state, retrying next frame:", gridErr);
+        requestAnimationFrame(() => {
+          try {
+            const retryGs = createGridState(containerIdRef.current, props);
+            if (retryGs && retryGs.grid) {
+              gridRef.current = retryGs.grid;
+              const container =
+                containerElementRef.current ||
+                document.getElementById(containerIdRef.current);
+              if (
+                container &&
+                container.clientHeight > 0 &&
+                container.clientWidth > 0
+              ) {
+                retryGs.grid.resizeCanvas();
+              }
+              if (dataView != null) {
+                updateGrid(retryGs, props);
+              }
+              setGridState(retryGs);
+            }
+          } catch (retryErr) {
+            console.error("Failed retry creating grid state:", retryErr);
+          }
+        });
       }
-      // log.debug("RawGridPane: done creating grid state");
       prevShowColumnHistograms.current = showColumnHistograms;
     }
     if (dataView != null && gs && gs.grid) {
@@ -1594,26 +1766,38 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
   }, [props.expandedRowIndex, dataView, gridState, props.onExpandEvent]);
 
   const handleGridResize = () => {
-    // TODO: debounce?
-    if (gridState) {
-      gridState.grid.resizeCanvas();
+    const grid = gridRef.current || gridState?.grid;
+    if (grid) {
+      const container =
+        containerElementRef.current ||
+        document.getElementById(containerIdRef.current);
+      if (
+        container &&
+        container.clientHeight > 0 &&
+        container.clientWidth > 0
+      ) {
+        if (typeof grid.updateRowCount === "function") grid.updateRowCount();
+        if (typeof grid.resizeCanvas === "function") grid.resizeCanvas();
+        if (typeof grid.render === "function") grid.render();
+      }
     }
   };
 
   const handleWindowResize = (e: any) => {
-    // console.log("handleWindowResize: ", e);
-    if (gridState) {
-      /*
-      const $container = $(container)
-      console.log('$container: ', $container)
-      const pvh = $.css($container[0], 'height', true)
-      console.log('viewport height before resize:', pvh)
-      */
-      gridState.grid.resizeCanvas();
-      /*
-      console.log('viewport height after resize:', $.css($container[0], 'height', true))
-      console.log('gridPane.handleWindowResize: done with resize and render')
-      */
+    const grid = gridRef.current || gridState?.grid;
+    if (grid) {
+      const container =
+        containerElementRef.current ||
+        document.getElementById(containerIdRef.current);
+      if (
+        container &&
+        container.clientHeight > 0 &&
+        container.clientWidth > 0
+      ) {
+        if (typeof grid.updateRowCount === "function") grid.updateRowCount();
+        if (typeof grid.resizeCanvas === "function") grid.resizeCanvas();
+        if (typeof grid.render === "function") grid.render();
+      }
     }
   };
 
@@ -1681,32 +1865,33 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
     }
   };
 
-  if (!dataView || !dataView.schema) {
-    return (
-      <div
-        className="gridPaneOuter"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-        }}
-      >
-        <Spinner size={36} intent="primary" />
-      </div>
-    );
-  }
+  const isLoading = !dataView || !dataView.schema;
 
   return (
-    <div className="gridPaneOuter">
+    <div className="gridPaneOuter" style={{ position: "relative" }}>
       <div className="gridPaneInner">
-        <ResizeSensor onResize={handleGridResize}>
-          <div
-            id={containerIdRef.current}
-            className="slickgrid-container full-height"
-          />
-        </ResizeSensor>
+        <div
+          ref={containerElementRef}
+          id={containerIdRef.current}
+          className="slickgrid-container full-height"
+        />
       </div>
+      {isLoading && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "var(--md-sys-color-surface, rgba(255, 255, 255, 0.7))",
+            zIndex: 10,
+            pointerEvents: "none",
+          }}
+        >
+          <Spinner size={36} intent="primary" />
+        </div>
+      )}
       {contextMenu && (
         <div
           className="toad-grid-context-menu"

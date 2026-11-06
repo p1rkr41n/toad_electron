@@ -108,12 +108,12 @@ function main() {
   }
   if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/Cargo.toml"))) {
     updateFile("tauri/project/src-tauri/Cargo.toml", (content) => {
-      return content.replace(/^version = "[\d\.]+"/m, `version = "${targetVersion}"`);
+      return content.replace(/^version = "[^"]+"/m, `version = "${targetVersion}"`);
     });
   }
   if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/tauri.conf.json"))) {
     updateFile("tauri/project/src-tauri/tauri.conf.json", (content) => {
-      return content.replace(/"version": "[\d\.]+"/, `"version": "${targetVersion}"`);
+      return content.replace(/"version": "[^"]+"/, `"version": "${targetVersion}"`);
     });
   }
   if (fs.existsSync(path.join(ROOT_DIR, "PROJECT.md"))) {
@@ -150,6 +150,14 @@ function main() {
     res = res.replace(/if \(\$Version -ne "[^"]+"\)/, `if ($Version -ne "${targetVersion}")`);
     res = res.replace(/Standard target for Milestone 4 is '[^']+'/, `Standard target for Milestone 4 is '${targetVersion}'`);
     return res;
+  });
+
+  // 4.1 package_portable.ps1 files
+  updateFile("tools/package_portable.ps1", (content) => {
+    return content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
+  });
+  updateFile("tauri/project/tools/package_portable.ps1", (content) => {
+    return content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
   });
 
   // 5. README.md

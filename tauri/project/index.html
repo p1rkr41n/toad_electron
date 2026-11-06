@@ -14,6 +14,19 @@
         background-color: #2f343c !important;
       }
     </style>
+    <script>
+      window.addEventListener('error', function(e) {
+        var msg = (e.error && (e.error.stack || e.error.message)) || e.message || 'Unknown Error';
+        console.error('[CRITICAL-BOOTSTRAP-ERROR]', msg);
+        var app = document.getElementById('app');
+        if (app && app.children.length === 0) {
+          app.innerHTML = '<div style="padding:24px;color:#f87171;font-family:sans-serif;background:#18181b;height:100vh;box-sizing:border-box;">' +
+            '<h2 style="margin-top:0;color:#ef4444;">Toad Data Analyzer - Runtime Error</h2>' +
+            '<pre style="white-space:pre-wrap;background:#27272a;padding:12px;border-radius:6px;color:#fca5a5;">' + msg + '</pre>' +
+            '</div>';
+        }
+      });
+    </script>
   </head>
   <body class="bp4-dark toad-dark">
     <div id="app" class="full-height"></div>

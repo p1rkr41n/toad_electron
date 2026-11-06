@@ -56,11 +56,6 @@ const dbConnEvalQuery = async (
   const qres = await conn.evalQuery(query, offset, limit, options);
   const elapsed = process.hrtime(hrstart);
   log.info("runQuery: evaluated query in  ", prettyHRTime(elapsed));
-  const qresStr = JSON.stringify(
-    qres,
-    (_, v) => (typeof v === "bigint" ? v.toString() : v),
-    2
-  );
   return qres;
 };
 

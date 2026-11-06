@@ -27,7 +27,10 @@
       "aggtree": ["../../tad-master/packages/aggtree/src/aggtree.ts"],
       "aggtree/*": ["../../tad-master/packages/aggtree/src/*"],
       "host-bridge": ["../../tad-master/packages/host-bridge/src/index.ts"],
-      "host-bridge/*": ["../../tad-master/packages/host-bridge/src/*"]
+      "host-bridge/*": ["../../tad-master/packages/host-bridge/src/*"],
+      "loglevel": ["node_modules/loglevel"],
+      "pretty-hrtime": ["node_modules/pretty-hrtime"],
+      "events": ["node_modules/events"]
     }
   },
   "include": ["src", "vite.config.ts"]

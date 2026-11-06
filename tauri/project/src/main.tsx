@@ -6,7 +6,7 @@ if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
   };
 }
 
-// Global Console Interceptor & Hybrid Buffer for comprehensive Toad diagnostics
+// Global Console Interceptor & Lossless Queued Buffer for comprehensive Toad diagnostics
 interface QueuedLogEntry {
   level: string;
   message: string;
@@ -21,6 +21,7 @@ const rawConsoleInfo = typeof console !== "undefined" ? console.info : () => {};
 const rawConsoleDebug = typeof console !== "undefined" ? console.debug : () => {};
 
 let isForwarding = false;
+let isLoggingReentrant = false;
 const logBuffer: QueuedLogEntry[] = [];
 let bufferTimer: any = null;
 
@@ -29,21 +30,28 @@ function flushLogBuffer() {
     clearTimeout(bufferTimer);
     bufferTimer = null;
   }
-  if (logBuffer.length === 0) return;
-  const entriesToSend = logBuffer.splice(0, logBuffer.length);
+  if (logBuffer.length === 0 || isForwarding) return;
   if (typeof window !== "undefined" && (window as any).__TAURI__?.core?.invoke) {
+    const entriesToSend = logBuffer.splice(0, Math.min(logBuffer.length, 100));
     isForwarding = true;
     (window as any).__TAURI__.core
       .invoke("toad:log", { entries: entriesToSend })
       .catch(() => {})
       .finally(() => {
         isForwarding = false;
+        if (logBuffer.length > 0) {
+          flushLogBuffer();
+        }
       });
+  } else {
+    // If Tauri backend is not available yet, keep buffer bounded to prevent unbounded memory growth
+    if (logBuffer.length > 2000) {
+      logBuffer.splice(0, logBuffer.length - 2000);
+    }
   }
 }
 
 function forwardLogToBackend(level: string, message: string, details?: any) {
-  if (isForwarding) return;
   try {
     const strDetails = details
       ? typeof details === "string"
@@ -58,25 +66,12 @@ function forwardLogToBackend(level: string, message: string, details?: any) {
       timestamp: Date.now(),
     };
 
+    // Lossless queued log pipeline: always queue and drain sequentially
+    logBuffer.push(entry);
+
     if (level === "error" || level === "warn") {
-      // Instant flush for errors and warnings to prevent log loss
-      if (typeof window !== "undefined" && (window as any).__TAURI__?.core?.invoke) {
-        isForwarding = true;
-        (window as any).__TAURI__.core
-          .invoke("toad:log", {
-            level,
-            message,
-            details: strDetails,
-            timestamp: entry.timestamp,
-          })
-          .catch(() => {})
-          .finally(() => {
-            isForwarding = false;
-          });
-      }
+      flushLogBuffer();
     } else {
-      // 50ms batching buffer for high-frequency logs to protect UI 60 FPS
-      logBuffer.push(entry);
       if (logBuffer.length >= 25) {
         flushLogBuffer();
       } else if (!bufferTimer) {
@@ -110,37 +105,62 @@ function formatConsoleArgs(args: any[]): { message: string; details?: any } {
 if (typeof console !== "undefined") {
   console.log = function (...args: any[]) {
     rawConsoleLog.apply(console, args);
-    if (!isForwarding) {
-      const { message, details } = formatConsoleArgs(args);
-      forwardLogToBackend("info", message, details);
+    if (!isLoggingReentrant) {
+      isLoggingReentrant = true;
+      try {
+        const { message, details } = formatConsoleArgs(args);
+        forwardLogToBackend("info", message, details);
+      } finally {
+        isLoggingReentrant = false;
+      }
     }
   };
   console.info = function (...args: any[]) {
     rawConsoleInfo.apply(console, args);
-    if (!isForwarding) {
-      const { message, details } = formatConsoleArgs(args);
-      forwardLogToBackend("info", message, details);
+    if (!isLoggingReentrant) {
+      isLoggingReentrant = true;
+      try {
+        const { message, details } = formatConsoleArgs(args);
+        forwardLogToBackend("info", message, details);
+      } finally {
+        isLoggingReentrant = false;
+      }
     }
   };
   console.warn = function (...args: any[]) {
     rawConsoleWarn.apply(console, args);
-    if (!isForwarding) {
-      const { message, details } = formatConsoleArgs(args);
-      forwardLogToBackend("warn", message, details);
+    if (!isLoggingReentrant) {
+      isLoggingReentrant = true;
+      try {
+        const { message, details } = formatConsoleArgs(args);
+        forwardLogToBackend("warn", message, details);
+      } finally {
+        isLoggingReentrant = false;
+      }
     }
   };
   console.error = function (...args: any[]) {
     rawConsoleError.apply(console, args);
-    if (!isForwarding) {
-      const { message, details } = formatConsoleArgs(args);
-      forwardLogToBackend("error", message, details);
+    if (!isLoggingReentrant) {
+      isLoggingReentrant = true;
+      try {
+        const { message, details } = formatConsoleArgs(args);
+        forwardLogToBackend("error", message, details);
+      } finally {
+        isLoggingReentrant = false;
+      }
     }
   };
   console.debug = function (...args: any[]) {
     rawConsoleDebug.apply(console, args);
-    if (!isForwarding) {
-      const { message, details } = formatConsoleArgs(args);
-      forwardLogToBackend("debug", message, details);
+    if (!isLoggingReentrant) {
+      isLoggingReentrant = true;
+      try {
+        const { message, details } = formatConsoleArgs(args);
+        forwardLogToBackend("debug", message, details);
+      } finally {
+        isLoggingReentrant = false;
+      }
     }
   };
 }

@@ -2802,6 +2802,18 @@ export function isComplexLogFile(
 }
 
 /**
+ * Detects whether an error was caused by DuckDB's parallel CSV scanner encountering
+ * quoted newlines in conjunction with null_padding.
+ */
+export function isParallelQuotedNewlineError(err: any): boolean {
+  const msg = (err && (err.message || String(err))) || "";
+  return (
+    msg.includes("The parallel scanner does not support null_padding in conjunction with quoted new lines") ||
+    (msg.includes("parallel scanner") && msg.includes("null_padding") && msg.includes("quoted new"))
+  );
+}
+
+/**
  * Spawns an isolated out-of-process worker to perform DuckDB streaming ingestion.
  * Guarantees crash isolation: any native C++ assertion in duckdb.node is contained
  * in the child process without terminating the main Electron application.
@@ -2913,7 +2925,18 @@ export async function streamCsvToParquet(
       await dbConn.exec(safeQuery);
       log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 Auto-Detect)!");
       return;
-    } catch (safeErr) {
+    } catch (safeErr: any) {
+      if (isParallelQuotedNewlineError(safeErr)) {
+        log.warn("[Ingest Safe Profile] Parallel scanner quoted newline detected, immediately retrying with parallel = false...");
+        const safeQuerySerial = safeQuery.replace(/parallel\s*=\s*true/i, "parallel = false");
+        try {
+          await dbConn.exec(safeQuerySerial);
+          log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 parallel=false)!");
+          return;
+        } catch (retryErr) {
+          log.warn("[Ingest Safe Profile] Retry parallel=false failed, proceeding to Stage 2:", retryErr);
+        }
+      }
       log.warn("[Ingest Safe Profile] Stage 1 auto_detect gap loi, chuyen sang Stage 2 Force Header:", safeErr);
     }
 
@@ -2983,15 +3006,6 @@ export async function streamCsvToParquet(
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
-  try {
-    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
-    await dbConn.exec(tier0Query);
-    log.info("[Ingest Tier 0] Thanh cong!");
-    return;
-  } catch (err0) {
-    log.warn("[Ingest Tier 0] That bai, chuyen sang Fallback Tier 1:", err0);
-  }
-
   // Tier 1: parallel=false, all_varchar=true (xử lý dòng quá dài)
   const tier1Query = `
     COPY (
@@ -3007,6 +3021,26 @@ export async function streamCsvToParquet(
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
+
+  try {
+    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
+    await dbConn.exec(tier0Query);
+    log.info("[Ingest Tier 0] Thanh cong!");
+    return;
+  } catch (err0: any) {
+    if (isParallelQuotedNewlineError(err0)) {
+      log.warn("[Ingest Tier 0] Quoted newline with null_padding detected in parallel scanner, immediately retrying with parallel = false...");
+      try {
+        await dbConn.exec(tier1Query);
+        log.info("[Ingest Tier 0 -> parallel=false] Streaming Parquet thanh cong!");
+        return;
+      } catch (retryErr) {
+        log.warn("[Ingest Tier 0 -> parallel=false] Failed, falling through to Tier 2:", retryErr);
+      }
+    } else {
+      log.warn("[Ingest Tier 0] That bai, chuyen sang Fallback Tier 1:", err0);
+    }
+  }
 
   try {
     log.info("[Ingest Tier 1] Dang thu lai voi parallel=false...");
@@ -3792,7 +3826,22 @@ export const nativeCSVImport = async (
           prettyHRTime(importTime)
         );
         return tableName;
-      } catch (errSafe) {
+      } catch (errSafe: any) {
+        if (isParallelQuotedNewlineError(errSafe)) {
+          log.warn("[Ingest In-Memory Safe Profile] Quoted newline detected in parallel scanner, immediately retrying with parallel=false...");
+          try {
+            const querySerial = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+            await dbConn.all(querySerial);
+            const importTime = process.hrtime(importStart);
+            log.info(
+              "DuckDB nativeCSVImport (Safe Profile parallel=false): import completed in ",
+              prettyHRTime(importTime)
+            );
+            return tableName;
+          } catch (retryErr) {
+            log.warn("[Ingest In-Memory Safe Profile] Retry parallel=false failed:", retryErr);
+          }
+        }
         log.warn("[Ingest In-Memory Safe Profile] That bai, thu Force Header:", errSafe);
         try {
           const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
@@ -3814,8 +3863,24 @@ export const nativeCSVImport = async (
         prettyHRTime(importTime)
       );
       return tableName;
-    } catch (err0) {
-      log.warn("[Ingest In-Memory Tier 0] That bai:", err0);
+    } catch (err0: any) {
+      if (isParallelQuotedNewlineError(err0)) {
+        log.warn("[Ingest In-Memory Tier 0] Quoted newline with null_padding detected in parallel scanner, retrying with parallel=false...");
+        try {
+          const querySerial = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+          await dbConn.all(querySerial);
+          const importTime = process.hrtime(importStart);
+          log.info(
+            "DuckDB nativeCSVImport (Tier 0 -> parallel=false): import completed in ",
+            prettyHRTime(importTime)
+          );
+          return tableName;
+        } catch (retryErr) {
+          log.warn("[Ingest In-Memory Tier 0 -> parallel=false] Failed, falling through to Tier 1:", retryErr);
+        }
+      } else {
+        log.warn("[Ingest In-Memory Tier 0] That bai:", err0);
+      }
     }
 
     // Tier 1: parallel=false + all_varchar=true
