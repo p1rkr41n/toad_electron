@@ -36,6 +36,10 @@ pub enum CommandAction {
     Schema,
     RunSqlArrow,
     GetTableName,
+    GetRootNode,
+    GetChildren,
+    GetColumnStatsMap,
+    RunSql,
 
     // Project Workspace CRUD Stubs (Milestone M4)
     ProjectGetWorkspace,
@@ -114,6 +118,26 @@ pub fn route_command(cmd: &str) -> CommandAction {
         | "DataSourceConnection.getTableName"
         | "getTableName"
         | "get_table_name" => CommandAction::GetTableName,
+
+        "toad:get_root_node"
+        | "DataSourceConnection.getRootNode"
+        | "getRootNode"
+        | "get_root_node" => CommandAction::GetRootNode,
+
+        "toad:get_children"
+        | "DataSourceConnection.getChildren"
+        | "getChildren"
+        | "get_children" => CommandAction::GetChildren,
+
+        "toad:get_column_stats_map"
+        | "DataSourceConnection.getColumnStatsMap"
+        | "getColumnStatsMap"
+        | "get_column_stats_map" => CommandAction::GetColumnStatsMap,
+
+        "toad:run_sql"
+        | "DataSourceConnection.runSqlQuery"
+        | "runSqlQuery"
+        | "run_sql" => CommandAction::RunSql,
 
         // ================================================================
         // Project Workspace CRUD Stubs (Milestone M4)
@@ -389,6 +413,54 @@ pub fn dispatch_invoke() -> impl Fn(Invoke<tauri::Wry>) -> bool + Send + Sync + 
                 tauri::async_runtime::spawn(async move {
                     let state = app.state::<AppState>();
                     match query::handle_get_table_name(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::GetRootNode => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_get_root_node(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::GetChildren => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_get_children(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::GetColumnStatsMap => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_get_column_stats_map(app.clone(), &state, payload).await {
+                        Ok(res) => resolver.resolve(res),
+                        Err(e) => resolver.reject(e),
+                    }
+                });
+                true
+            }
+
+            CommandAction::RunSql => {
+                let resolver = invoke.resolver;
+                tauri::async_runtime::spawn(async move {
+                    let state = app.state::<AppState>();
+                    match query::handle_run_sql(app.clone(), &state, payload).await {
                         Ok(res) => resolver.resolve(res),
                         Err(e) => resolver.reject(e),
                     }

@@ -48,6 +48,14 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   "toad:run_sql_arrow": "DataSourceConnection.runSqlQueryArrow",
   "toad:get_table_name": "DataSourceConnection.getTableName",
   "getTableName": "DataSourceConnection.getTableName",
+  "toad:get_root_node": "DataSourceConnection.getRootNode",
+  "getRootNode": "DataSourceConnection.getRootNode",
+  "toad:get_children": "DataSourceConnection.getChildren",
+  "getChildren": "DataSourceConnection.getChildren",
+  "toad:get_column_stats_map": "DataSourceConnection.getColumnStatsMap",
+  "getColumnStatsMap": "DataSourceConnection.getColumnStatsMap",
+  "toad:run_sql": "DataSourceConnection.runSqlQuery",
+  "runSqlQuery": "DataSourceConnection.runSqlQuery",
 
   // Forensics & Ingestion Commands
   "toad:ingest_file": "ingest_file",

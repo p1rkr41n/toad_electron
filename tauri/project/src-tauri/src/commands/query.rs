@@ -262,3 +262,148 @@ fn extract_query_and_pagination(
     let query_rep = QueryExpCompiler::parse_query_exp(query_val)?;
     Ok((query_rep, offset, limit))
 }
+
+/// Retrieves the root node metadata for a data source connection
+pub async fn handle_get_root_node(
+    _app: AppHandle,
+    _state: &AppState,
+    payload: Value,
+) -> Result<Value, String> {
+    let resource_id = payload
+        .get("resourceId")
+        .or_else(|| payload.get("filePath"))
+        .or_else(|| payload.get("file_path"))
+        .or_else(|| payload.get("path").and_then(|p| p.get("sourceId")).and_then(|s| s.get("resourceId")))
+        .or_else(|| payload.get("req").and_then(|r| r.get("path")).and_then(|p| p.get("sourceId")).and_then(|s| s.get("resourceId")))
+        .or_else(|| payload.get("engine").and_then(|e| e.get("resourceId")))
+        .and_then(|v| v.as_str())
+        .unwrap_or(".");
+
+    let path = Path::new(resource_id);
+    let display_name = path
+        .file_name()
+        .map(|f| f.to_string_lossy().to_string())
+        .unwrap_or_else(|| resource_id.to_string());
+
+    let is_dir = path.is_dir();
+    let kind = if is_dir { "Directory" } else { "File" };
+    let size = if let Ok(meta) = path.metadata() {
+        Some(meta.len())
+    } else {
+        None
+    };
+
+    tracing::debug!(
+        "[query] getRootNode: resourceId='{}', kind='{}', isContainer={}",
+        resource_id,
+        kind,
+        is_dir
+    );
+
+    Ok(json!({
+        "id": ".",
+        "kind": kind,
+        "displayName": display_name,
+        "isContainer": is_dir,
+        "fileSizeBytes": size
+    }))
+}
+
+/// Retrieves child nodes for a container data source
+pub async fn handle_get_children(
+    _app: AppHandle,
+    _state: &AppState,
+    payload: Value,
+) -> Result<Value, String> {
+    let resource_id = payload
+        .get("resourceId")
+        .or_else(|| payload.get("filePath"))
+        .or_else(|| payload.get("file_path"))
+        .or_else(|| payload.get("path").and_then(|p| p.get("sourceId")).and_then(|s| s.get("resourceId")))
+        .or_else(|| payload.get("engine").and_then(|e| e.get("resourceId")))
+        .and_then(|v| v.as_str())
+        .unwrap_or(".");
+
+    let path = Path::new(resource_id);
+    if path.is_dir() {
+        let mut children = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let p = entry.path();
+                let name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let is_entry_dir = p.is_dir();
+                let kind = if is_entry_dir { "Directory" } else { "File" };
+                let size = entry.metadata().ok().map(|m| m.len());
+                children.push(json!({
+                    "id": name,
+                    "kind": kind,
+                    "displayName": name,
+                    "isContainer": is_entry_dir,
+                    "fileSizeBytes": size
+                }));
+            }
+        }
+        Ok(json!(children))
+    } else {
+        Ok(json!([]))
+    }
+}
+
+/// Retrieves cached column statistics or returns empty map
+pub async fn handle_get_column_stats_map(
+    _app: AppHandle,
+    state: &AppState,
+    payload: Value,
+) -> Result<Value, String> {
+    let pool = state.get_duckdb_pool().await;
+    if let Ok((query_rep, _, _)) = extract_query_and_pagination(&payload) {
+        if let QueryRep::Table { table_name } = &query_rep {
+            if let Some(stats) = pool.stats_cache().get(table_name).await {
+                return serde_json::to_value(&stats).map_err(|e| e.to_string());
+            }
+        }
+    }
+    Ok(json!({}))
+}
+
+/// Executes arbitrary SQL query and returns rows as JSON array of objects
+pub async fn handle_run_sql(
+    _app: AppHandle,
+    state: &AppState,
+    payload: Value,
+) -> Result<Value, String> {
+    let sql = payload
+        .get("sql")
+        .or_else(|| payload.get("sqlQuery"))
+        .or_else(|| payload.get("query"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "Missing required 'sql' or 'sqlQuery' field in payload".to_string())?;
+
+    let pool = state.get_duckdb_pool().await;
+    let sql_str = sql.to_string();
+    pool.eval_ui_conn(move |conn| {
+        let mut stmt = conn.prepare(&sql_str).map_err(|e| e.to_string())?;
+        let col_names: Vec<String> = stmt.column_names().into_iter().map(|s| s.to_string()).collect();
+        let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+        let mut results = Vec::new();
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let mut row_map = serde_json::Map::new();
+            for (i, col_name) in col_names.iter().enumerate() {
+                let val: Value = if let Ok(v) = row.get::<_, i64>(i) {
+                    json!(v)
+                } else if let Ok(v) = row.get::<_, f64>(i) {
+                    json!(v)
+                } else if let Ok(v) = row.get::<_, String>(i) {
+                    json!(v)
+                } else if let Ok(v) = row.get::<_, bool>(i) {
+                    json!(v)
+                } else {
+                    Value::Null
+                };
+                row_map.insert(col_name.clone(), val);
+            }
+            results.push(Value::Object(row_map));
+        }
+        Ok(Value::Array(results))
+    }).await
+}

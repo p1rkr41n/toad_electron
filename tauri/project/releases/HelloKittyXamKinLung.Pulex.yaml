@@ -14,6 +14,6 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v3.0.0-beta/Pulex-3.0.0-beta-x64-portable.exe
-    InstallerSha256: 11FCB02AA2FFFA1240363008D877F915362D0CCAFDB924BC5C3D737C85DA8C87
+    InstallerSha256: 0A0125A936C1DDD2FED855BC87C8D373923A68D6D46DC3098800234576D758B2
 ManifestType: singleton
 ManifestVersion: 1.6.0

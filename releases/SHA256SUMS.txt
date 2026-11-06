@@ -1,2 +1,2 @@
-11fcb02aa2fffa1240363008d877f915362d0ccafdb924bc5c3d737c85da8c87  Pulex-3.0.0-beta-x64-portable.exe
-8cc83a45c0c9c88c6d2f9dcd1833450a8614dae65dc16f6df9474923c190267a  Pulex-3.0.0-beta-x64-portable.zip
+0a0125a936c1ddd2fed855bc87c8d373923a68d6d46dc3098800234576d758b2  Pulex-3.0.0-beta-x64-portable.exe
+3fecdaa38233d612c45ed68b2f0970b71a64db17b48ab21ae4f78efb47fdcdf4  Pulex-3.0.0-beta-x64-portable.zip
