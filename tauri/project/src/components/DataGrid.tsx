@@ -33,6 +33,7 @@ import {
   getHeightAndScrollState,
 } from "../utils/CellLineCalculator";
 import { onDismissGridCellExpand } from "../utils/GridOverlayBus";
+import "./DataGrid.less";
 
 const { Slick } = SlickGrid;
 const { Plugins } = SlickGrid as any;
@@ -586,56 +587,100 @@ const createGrid = (
     });
   }
 
-  // Floating In-Place Active Cell Wrap state & lifecycle (Stream 4 & 6)
-  let currentExpandedCellNode: HTMLElement | null = null;
-  let currentExpandedRowNode: HTMLElement | null = null;
-  let currentExpandedPos: { row: number; cell: number } | null = null;
+  // Requirement R2: Interactive Cell Highlight & Dynamic Full-Row Height Expansion
+  interface ActiveExpandedRowState {
+    row: number;
+    cell: number;
+    colId: string;
+    targetHeight: number;
+    delta: number;
+  }
+
+  let activeRowState: ActiveExpandedRowState | null = null;
   let justActivatedRowCell: { row: number; cell: number } | null = null;
 
-  const dismissFloatingCell = () => {
-    currentExpandedPos = null;
-    if (currentExpandedCellNode) {
-      currentExpandedCellNode.classList.remove("slick-cell-active-expanded");
-      currentExpandedCellNode.style.height = "";
-      currentExpandedCellNode.style.overflowY = "";
+  const collapseFullRow = () => {
+    if (activeRowState) {
       try {
-        currentExpandedCellNode.style.removeProperty("height");
-        currentExpandedCellNode.style.removeProperty("overflow-y");
-      } catch (err) { }
-      currentExpandedCellNode = null;
+        grid.removeCellCssStyles("active-cell-highlight");
+      } catch (err) {}
+      activeRowState = null;
     }
-    if (currentExpandedRowNode) {
-      currentExpandedRowNode.classList.remove("slick-row-has-expanded");
-      currentExpandedRowNode.classList.remove("slick-row-active-expanded");
-      currentExpandedRowNode = null;
-    }
+
     const container =
       (grid.getContainerNode && grid.getContainerNode()) ||
       document.getElementById(containerId);
+
     if (container) {
-      const cells = container.querySelectorAll(".slick-cell-active-expanded");
-      cells.forEach((c: Element) => {
-        c.classList.remove("slick-cell-active-expanded");
-        const el = c as HTMLElement;
-        el.style.height = "";
-        el.style.overflowY = "";
-        try {
-          el.style.removeProperty("height");
-          el.style.removeProperty("overflow-y");
-        } catch (err) { }
-      });
-      const rows = container.querySelectorAll(
-        ".slick-row-has-expanded, .slick-row-active-expanded"
+      // 1. Restore all shifted rows below the expanded row
+      const shiftedRows = container.querySelectorAll(
+        ".slick-row-shifted-down, .slick-row[data-original-top]"
       );
-      rows.forEach((r: Element) => {
-        r.classList.remove("slick-row-has-expanded");
-        r.classList.remove("slick-row-active-expanded");
+      shiftedRows.forEach((r: any) => {
+        if (r.dataset && r.dataset.originalTop !== undefined) {
+          r.style.top = r.dataset.originalTop;
+          delete r.dataset.originalTop;
+        }
+        r.classList.remove("slick-row-shifted-down");
+      });
+
+      // 2. Restore canvas height
+      const canvas = container.querySelector(".grid-canvas") as HTMLElement;
+      if (canvas && canvas.dataset && canvas.dataset.originalHeight !== undefined) {
+        canvas.style.height = canvas.dataset.originalHeight;
+        delete canvas.dataset.originalHeight;
+      }
+
+      // 3. Restore all expanded rows
+      const expandedRows = container.querySelectorAll(
+        ".slick-row-expanded, .slick-row-has-expanded, .slick-row-active-expanded"
+      );
+      expandedRows.forEach((r: any) => {
+        r.classList.remove(
+          "slick-row-expanded",
+          "slick-row-has-expanded",
+          "slick-row-active-expanded"
+        );
+        r.style.height = "";
+        try {
+          r.style.removeProperty("height");
+        } catch (err) {}
+      });
+
+      // 4. Restore all highlighted / expanded cells
+      const cells = container.querySelectorAll(
+        ".slick-cell-highlighted, .slick-cell-expanded-content, .slick-cell-active-expanded"
+      );
+      cells.forEach((c: any) => {
+        c.classList.remove(
+          "slick-cell-highlighted",
+          "slick-cell-expanded-content",
+          "slick-cell-active-expanded"
+        );
+        c.style.height = "";
+        c.style.overflowY = "";
+        try {
+          c.style.removeProperty("height");
+          c.style.removeProperty("overflow-y");
+        } catch (err) {}
       });
     }
   };
 
-  const tryExpandCell = (row: number, cell: number) => {
-    dismissFloatingCell();
+  const expandFullRow = (row: number, cell: number) => {
+    // 1. Toggle collapse if clicking the same cell that is already active
+    if (
+      activeRowState &&
+      activeRowState.row === row &&
+      activeRowState.cell === cell
+    ) {
+      collapseFullRow();
+      return;
+    }
+
+    // Collapse any previously expanded row before expanding a new one
+    collapseFullRow();
+
     if (
       row === null ||
       row === undefined ||
@@ -664,45 +709,115 @@ const createGrid = (
         : null;
     if (!cellNode) return;
 
+    // Requirement R2.1: Subtle Light Blue Highlighting
+    try {
+      grid.setCellCssStyles("active-cell-highlight", {
+        [row]: {
+          [colDef.id]: "slick-cell-highlighted",
+        },
+      });
+    } catch (err) {}
+    cellNode.classList.add("slick-cell-highlighted");
+
+    // Requirement R2.2: Dynamic Full-Row Height Expansion Calculation
     const textContent = (cellNode.textContent || "").trim();
-    const colWidth =
+    const rawWidth =
       colDef.width || (cellNode.offsetWidth || cellNode.clientWidth || 100);
+    const effectiveWidth = Math.max(20, rawWidth - 16);
 
-    const N = calculateLineCount(textContent, colWidth - 16);
-    const heightState = getHeightAndScrollState(N, 17, 8, 24);
+    const N = calculateLineCount(textContent, effectiveWidth, { padding: 0 });
 
-    // Contract Rule 1 (N <= 1): return immediately!
-    // Do NOT add .slick-cell-active-expanded, do NOT float the cell, stays flat 24px.
-    if (N <= 1 || !heightState.shouldExpand) {
-      return;
+    let targetHeight = 25;
+    let overflowY: "hidden" | "auto" = "hidden";
+
+    if (N <= 1) {
+      targetHeight = 25;
+      overflowY = "hidden";
+    } else if (N <= 5) {
+      targetHeight = N * 18 + 8;
+      overflowY = "hidden";
+    } else {
+      targetHeight = 98; // capped at 5 lines
+      overflowY = "auto";
     }
 
-    // Contract Rule 2 (2 <= N <= 5): add .slick-cell-active-expanded and .slick-row-has-expanded.
-    // Set inline cellNode.style.height = heightState.height + "px" and overflowY = "hidden".
-    // Contract Rule 3 (N > 5): add .slick-cell-active-expanded and .slick-row-has-expanded.
-    // Set inline cellNode.style.height = heightState.height + "px" (93px) and overflowY = "auto".
-    cellNode.classList.add("slick-cell-active-expanded");
-    cellNode.style.height = heightState.height + "px";
-    cellNode.style.overflowY = heightState.overflowY;
-    try {
-      cellNode.style.setProperty("height", heightState.height + "px", "important");
-      cellNode.style.setProperty("overflow-y", heightState.overflowY, "important");
-    } catch (err) { }
-    currentExpandedCellNode = cellNode;
-    currentExpandedPos = { row, cell };
+    const delta = targetHeight - 25;
+
+    // Save active state
+    activeRowState = {
+      row,
+      cell,
+      colId: colDef.id,
+      targetHeight,
+      delta,
+    };
 
     const rowNode = (
       cellNode.closest ? cellNode.closest(".slick-row") : cellNode.parentElement
     ) as HTMLElement;
-    if (rowNode) {
-      rowNode.classList.add("slick-row-has-expanded");
-      rowNode.classList.add("slick-row-active-expanded");
-      currentExpandedRowNode = rowNode;
+
+    if (targetHeight > 25 && rowNode) {
+      // 1. Expand the ENTIRE row element
+      rowNode.classList.add(
+        "slick-row-expanded",
+        "slick-row-has-expanded",
+        "slick-row-active-expanded"
+      );
+      rowNode.style.height = `${targetHeight}px`;
+      try {
+        rowNode.style.setProperty("height", `${targetHeight}px`, "important");
+      } catch (err) {}
+
+      // 2. Format the active clicked cell
+      cellNode.classList.add(
+        "slick-cell-expanded-content",
+        "slick-cell-active-expanded"
+      );
+      cellNode.style.height = "100%";
+      cellNode.style.overflowY = overflowY;
+      try {
+        cellNode.style.setProperty("height", "100%", "important");
+        cellNode.style.setProperty("overflow-y", overflowY, "important");
+      } catch (err) {}
+
+      // 3. Shift all downstream rendered rows in the canvas container by delta
+      const container =
+        (grid.getContainerNode && grid.getContainerNode()) ||
+        document.getElementById(containerId);
+
+      if (container) {
+        const rowTop = parseFloat(rowNode.style.top) || rowNode.offsetTop;
+        const allRows = container.querySelectorAll(".slick-row");
+        allRows.forEach((r: any) => {
+          if (r === rowNode) return;
+          const rTop = parseFloat(r.style.top);
+          if (!isNaN(rTop) && rTop > rowTop) {
+            if (r.dataset && r.dataset.originalTop === undefined) {
+              r.dataset.originalTop = `${rTop}px`;
+            }
+            r.style.top = `${rTop + delta}px`;
+            r.classList.add("slick-row-shifted-down");
+          }
+        });
+
+        // 4. Expand canvas height to accommodate shifted rows
+        const canvas = container.querySelector(".grid-canvas") as HTMLElement;
+        if (canvas) {
+          const currentCanvasHeight = parseFloat(canvas.style.height);
+          if (!isNaN(currentCanvasHeight) && canvas.dataset && canvas.dataset.originalHeight === undefined) {
+            canvas.dataset.originalHeight = `${currentCanvasHeight}px`;
+            canvas.style.height = `${currentCanvasHeight + delta}px`;
+          }
+        }
+      }
     }
   };
 
-  (grid as any).expandActiveCell = tryExpandCell;
-  (grid as any).dismissFloatingCell = dismissFloatingCell;
+  (grid as any).expandFullRow = expandFullRow;
+  (grid as any).collapseFullRow = collapseFullRow;
+  (grid as any).expandActiveCell = expandFullRow;
+  (grid as any).dismissFloatingCell = collapseFullRow;
+  (grid as any).getActiveRowState = () => activeRowState;
   (grid as any).autoFitColumn = (colId: string) =>
     autoFitGridColumn(grid, colId, (grid as any)._tadProps || props);
 
@@ -933,12 +1048,12 @@ const createGrid = (
       args.cell === null ||
       args.cell === undefined
     ) {
-      dismissFloatingCell();
+      collapseFullRow();
       return;
     }
 
     justActivatedRowCell = { row: args.row, cell: args.cell };
-    tryExpandCell(args.row, args.cell);
+    expandFullRow(args.row, args.cell);
 
     const curProps = (grid as any)._tadProps || props;
     const cols = grid.getColumns();
@@ -961,25 +1076,25 @@ const createGrid = (
     }
   });
 
-  // Dismiss floating cell on scroll or viewport changes (Stream 4 & 6)
+  // Requirement R2.4: Clean collapse / reset on scroll or viewport rebuild
   grid.onScroll.subscribe(() => {
-    dismissFloatingCell();
+    collapseFullRow();
   });
   grid.onViewportChanged.subscribe(() => {
-    dismissFloatingCell();
+    collapseFullRow();
   });
 
-  // Escape key dismisses floating active cell (Stream 4 & 6)
+  // Escape key dismisses highlight and collapses row
   const handleGridEscape = (e: KeyboardEvent) => {
     if (e.key === "Escape" || e.keyCode === 27) {
-      dismissFloatingCell();
+      collapseFullRow();
     }
   };
   if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
     window.addEventListener("keydown", handleGridEscape);
   }
 
-  // Click outside grid dismisses floating cell (Stream 6 / Squad 3)
+  // Click outside grid dismisses highlight and collapses row
   const handleGridOutsideClick = (e: MouseEvent) => {
     const container =
       (grid.getContainerNode && grid.getContainerNode()) ||
@@ -987,7 +1102,7 @@ const createGrid = (
     if (!container) return;
     const target = e.target as Node;
     if (target && !container.contains(target)) {
-      dismissFloatingCell();
+      collapseFullRow();
     }
   };
   if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
@@ -996,12 +1111,12 @@ const createGrid = (
 
   // Cross-component overlay event bus listener
   const unsubDismissExpand = onDismissGridCellExpand(() => {
-    dismissFloatingCell();
+    collapseFullRow();
   });
 
   const origDestroy = grid.destroy;
   grid.destroy = () => {
-    dismissFloatingCell();
+    collapseFullRow();
     if (typeof window !== "undefined" && typeof window.removeEventListener === "function") {
       window.removeEventListener("keydown", handleGridEscape);
     }
@@ -1016,10 +1131,10 @@ const createGrid = (
     }
   };
 
-  // Enter or Space key toggles / opens Event Details for active row; Escape dismisses floating cell
+  // Enter or Space key toggles / opens Event Details for active row; Escape dismisses highlight and collapses row
   grid.onKeyDown.subscribe((e: any, args: any) => {
     if (e.key === "Escape" || e.keyCode === 27) {
-      dismissFloatingCell();
+      collapseFullRow();
     }
     const curProps = (grid as any)._tadProps || props;
     if (
@@ -1048,11 +1163,11 @@ const createGrid = (
     const col = columns[args.cell];
     var item = grid.getDataItem(args.row);
 
-    // 4-way collapse lifecycle: re-click active cell toggles collapse
+    // Requirement R2.3: Toggle collapse if clicking the currently active cell
     if (
-      currentExpandedPos &&
-      currentExpandedPos.row === args.row &&
-      currentExpandedPos.cell === args.cell
+      activeRowState &&
+      activeRowState.row === args.row &&
+      activeRowState.cell === args.cell
     ) {
       const wasJustActivated =
         justActivatedRowCell &&
@@ -1062,7 +1177,7 @@ const createGrid = (
       justActivatedRowCell = null;
 
       if (!wasJustActivated) {
-        dismissFloatingCell();
+        collapseFullRow();
         const cellVal = item && col ? item[col.id] : null;
         curProps.onGridClick?.(args.row, args.cell, item, col?.id, cellVal);
         return;
@@ -1075,15 +1190,8 @@ const createGrid = (
 
       justActivatedRowCell = null;
 
-      const active = grid.getActiveCell ? grid.getActiveCell() : null;
-      if (
-        !wasJustActivated &&
-        active &&
-        active.row === args.row &&
-        active.cell === args.cell &&
-        !currentExpandedPos
-      ) {
-        tryExpandCell(args.row, args.cell);
+      if (!wasJustActivated) {
+        expandFullRow(args.row, args.cell);
       }
     }
 
@@ -1768,6 +1876,9 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
   const handleGridResize = () => {
     const grid = gridRef.current || gridState?.grid;
     if (grid) {
+      if (typeof (grid as any).collapseFullRow === "function") {
+        (grid as any).collapseFullRow();
+      }
       const container =
         containerElementRef.current ||
         document.getElementById(containerIdRef.current);
@@ -1786,6 +1897,9 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
   const handleWindowResize = (e: any) => {
     const grid = gridRef.current || gridState?.grid;
     if (grid) {
+      if (typeof (grid as any).collapseFullRow === "function") {
+        (grid as any).collapseFullRow();
+      }
       const container =
         containerElementRef.current ||
         document.getElementById(containerIdRef.current);

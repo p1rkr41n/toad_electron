@@ -10,3 +10,4 @@ if (-not (Test-Path $targetScript)) {
 }
 
 & $targetScript -AppName $AppName -Version $Version -Publisher $Publisher
+
