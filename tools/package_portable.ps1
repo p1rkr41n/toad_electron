@@ -4,7 +4,7 @@ param (
     [string]$Publisher = "HelloKittyXamKinLung"
 )
 
-$targetScript = Join-Path $PSScriptRoot "..\tauri\project\tools\package_portable.ps1"
+$targetScript = Join-Path $PSScriptRoot "..\package_release.ps1"
 if (-not (Test-Path $targetScript)) {
     throw "Target packaging script not found at $targetScript"
 }

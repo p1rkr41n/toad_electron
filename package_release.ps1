@@ -2,7 +2,7 @@ param (
     [string]$AppName = "Toad",
     [string]$Version = "2.5.2.2",
     [string]$Publisher = "HelloKittyXamKinLung",
-    [string]$ReleaseDir = "tauri/project/releases"
+    [string]$ReleaseDir = "releases"
 )
 
 $ErrorActionPreference = "Stop"
@@ -49,14 +49,7 @@ if (Test-Path $fullReleaseDir) {
         $duplicateReleases | Remove-Item -Force
     }
 }
-$sharedReleasesDir = Join-Path $PSScriptRoot "releases"
-if (Test-Path $sharedReleasesDir) {
-    $sharedBinaries = Get-ChildItem -Path $sharedReleasesDir -Include "*.exe", "*.zip" -ErrorAction SilentlyContinue
-    if ($sharedBinaries.Count -gt 0) {
-        Write-Warning "Pruning duplicate binaries from shared root releases: $($sharedBinaries.Name)"
-        $sharedBinaries | Remove-Item -Force
-    }
-}
+
 
 $scriptPath = Join-Path $PSScriptRoot ".agents\skills\releases\scripts\package_release.ps1"
 & powershell -ExecutionPolicy Bypass -File $scriptPath -AppName $AppName -Version $Version -Publisher $Publisher -ReleaseDir $fullReleaseDir

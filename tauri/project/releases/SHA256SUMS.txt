@@ -1,6 +1,0 @@
-34cb180c1b1b858543f8e87f7fc16a058badc8f060157497bb29833415643d98  Pulex-3.0.0-beta-x64-portable.exe
-d83fc1992636c86810bc80f3047baeb33c61c9513138f5e0555cd2344d2b7ac4  Pulex-3.0.0-beta-x64-portable.zip
-43eecdc280a1a61becb605094aceb6d2953e706f39e164e1eaf7b1099d5c98da  Toad-2.5.2.2-x64-portable.exe
-0a5ed208b82aa7aa5fde47d4979b8c3d7bd5ff829a9894c0a3f1dc9f32ca20bd  Toad-2.5.2.2-x64-portable.zip
-f9f4984e0bd06d980392598cdca7d532d18aebe8379667567fefe827e8ded20d  Toad-3.0.0-beta-x64-portable.exe
-9b824af4389c3daa6eed249ee2d26dc7a77d216d839b9c7603e2a5f6749829cf  Toad-3.0.0-beta-x64-portable.zip

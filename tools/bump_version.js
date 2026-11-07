@@ -102,29 +102,6 @@ function main() {
     updatePackageJson(viewerRel, targetVersion);
   }
 
-  // 1.1 Tauri files (Cargo & Tauri require strict SemVer 2.0.0 MAJOR.MINOR.PATCH)
-  const semverVersion = targetVersion.split(".").slice(0, 3).join(".");
-  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/package.json"))) {
-    updatePackageJson("tauri/project/package.json", semverVersion);
-  }
-  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/Cargo.toml"))) {
-    updateFile("tauri/project/src-tauri/Cargo.toml", (content) => {
-      return content.replace(/^version = "[^"]+"/m, `version = "${semverVersion}"`);
-    });
-  }
-  if (fs.existsSync(path.join(ROOT_DIR, "tauri/project/src-tauri/tauri.conf.json"))) {
-    updateFile("tauri/project/src-tauri/tauri.conf.json", (content) => {
-      return content.replace(/"version": "[^"]+"/, `"version": "${semverVersion}"`);
-    });
-  }
-  if (fs.existsSync(path.join(ROOT_DIR, "PROJECT.md"))) {
-    updateFile("PROJECT.md", (content) => {
-      return content
-        .replace(/Toad v[\d\.]+/g, `Toad v${targetVersion}`)
-        .replace(/Toad-[\d\.]+-x64-portable\.exe/g, `Toad-${targetVersion}-x64-portable.exe`);
-    });
-  }
-
   // 2. RegexDialog.tsx
   const regexDialogRel = fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"))
     ? "tad-master/packages/toadviewer/src/components/RegexDialog.tsx"
@@ -155,9 +132,6 @@ function main() {
 
   // 4.1 package_portable.ps1 files
   updateFile("tools/package_portable.ps1", (content) => {
-    return content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
-  });
-  updateFile("tauri/project/tools/package_portable.ps1", (content) => {
     return content.replace(/\[string\]\$Version = "[^"]+"/, `[string]$Version = "${targetVersion}"`);
   });
 

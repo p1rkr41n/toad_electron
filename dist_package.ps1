@@ -1,11 +1,11 @@
 $ErrorActionPreference = "Stop"
 
-$nodePath = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64"
-$gitPath = "D:\Shared_UserData\Downloads\tad\mingit\cmd"
+$rootDir = $PSScriptRoot
+$nodePath = "$rootDir\node-v18.20.4-win-x64"
+$gitPath = "$rootDir\mingit\cmd"
 $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
-$rootDir = "D:\Shared_UserData\Downloads\tad"
 $appDir = "$rootDir\tad-master\packages\toad-app"
 if (-not (Test-Path $appDir)) {
     $appDir = "$rootDir\tad-master\packages\tad-app"
@@ -26,11 +26,11 @@ if (Test-Path "$appDir\release") {
 }
 
 Write-Output "=== STEP 0.1: Building host-bridge ==="
-Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\host-bridge"
+Set-Location "$rootDir\tad-master\packages\host-bridge"
 & npm.cmd run build
 
 Write-Output "=== STEP 0.2: Building reltab-duckdb ==="
-Set-Location "D:\Shared_UserData\Downloads\tad\tad-master\packages\reltab-duckdb"
+Set-Location "$rootDir\tad-master\packages\reltab-duckdb"
 & npm.cmd run build
 
 $viewerDir = "$rootDir\tad-master\packages\toadviewer"
@@ -90,10 +90,10 @@ if (-not (Test-Path $duckDbUnpacked)) {
 }
 Write-Output ">>> duckdb.node native binding verified intact in app.asar.unpacked."
 
-& node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); } if (!list.some(f => f.includes('engineService.bundle.js'))) { console.error('ERROR: engineService.bundle.js is missing from app.asar!'); process.exit(1); } else { console.log('>>> engineService.bundle.js verified present in app.asar.'); }"
+& node -e "const asar = require('$($rootDir.Replace('\', '/'))/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); } if (!list.some(f => f.includes('engineService.bundle.js'))) { console.error('ERROR: engineService.bundle.js is missing from app.asar!'); process.exit(1); } else { console.log('>>> engineService.bundle.js verified present in app.asar.'); }"
 
 Write-Output "=== STEP 5: Copying binaries to release and root directories ==="
-$releaseDir = "$rootDir\tauri\project\releases"
+$releaseDir = "$rootDir\releases"
 if (-not (Test-Path $releaseDir)) {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 }
@@ -143,10 +143,6 @@ if ($duplicateReleases.Count -gt 0) {
     Write-Warning "Pruning duplicate historical alias binaries from releases: $($duplicateReleases.Name)"
     $duplicateReleases | Remove-Item -Force
 }
-$duplicateShared = Get-ChildItem -Path "$rootDir\releases" -Include "*.exe", "*.zip" -ErrorAction SilentlyContinue
-if ($duplicateShared.Count -gt 0) {
-    Write-Warning "Pruning duplicate binaries from shared root releases: $($duplicateShared.Name)"
-    $duplicateShared | Remove-Item -Force
-}
+
 
 Write-Output "=== Packaging completed successfully: Toad $version (Clean Single Binary & Zero-Duplicate)! ==="
