@@ -1490,38 +1490,50 @@ const updateGrid = (gs: GridState, props: DataGridProps) => {
     }
   }
 
-  if (!isSameDataView) {
-    grid.setData(dataView);
-    grid.invalidateAllRows();
-    grid.updateRowCount();
-    if (hasDimensions) {
-      grid.resizeCanvas(); // resize BEFORE render so viewport height is correct
-      grid.render();
+  try {
+    if (!isSameDataView) {
+      grid.setData(dataView);
+      grid.invalidateAllRows();
+      grid.updateRowCount();
+      if (hasDimensions) {
+        grid.resizeCanvas(); // resize BEFORE render so viewport height is correct
+        grid.render();
+      }
+    } else {
+      // Fast path (Toad v2.0.5): Data has not changed.
+      // Only column order/layout was updated; avoid full row invalidation & DOM reconstruction!
+      if (hasDimensions) {
+        grid.resizeCanvas();
+        grid.render();
+      }
     }
-  } else {
-    // Fast path (Toad v2.0.5): Data has not changed.
-    // Only column order/layout was updated; avoid full row invalidation & DOM reconstruction!
-    if (hasDimensions) {
-      grid.resizeCanvas();
-      grid.render();
-    }
+  } catch (err) {
+    console.warn("[DataGrid] Error during grid data/render in updateGrid:", err);
   }
 
   // Double-frame layout stabilization: guarantee viewport height & rows are painted after DOM reflow
   requestAnimationFrame(() => {
-    const c = document.getElementById(gs.containerId);
-    if (c && c.clientHeight > 0) {
-      grid.resizeCanvas();
-      grid.render();
+    try {
+      const c = document.getElementById(gs.containerId);
+      if (c && c.clientHeight > 0) {
+        grid.resizeCanvas();
+        grid.render();
+      }
+    } catch (err) {
+      console.warn("[DataGrid] Error in double-frame rAF render:", err);
     }
   });
   setTimeout(() => {
-    const c = document.getElementById(gs.containerId);
-    if (c && c.clientHeight > 0) {
-      grid.resizeCanvas();
-      grid.render();
+    try {
+      const c = document.getElementById(gs.containerId);
+      if (c && c.clientHeight > 0) {
+        grid.resizeCanvas();
+        grid.render();
+      }
+      updateHeaderSortButtons(gs.containerId, gs.grid);
+    } catch (err) {
+      console.warn("[DataGrid] Error in double-frame setTimeout render:", err);
     }
-    updateHeaderSortButtons(gs.containerId, gs.grid);
   }, 50);
 };
 
@@ -1759,7 +1771,11 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
                 retryGs.grid.resizeCanvas();
               }
               if (dataView != null) {
-                updateGrid(retryGs, props);
+                try {
+                  updateGrid(retryGs, props);
+                } catch (retryUpdateErr) {
+                  console.warn("[DataGrid] Error during retry updateGrid:", retryUpdateErr);
+                }
               }
               setGridState(retryGs);
             }
@@ -1772,7 +1788,20 @@ export const DataGrid: React.FunctionComponent<DataGridProps> = (
     }
     if (dataView != null && gs && gs.grid) {
       // log.debug("RawGridPane: updating grid");
-      updateGrid(gs, props);
+      try {
+        updateGrid(gs, props);
+      } catch (err) {
+        console.warn("[DataGrid] Error during updateGrid, scheduling retry:", err);
+        requestAnimationFrame(() => {
+          try {
+            if (gs && gs.grid) {
+              updateGrid(gs, props);
+            }
+          } catch (retryErr) {
+            console.error("[DataGrid] Error during updateGrid retry:", retryErr);
+          }
+        });
+      }
     } else {
       // log.debug("RawGridPane: no view change, skipping grid update");
     }

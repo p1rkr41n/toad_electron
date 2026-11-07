@@ -210,6 +210,12 @@ pub async fn handle_get_table_name(
                     sanitized_target
                 )
             }
+            "log" => {
+                format!(
+                    "read_csv('{}', delim = ' ', header = false, null_padding = true, ignore_errors = true, all_varchar = true)",
+                    sanitized_target
+                )
+            }
             _ => {
                 format!(
                     "read_csv('{}', auto_detect = true, sample_size = 100000, ignore_errors = true, null_padding = true, all_varchar = true)",
@@ -234,12 +240,50 @@ pub async fn handle_get_table_name(
 
     let pool = state.get_duckdb_pool().await;
     let ddl_to_exec = ddl.clone();
-    pool.eval_ui_conn(move |conn| {
+    let exec_res = pool.eval_ui_conn(move |conn| {
         conn.execute_batch(&ddl_to_exec)
             .map_err(|e| format!("Failed to create DuckDB view for file: {}", e))?;
         Ok(())
     })
-    .await?;
+    .await;
+
+    if let Err(e) = exec_res {
+        if ext == "log" && cached_parquet_path.is_none() {
+            tracing::warn!(
+                "[query] read_csv failed for log file ({}), falling back to synchronous dirty_log: {}",
+                file_path,
+                e
+            );
+            let target = temp_dir.join(&cache_name);
+            let fid = format!("direct_log_{:08x}", path_hash);
+            let ct = crate::ingest::scheduler::CancellationToken::new();
+            let src = path_obj.to_path_buf();
+            let dst = target.clone();
+            let ingest_res = tokio::task::spawn_blocking(move || {
+                crate::ingest::dirty_log::ingest_dirty_log(&fid, &src, &dst, &ct, None)
+            })
+            .await;
+
+            if let Ok(Ok(_)) = ingest_res {
+                let pq_target = target.to_string_lossy().replace('\\', "/").replace('\'', "''");
+                let fallback_source = format!("read_parquet('{}')", pq_target);
+                let fallback_ddl = format!(
+                    "CREATE OR REPLACE VIEW \"{}\" AS SELECT * FROM {};\nCREATE OR REPLACE VIEW \"main_table\" AS SELECT * FROM \"{}\";",
+                    view_name, fallback_source, view_name
+                );
+                pool.eval_ui_conn(move |conn| {
+                    conn.execute_batch(&fallback_ddl)
+                        .map_err(|e| format!("Failed to create fallback DuckDB view for file: {}", e))?;
+                    Ok(())
+                })
+                .await?;
+            } else {
+                return Err(format!("Failed to create DuckDB view and dirty_log fallback failed: {}", e));
+            }
+        } else {
+            return Err(e);
+        }
+    }
 
     Ok(json!(view_name))
 }

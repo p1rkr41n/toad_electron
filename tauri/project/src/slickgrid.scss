@@ -66,7 +66,7 @@
 
 /* --- TOAD Large Column Virtual Containment & Fast Reflow (v2.0.5) --- */
 .slick-cell {
-  contain: strict;
+  contain: content;
   text-overflow: ellipsis;
   white-space: nowrap;
   overflow: hidden;

@@ -93,7 +93,10 @@ Write-Output ">>> duckdb.node native binding verified intact in app.asar.unpacke
 & node -e "const asar = require('d:/Shared_UserData/Downloads/tad/tad-master/node_modules/@electron/asar'); const list = asar.listPackage('$($asarPath.Replace('\', '/'))'); if (!list.some(f => f.includes('lodash'))) { console.error('ERROR: lodash is missing from app.asar!'); process.exit(1); } else { console.log('>>> lodash runtime dependency verified present in app.asar.'); } if (list.some(f => f.includes('reltab-bigquery') || f.includes('@google-cloud/bigquery'))) { console.error('ERROR: BigQuery found in app.asar!'); process.exit(1); } else { console.log('>>> BigQuery dead SDK verified absent from app.asar.'); } if (!list.some(f => f.includes('engineService.bundle.js'))) { console.error('ERROR: engineService.bundle.js is missing from app.asar!'); process.exit(1); } else { console.log('>>> engineService.bundle.js verified present in app.asar.'); }"
 
 Write-Output "=== STEP 5: Copying binaries to release and root directories ==="
-$releaseDir = "$rootDir\releases"
+$releaseDir = "$rootDir\tauri\project\releases"
+if (-not (Test-Path $releaseDir)) {
+    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+}
 $latestExe = Get-ChildItem -Path "$appDir\release\*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 if ($latestExe) {
@@ -139,6 +142,11 @@ $duplicateReleases = Get-ChildItem -Path $releaseDir -Filter "Toad *.exe" -Error
 if ($duplicateReleases.Count -gt 0) {
     Write-Warning "Pruning duplicate historical alias binaries from releases: $($duplicateReleases.Name)"
     $duplicateReleases | Remove-Item -Force
+}
+$duplicateShared = Get-ChildItem -Path "$rootDir\releases" -Include "*.exe", "*.zip" -ErrorAction SilentlyContinue
+if ($duplicateShared.Count -gt 0) {
+    Write-Warning "Pruning duplicate binaries from shared root releases: $($duplicateShared.Name)"
+    $duplicateShared | Remove-Item -Force
 }
 
 Write-Output "=== Packaging completed successfully: Toad $version (Clean Single Binary & Zero-Duplicate)! ==="

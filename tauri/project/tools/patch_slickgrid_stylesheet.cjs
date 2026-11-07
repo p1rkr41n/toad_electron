@@ -7,8 +7,11 @@
  *    - Replaces ALL occurrences of getColumnCssRules in both FrozenGrid and standard SlickGrid.
  *    - Uses `$style[0].sheet || $style[0].styleSheet` directly.
  *    - Falls back to scanning `document.styleSheets`.
+ *    - Invalidate cached columnCssRulesL / columnCssRulesR on stylesheet change.
  *    - If rules are missing for column `e`, dynamically injects `.l{e} { }` and `.r{e} { }` rules into CSSOM!
- * 2. applyColumnWidths:
+ * 2. removeCssRules:
+ *    - Resets columnCssRulesL = null, columnCssRulesR = null, stylesheet = null.
+ * 3. applyColumnWidths:
  *    - Replaces ALL occurrences in both FrozenGrid and standard SlickGrid.
  *    - Robust guards and guaranteed `.left.style.left` population so columns never collapse to left: 0.
  */
@@ -52,7 +55,7 @@ if (fs.existsSync(pristineBackupPath)) {
 }
 
 // Guard: if already patched and no pristine copy to refresh from
-if (!content.includes("Cannot find stylesheet.") && content.includes("insertRule('.'+uid+' .l'+e")) {
+if (!fs.existsSync(pristineBackupPath) && content.includes("columnCssRulesL=null") && content.includes("insertRule('.'+uid+' .l'+e")) {
   console.log("[patch_slickgrid_stylesheet] slick.es6.min.js is already fully patched. Skipping.");
   process.exit(0);
 }
@@ -61,14 +64,17 @@ const originalLength = content.length;
 
 const newGetCss =
   "function getColumnCssRules(e){" +
-  "if(!stylesheet){" +
-    "stylesheet=($style&&$style[0]&&($style[0].sheet||$style[0].styleSheet))||null;" +
-    "if(!stylesheet&&typeof document!=='undefined'){" +
-      "var _sheets=document.styleSheets||[];" +
-      "for(var _si=0;_si<_sheets.length;_si++){" +
-        "if((_sheets[_si].ownerNode||_sheets[_si].owningElement)===$style[0]){stylesheet=_sheets[_si];break;}" +
-      "}" +
+  "var _cur=($style&&$style[0]&&($style[0].sheet||$style[0].styleSheet))||null;" +
+  "if(!_cur&&typeof document!=='undefined'){" +
+    "var _sheets=document.styleSheets||[];" +
+    "for(var _si=0;_si<_sheets.length;_si++){" +
+      "if((_sheets[_si].ownerNode||_sheets[_si].owningElement)===$style[0]){_cur=_sheets[_si];break;}" +
     "}" +
+  "}" +
+  "if(_cur!==stylesheet){" +
+    "stylesheet=_cur;" +
+    "columnCssRulesL=null;" +
+    "columnCssRulesR=null;" +
   "}" +
   "if(stylesheet&&(!columnCssRulesL||!columnCssRulesL.length)){" +
     "columnCssRulesL=[];columnCssRulesR=[];" +
@@ -96,18 +102,26 @@ const newGetCss =
   "};" +
   "}";
 
+const newRemoveCss =
+  "function removeCssRules(){" +
+  "if($style&&$style.remove){$style.remove();}" +
+  "columnCssRulesL=null;" +
+  "columnCssRulesR=null;" +
+  "stylesheet=null;" +
+  "}";
+
 const newApplyUniversal =
   "function applyColumnWidths(){" +
-    "for(var e,t,o=0,n=0;n<columns.length;n++){" +
-      "e=columns[n].width;" +
-      "t=getColumnCssRules(n);" +
-      "if(t&&t.left&&t.left.style)t.left.style.left=o+'px';" +
-      "if(t&&t.right&&t.right.style){" +
-        "var _rw=(typeof options!=='undefined'&&options.frozenColumn!=-1&&n>options.frozenColumn)?canvasWidthR:(typeof canvasWidthL!=='undefined'?canvasWidthL:canvasWidth);" +
-        "t.right.style.right=_rw-o-e+'px';" +
-      "}" +
-      "if(typeof options!=='undefined'&&options.frozenColumn==n){o=0;}else{o+=columns[n].width;}" +
+  "for(var e,t,o=0,n=0;n<columns.length;n++){" +
+    "e=columns[n].width;" +
+    "t=getColumnCssRules(n);" +
+    "if(t&&t.left&&t.left.style)t.left.style.left=o+'px';" +
+    "if(t&&t.right&&t.right.style){" +
+      "var _rw=(typeof options!=='undefined'&&options.frozenColumn!=-1&&n>options.frozenColumn)?canvasWidthR:(typeof canvasWidthL!=='undefined'?canvasWidthL:canvasWidth);" +
+      "t.right.style.right=_rw-o-e+'px';" +
     "}" +
+    "if(typeof options!=='undefined'&&options.frozenColumn==n){o=0;}else{o+=columns[n].width;}" +
+  "}" +
   "}";
 
 // Patch ALL occurrences of getColumnCssRules
@@ -123,6 +137,20 @@ while (true) {
   getCssCount++;
 }
 console.log(`[patch_slickgrid_stylesheet] Patched ${getCssCount} getColumnCssRules occurrence(s).`);
+
+// Patch ALL occurrences of removeCssRules
+let removeCount = 0;
+pos = 0;
+while (true) {
+  const removeStart = content.indexOf("function removeCssRules(){", pos);
+  if (removeStart === -1) break;
+  const removeEnd = content.indexOf("function destroy(){", removeStart);
+  if (removeEnd === -1) break;
+  content = content.slice(0, removeStart) + newRemoveCss + content.slice(removeEnd);
+  pos = removeStart + newRemoveCss.length;
+  removeCount++;
+}
+console.log(`[patch_slickgrid_stylesheet] Patched ${removeCount} removeCssRules occurrence(s).`);
 
 // Patch ALL occurrences of applyColumnWidths
 let applyCount = 0;
