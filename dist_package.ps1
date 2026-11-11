@@ -6,6 +6,12 @@ $gitPath = "$rootDir\mingit\cmd"
 $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
+Write-Output "=== STEP 0: Repairing monorepo NTFS junctions ==="
+& "$rootDir\tools\repair_junctions.ps1" -RootDir $rootDir
+if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
+    throw "ERROR: Monorepo junction repair failed with exit code $LASTEXITCODE! Aborting dist package."
+}
+
 $appDir = "$rootDir\tad-master\packages\toad-app"
 if (-not (Test-Path $appDir)) {
     $appDir = "$rootDir\tad-master\packages\tad-app"

@@ -36,12 +36,12 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$nodePath = "D:\Shared_UserData\Downloads\tad\node-v18.20.4-win-x64"
-$gitPath = "D:\Shared_UserData\Downloads\tad\mingit\cmd"
+$rootDir = $PSScriptRoot
+$nodePath = "$rootDir\node-v18.20.4-win-x64"
+$gitPath = "$rootDir\mingit\cmd"
 $cargoPath = "$env:USERPROFILE\.cargo\bin"
 $env:PATH = "$cargoPath;$nodePath;$gitPath;$env:PATH"
 
-$rootDir = "D:\Shared_UserData\Downloads\tad"
 $appDir = "$rootDir\tad-master\packages\toad-app"
 if (-not (Test-Path $appDir)) {
     $appDir = "$rootDir\tad-master\packages\tad-app"
