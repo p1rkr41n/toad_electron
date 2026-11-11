@@ -2878,6 +2878,84 @@ export function runIngestInWorker(params: {
   });
 }
 
+export function emitEngineTrace(
+  moduleTag: string,
+  message: string,
+  meta?: { elapsedMs?: number; rssDeltaMB?: string | number }
+): void {
+  const rssMB =
+    typeof process !== "undefined" && process.memoryUsage
+      ? Number((process.memoryUsage().rss / (1024 * 1024)).toFixed(1))
+      : 0;
+  const entry = {
+    processTag: "ENGINE" as const,
+    moduleTag,
+    level: "trace" as const,
+    message,
+    elapsedMs: meta?.elapsedMs,
+    rssMB,
+    timestamp: Date.now(),
+  };
+
+  if (typeof process !== "undefined" && (process as any).parentPort?.postMessage) {
+    try {
+      (process as any).parentPort.postMessage({ type: "toad:log", entries: [entry] });
+    } catch {}
+  } else if (typeof process !== "undefined" && typeof process.send === "function") {
+    try {
+      process.send({ type: "toad:log", entries: [entry] });
+    } catch {}
+  }
+
+  if (typeof (global as any).__toadEngineLogEmitter === "function") {
+    try {
+      (global as any).__toadEngineLogEmitter(entry);
+    } catch {}
+  }
+
+  log.info(message);
+}
+
+export function profileScannerTier(
+  tierName: string,
+  status: "success" | "failed",
+  elapsedMs: number,
+  rowCount: number | string,
+  rssDeltaMB: string | number
+): void {
+  const msg = `[ENGINE] [CSVImport] Tier ${tierName} ${status} (+${Number(elapsedMs).toFixed(2)}ms, rows=${rowCount}, rssDelta=${rssDeltaMB}MB)`;
+  emitEngineTrace("CSVImport", msg, { elapsedMs, rssDeltaMB });
+}
+
+export async function getParquetRowCountSafe(
+  dbConn: Connection,
+  parquetPath: string
+): Promise<number | string> {
+  try {
+    const safeDst = escapeSqlPath(parquetPath);
+    const rows: any = await dbConn.all(
+      `SELECT count(*) as cnt FROM parquet_scan('${safeDst}')`
+    );
+    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.cnt !== undefined) {
+      return Number(rows[0].cnt);
+    }
+  } catch {}
+  return "N/A";
+}
+
+export async function getTableRowCountSafe(
+  dbConn: Connection,
+  tableName: string
+): Promise<number | string> {
+  try {
+    const rows: any = await dbConn.all(`SELECT count(*) as cnt FROM ${tableName}`);
+    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.cnt !== undefined) {
+      return Number(rows[0].cnt);
+    }
+  } catch {}
+  return "N/A";
+}
+
 /**
  * Streaming CSV/TSV sang Parquet voi cac tang bao ve Zero-Assertion (Toad v2.4.5)
  *   Safe Tier: isComplexLogFile -> all_varchar=true, parallel=false, quote='"', escape=''
@@ -2921,19 +2999,46 @@ export async function streamCsvToParquet(
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
+    const t0_safe = performance.now();
+    const rss0_safe = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
+    const tierSafeName = cfg.safe_mode_parallel ? "0 parallel" : "1 serial";
     try {
       await dbConn.exec(safeQuery);
+      const elapsedMs = performance.now() - t0_safe;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_safe) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+      profileScannerTier(tierSafeName, "success", elapsedMs, rowCount, rssDeltaMB);
       log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 Auto-Detect)!");
       return;
     } catch (safeErr: any) {
+      const elapsedMs = performance.now() - t0_safe;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_safe) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier(tierSafeName, "failed", elapsedMs, 0, rssDeltaMB);
       if (isParallelQuotedNewlineError(safeErr)) {
         log.warn("[Ingest Safe Profile] Parallel scanner quoted newline detected, immediately retrying with parallel = false...");
         const safeQuerySerial = safeQuery.replace(/parallel\s*=\s*true/i, "parallel = false");
+        const t0_retry = performance.now();
+        const rss0_retry = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
         try {
           await dbConn.exec(safeQuerySerial);
+          const elapsedMsR = performance.now() - t0_retry;
+          const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+          profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
           log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 parallel=false)!");
           return;
         } catch (retryErr) {
+          const elapsedMsR = performance.now() - t0_retry;
+          const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          profileScannerTier("1 serial", "failed", elapsedMsR, 0, rssDeltaMBR);
           log.warn("[Ingest Safe Profile] Retry parallel=false failed, proceeding to Stage 2:", retryErr);
         }
       }
@@ -2954,11 +3059,24 @@ export async function streamCsvToParquet(
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
+    const t0_hdr = performance.now();
+    const rss0_hdr = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
     try {
       await dbConn.exec(forceHeaderQuery);
+      const elapsedMs = performance.now() - t0_hdr;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_hdr) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+      profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
       log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Comma)!");
       return;
     } catch (errStage2) {
+      const elapsedMs = performance.now() - t0_hdr;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_hdr) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
       log.warn("[Ingest Safe Profile] Stage 2 Force Header (comma) gap loi, thu tab delimiter:", errStage2);
     }
 
@@ -2976,18 +3094,48 @@ export async function streamCsvToParquet(
         )
       ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
     `;
+    const t0_tab = performance.now();
+    const rss0_tab = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
     try {
       await dbConn.exec(tabHeaderQuery);
+      const elapsedMs = performance.now() - t0_tab;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_tab) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+      profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
       log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Tab)!");
       return;
     } catch (errTab) {
+      const elapsedMs = performance.now() - t0_tab;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_tab) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
       log.warn("[Ingest Safe Profile] Stage 2 Force Header (tab) gap loi:", errTab);
     }
 
     // Chỉ khi tất cả các nỗ lực parse CSV đều thất bại mới chuyển sang Raw Log
     log.warn("[Ingest Safe Profile] Tat ca cac tang parse CSV deu that bai, chuyen sang Raw Event fallback:", filePath);
     (cfg as any).isRawEventFallback = true;
-    await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+    const t0_raw = performance.now();
+    const rss0_raw = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
+    try {
+      await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+      const elapsedMs = performance.now() - t0_raw;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_raw) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+      profileScannerTier("3 raw event", "success", elapsedMs, rowCount, rssDeltaMB);
+    } catch (rawErr) {
+      const elapsedMs = performance.now() - t0_raw;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_raw) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("3 raw event", "failed", elapsedMs, 0, rssDeltaMB);
+      throw rawErr;
+    }
     return;
   }
 
@@ -3022,19 +3170,45 @@ export async function streamCsvToParquet(
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
+  const t0_tier0 = performance.now();
+  const rss0_tier0 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
     log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
     await dbConn.exec(tier0Query);
+    const elapsedMs = performance.now() - t0_tier0;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier0) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+    profileScannerTier("0 parallel", "success", elapsedMs, rowCount, rssDeltaMB);
     log.info("[Ingest Tier 0] Thanh cong!");
     return;
   } catch (err0: any) {
+    const elapsedMs = performance.now() - t0_tier0;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier0) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    profileScannerTier("0 parallel", "failed", elapsedMs, 0, rssDeltaMB);
     if (isParallelQuotedNewlineError(err0)) {
       log.warn("[Ingest Tier 0] Quoted newline with null_padding detected in parallel scanner, immediately retrying with parallel = false...");
+      const t0_retry = performance.now();
+      const rss0_retry = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
       try {
         await dbConn.exec(tier1Query);
+        const elapsedMsR = performance.now() - t0_retry;
+        const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+        profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
         log.info("[Ingest Tier 0 -> parallel=false] Streaming Parquet thanh cong!");
         return;
       } catch (retryErr) {
+        const elapsedMsR = performance.now() - t0_retry;
+        const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        profileScannerTier("1 serial", "failed", elapsedMsR, 0, rssDeltaMBR);
         log.warn("[Ingest Tier 0 -> parallel=false] Failed, falling through to Tier 2:", retryErr);
       }
     } else {
@@ -3042,12 +3216,25 @@ export async function streamCsvToParquet(
     }
   }
 
+  const t0_tier1 = performance.now();
+  const rss0_tier1 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
     log.info("[Ingest Tier 1] Dang thu lai voi parallel=false...");
     await dbConn.exec(tier1Query);
+    const elapsedMs = performance.now() - t0_tier1;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier1) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+    profileScannerTier("1 serial", "success", elapsedMs, rowCount, rssDeltaMB);
     log.info("[Ingest Tier 1] Thanh cong!");
     return;
   } catch (err1) {
+    const elapsedMs = performance.now() - t0_tier1;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier1) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    profileScannerTier("1 serial", "failed", elapsedMs, 0, rssDeltaMB);
     log.warn("[Ingest Tier 1] That bai, chuyen sang Fallback Tier 2:", err1);
   }
 
@@ -3067,12 +3254,25 @@ export async function streamCsvToParquet(
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
+  const t0_tier2 = performance.now();
+  const rss0_tier2 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
     log.info("[Ingest Tier 2] Dang thu lai voi all_varchar=true...");
     await dbConn.exec(tier2Query);
+    const elapsedMs = performance.now() - t0_tier2;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier2) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+    profileScannerTier("2 all_varchar", "success", elapsedMs, rowCount, rssDeltaMB);
     log.info("[Ingest Tier 2] Thanh cong (100% guaranteed)!");
     return;
   } catch (err2) {
+    const elapsedMs = performance.now() - t0_tier2;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier2) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    profileScannerTier("2 all_varchar", "failed", elapsedMs, 0, rssDeltaMB);
     log.warn("[Ingest Tier 2] That bai, chuyen sang Fallback Tier 2b (Force Header):", err2);
   }
 
@@ -3090,19 +3290,49 @@ export async function streamCsvToParquet(
       )
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
+  const t0_tier2b = performance.now();
+  const rss0_tier2b = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
     log.info("[Ingest Tier 2b] Dang thu lai voi Force Header (header=true)...");
     await dbConn.exec(forceHeaderTier);
+    const elapsedMs = performance.now() - t0_tier2b;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier2b) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+    profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
     log.info("[Ingest Tier 2b] Force Header Thanh cong!");
     return;
   } catch (err2b) {
+    const elapsedMs = performance.now() - t0_tier2b;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier2b) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
     log.warn("[Ingest Tier 2b] Force Header that bai, chuyen sang Fallback Tier 3 (Raw Event Mode):", err2b);
   }
 
   // Tier 3: Fallback cuối cùng: nạp nguyên dòng thô (Raw Event Mode) - không bao giờ thất bại
   log.info("[Ingest Tier 3] Nạp file duoi dang Raw Event...");
-  await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
-  log.info("[Ingest Tier 3] Raw Event Ingest Thanh cong!");
+  const t0_tier3 = performance.now();
+  const rss0_tier3 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
+  try {
+    await streamRawLogToParquet(dbConn, filePath, parquetPath, cfg);
+    const elapsedMs = performance.now() - t0_tier3;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier3) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
+    profileScannerTier("3 raw event", "success", elapsedMs, rowCount, rssDeltaMB);
+    log.info("[Ingest Tier 3] Raw Event Ingest Thanh cong!");
+  } catch (err3) {
+    const elapsedMs = performance.now() - t0_tier3;
+    const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+      ? ((process.memoryUsage().rss - rss0_tier3) / (1024 * 1024)).toFixed(2)
+      : "0.00";
+    profileScannerTier("3 raw event", "failed", elapsedMs, 0, rssDeltaMB);
+    throw err3;
+  }
 }
 
 /**
@@ -3817,9 +4047,18 @@ export const nativeCSVImport = async (
 
     // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
     if (isComplexLogFile(filePath, cfg.safe_mode_keywords)) {
+      const t0_safe_mem = performance.now();
+      const rss0_safe_mem = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
+      const tierSafeName = cfg.safe_mode_parallel ? "0 parallel" : "1 serial";
       try {
         const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=${cfg.safe_mode_parallel ? "true" : "false"}, all_varchar=true)`;
         await dbConn.all(query);
+        const elapsedMs = performance.now() - t0_safe_mem;
+        const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_safe_mem) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        const rowCount = await getTableRowCountSafe(dbConn, tableName);
+        profileScannerTier(tierSafeName, "success", elapsedMs, rowCount, rssDeltaMB);
         const importTime = process.hrtime(importStart);
         log.info(
           "DuckDB nativeCSVImport (Safe Profile all_varchar=true): import completed in ",
@@ -3827,11 +4066,24 @@ export const nativeCSVImport = async (
         );
         return tableName;
       } catch (errSafe: any) {
+        const elapsedMs = performance.now() - t0_safe_mem;
+        const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_safe_mem) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        profileScannerTier(tierSafeName, "failed", elapsedMs, 0, rssDeltaMB);
         if (isParallelQuotedNewlineError(errSafe)) {
           log.warn("[Ingest In-Memory Safe Profile] Quoted newline detected in parallel scanner, immediately retrying with parallel=false...");
+          const t0_retry_mem = performance.now();
+          const rss0_retry_mem = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
           try {
             const querySerial = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause || "delim=',',"} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
             await dbConn.all(querySerial);
+            const elapsedMsR = performance.now() - t0_retry_mem;
+            const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+              ? ((process.memoryUsage().rss - rss0_retry_mem) / (1024 * 1024)).toFixed(2)
+              : "0.00";
+            const rowCount = await getTableRowCountSafe(dbConn, tableName);
+            profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
             const importTime = process.hrtime(importStart);
             log.info(
               "DuckDB nativeCSVImport (Safe Profile parallel=false): import completed in ",
@@ -3839,24 +4091,50 @@ export const nativeCSVImport = async (
             );
             return tableName;
           } catch (retryErr) {
+            const elapsedMsR = performance.now() - t0_retry_mem;
+            const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+              ? ((process.memoryUsage().rss - rss0_retry_mem) / (1024 * 1024)).toFixed(2)
+              : "0.00";
+            profileScannerTier("1 serial", "failed", elapsedMsR, 0, rssDeltaMBR);
             log.warn("[Ingest In-Memory Safe Profile] Retry parallel=false failed:", retryErr);
           }
         }
         log.warn("[Ingest In-Memory Safe Profile] That bai, thu Force Header:", errSafe);
+        const t0_safe_hdr = performance.now();
+        const rss0_safe_hdr = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
         try {
           const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
           await dbConn.all(queryHeader);
+          const elapsedMsHdr = performance.now() - t0_safe_hdr;
+          const rssDeltaMBHdr = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_safe_hdr) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          const rowCount = await getTableRowCountSafe(dbConn, tableName);
+          profileScannerTier("2b force header", "success", elapsedMsHdr, rowCount, rssDeltaMBHdr);
           return tableName;
         } catch (errHeader) {
+          const elapsedMsHdr = performance.now() - t0_safe_hdr;
+          const rssDeltaMBHdr = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_safe_hdr) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          profileScannerTier("2b force header", "failed", elapsedMsHdr, 0, rssDeltaMBHdr);
           log.warn("[Ingest In-Memory Force Header] That bai:", errHeader);
         }
       }
     }
 
     // Tier 0: auto_detect + ignore_errors + all_varchar=true (RFC-4180 strict)
+    const t0_mem0 = performance.now();
+    const rss0_mem0 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
     try {
       const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, all_varchar=true)`;
       const resRows = await dbConn.all(query);
+      const elapsedMs = performance.now() - t0_mem0;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem0) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getTableRowCountSafe(dbConn, tableName);
+      profileScannerTier("0 parallel", "success", elapsedMs, rowCount, rssDeltaMB);
       const importTime = process.hrtime(importStart);
       log.info(
         "DuckDB nativeCSVImport (Tier 0): import completed in ",
@@ -3864,11 +4142,24 @@ export const nativeCSVImport = async (
       );
       return tableName;
     } catch (err0: any) {
+      const elapsedMs = performance.now() - t0_mem0;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem0) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("0 parallel", "failed", elapsedMs, 0, rssDeltaMB);
       if (isParallelQuotedNewlineError(err0)) {
         log.warn("[Ingest In-Memory Tier 0] Quoted newline with null_padding detected in parallel scanner, retrying with parallel=false...");
+        const t0_retry = performance.now();
+        const rss0_retry = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
         try {
           const querySerial = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
           await dbConn.all(querySerial);
+          const elapsedMsR = performance.now() - t0_retry;
+          const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          const rowCount = await getTableRowCountSafe(dbConn, tableName);
+          profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
           const importTime = process.hrtime(importStart);
           log.info(
             "DuckDB nativeCSVImport (Tier 0 -> parallel=false): import completed in ",
@@ -3876,6 +4167,11 @@ export const nativeCSVImport = async (
           );
           return tableName;
         } catch (retryErr) {
+          const elapsedMsR = performance.now() - t0_retry;
+          const rssDeltaMBR = typeof process !== "undefined" && process.memoryUsage
+            ? ((process.memoryUsage().rss - rss0_retry) / (1024 * 1024)).toFixed(2)
+            : "0.00";
+          profileScannerTier("1 serial", "failed", elapsedMsR, 0, rssDeltaMBR);
           log.warn("[Ingest In-Memory Tier 0 -> parallel=false] Failed, falling through to Tier 1:", retryErr);
         }
       } else {
@@ -3884,9 +4180,17 @@ export const nativeCSVImport = async (
     }
 
     // Tier 1: parallel=false + all_varchar=true
+    const t0_mem1 = performance.now();
+    const rss0_mem1 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
     try {
       const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
       const resRows = await dbConn.all(query);
+      const elapsedMs = performance.now() - t0_mem1;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem1) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getTableRowCountSafe(dbConn, tableName);
+      profileScannerTier("1 serial", "success", elapsedMs, rowCount, rssDeltaMB);
       const importTime = process.hrtime(importStart);
       log.info(
         "DuckDB nativeCSVImport (Tier 1 parallel=false): import completed in ",
@@ -3894,13 +4198,26 @@ export const nativeCSVImport = async (
       );
       return tableName;
     } catch (err1) {
+      const elapsedMs = performance.now() - t0_mem1;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem1) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("1 serial", "failed", elapsedMs, 0, rssDeltaMB);
       log.warn("[Ingest In-Memory Tier 1] That bai:", err1);
     }
 
     // Tier 2: all_varchar=true (guaranteed success)
+    const t0_mem2 = performance.now();
+    const rss0_mem2 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
     try {
       const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memDelimClause} auto_detect=true, sample_size=100000, ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
       const resRows = await dbConn.all(query);
+      const elapsedMs = performance.now() - t0_mem2;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem2) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      const rowCount = await getTableRowCountSafe(dbConn, tableName);
+      profileScannerTier("2 all_varchar", "success", elapsedMs, rowCount, rssDeltaMB);
       const importTime = process.hrtime(importStart);
       log.info(
         "DuckDB nativeCSVImport (Tier 2 all_varchar=true): import completed in ",
@@ -3908,13 +4225,31 @@ export const nativeCSVImport = async (
       );
       return tableName;
     } catch (err2) {
+      const elapsedMs = performance.now() - t0_mem2;
+      const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
+        ? ((process.memoryUsage().rss - rss0_mem2) / (1024 * 1024)).toFixed(2)
+        : "0.00";
+      profileScannerTier("2 all_varchar", "failed", elapsedMs, 0, rssDeltaMB);
       log.warn("[Ingest In-Memory Tier 2] That bai, thu Force Header (Tier 2b):", err2);
+      const t0_mem2b = performance.now();
+      const rss0_mem2b = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
       try {
         const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
         await dbConn.all(query);
+        const elapsedMs2b = performance.now() - t0_mem2b;
+        const rssDeltaMB2b = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_mem2b) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        const rowCount = await getTableRowCountSafe(dbConn, tableName);
+        profileScannerTier("2b force header", "success", elapsedMs2b, rowCount, rssDeltaMB2b);
         log.info("[Ingest In-Memory Tier 2b Force Header] Thanh cong!");
         return tableName;
       } catch (err2b) {
+        const elapsedMs2b = performance.now() - t0_mem2b;
+        const rssDeltaMB2b = typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0_mem2b) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+        profileScannerTier("2b force header", "failed", elapsedMs2b, 0, rssDeltaMB2b);
         log.error("[Ingest In-Memory Tier 2b] Tat ca cac tier deu that bai:", err2b);
         throw err2b;
       }

@@ -22,7 +22,7 @@ import {
   TextSummaryStats,
 } from "reltab"; // eslint-disable-line
 import { initS3 } from "./s3utils";
-import { initToadLedger } from "./csvimport";
+import { initToadLedger, emitEngineTrace } from "./csvimport";
 
 export * from "./csvimport";
 export * from "./ingestWorker";
@@ -194,9 +194,22 @@ export class DuckDBDriver implements DbDriver {
   async runSqlQuery(query: string): Promise<Row[]> {
     const conn = await this.connPool.take();
     let ret: any;
+    const t0 = performance.now();
+    const rss0 =
+      typeof process !== "undefined" && process.memoryUsage
+        ? process.memoryUsage().rss
+        : 0;
     try {
       log.info("runSqlQuery:\n", query);
       ret = await conn.all(query);
+      const elapsedMs = performance.now() - t0;
+      const rssDeltaMB =
+        typeof process !== "undefined" && process.memoryUsage
+          ? ((process.memoryUsage().rss - rss0) / (1024 * 1024)).toFixed(2)
+          : "0.00";
+      const rowCount = Array.isArray(ret) ? ret.length : 0;
+      const msg = `[ENGINE] [DuckDB] SQL Query executed (+${elapsedMs.toFixed(2)}ms, rows=${rowCount}, rssDelta=${rssDeltaMB}MB): ${query.trim().slice(0, 150)}`;
+      emitEngineTrace("DuckDB", msg, { elapsedMs, rssDeltaMB });
     } finally {
       this.connPool.giveBack(conn);
     }
@@ -205,24 +218,43 @@ export class DuckDBDriver implements DbDriver {
 
   async runSqlQueryArrow(query: string): Promise<Uint8Array | null> {
     const conn = await this.connPool.take();
+    const t0 = performance.now();
+    const rss0 =
+      typeof process !== "undefined" && process.memoryUsage
+        ? process.memoryUsage().rss
+        : 0;
+    const cleanQuery = query.trim().replace(/;+$/, "");
     try {
       log.info("runSqlQueryArrow:\n", query);
       const rawConn = (conn as any).conn || (conn as any)._conn || conn;
       if (rawConn && typeof rawConn.arrowIPCAll === "function") {
-        const cleanQuery = query.trim().replace(/;+$/, "");
         return await new Promise<Uint8Array>((resolve, reject) => {
           rawConn.arrowIPCAll(cleanQuery, (err: any, result: any[]) => {
             if (err) return reject(err);
+            const elapsedMs = performance.now() - t0;
+            const rssDeltaMB =
+              typeof process !== "undefined" && process.memoryUsage
+                ? ((process.memoryUsage().rss - rss0) / (1024 * 1024)).toFixed(2)
+                : "0.00";
             if (!result || result.length === 0) {
+              const msg = `[ENGINE] [DuckDB] Arrow IPC Stream (+${elapsedMs.toFixed(2)}ms, batches=0, bytes=0, rssDelta=${rssDeltaMB}MB): ${cleanQuery.slice(0, 150)}`;
+              emitEngineTrace("DuckDB", msg, { elapsedMs, rssDeltaMB });
               return resolve(new Uint8Array(0));
             }
             const valid = result.filter(
               (b) => b != null && (b.length > 0 || b.byteLength > 0)
             );
+            const batchCount = result.length;
             if (valid.length === 0) {
+              const msg = `[ENGINE] [DuckDB] Arrow IPC Stream (+${elapsedMs.toFixed(2)}ms, batches=${batchCount}, bytes=0, rssDelta=${rssDeltaMB}MB): ${cleanQuery.slice(0, 150)}`;
+              emitEngineTrace("DuckDB", msg, { elapsedMs, rssDeltaMB });
               return resolve(new Uint8Array(0));
             }
             const buf = Buffer.concat(valid);
+            const byteCount = buf.byteLength;
+            const msg = `[ENGINE] [DuckDB] Arrow IPC Stream (+${elapsedMs.toFixed(2)}ms, batches=${batchCount}, bytes=${byteCount}, rssDelta=${rssDeltaMB}MB): ${cleanQuery.slice(0, 150)}`;
+            emitEngineTrace("DuckDB", msg, { elapsedMs, rssDeltaMB });
+
             const arrayBuffer =
               buf.byteOffset === 0 && buf.byteLength === buf.buffer.byteLength
                 ? buf.buffer

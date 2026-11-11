@@ -27,6 +27,75 @@ import {
   dispatchEngineCommand,
 } from "reltab";
 
+export function forwardEngineLogs(entries: any[]): void {
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  const parent = typeof process !== "undefined" ? (process as any).parentPort : null;
+  if (parent && typeof parent.postMessage === "function") {
+    try {
+      parent.postMessage({ type: "toad:log", entries });
+      return;
+    } catch {}
+  }
+  if (typeof process !== "undefined" && typeof process.send === "function") {
+    try {
+      process.send({ type: "toad:log", entries });
+      return;
+    } catch {}
+  }
+  // In-process fallback (if ToadLogger available)
+  try {
+    const ToadLogger = require("./toadLogger").ToadLogger;
+    if (ToadLogger && typeof ToadLogger.ingestBatch === "function") {
+      ToadLogger.ingestBatch(entries);
+      return;
+    }
+  } catch {}
+}
+
+// Global hook for reltab-duckdb if running in-process
+if (typeof global !== "undefined") {
+  (global as any).__toadEngineLogEmitter = (entry: any) => {
+    forwardEngineLogs([entry]);
+  };
+}
+
+// Register early uncaughtException and unhandledRejection handlers in Engine Worker
+if (typeof process !== "undefined" && typeof process.on === "function") {
+  process.on("uncaughtException", (error: any) => {
+    const msg =
+      error instanceof Error
+        ? `${error.message}\n${error.stack}`
+        : String(error);
+    forwardEngineLogs([
+      {
+        processTag: "ENGINE",
+        moduleTag: "EngineService",
+        level: "error",
+        message: `Uncaught exception in Engine Worker: ${msg}`,
+        timestamp: Date.now(),
+      },
+    ]);
+    console.error("[EngineService] Uncaught exception:", error);
+  });
+
+  process.on("unhandledRejection", (reason: any) => {
+    const msg =
+      reason instanceof Error
+        ? `${reason.message}\n${reason.stack}`
+        : String(reason);
+    forwardEngineLogs([
+      {
+        processTag: "ENGINE",
+        moduleTag: "EngineService",
+        level: "error",
+        message: `Unhandled rejection in Engine Worker: ${msg}`,
+        timestamp: Date.now(),
+      },
+    ]);
+    console.error("[EngineService] Unhandled rejection:", reason);
+  });
+}
+
 export interface EngineServiceOptions {
   dataPort?: any;
   parentPort?: any;

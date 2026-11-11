@@ -18,6 +18,7 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   // Core Toad Commands
   "initMain",
   "toad:init_main",
+  "toad:log",
   "getToadConfig",
   "toad:get_config",
   "newWindowFromDSPath",
@@ -205,6 +206,85 @@ if (ipcRenderer && typeof ipcRenderer.on === "function") {
   });
 }
 
+// 4b. Multi-Process Buffered Logger for Renderer UI (50ms buffer, immediate flush on error / unload)
+let uiLogBuffer = [];
+let uiLogFlushTimer = null;
+
+function flushUiLogBuffer() {
+  if (uiLogFlushTimer) {
+    clearTimeout(uiLogFlushTimer);
+    uiLogFlushTimer = null;
+  }
+  if (uiLogBuffer.length === 0) return;
+  const entriesToSend = uiLogBuffer;
+  uiLogBuffer = [];
+  if (ipcRenderer && typeof ipcRenderer.send === "function") {
+    try {
+      ipcRenderer.send("toad:log", { entries: entriesToSend });
+    } catch (e) {
+      // Graceful fallback if channel is unavailable
+    }
+  }
+}
+
+function queueUiLogEntry(level, moduleOrTag, message, extra) {
+  const entry = {
+    processTag: "UI",
+    moduleTag: moduleOrTag || "UI",
+    level: level || "info",
+    message:
+      typeof message === "string"
+        ? message
+        : message instanceof Error
+        ? message.stack || message.message
+        : JSON.stringify(message),
+    timestamp: extra && extra.timestamp ? extra.timestamp : Date.now(),
+    elapsedMs: extra ? extra.elapsedMs : undefined,
+    rssMB: extra ? extra.rssMB : undefined,
+  };
+  uiLogBuffer.push(entry);
+
+  if (level === "error") {
+    flushUiLogBuffer();
+  } else if (!uiLogFlushTimer) {
+    uiLogFlushTimer = setTimeout(flushUiLogBuffer, 50);
+  }
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("error", (event) => {
+    queueUiLogEntry(
+      "error",
+      "WindowError",
+      `${event.message || "Window error"} at ${event.filename || ""}:${event.lineno || ""}:${event.colno || ""}`
+    );
+    flushUiLogBuffer();
+  });
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event.reason;
+    const msg =
+      reason instanceof Error ? reason.stack || reason.message : String(reason);
+    queueUiLogEntry("error", "UnhandledRejection", msg);
+    flushUiLogBuffer();
+  });
+  window.addEventListener("beforeunload", () => {
+    flushUiLogBuffer();
+  });
+  window.addEventListener("unload", () => {
+    flushUiLogBuffer();
+  });
+}
+
+const uiLogger = {
+  trace: (module, msg, meta) => queueUiLogEntry("trace", module, msg, meta),
+  debug: (module, msg, meta) => queueUiLogEntry("debug", module, msg, meta),
+  info: (module, msg, meta) => queueUiLogEntry("info", module, msg, meta),
+  warn: (module, msg, meta) => queueUiLogEntry("warn", module, msg, meta),
+  error: (module, msg, meta) => queueUiLogEntry("error", module, msg, meta),
+  flush: flushUiLogBuffer,
+  log: queueUiLogEntry,
+};
+
 // 5. Define the standardized toadBridge API (Tauri-like invoke + listen core)
 const toadBridge = {
   // Core unified command invocation with Strict Capabilities check & alias resolution
@@ -299,6 +379,9 @@ const toadBridge = {
     return Promise.resolve();
   },
 
+  logger: uiLogger,
+  log: uiLogger,
+
   openParams: openParams,
   assertCapability: assertCapability,
   WHITELIST: STRICT_CAPABILITIES_WHITELIST,
@@ -310,6 +393,7 @@ let exposedViaContextBridge = false;
 if (contextBridge && typeof contextBridge.exposeInMainWorld === "function") {
   try {
     contextBridge.exposeInMainWorld("toadBridge", toadBridge);
+    contextBridge.exposeInMainWorld("toadLogger", uiLogger);
     contextBridge.exposeInMainWorld("openParams", openParams);
     exposedViaContextBridge = true;
   } catch (err) {
@@ -319,12 +403,14 @@ if (contextBridge && typeof contextBridge.exposeInMainWorld === "function") {
 
 if (!exposedViaContextBridge && typeof window !== "undefined") {
   window.toadBridge = toadBridge;
+  window.toadLogger = uiLogger;
   window.openParams = openParams;
 }
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     toadBridge,
+    toadLogger: uiLogger,
     assertCapability,
     STRICT_CAPABILITIES_WHITELIST,
     COMMAND_ALIAS_MAP,

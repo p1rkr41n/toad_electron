@@ -22,6 +22,7 @@ import electron, { BrowserWindow, ipcMain, app } from "electron";
 import * as reltabDuckDB from "reltab-duckdb";
 import { PortableEnvironment } from "./portableAppData";
 import { replayLedgerViews } from "./engineService";
+import ToadLogger from "./toadLogger";
 
 export type EngineMode = "utility" | "legacy";
 
@@ -207,6 +208,42 @@ export class EngineSupervisor extends EventEmitter {
         msg = eventOrData.data;
       }
       if (!msg) return;
+
+      if (msg.type === "toad:log") {
+        const raw = msg.entries || msg.payload || [];
+        const entries = (Array.isArray(raw) ? raw : [raw])
+          .filter(Boolean)
+          .map((e: any) => {
+            let msgText =
+              typeof e.message === "string"
+                ? e.message
+                : e.message?.message || String(e.message || "");
+            let proc = e.processTag || "ENGINE";
+            let mod = e.moduleTag || e.module || "General";
+            const prefixMatch = msgText.match(
+              /^\[(MAIN|UI|ENGINE)\]\s*\[([^\]]+)\]\s*(.*)$/i
+            );
+            if (prefixMatch) {
+              proc = prefixMatch[1].toUpperCase() as any;
+              mod = prefixMatch[2];
+              msgText = prefixMatch[3];
+            } else {
+              const singleMatch = msgText.match(/^\[(MAIN|UI|ENGINE)\]\s*(.*)$/i);
+              if (singleMatch) {
+                proc = singleMatch[1].toUpperCase() as any;
+                msgText = singleMatch[2];
+              }
+            }
+            return {
+              ...e,
+              processTag: proc,
+              moduleTag: mod,
+              message: msgText,
+            };
+          });
+        ToadLogger.ingestBatch(entries);
+        return;
+      }
 
       if (msg.type === "views-replayed") {
         const count = typeof msg.count === "number" ? msg.count : 0;

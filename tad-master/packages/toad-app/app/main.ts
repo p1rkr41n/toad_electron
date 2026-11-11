@@ -77,7 +77,33 @@ import {
   initPortableEnvironment,
   cleanTempDir,
   PortableEnvironment,
+  resolveEffectiveLogLevel,
 } from "./portableAppData";
+import ToadLogger from "./toadLogger";
+
+// Early uncaught exception & unhandled rejection handlers for Main Process
+process.on("uncaughtException", (error: any) => {
+  try {
+    ToadLogger.get("MAIN", "Main").error(
+      `Uncaught exception: ${error?.message || error}`,
+      error?.stack
+    );
+  } catch {
+    console.error("Uncaught exception in Main process:", error);
+  }
+});
+
+process.on("unhandledRejection", (reason: any) => {
+  try {
+    const msg =
+      reason instanceof Error
+        ? `${reason.message}\n${reason.stack}`
+        : String(reason);
+    ToadLogger.get("MAIN", "Main").error(`Unhandled rejection: ${msg}`);
+  } catch {
+    console.error("Unhandled rejection in Main process:", reason);
+  }
+});
 
 const dialog = electron.dialog;
 const app = electron.app;
@@ -203,6 +229,43 @@ const remotableNewWindowFromDSPath = (
 
 const appInit = (options: any) => {
   // log.log('appInit: ', options)
+  ipcMain.on("toad:log", (event, payload) => {
+    const raw = Array.isArray(payload)
+      ? payload
+      : payload?.entries || (payload ? [payload] : []);
+    const entries = (Array.isArray(raw) ? raw : [raw])
+      .filter(Boolean)
+      .map((e: any) => {
+        let msgText =
+          typeof e.message === "string"
+            ? e.message
+            : e.message?.message || String(e.message || "");
+        let proc = e.processTag || "UI";
+        let mod = e.moduleTag || e.module || "General";
+        const prefixMatch = msgText.match(
+          /^\[(MAIN|UI|ENGINE)\]\s*\[([^\]]+)\]\s*(.*)$/i
+        );
+        if (prefixMatch) {
+          proc = prefixMatch[1].toUpperCase();
+          mod = prefixMatch[2];
+          msgText = prefixMatch[3];
+        } else {
+          const singleMatch = msgText.match(/^\[(MAIN|UI|ENGINE)\]\s*(.*)$/i);
+          if (singleMatch) {
+            proc = singleMatch[1].toUpperCase();
+            msgText = singleMatch[2];
+          }
+        }
+        return {
+          ...e,
+          processTag: proc,
+          moduleTag: mod,
+          message: msgText,
+        };
+      });
+    ToadLogger.ingestBatch(entries);
+  });
+
   ipcMain.handle("initMain", async (event) => initMainAsync(options));
   ipcMain.handle("errorDialog", (event, arg1, arg2, arg3) =>
     errorDialog(arg1, arg2, arg3)
@@ -697,8 +760,7 @@ const initApp =
           const showQuickStart = false;
 
           process.on("uncaughtException", function (error) {
-            log.error(error.message);
-            log.error(error.stack);
+            ToadLogger.get("MAIN", "Main").error(error.message, error.stack);
             reportFatalError(error.message);
           }); // Quit when all windows are closed.
 
@@ -824,18 +886,21 @@ const main = () => {
     portableEnv = initPortableEnvironment();
     log.warn(`[TOAD] Portable AppData: ${portableEnv.appDataDir}`);
 
+    const effectiveLevel = resolveEffectiveLogLevel(
+      process.argv,
+      process.env.TOAD_LOG_LEVEL,
+      portableEnv.config?.system?.log_level
+    );
+    ToadLogger.configure({
+      logsDir: portableEnv.logsDir,
+      level: effectiveLevel,
+    });
+
     // Chuyển hướng toàn bộ Electron UserData sang thư mục cục bộ
     // => Không ghi bất kỳ dữ liệu nào vào C:\Users\<user>\AppData\Roaming
     app.setPath("userData", portableEnv.electronDataDir);
     app.setPath("temp", portableEnv.tempDir);
     app.setPath("crashDumps", portableEnv.logsDir);
-
-    // Kích hoạt ghi log vào thư mục logs của toadAppData
-    try {
-      log.transports.file.resolvePath = () =>
-        path.join(portableEnv.logsDir, "toad.log");
-      log.transports.file.level = "info";
-    } catch (e) {}
 
     // Lưu reference toàn cục để các module khác truy cập
     (global as any).toadPortableEnv = portableEnv;
