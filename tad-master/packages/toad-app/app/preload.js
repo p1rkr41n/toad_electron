@@ -237,14 +237,20 @@ function queueUiLogEntry(level, moduleOrTag, message, extra) {
         ? message
         : message instanceof Error
         ? message.stack || message.message
-        : JSON.stringify(message),
+        : (() => {
+            try {
+              return JSON.stringify(message);
+            } catch {
+              return String(message);
+            }
+          })(),
     timestamp: extra && extra.timestamp ? extra.timestamp : Date.now(),
     elapsedMs: extra ? extra.elapsedMs : undefined,
     rssMB: extra ? extra.rssMB : undefined,
   };
   uiLogBuffer.push(entry);
 
-  if (level === "error") {
+  if (level === "error" || uiLogBuffer.length >= 500) {
     flushUiLogBuffer();
   } else if (!uiLogFlushTimer) {
     uiLogFlushTimer = setTimeout(flushUiLogBuffer, 50);

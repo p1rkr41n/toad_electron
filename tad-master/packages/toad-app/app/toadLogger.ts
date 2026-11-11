@@ -192,7 +192,8 @@ export class ToadLogger {
 
     const proc = meta.processTag || "MAIN";
     let mod = meta.moduleTag || "General";
-    const elapsed = meta.elapsedMs !== undefined ? meta.elapsedMs : (Date.now() - ToadLogger.appStartTime);
+    const elapsedRaw = meta.elapsedMs !== undefined ? meta.elapsedMs : (Date.now() - ToadLogger.appStartTime);
+    const elapsed = typeof elapsedRaw === "number" && !Number.isInteger(elapsedRaw) ? Number(elapsedRaw.toFixed(2)) : elapsedRaw;
     const rss = meta.rssMB !== undefined
       ? meta.rssMB
       : (typeof process !== "undefined" && process.memoryUsage ? Number((process.memoryUsage().rss / (1024 * 1024)).toFixed(1)) : 0.0);

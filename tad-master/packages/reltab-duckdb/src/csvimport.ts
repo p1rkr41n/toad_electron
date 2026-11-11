@@ -2905,9 +2905,7 @@ export function emitEngineTrace(
     try {
       process.send({ type: "toad:log", entries: [entry] });
     } catch {}
-  }
-
-  if (typeof (global as any).__toadEngineLogEmitter === "function") {
+  } else if (typeof (global as any).__toadEngineLogEmitter === "function") {
     try {
       (global as any).__toadEngineLogEmitter(entry);
     } catch {}
