@@ -48,6 +48,7 @@ export interface ToadConfig {
     temp_cleanup: boolean;
     binary_guard: boolean;
     uv_threadpool_size?: number | "auto";
+    log_level: "info" | "trace" | "debug" | "warn" | "error";
   };
 }
 
@@ -108,6 +109,7 @@ export const DEFAULT_CONFIG: ToadConfig = {
     temp_cleanup: true,
     binary_guard: true,
     uv_threadpool_size: "auto",
+    log_level: "info",
   },
 };
 
@@ -205,6 +207,14 @@ binary_guard = true
 #   - auto : Automatically calculates host CPU cores * 2 (clamped between 8 and 128)
 #   - Or: 8, 16, 32, 64, 128
 uv_threadpool_size = auto
+
+# Logging level across processes:
+#   - trace : Deep query, Arrow IPC, scanner profiling & diagnostics
+#   - debug : Detailed operational debugging
+#   - info  : Standard operational messages (DEFAULT)
+#   - warn  : Warnings only
+#   - error : Errors only
+log_level = info
 `;
 
 // =============================================================================
@@ -370,6 +380,7 @@ row_group_size = ${cfg.parquet.row_group_size}
 temp_cleanup = ${cfg.system.temp_cleanup}
 binary_guard = ${cfg.system.binary_guard}
 uv_threadpool_size = ${cfg.system.uv_threadpool_size ?? "auto"}
+log_level = ${cfg.system.log_level ?? "info"}
 `;
 }
 
@@ -441,6 +452,7 @@ export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
       temp_cleanup: String(cfg.system.temp_cleanup),
       binary_guard: String(cfg.system.binary_guard),
       uv_threadpool_size: String(cfg.system.uv_threadpool_size ?? "auto"),
+      log_level: String(cfg.system.log_level ?? "info"),
     },
   };
 
@@ -461,6 +473,11 @@ export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
         const lineIdx = secInfo.keys[k];
         if (!/^\s*safe_mode_parallel\s*=\s*(true|false)\s*$/i.test(modifiedLines[lineIdx])) {
           modifiedLines[lineIdx] = `safe_mode_parallel = ${v}`;
+        }
+      } else if (k === "log_level") {
+        const lineIdx = secInfo.keys[k];
+        if (!/^\s*log_level\s*=\s*(info|trace|debug|warn|error)\s*$/i.test(modifiedLines[lineIdx])) {
+          modifiedLines[lineIdx] = `log_level = ${v}`;
         }
       }
     }
@@ -769,6 +786,15 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
     needRewrite = true;
   }
 
+  const VALID_LOG_LEVELS = ["info", "trace", "debug", "warn", "error"];
+  let log_level: ToadConfig["system"]["log_level"] = DEFAULT_CONFIG.system.log_level;
+  const rawLogLevel = parsed.system?.log_level ? String(parsed.system.log_level).trim().toLowerCase() : "";
+  if (VALID_LOG_LEVELS.includes(rawLogLevel)) {
+    log_level = rawLogLevel as ToadConfig["system"]["log_level"];
+  } else {
+    needRewrite = true;
+  }
+
   // Kiểm tra xem có thiếu section nào không
   if (!parsed.general || !parsed.runtime || !parsed.duckdb || !parsed.parquet || !parsed.system) {
     needRewrite = true;
@@ -797,7 +823,7 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       compression: compression as ToadConfig["parquet"]["compression"],
       row_group_size,
     },
-    system: { temp_cleanup, binary_guard, uv_threadpool_size },
+    system: { temp_cleanup, binary_guard, uv_threadpool_size, log_level },
   };
 
   // Auto-Heal: Ghi lại file nếu có trường bị thiếu hoặc giá trị đã sửa
@@ -828,6 +854,64 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
 
   log.info("[ConfigValidation] Cau hinh da tham dinh thanh cong:", validatedConfig);
   return validatedConfig;
+}
+
+// =============================================================================
+// LOG LEVEL RESOLUTION & ACTIVATION
+// =============================================================================
+
+/**
+ * Resolves the effective log level across CLI arguments, environment variable, and config.ini.
+ * Strict priority order:
+ *   1. --trace in cliArgv -> "trace"
+ *   2. envLogLevel (or process.env.TOAD_LOG_LEVEL) if valid
+ *   3. iniLogLevel (or config.system.log_level) if valid
+ *   4. fallback -> "info"
+ */
+export function resolveEffectiveLogLevel(
+  cliArgv?: string[],
+  envLogLevel?: string,
+  iniLogLevel?: string
+): "info" | "trace" | "debug" | "warn" | "error" {
+  const argv =
+    cliArgv !== undefined
+      ? cliArgv
+      : typeof process !== "undefined" && Array.isArray(process.argv)
+      ? process.argv
+      : [];
+  if (Array.isArray(argv) && argv.includes("--trace")) {
+    return "trace";
+  }
+
+  const validLevels: Array<"info" | "trace" | "debug" | "warn" | "error"> = [
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error",
+  ];
+
+  const env =
+    envLogLevel !== undefined
+      ? envLogLevel
+      : typeof process !== "undefined"
+      ? process.env.TOAD_LOG_LEVEL
+      : undefined;
+  if (env && typeof env === "string") {
+    const normalized = env.trim().toLowerCase();
+    if (validLevels.includes(normalized as any)) {
+      return normalized as "info" | "trace" | "debug" | "warn" | "error";
+    }
+  }
+
+  if (iniLogLevel && typeof iniLogLevel === "string") {
+    const normalized = iniLogLevel.trim().toLowerCase();
+    if (validLevels.includes(normalized as any)) {
+      return normalized as "info" | "trace" | "debug" | "warn" | "error";
+    }
+  }
+
+  return "info";
 }
 
 // =============================================================================
@@ -1111,6 +1195,12 @@ export function initPortableEnvironment(): PortableEnvironment {
   process.env.TOAD_APP_DATA_DIR = appDataDir;
   process.env.TOAD_SAFE_KEYWORDS = config.duckdb.safe_mode_keywords.join(",");
   process.env.TOAD_SAFE_PARALLEL = String(config.duckdb.safe_mode_parallel);
+  const effectiveLogLevel = resolveEffectiveLogLevel(
+    process.argv,
+    process.env.TOAD_LOG_LEVEL,
+    config.system.log_level
+  );
+  process.env.TOAD_LOG_LEVEL = effectiveLogLevel;
 
   const envResult: PortableEnvironment = {
     exeDir,
@@ -1134,6 +1224,7 @@ export function initPortableEnvironment(): PortableEnvironment {
   log.info(`    Libuv Pool : ${process.env.UV_THREADPOOL_SIZE}`);
   log.info(`    Safe Keys  : ${process.env.TOAD_SAFE_KEYWORDS}`);
   log.info(`    Safe Paral : ${process.env.TOAD_SAFE_PARALLEL}`);
+  log.info(`    Log Level  : ${effectiveLogLevel} (ini: ${config.system.log_level})`);
 
   return envResult;
 }
