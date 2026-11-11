@@ -155,7 +155,13 @@ const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
     slashes: true,
   });
   win.webContents.on("console-message", (event, level, message, line, sourceId) => {
-    log.warn(`[RENDERER-CONSOLE] [lvl=${level}] ${message} (${sourceId}:${line})`);
+    const lvl = level === 3 ? "error" : level === 2 ? "warn" : "info";
+    try {
+      const ToadLogger = require("./toadLogger").default;
+      ToadLogger.get("UI", "Console")[lvl](`[lvl=${level}] ${message} (${sourceId}:${line})`);
+    } catch {
+      log.warn(`[RENDERER-CONSOLE] [lvl=${level}] ${message} (${sourceId}:${line})`);
+    }
   });
   win.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
     log.error(`[DID-FAIL-LOAD] ${errorCode}: ${errorDescription} (${validatedURL})`);

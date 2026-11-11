@@ -509,7 +509,18 @@ export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
  * Quét tìm hoặc tạo mới thư mục toadAppData_[5_chars] cạnh file exe
  */
 export function ensurePortableAppDataDir(exeDir: string): string {
-  // 1. Quét tìm thư mục toadAppData_* hiện có
+  // 1. Kiểm tra thư mục toadAppData trực tiếp nếu có
+  const directAppData = path.join(exeDir, "toadAppData");
+  try {
+    if (fs.existsSync(directAppData) && fs.statSync(directAppData).isDirectory()) {
+      log.info(`[PortableAppData] Su dung thu muc toadAppData: ${directAppData}`);
+      return directAppData;
+    }
+  } catch (err) {
+    log.warn("[PortableAppData] Loi khi kiem tra thu muc toadAppData:", err);
+  }
+
+  // 2. Quét tìm thư mục toadAppData_* hiện có
   try {
     const entries = fs.readdirSync(exeDir, { withFileTypes: true });
     for (const ent of entries) {
@@ -526,7 +537,7 @@ export function ensurePortableAppDataDir(exeDir: string): string {
     log.warn("[PortableAppData] Loi khi quet thu muc exe:", err);
   }
 
-  // 2. Nếu chưa có, sinh mới
+  // 3. Nếu chưa có, sinh mới
   const suffix = genRandomSuffix(5);
   const newDirName = `toadAppData_${suffix}`;
   const fullPath = path.join(exeDir, newDirName);

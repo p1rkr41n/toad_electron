@@ -212,7 +212,9 @@ let uiLogFlushTimer = null;
 
 function flushUiLogBuffer() {
   if (uiLogFlushTimer) {
-    clearTimeout(uiLogFlushTimer);
+    if (typeof clearTimeout === "function") {
+      clearTimeout(uiLogFlushTimer);
+    }
     uiLogFlushTimer = null;
   }
   if (uiLogBuffer.length === 0) return;
@@ -253,7 +255,11 @@ function queueUiLogEntry(level, moduleOrTag, message, extra) {
   if (level === "error" || uiLogBuffer.length >= 500) {
     flushUiLogBuffer();
   } else if (!uiLogFlushTimer) {
-    uiLogFlushTimer = setTimeout(flushUiLogBuffer, 50);
+    if (typeof setTimeout === "function") {
+      uiLogFlushTimer = setTimeout(flushUiLogBuffer, 50);
+    } else {
+      flushUiLogBuffer();
+    }
   }
 }
 
@@ -280,6 +286,48 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
     flushUiLogBuffer();
   });
 }
+
+// Hook console to route UI logs via toad:log IPC channel
+if (typeof console !== "undefined") {
+  const origLog = console.log;
+  const origInfo = console.info;
+  const origWarn = console.warn;
+  const origError = console.error;
+  const formatArgs = (args) =>
+    args
+      .map((a) => {
+        if (typeof a === "object" && a !== null) {
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        }
+        return String(a);
+      })
+      .join(" ");
+
+  console.log = (...args) => {
+    origLog.apply(console, args);
+    queueUiLogEntry("info", "Renderer", formatArgs(args));
+  };
+  console.info = (...args) => {
+    origInfo.apply(console, args);
+    queueUiLogEntry("info", "Renderer", formatArgs(args));
+  };
+  console.warn = (...args) => {
+    origWarn.apply(console, args);
+    queueUiLogEntry("warn", "Renderer", formatArgs(args));
+  };
+  console.error = (...args) => {
+    origError.apply(console, args);
+    queueUiLogEntry("error", "Renderer", formatArgs(args));
+  };
+}
+
+// Immediate UI bootstrap notification
+queueUiLogEntry("info", "UIBootstrap", "Renderer UI bootstrap initiated with TRACE logging");
+flushUiLogBuffer();
 
 const uiLogger = {
   trace: (module, msg, meta) => queueUiLogEntry("trace", module, msg, meta),

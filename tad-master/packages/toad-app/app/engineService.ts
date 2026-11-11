@@ -180,6 +180,15 @@ class EngineService {
 
       this.isInitialized = true;
       log.info(`[EngineService] Engine initialized successfully (PID: ${process.pid})`);
+      forwardEngineLogs([
+        {
+          processTag: "ENGINE",
+          moduleTag: "EngineService",
+          level: "info",
+          message: `Engine worker service initialized successfully (PID: ${process.pid})`,
+          timestamp: Date.now(),
+        },
+      ]);
     } finally {
       this.isInitializing = false;
     }
@@ -519,7 +528,10 @@ export async function replayLedgerViews(): Promise<{ count: number; elapsedMs: n
 export { EngineService };
 
 // Auto-run if executed as standalone process (Electron utilityProcess or Node CLI)
-if (typeof require !== "undefined" && require.main === module) {
+if (
+  (typeof process !== "undefined" && (process as any).parentPort) ||
+  (typeof require !== "undefined" && (require.main === module || !module.parent))
+) {
   startEngineService().catch((err) => {
     console.error("[EngineService] Fatal initialization error:", err);
     process.exit(1);

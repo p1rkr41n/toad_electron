@@ -210,11 +210,25 @@ export class ToadLogger {
       return String(arg);
     }).join(" ");
 
-    // Clean up duplicate leading module tags if text already starts with [Module]
-    const leadingTagMatch = text.match(/^\[([a-zA-Z0-9_\-\.]+)\]\s*(.*)$/);
-    if (leadingTagMatch && (!meta.moduleTag || meta.moduleTag === "General")) {
-      mod = leadingTagMatch[1];
-      text = leadingTagMatch[2];
+    // Strip redundant leading [PROCESS] and [Module] tags from text if present
+    const doubleTagMatch = text.match(/^\[(MAIN|UI|ENGINE)\]\s*\[([^\]]+)\]\s*(.*)$/i);
+    if (doubleTagMatch) {
+      if (!meta.moduleTag || meta.moduleTag === "General") {
+        mod = doubleTagMatch[2];
+      }
+      text = doubleTagMatch[3];
+    } else {
+      const singleProcessMatch = text.match(/^\[(MAIN|UI|ENGINE)\]\s*(.*)$/i);
+      if (singleProcessMatch) {
+        text = singleProcessMatch[2];
+      }
+      const leadingTagMatch = text.match(/^\[([a-zA-Z0-9_\-\.]+)\]\s*(.*)$/);
+      if (leadingTagMatch && leadingTagMatch[1] === mod) {
+        text = leadingTagMatch[2];
+      } else if (leadingTagMatch && (!meta.moduleTag || meta.moduleTag === "General")) {
+        mod = leadingTagMatch[1];
+        text = leadingTagMatch[2];
+      }
     }
 
     return `[${ts}] [${lvl}] [${proc}] [${mod}] (+${elapsed}ms, RSS: ${rss}MB) ${text}`;

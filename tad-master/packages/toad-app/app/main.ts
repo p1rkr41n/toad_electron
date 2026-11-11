@@ -19,13 +19,18 @@ if (typeof BigInt !== "undefined" && !(BigInt.prototype as any).toJSON) {
       if (fs.existsSync(directIni)) {
         targetIni = directIni;
       } else {
-        const entries = fs.readdirSync(exeDir, { withFileTypes: true });
-        for (const ent of entries) {
-          if (ent.isDirectory() && /^toadAppData_[a-z0-9]{5}$/i.test(ent.name)) {
-            const subIni = path.join(exeDir, ent.name, "config.ini");
-            if (fs.existsSync(subIni)) {
-              targetIni = subIni;
-              break;
+        const directToadIni = path.join(exeDir, "toadAppData", "config.ini");
+        if (fs.existsSync(directToadIni)) {
+          targetIni = directToadIni;
+        } else {
+          const entries = fs.readdirSync(exeDir, { withFileTypes: true });
+          for (const ent of entries) {
+            if (ent.isDirectory() && /^toadAppData_[a-z0-9]{5}$/i.test(ent.name)) {
+              const subIni = path.join(exeDir, ent.name, "config.ini");
+              if (fs.existsSync(subIni)) {
+                targetIni = subIni;
+                break;
+              }
             }
           }
         }
@@ -529,6 +534,11 @@ const optionDefinitions = [
     description: "Show generated SQL queries on console when in foreground",
   },
   {
+    name: "trace",
+    type: Boolean,
+    description: "Enable TRACE logging across processes",
+  },
+  {
     name: "version",
     alias: "v",
     type: Boolean,
@@ -606,7 +616,7 @@ const errorDialog = async (
 // construct targetPath based on options:
 const getTargetPath = (options: any, filePath: string): string => {
   let targetPath = undefined;
-  let srcDir = options["executed-from"];
+  let srcDir = options["executed-from"] || process.env.PORTABLE_EXECUTABLE_DIR || process.cwd();
 
   if (
     srcDir &&
@@ -619,8 +629,8 @@ const getTargetPath = (options: any, filePath: string): string => {
     if (srcDir === ".") {
       srcDir = process.cwd();
     }
-    // relative path -- prepend executed-from
-    targetPath = path.join(srcDir, filePath);
+    // relative path -- prepend executed-from or portable dir
+    targetPath = path.resolve(srcDir, filePath);
     log.debug("relative path: ", srcDir, filePath, "--->", targetPath);
   } else {
     // absolute pathname or no srcDir:
@@ -697,10 +707,7 @@ const initApp =
       }
 
       let options: CommandLineOptions;
-      const argOptions: ParseOptions = { argv };
-      if (!firstInstance) {
-        argOptions.partial = true;
-      }
+      const argOptions: ParseOptions = { argv, partial: true };
       try {
         options = commandLineArgs(optionDefinitions, argOptions);
       } catch (e) {
