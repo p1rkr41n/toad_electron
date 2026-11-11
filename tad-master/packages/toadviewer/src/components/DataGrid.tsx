@@ -733,11 +733,11 @@ const createGrid = (
     if (N <= 1) {
       targetHeight = 25;
       overflowY = "hidden";
-    } else if (N <= 5) {
+    } else if (N <= 20) {
       targetHeight = N * 18 + 8;
       overflowY = "hidden";
     } else {
-      targetHeight = 98; // capped at 5 lines
+      targetHeight = 20 * 18 + 8; // capped at 20 lines (~368px)
       overflowY = "auto";
     }
 

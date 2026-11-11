@@ -237,7 +237,8 @@ export function getHeightAndScrollState(
   lineCount: number,
   lineHeight: number = 17,
   vertPadding: number = 8,
-  defaultHeight: number = 24
+  defaultHeight: number = 24,
+  maxLines: number = 5
 ): CellHeightState {
   const safeCount = Number.isFinite(lineCount) && lineCount > 0 ? Math.floor(lineCount) : 1;
 
@@ -252,7 +253,7 @@ export function getHeightAndScrollState(
     };
   }
 
-  if (safeCount <= 5) {
+  if (safeCount <= maxLines) {
     return {
       shouldExpand: true,
       lineCount: safeCount,
@@ -266,7 +267,7 @@ export function getHeightAndScrollState(
   return {
     shouldExpand: true,
     lineCount: safeCount,
-    height: 5 * lineHeight + vertPadding,
+    height: maxLines * lineHeight + vertPadding,
     overflowY: "auto",
     hasScrollbar: true,
     className: "cell-expanded-scroll",
