@@ -723,23 +723,13 @@ const createGrid = (
     const textContent = (cellNode.textContent || "").trim();
     const rawWidth =
       colDef.width || (cellNode.offsetWidth || cellNode.clientWidth || 100);
-    const effectiveWidth = Math.max(20, rawWidth - 16);
+    const effectiveWidth = Math.max(30, rawWidth - 16);
 
     const N = calculateLineCount(textContent, effectiveWidth, { padding: 0 });
 
-    let targetHeight = 25;
-    let overflowY: "hidden" | "auto" = "hidden";
-
-    if (N <= 1) {
-      targetHeight = 25;
-      overflowY = "hidden";
-    } else if (N <= 20) {
-      targetHeight = N * 18 + 8;
-      overflowY = "hidden";
-    } else {
-      targetHeight = 20 * 18 + 8; // capped at 20 lines (~368px)
-      overflowY = "auto";
-    }
+    const heightState = getHeightAndScrollState(N, 18, 8, 25, 20);
+    const targetHeight = heightState.height;
+    const overflowY = heightState.overflowY;
 
     const delta = targetHeight - 25;
 

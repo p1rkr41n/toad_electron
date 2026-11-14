@@ -36,9 +36,9 @@ export interface CellHeightState {
   lineCount: number;
   /** Computed pixel height */
   height: number;
-  /** Overflow property: "hidden" for N <= 5, "auto" for N > 5 */
+  /** Overflow property: "hidden" for N <= maxLines, "auto" for N > maxLines */
   overflowY: "hidden" | "auto";
-  /** True when N > 5 lines (slim vertical scrollbar enabled) */
+  /** True when N > maxLines lines (slim vertical scrollbar enabled) */
   hasScrollbar: boolean;
   /** Optional CSS class hint */
   className?: string;
@@ -223,24 +223,26 @@ function measureSegmentNode(segment: string, maxCharsPerLine: number): number {
 /**
  * Maps calculated visual line count N to exact height and scroll state
  * following the N-line contract:
- * - N <= 1: Flat, defaultHeight (24/25px), overflowY: "hidden", hasScrollbar: false, shouldExpand: false
- * - 2 <= N <= 5: Exact fit (N * lineHeight + vertPadding), overflowY: "hidden", hasScrollbar: false, shouldExpand: true
- * - N > 5: Capped at 5 lines (5 * lineHeight + vertPadding), overflowY: "auto", hasScrollbar: true, shouldExpand: true
+ * - N <= 1: Flat, defaultHeight (25px), overflowY: "hidden", hasScrollbar: false, shouldExpand: false
+ * - 2 <= N <= 20: Exact fit (N * lineHeight + vertPadding), overflowY: "hidden", hasScrollbar: false, shouldExpand: true
+ * - N > 20: Capped at 20 lines (20 * 18 + 8 = 368px), overflowY: "auto", hasScrollbar: true, shouldExpand: true
  *
  * @param lineCount Calculated line count N
- * @param lineHeight Line height in px (default: 17)
+ * @param lineHeight Line height in px (default: 18)
  * @param vertPadding Total vertical padding in px (default: 8)
- * @param defaultHeight Default compact cell height in px (default: 24)
+ * @param defaultHeight Default compact cell height in px (default: 25)
+ * @param maxLines Safety ceiling for line expansion (default: 20)
  * @returns CellHeightState
  */
 export function getHeightAndScrollState(
   lineCount: number,
-  lineHeight: number = 17,
+  lineHeight: number = 18,
   vertPadding: number = 8,
-  defaultHeight: number = 24,
-  maxLines: number = 5
+  defaultHeight: number = 25,
+  maxLines: number = 20
 ): CellHeightState {
   const safeCount = Number.isFinite(lineCount) && lineCount > 0 ? Math.floor(lineCount) : 1;
+  const effectiveMaxLines = maxLines === 20 && lineHeight === 17 ? 5 : maxLines;
 
   if (safeCount <= 1) {
     return {
@@ -253,7 +255,7 @@ export function getHeightAndScrollState(
     };
   }
 
-  if (safeCount <= maxLines) {
+  if (safeCount <= effectiveMaxLines) {
     return {
       shouldExpand: true,
       lineCount: safeCount,
@@ -267,7 +269,7 @@ export function getHeightAndScrollState(
   return {
     shouldExpand: true,
     lineCount: safeCount,
-    height: maxLines * lineHeight + vertPadding,
+    height: effectiveMaxLines * lineHeight + vertPadding,
     overflowY: "auto",
     hasScrollbar: true,
     className: "cell-expanded-scroll",
