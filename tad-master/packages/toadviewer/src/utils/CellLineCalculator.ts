@@ -65,6 +65,67 @@ function getCanvasContext(): CanvasRenderingContext2D | null {
 }
 
 /**
+ * Extracts live CSS typography metrics from a rendered SlickGrid cell element
+ * so Canvas 2D text measurement matches actual user zoom and CSS font variables.
+ */
+export function extractComputedFontOptions(
+  element?: HTMLElement | null
+): LineCalculationOptions {
+  if (
+    element &&
+    typeof window !== "undefined" &&
+    typeof window.getComputedStyle === "function"
+  ) {
+    try {
+      const style = window.getComputedStyle(element);
+      if (style) {
+        const fontSize = parseFloat(style.fontSize) || 12;
+        const fontFamily =
+          style.fontFamily ||
+          "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        const fontWeight = style.fontWeight || 400;
+        const hasFontStr = typeof style.font === "string" && style.font.trim().length > 0;
+        return {
+          padding: 0,
+          font: hasFontStr ? style.font : `${fontWeight} ${fontSize}px ${fontFamily}`,
+          fontSize,
+          fontFamily,
+          fontWeight,
+        };
+      }
+    } catch {
+      // Fallback cleanly in mocked or restricted DOM environments
+    }
+  }
+  return { padding: 0 };
+}
+
+/**
+ * Reconciles Canvas-measured line count with actual Chromium scrollHeight so
+ * continuous unbroken tokens (Hex, Hash, Base64) never clip their final line.
+ */
+export function reconcileDomLineCount(
+  calculatedLines: number,
+  scrollHeight: number,
+  lineHeight: number = 18,
+  vertPadding: number = 6
+): number {
+  const safeCalc =
+    Number.isFinite(calculatedLines) && calculatedLines > 0
+      ? Math.floor(calculatedLines)
+      : 1;
+  if (!Number.isFinite(scrollHeight) || scrollHeight <= 28) {
+    return safeCalc;
+  }
+  const safeLineHeight = lineHeight > 0 ? lineHeight : 18;
+  const domLines = Math.max(
+    1,
+    Math.ceil((scrollHeight - vertPadding - 2) / safeLineHeight)
+  );
+  return Math.max(safeCalc, domLines);
+}
+
+/**
  * Calculates visual line count N for a given cell content and column width.
  *
  * @param text The cell value (string, number, boolean, null, undefined)
@@ -279,6 +340,8 @@ export function getHeightAndScrollState(
 export class CellLineCalculator {
   static calculateLineCount = calculateLineCount;
   static getHeightAndScrollState = getHeightAndScrollState;
+  static extractComputedFontOptions = extractComputedFontOptions;
+  static reconcileDomLineCount = reconcileDomLineCount;
 }
 
 export default CellLineCalculator;

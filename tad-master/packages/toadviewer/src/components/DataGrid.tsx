@@ -31,6 +31,8 @@ import { SimpleClipboard } from "./SimpleClipboard";
 import {
   calculateLineCount,
   getHeightAndScrollState,
+  extractComputedFontOptions,
+  reconcileDomLineCount,
 } from "../utils/CellLineCalculator";
 import { onDismissGridCellExpand } from "../utils/GridOverlayBus";
 import "../../less/DataGrid.less";
@@ -594,10 +596,87 @@ const createGrid = (
     colId: string;
     targetHeight: number;
     delta: number;
+    scrollTopSnap: number;
+    scrollLeftSnap: number;
+  }
+
+  interface ExpandFullRowOptions {
+    toggle?: boolean;
+    ensureVisible?: boolean;
+  }
+
+  interface HandledClickRecord {
+    row: number;
+    cell: number;
+    action: "expanded" | "collapsed";
+    ts: number;
   }
 
   let activeRowState: ActiveExpandedRowState | null = null;
-  let justActivatedRowCell: { row: number; cell: number } | null = null;
+  let suppressScrollCollapseUntil = 0;
+  let isProgrammaticScroll = false;
+  let handledClickCell: HandledClickRecord | null = null;
+
+  const getGridContainerElement = (): HTMLElement | null => {
+    return (
+      (grid.getContainerNode && grid.getContainerNode()) ||
+      (typeof document !== "undefined" ? document.getElementById(containerId) : null)
+    );
+  };
+
+  const getViewportElement = (): HTMLElement | null => {
+    const c = getGridContainerElement();
+    return c && typeof c.querySelector === "function"
+      ? (c.querySelector(".slick-viewport") as HTMLElement | null)
+      : null;
+  };
+
+  const armScrollCollapseGuard = (durationMs: number = 240) => {
+    const until = Date.now() + durationMs;
+    if (until > suppressScrollCollapseUntil) {
+      suppressScrollCollapseUntil = until;
+    }
+    const vp = getViewportElement();
+    if (vp && activeRowState) {
+      activeRowState.scrollTopSnap = vp.scrollTop || 0;
+      activeRowState.scrollLeftSnap = vp.scrollLeft || 0;
+    }
+  };
+
+  const revealExpandedRowInViewport = (rowNode: HTMLElement, targetHeight: number) => {
+    const viewport = getViewportElement();
+    if (!viewport || !rowNode) return;
+    const vpHeight = viewport.clientHeight;
+    if (!Number.isFinite(vpHeight) || vpHeight <= 0) return;
+
+    const vpTop = viewport.scrollTop || 0;
+    const rowTop = parseFloat(rowNode.style.top) || rowNode.offsetTop || 0;
+    const rowBottom = rowTop + targetHeight;
+    const vpBottom = vpTop + vpHeight;
+
+    if (rowBottom > vpBottom) {
+      const overflowPx = rowBottom - vpBottom;
+      const maxScrollIncrease = Math.max(0, rowTop - vpTop);
+      const scrollDelta = Math.min(overflowPx + 4, maxScrollIncrease);
+      if (scrollDelta > 0) {
+        isProgrammaticScroll = true;
+        armScrollCollapseGuard(280);
+        viewport.scrollTop = vpTop + scrollDelta;
+        if (activeRowState) {
+          activeRowState.scrollTopSnap = viewport.scrollTop || 0;
+          activeRowState.scrollLeftSnap = viewport.scrollLeft || 0;
+        }
+        const releaseProgrammaticLock = () => {
+          isProgrammaticScroll = false;
+        };
+        if (typeof requestAnimationFrame === "function") {
+          requestAnimationFrame(() => setTimeout(releaseProgrammaticLock, 0));
+        } else {
+          setTimeout(releaseProgrammaticLock, 0);
+        }
+      }
+    }
+  };
 
   const collapseFullRow = () => {
     if (activeRowState) {
@@ -607,9 +686,7 @@ const createGrid = (
       activeRowState = null;
     }
 
-    const container =
-      (grid.getContainerNode && grid.getContainerNode()) ||
-      document.getElementById(containerId);
+    const container = getGridContainerElement();
 
     if (container) {
       // 1. Restore all shifted rows below the expanded row
@@ -667,9 +744,18 @@ const createGrid = (
     }
   };
 
-  const expandFullRow = (row: number, cell: number) => {
-    // 1. Toggle collapse if clicking the same cell that is already active
+  const expandFullRow = (
+    row: number,
+    cell: number,
+    options?: ExpandFullRowOptions
+  ) => {
+    const shouldToggle = options?.toggle !== undefined ? options.toggle : true;
+    const ensureVisible =
+      options?.ensureVisible !== undefined ? options.ensureVisible : true;
+
+    // 1. Only toggle collapse when explicitly requested (default true for external callers)
     if (
+      shouldToggle &&
       activeRowState &&
       activeRowState.row === row &&
       activeRowState.cell === cell
@@ -678,7 +764,7 @@ const createGrid = (
       return;
     }
 
-    // Collapse any previously expanded row before expanding a new one
+    // Clean any previous row expansion/shifts before applying/re-applying
     collapseFullRow();
 
     if (
@@ -719,34 +805,55 @@ const createGrid = (
     } catch (err) {}
     cellNode.classList.add("slick-cell-highlighted");
 
-    // Requirement R2.2: Dynamic Full-Row Height Expansion Calculation
-    const textContent = (cellNode.textContent || "").trim();
+    // Requirement R2.2: Two-stage line measurement (Canvas + Chromium scrollHeight reconciliation)
+    const rawDomText = (cellNode.textContent || "").trim();
+    const rowItem = typeof grid.getDataItem === "function" ? grid.getDataItem(row) : null;
+    const rawItemVal = rowItem && colDef.field ? rowItem[colDef.field] : null;
+    const fallbackText = rawItemVal != null ? String(rawItemVal).trim() : "";
+    const textContent = rawDomText.length > 0 ? rawDomText : fallbackText;
+
     const rawWidth =
       colDef.width || (cellNode.offsetWidth || cellNode.clientWidth || 100);
     const effectiveWidth = Math.max(30, rawWidth - 16);
+    const fontOpts = extractComputedFontOptions(cellNode);
 
-    const N = calculateLineCount(textContent, effectiveWidth, { padding: 0 });
+    let N = calculateLineCount(textContent, effectiveWidth, fontOpts);
+
+    // Temporarily enable wrap styling to read real DOM scrollHeight (zero effect in Node tests where scrollHeight is 0)
+    cellNode.classList.add("slick-cell-expanded-content");
+    const measuredScrollHeight =
+      typeof cellNode.scrollHeight === "number" ? cellNode.scrollHeight : 0;
+    N = reconcileDomLineCount(N, measuredScrollHeight, 18, 6);
 
     const heightState = getHeightAndScrollState(N, 18, 8, 25, 20);
     const targetHeight = heightState.height;
     const overflowY = heightState.overflowY;
 
     const delta = targetHeight - 25;
+    const vp = getViewportElement();
 
-    // Save active state
+    // Save active state alongside viewport scroll snapshot
     activeRowState = {
       row,
       cell,
       colId: colDef.id,
       targetHeight,
       delta,
+      scrollTopSnap: vp ? vp.scrollTop || 0 : 0,
+      scrollLeftSnap: vp ? vp.scrollLeft || 0 : 0,
     };
 
     const rowNode = (
       cellNode.closest ? cellNode.closest(".slick-row") : cellNode.parentElement
     ) as HTMLElement;
 
-    if (targetHeight > 25 && rowNode) {
+    if (targetHeight <= 25) {
+      cellNode.classList.remove("slick-cell-expanded-content");
+      armScrollCollapseGuard(220);
+      return;
+    }
+
+    if (rowNode) {
       // 1. Expand the ENTIRE row element
       rowNode.classList.add(
         "slick-row-expanded",
@@ -771,13 +878,11 @@ const createGrid = (
       } catch (err) {}
 
       // 3. Shift all downstream rendered rows in the canvas container by delta
-      const container =
-        (grid.getContainerNode && grid.getContainerNode()) ||
-        document.getElementById(containerId);
+      const containerEl = getGridContainerElement();
 
-      if (container) {
+      if (containerEl) {
         const rowTop = parseFloat(rowNode.style.top) || rowNode.offsetTop;
-        const allRows = container.querySelectorAll(".slick-row");
+        const allRows = containerEl.querySelectorAll(".slick-row");
         allRows.forEach((r: any) => {
           if (r === rowNode) return;
           const rTop = parseFloat(r.style.top);
@@ -791,7 +896,7 @@ const createGrid = (
         });
 
         // 4. Expand canvas height to accommodate shifted rows
-        const canvas = container.querySelector(".grid-canvas") as HTMLElement;
+        const canvas = containerEl.querySelector(".grid-canvas") as HTMLElement;
         if (canvas) {
           const currentCanvasHeight = parseFloat(canvas.style.height);
           if (!isNaN(currentCanvasHeight) && canvas.dataset && canvas.dataset.originalHeight === undefined) {
@@ -799,6 +904,11 @@ const createGrid = (
             canvas.style.height = `${currentCanvasHeight + delta}px`;
           }
         }
+      }
+
+      armScrollCollapseGuard(240);
+      if (ensureVisible) {
+        revealExpandedRowInViewport(rowNode, targetHeight);
       }
     }
   };
@@ -818,6 +928,9 @@ const createGrid = (
       return;
     }
     const { fromCell, toCell, fromRow, toRow } = args[0];
+    if (fromRow !== toRow || fromCell !== toCell) {
+      collapseFullRow();
+    }
 
     const gridCols = grid.getColumns();
     if (!gridCols || gridCols.length === 0) return;
@@ -1029,7 +1142,7 @@ const createGrid = (
     );
   }
 
-  // Follow active row when Event Details sidebar is open, or immediately open when active cell is on _expand column
+  // Follow active row when Event Details sidebar is open, or expand/re-sync clicked or keyboard-focused cell
   grid.onActiveCellChanged.subscribe((e: any, args: any) => {
     if (
       !args ||
@@ -1038,12 +1151,38 @@ const createGrid = (
       args.cell === null ||
       args.cell === undefined
     ) {
+      handledClickCell = null;
       collapseFullRow();
       return;
     }
 
-    justActivatedRowCell = { row: args.row, cell: args.cell };
-    expandFullRow(args.row, args.cell);
+    const recentClick =
+      handledClickCell &&
+      handledClickCell.row === args.row &&
+      handledClickCell.cell === args.cell &&
+      Date.now() - handledClickCell.ts < 300
+        ? handledClickCell
+        : null;
+    handledClickCell = null;
+
+    if (recentClick) {
+      if (recentClick.action === "expanded") {
+        // Re-apply idempotently without toggling: scrollRowIntoView inside SlickGrid handleClick
+        // runs between onClick and onActiveCellChanged and may render fresh rows or shift scrollTop.
+        armScrollCollapseGuard(180);
+        expandFullRow(args.row, args.cell, {
+          toggle: false,
+          ensureVisible: true,
+        });
+      }
+    } else {
+      // Keyboard navigation (Arrow/Tab) or programmatic setActiveCell
+      armScrollCollapseGuard(180);
+      expandFullRow(args.row, args.cell, {
+        toggle: false,
+        ensureVisible: true,
+      });
+    }
 
     const curProps = (grid as any)._tadProps || props;
     const cols = grid.getColumns();
@@ -1066,11 +1205,47 @@ const createGrid = (
     }
   });
 
-  // Requirement R2.4: Clean collapse / reset on scroll or viewport rebuild
-  grid.onScroll.subscribe(() => {
-    collapseFullRow();
+  // Requirement R2.4: Clean collapse / reset on user scroll or viewport rebuild,
+  // while shielding click-triggered SlickGrid scrollRowIntoView / auto-reveal adjustments.
+  grid.onScroll.subscribe((e: any, scrollArgs: any) => {
+    if (!activeRowState) return;
+    const vp = getViewportElement();
+    const curTop =
+      scrollArgs && typeof scrollArgs.scrollTop === "number"
+        ? scrollArgs.scrollTop
+        : vp
+        ? vp.scrollTop || 0
+        : 0;
+    const curLeft =
+      scrollArgs && typeof scrollArgs.scrollLeft === "number"
+        ? scrollArgs.scrollLeft
+        : vp
+        ? vp.scrollLeft || 0
+        : 0;
+
+    if (isProgrammaticScroll || Date.now() < suppressScrollCollapseUntil) {
+      activeRowState.scrollTopSnap = curTop;
+      activeRowState.scrollLeftSnap = curLeft;
+      return;
+    }
+
+    if (
+      Math.abs(curTop - activeRowState.scrollTopSnap) > 4 ||
+      Math.abs(curLeft - activeRowState.scrollLeftSnap) > 4
+    ) {
+      collapseFullRow();
+    }
   });
   grid.onViewportChanged.subscribe(() => {
+    if (isProgrammaticScroll || Date.now() < suppressScrollCollapseUntil) {
+      if (activeRowState) {
+        expandFullRow(activeRowState.row, activeRowState.cell, {
+          toggle: false,
+          ensureVisible: false,
+        });
+      }
+      return;
+    }
     collapseFullRow();
   });
 
@@ -1086,9 +1261,7 @@ const createGrid = (
 
   // Click outside grid dismisses highlight and collapses row
   const handleGridOutsideClick = (e: MouseEvent) => {
-    const container =
-      (grid.getContainerNode && grid.getContainerNode()) ||
-      document.getElementById(containerId);
+    const container = getGridContainerElement();
     if (!container) return;
     const target = e.target as Node;
     if (target && !container.contains(target)) {
@@ -1153,39 +1326,14 @@ const createGrid = (
     const col = columns[args.cell];
     var item = grid.getDataItem(args.row);
 
-    // Requirement R2.3: Toggle collapse if clicking the currently active cell
-    if (
-      activeRowState &&
-      activeRowState.row === args.row &&
-      activeRowState.cell === args.cell
-    ) {
-      const wasJustActivated =
-        justActivatedRowCell &&
-        justActivatedRowCell.row === args.row &&
-        justActivatedRowCell.cell === args.cell;
-
-      justActivatedRowCell = null;
-
-      if (!wasJustActivated) {
-        collapseFullRow();
-        const cellVal = item && col ? item[col.id] : null;
-        curProps.onGridClick?.(args.row, args.cell, item, col?.id, cellVal);
-        return;
-      }
-    } else {
-      const wasJustActivated =
-        justActivatedRowCell &&
-        justActivatedRowCell.row === args.row &&
-        justActivatedRowCell.cell === args.cell;
-
-      justActivatedRowCell = null;
-
-      if (!wasJustActivated) {
-        expandFullRow(args.row, args.cell);
-      }
-    }
-
     if (col && col.id === "_expand") {
+      handledClickCell = {
+        row: args.row,
+        cell: args.cell,
+        action: "collapsed",
+        ts: Date.now(),
+      };
+      collapseFullRow();
       if (item && item._isLeaf !== false) {
         grid.setActiveCell(args.row, 0);
         grid.focus();
@@ -1193,6 +1341,40 @@ const createGrid = (
       }
       return;
     }
+
+    // In slickgrid-es6 handleClick(), self.onClick fires BEFORE scrollRowIntoView()
+    // and setActiveCellInternal() (which fires self.onActiveCellChanged).
+    const isClickingSameActiveCell = Boolean(
+      activeRowState &&
+        activeRowState.row === args.row &&
+        activeRowState.cell === args.cell
+    );
+
+    if (isClickingSameActiveCell) {
+      handledClickCell = {
+        row: args.row,
+        cell: args.cell,
+        action: "collapsed",
+        ts: Date.now(),
+      };
+      collapseFullRow();
+      const cellVal = item && col ? item[col.id] : null;
+      curProps.onGridClick?.(args.row, args.cell, item, col?.id, cellVal);
+      return;
+    }
+
+    // Arm scroll guard BEFORE SlickGrid's subsequent scrollRowIntoView / setActiveCell
+    armScrollCollapseGuard(180);
+    handledClickCell = {
+      row: args.row,
+      cell: args.cell,
+      action: "expanded",
+      ts: Date.now(),
+    };
+    expandFullRow(args.row, args.cell, {
+      toggle: false,
+      ensureVisible: true,
+    });
 
     // If Event Detail sidebar is currently open, clicking on any cell of another row switches details
     if (

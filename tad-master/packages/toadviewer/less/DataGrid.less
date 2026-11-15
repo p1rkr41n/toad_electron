@@ -37,22 +37,34 @@
 }
 
 /* Subtle Light Blue Cell Highlight (Light Theme) */
+.slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-highlighted,
+.slickgrid-container .slick-row .slick-cell.slick-cell-highlighted,
+.slick-row .slick-cell.slick-cell-highlighted,
 .slick-cell.slick-cell-highlighted {
   background-color: #e3f2fd !important;
+  background: #e3f2fd !important;
   outline: 1px solid #0284c7 !important;
   outline-offset: -1px;
+  color: #0f172a !important;
 }
 
 /* Expanded active cell content formatting */
+.slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-expanded-content,
+.slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-active-expanded,
 .slick-cell.slick-cell-expanded-content,
 .slick-cell.slick-cell-active-expanded {
   contain: none !important; /* CRITICAL: overrides contain: strict */
   white-space: normal !important;
   overflow-wrap: anywhere !important;
   word-break: break-word !important;
+  text-overflow: clip !important;
+  overscroll-behavior: contain !important;
   line-height: 18px !important;
   padding: 3px 6px !important;
   box-sizing: border-box !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  overflow-x: hidden !important;
 
   /* Custom Slim Scrollbars for N > 20 lines */
   &::-webkit-scrollbar {
@@ -73,18 +85,28 @@
 
 /* Dark Theme Adaptive Light Blue Highlight (.bp4-dark / .toad-dark) */
 .toad-dark, .bp4-dark {
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-highlighted,
+  .slickgrid-container .slick-row .slick-cell.slick-cell-highlighted,
+  .slick-row .slick-cell.slick-cell-highlighted,
   .slick-cell.slick-cell-highlighted {
     background-color: rgba(56, 189, 248, 0.22) !important;
+    background: rgba(56, 189, 248, 0.22) !important;
     outline: 1px solid rgba(56, 189, 248, 0.6) !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
     color: var(--md-sys-color-on-surface, #e3e3e8) !important;
+    box-shadow: none !important;
   }
 
   .slick-row.slick-row-expanded {
     background: var(--md-sys-color-surface-container-high, #25262c) !important;
   }
 
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-expanded-content,
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-active-expanded,
   .slick-cell.slick-cell-expanded-content,
   .slick-cell.slick-cell-active-expanded {
+    box-shadow: none !important;
+    border-radius: 0 !important;
     &::-webkit-scrollbar-thumb {
       background: rgba(148, 163, 184, 0.3);
     }
