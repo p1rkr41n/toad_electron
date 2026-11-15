@@ -146,12 +146,75 @@ body.col-resizing * {
 body.bp4-overlay-open {
   .slick-cell.active,
   .slick-row.active,
-  .slick-cell.selected {
+  .slick-cell.selected,
+  .slick-row.slick-row-highlighted,
+  .slick-row.slick-row-expanded,
+  .slickgrid-container .slick-row.slick-row-highlighted,
+  .slickgrid-container .slick-row.slick-row-expanded,
+  .slick-cell.slick-cell-highlighted,
+  .slick-cell.slick-row-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-highlighted .slick-cell,
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell,
+  .slickgrid-container .slick-row .slick-cell.slick-cell-highlighted,
+  .slickgrid-container .slick-row .slick-cell.slick-row-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.slick-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.slick-row-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-row-cell-highlighted,
+  .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.selected,
+  .slickgrid-container .slick-row.slick-row-expanded .slick-cell.selected,
+  .slickgrid-container .slick-row.slick-row-highlighted:hover .slick-cell,
+  .slickgrid-container .slick-row.slick-row-expanded:hover .slick-cell,
+  .slickgrid-container .slick-row .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.odd.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.even.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.odd.slick-row-expanded .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.even.slick-row-expanded .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.active.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+  .slickgrid-container .slick-row.active.slick-row-expanded .slick-cell.slick-cell-expand-col {
     background: transparent !important;
     box-shadow: none !important;
     outline: none !important;
     border-color: transparent !important;
   }
+
+  &.toad-dark,
+  &.bp4-dark {
+    .slick-cell.active,
+    .slick-row.active,
+    .slick-cell.selected,
+    .slick-row.slick-row-highlighted,
+    .slick-row.slick-row-expanded,
+    .slickgrid-container .slick-row.slick-row-highlighted,
+    .slickgrid-container .slick-row.slick-row-expanded,
+    .slick-cell.slick-cell-highlighted,
+    .slick-cell.slick-row-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-highlighted .slick-cell,
+    .slickgrid-container .slick-row.slick-row-expanded .slick-cell,
+    .slickgrid-container .slick-row .slick-cell.slick-cell-highlighted,
+    .slickgrid-container .slick-row .slick-cell.slick-row-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.slick-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.slick-row-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-expanded .slick-cell.slick-row-cell-highlighted,
+    .slickgrid-container .slick-row.slick-row-highlighted .slick-cell.selected,
+    .slickgrid-container .slick-row.slick-row-expanded .slick-cell.selected,
+    .slickgrid-container .slick-row.slick-row-highlighted:hover .slick-cell,
+    .slickgrid-container .slick-row.slick-row-expanded:hover .slick-cell,
+    .slickgrid-container .slick-row .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.odd.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.even.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.odd.slick-row-expanded .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.even.slick-row-expanded .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.active.slick-row-highlighted .slick-cell.slick-cell-expand-col,
+    .slickgrid-container .slick-row.active.slick-row-expanded .slick-cell.slick-cell-expand-col {
+      background: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
+      border-color: transparent !important;
+    }
+  }
+
   .slick-cell-active-expanded,
   .slick-row-has-expanded,
   .slick-row-active-expanded {
