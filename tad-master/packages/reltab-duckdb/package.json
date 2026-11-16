@@ -1,6 +1,6 @@
 {
   "name": "reltab-duckdb",
-  "version": "2.6.0.2",
+  "version": "2.6.0.3",
   "description": "DuckDB columnar driver, streaming Parquet ingestion & WAL ledger for Toad",
   "main": "dist/reltab-duckdb.js",
   "types": "dist/reltab-duckdb.d.ts",

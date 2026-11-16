@@ -1,6 +1,6 @@
 {
   "name": "toad-app",
-  "version": "2.6.0.2",
+  "version": "2.6.0.3",
   "homepage": "https://github.com/HelloKittyXamKinLung/Toad",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -263,7 +263,8 @@
       ]
     },
     "portable": {
-      "artifactName": "Toad ${version}.${ext}"
+      "artifactName": "Toad ${version}.${ext}",
+      "splashImage": "buildRes/splash.bmp"
     },
     "nodeGypRebuild": false,
     "nsis": {

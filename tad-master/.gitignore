@@ -1,5 +1,6 @@
 build
-buildRes
+**/buildRes/*
+!packages/toad-app/buildRes/splash.bmp
 dist
 Tad-darwin-x64
 release

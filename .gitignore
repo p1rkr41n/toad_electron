@@ -55,7 +55,8 @@ dist/
 release/
 **/release/
 build/
-buildRes/
+**/buildRes/*
+!tad-master/packages/toad-app/buildRes/splash.bmp
 target/
 **/target/
 tauri/project/src-tauri/target/
