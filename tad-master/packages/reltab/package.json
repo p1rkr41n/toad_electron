@@ -16,7 +16,7 @@
     "sql",
     "database"
   ],
-  "author": "HelloKittyXamKinLung <dev@example.com>",
+  "author": "HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
     "@apache-arrow/es2015-cjs": "^16.1.0",

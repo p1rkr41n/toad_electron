@@ -56,7 +56,7 @@ impl Default for ToadConfig {
         Self {
             general: ToadGeneralConfig {
                 viewer: "toad".to_string(),
-                language: "vi".to_string(),
+                language: "en".to_string(),
                 page_size: 1000,
             },
             duckdb: ToadDuckDbConfig {
@@ -77,56 +77,55 @@ impl Default for ToadConfig {
 }
 
 pub const DEFAULT_CONFIG_INI: &str = r#"# ==============================================================================
-#                      CAU HINH HE THONG TOAD VIEWER (CONFIG.INI)
+#                      TOAD VIEWER SYSTEM CONFIGURATION (CONFIG.INI)
 # ==============================================================================
-# File nay duoc tu dong tham dinh (validate) va doc truoc moi lan mo file.
-# Ban co the thay doi truc tiep va luu lai (Ctrl+S) bat cu luc nao.
+# This file is automatically validated before opening files.
+# Edit values directly and save (Ctrl+S) at any time.
 
 [general]
-# Che do trinh xem: toad (mac dinh)
+# Default viewer mode: toad
 viewer = toad
-# Ngon ngu hien thi: vi / en
-language = vi
-# So luong dong mac dinh moi trang: 1000 (khong gioi han tran tren)
+# UI language: en / vi
+language = en
+# Default rows per page: 1000
 page_size = 1000
 
 [duckdb]
-# Gioi han RAM cap phat cho DuckDB:
-#   - auto : Tu dong can bang theo RAM he thong (khuyen dung)
-#   - Hoac: 512MB, 1GB, 2GB, 4GB, 8GB...
+# Maximum memory allocated to DuckDB:
+#   - auto : Automatically balanced by system RAM (recommended)
+#   - Or   : 512MB, 1GB, 2GB, 4GB, 8GB...
 max_memory = auto
 
-# So luong luong CPU toi da xu ly song song:
-#   - 0 : Su dung toan bo nhan/luong CPU (mac dinh)
-#   - Hoac: 1, 2, 4, 8...
+# Maximum parallel CPU worker threads:
+#   - 0 : Use all logical CPU cores (default)
+#   - Or: 1, 2, 4, 8...
 threads = 0
 
-# Co tu dong them cot tong hop [raw_event] khong?
-#   - false : (KHUYEN DUNG) Giu nguyen Columnar sieu toc
-#   - true  : Gom gia tri cac cot thanh 1 chuoi text
+# Automatically synthesize a combined [raw_event] text column:
+#   - false : (RECOMMENDED) Keep pure columnar scan speed
+#   - true  : Concatenate column values into a single text column
 add_raw_event = false
 
 [parquet]
-# Thuat toan nen file Parquet tam:
-#   - snappy : (KHUYEN DUNG) Nen nhanh nhat, toc do mo file nhanh gap 4x - 5x
-#   - zstd   : Ty le nen cao nhat
-#   - gzip   : Nen tieu chuan
-#   - none   : Khong nen
+# Temporary Parquet compression codec:
+#   - snappy : (RECOMMENDED) Fastest decompression & scan throughput
+#   - zstd   : Highest compression ratio
+#   - gzip   : Standard Gzip compression
+#   - none   : Uncompressed
 compression = snappy
 
-# Kich thuoc moi Row Group (so dong/block du lieu):
-#   - Giup skip cac block khong khop khi loc AND/OR. Mac dinh: 100000
+# Rows per Parquet row group (enables min/max zone-map block skipping):
 row_group_size = 100000
 
 [system]
-# Tu dong xoa file Parquet tam khi dong Toad:
-#   - true  : Tu dong don sach (KHUYEN DUNG)
-#   - false : Giu lai file Parquet de tai su dung
+# Automatically clean temporary Parquet cache on exit:
+#   - true  : Clean temporary cache automatically (RECOMMENDED)
+#   - false : Retain temporary Parquet files across sessions
 temp_cleanup = true
 
-# Tu dong chan file nhi phan doc hai (Binary Guard):
-#   - true  : Quet 8KB dau, tu choi file binary (KHUYEN DUNG)
-#   - false : Bo qua kiem tra
+# Block unauthorized binary files (8KB Binary Guard):
+#   - true  : Inspect first 8KB and reject binary executables (RECOMMENDED)
+#   - false : Skip binary inspection
 binary_guard = true
 "#;
 
@@ -135,7 +134,7 @@ pub const DEFAULT_PRESETS_JSON: &str = r#"{
   "presets": [
     {
       "name": "Hayabusa Critical & High",
-      "description": "Loc cac su kien muc do Critical va High",
+      "description": "Filter Critical and High severity security events",
       "filter": {
         "op": "OR",
         "clauses": [
@@ -146,7 +145,7 @@ pub const DEFAULT_PRESETS_JSON: &str = r#"{
     },
     {
       "name": "Suspicious PowerShell Execution",
-      "description": "Loc tien trinh powershell voi co ma hoa hoac bypass",
+      "description": "Detect PowerShell processes using encoded commands or execution policy bypass",
       "filter": {
         "op": "AND",
         "clauses": [
@@ -391,11 +390,11 @@ pub fn validate_and_ensure_config(config_path: &Path) -> IoResult<ToadConfig> {
         need_rewrite = true;
     }
 
-    // Auto-Heal nếu có lỗi
+    // Auto-Heal invalid configuration values
     if need_rewrite {
         let serialized = format!(
             r#"# ==============================================================================
-#                      CAU HINH HE THONG TOAD VIEWER (CONFIG.INI)
+#                      TOAD VIEWER SYSTEM CONFIGURATION (CONFIG.INI)
 # ==============================================================================
 
 [general]
@@ -433,23 +432,21 @@ binary_guard = {}
     Ok(cfg)
 }
 
-/// Đảm bảo presets file tồn tại
+/// Ensure presets file exists and contains valid JSON
 pub fn validate_and_ensure_presets(presets_path: &Path) -> IoResult<()> {
     if !presets_path.exists() {
         fs::write(presets_path, DEFAULT_PRESETS_JSON)?;
         return Ok(());
     }
-    // Kiểm tra tính hợp lệ của JSON
     if let Ok(content) = fs::read_to_string(presets_path) {
         if serde_json::from_str::<serde_json::Value>(&content).is_err() {
-            // Corrupt -> Phục hồi
             let _ = fs::write(presets_path, DEFAULT_PRESETS_JSON);
         }
     }
     Ok(())
 }
 
-/// Dọn dẹp thư mục temp với Windows EBUSY retry
+/// Clean temp directory with Windows EBUSY retry while preserving workspace ledger & WAL
 pub fn clean_temp_dir(temp_dir: &Path) -> IoResult<usize> {
     if !temp_dir.exists() {
         return Ok(0);
@@ -459,13 +456,15 @@ pub fn clean_temp_dir(temp_dir: &Path) -> IoResult<usize> {
         for entry in entries.flatten() {
             let path = entry.path();
             let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            // Tuyệt đối không xóa state ledger
-            if file_name == "toad_ledger.parquet" || file_name.ends_with("_ledger.parquet") {
+            // Never delete workspace state ledger or append-only WAL
+            if file_name == "toad_ledger.parquet"
+                || file_name.ends_with("_ledger.parquet")
+                || file_name.ends_with(".wal.jsonl")
+            {
                 continue;
             }
 
             let mut deleted = false;
-            // Retry tối đa 3 lần
             for attempt in 0..3 {
                 let res = if path.is_dir() {
                     fs::remove_dir_all(&path)
@@ -482,7 +481,7 @@ pub fn clean_temp_dir(temp_dir: &Path) -> IoResult<usize> {
                 }
             }
             if !deleted {
-                eprintln!("[TempCleaner] Không thể xóa: {}", path.display());
+                eprintln!("[TempCleaner] Failed to remove locked path: {}", path.display());
             }
         }
     }

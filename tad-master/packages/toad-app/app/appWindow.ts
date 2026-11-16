@@ -175,8 +175,8 @@ const create = async (openParams: OpenParams): Promise<BrowserWindow> => {
   win.on("closed", function () {
     const idx = mainWindows.indexOf(win);
 
-    if (idx) {
-      delete mainWindows[idx];
+    if (idx !== -1) {
+      mainWindows.splice(idx, 1);
     }
   });
   mainWindows.push(win);
@@ -276,12 +276,12 @@ export const openDialog = async (
         extensions: ["toad", "tad"],
       },
       {
-        name: "CSV / TSV / Log Files (*.csv, *.tsv, *.log, *.txt)",
-        extensions: ["csv", "tsv", "log", "txt", "csv.gz", "tsv.gz"],
+        name: "CSV / TSV / Log Files (*.csv, *.tsv, *.log, *.txt, *.gz)",
+        extensions: ["csv", "tsv", "log", "txt", "csv.gz", "tsv.gz", "log.gz", "txt.gz"],
       },
       {
-        name: "JSON / JSONL Files (*.json, *.jsonl, *.ndjson)",
-        extensions: ["json", "jsonl", "ndjson"],
+        name: "JSON / JSONL Files (*.json, *.jsonl, *.ndjson, *.gz)",
+        extensions: ["json", "jsonl", "ndjson", "json.gz", "jsonl.gz", "ndjson.gz"],
       },
       {
         name: "Windows Event Logs (*.evtx)",

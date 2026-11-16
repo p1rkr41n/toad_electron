@@ -1,13 +1,28 @@
 [package]
 name = "toad-core"
-version = "1.2.0"
+version = "2.6.0"
 edition = "2021"
 authors = ["HelloKittyXamKinLung"]
-description = "Native Rust Core Engine for Toad Viewer (EVTX, CSV Ingest, Portable AppData)"
+description = "Native Rust Core Engine for Toad Viewer (N-API FFI + CLI, EVTX, Streaming Transcode, Binary Guard, Portable AppData)"
+
+[lib]
+name = "toad_core"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "toad-core"
+path = "src/main.rs"
+
+[features]
+default = []
+node-api = ["dep:napi", "dep:napi-derive"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std"] }
 evtx = { version = "0.8.1", default-features = false, features = ["multithreading"] }
+flate2 = "1.0"
+napi = { version = "2", default-features = false, features = ["napi4", "dyn-symbols"], optional = true }
+napi-derive = { version = "2", optional = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
@@ -15,5 +30,5 @@ serde_json = "1.0"
 opt-level = 3
 lto = true
 codegen-units = 1
-panic = "abort"
+panic = "unwind"
 strip = true

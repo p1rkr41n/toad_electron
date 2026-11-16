@@ -1,6 +1,6 @@
 param (
     [string]$AppName = "Toad",
-    [string]$Version = "2.5.2.2",
+    [string]$Version = "2.6.0",
     [string]$Publisher = "HelloKittyXamKinLung"
 )
 

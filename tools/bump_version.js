@@ -78,7 +78,16 @@ function updatePackageJson(relPath, newVersion) {
 
 function main() {
   const targetVersion = getTargetVersion();
+  const vParts = targetVersion.split(".");
+  const majorMinor = `${vParts[0]}.${vParts[1]}`;
   console.log(`Bumping Toad version to: ${targetVersion}`);
+
+  // 0. Rust core Cargo.toml
+  if (fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toad-core-rust/Cargo.toml"))) {
+    updateFile("tad-master/packages/toad-core-rust/Cargo.toml", (content) => {
+      return content.replace(/^version\s*=\s*"[^"]+"/m, `version = "${targetVersion}"`);
+    });
+  }
 
   // 1. package.json files
   if (fs.existsSync(path.join(ROOT_DIR, "tad-master/package.json"))) {
@@ -166,6 +175,22 @@ function main() {
       res = res.replace(/(readmeSrc\.includes\("Toad \(v2\.5\.1\)"\))/g, `$1 || readmeSrc.includes("Toad (v${targetVersion})")`);
       res = res.replace(/(readmeSrc\.includes\("Version-2\.5\.1"\))/g, `$1 || readmeSrc.includes("Version-${targetVersion}")`);
       res = res.replace(/(wingetYaml\.includes\("PackageVersion: 2\.5\.1"\))/g, `$1 || wingetYaml.includes("PackageVersion: ${targetVersion}")`);
+    }
+    if (!res.includes(`startsWith("${majorMinor}.")`)) {
+      res = res.replace(
+        /(\b(?:pkgApp|pkgBridge)\.version\.startsWith\("2\.5\."\))/g,
+        (m) => `${m} || ${m.replace('"2.5."', `"${majorMinor}."`)}`
+      );
+    }
+    if (!res.includes(`htmlContent.includes("v${majorMinor}.")`)) {
+      res = res.replace(
+        /(htmlContent\.includes\("v2\.5\."\))/g,
+        `$1 || htmlContent.includes("v${majorMinor}.")`
+      );
+      res = res.replace(
+        /(htmlContent\.includes\("Version 2\.5\."\))/g,
+        `$1 || htmlContent.includes("Version ${majorMinor}.")`
+      );
     }
     return res;
   });

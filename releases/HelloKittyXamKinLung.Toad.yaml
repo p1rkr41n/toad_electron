@@ -1,6 +1,6 @@
 ﻿# Windows Portable Release Package Manifest (HelloKittyXamKinLung Standard)
 PackageIdentifier: HelloKittyXamKinLung.Toad
-PackageVersion: 2.5.2.2
+PackageVersion: 2.6.0
 PackageName: Toad
 Publisher: HelloKittyXamKinLung
 License: MIT
@@ -14,7 +14,7 @@ Tags:
 Installers:
   - Architecture: x64
     InstallerType: portable
-    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.5.2.2/Toad-2.5.2.2-x64-portable.exe
-    InstallerSha256: 43EECDC280A1A61BECB605094ACEB6D2953E706F39E164E1EAF7B1099D5C98DA
+    InstallerUrl: https://github.com/p1rkr41n/toad_electron/releases/download/v2.6.0/Toad-2.6.0-x64-portable.exe
+    InstallerSha256: DA535FE89C6A1F17919DD2EE679D50BA32E31AE2E7571CBB19D5E890965301CC
 ManifestType: singleton
 ManifestVersion: 1.6.0

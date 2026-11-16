@@ -143,18 +143,68 @@ class ElectronTransportServer implements TransportServer {
     functionName: string,
     handler: (req: any) => Promise<any>
   ): void {
-    // TODO: catch exceptions and map into a serializable failure
-    ipcMain.handle(functionName, async (event, req) => handler(req));
+    const dispatchOrProxy = async (rawReq: any) => {
+      const sup = EngineSupervisor.getInstance();
+      if (!sup.isLegacyMode()) {
+        try {
+          let parsed: any = rawReq;
+          if (typeof rawReq === "string" && rawReq.trim().startsWith("{")) {
+            try {
+              parsed = JSON.parse(rawReq);
+            } catch {
+              parsed = rawReq;
+            }
+          }
+          let payload = parsed;
+          if (
+            functionName.startsWith("DataSourceConnection.") &&
+            parsed &&
+            typeof parsed === "object" &&
+            "engine" in parsed &&
+            "req" in parsed &&
+            typeof parsed.req === "object" &&
+            parsed.req !== null
+          ) {
+            payload = { engine: parsed.engine, ...parsed.req };
+          }
+          const value = await sup.invokeEngine(functionName, payload);
+          if (
+            value instanceof Uint8Array ||
+            value instanceof ArrayBuffer ||
+            (typeof Buffer !== "undefined" && Buffer.isBuffer(value))
+          ) {
+            return value;
+          }
+          return JSON.stringify(
+            { status: "Ok", value },
+            (_, v) => (typeof v === "bigint" ? v.toString() : v),
+            2
+          );
+        } catch (err: any) {
+          return JSON.stringify({
+            status: "Err",
+            errVal: {
+              name: err?.name || "Error",
+              message: err?.message || String(err),
+              stack: err?.stack,
+            },
+          });
+        }
+      }
+      return handler(rawReq);
+    };
+
+    ipcMain.handle(functionName, async (_event, req) => dispatchOrProxy(req));
 
     // Register short and legacy aliases for seamless Tauri-like & fallback compatibility
     if (functionName.startsWith("DataSourceConnection.")) {
       const shortName = functionName.slice("DataSourceConnection.".length);
       try {
-        ipcMain.handle(shortName, async (event, req) => handler(req));
+        ipcMain.handle(shortName, async (_event, req) => dispatchOrProxy(req));
       } catch {}
       if (shortName === "getTableSchema") {
         try {
-          ipcMain.handle("schema", async (event, req) => handler(req));
+          ipcMain.handle("schema", async (_event, req) => dispatchOrProxy(req));
         } catch {}
       }
     }
@@ -360,7 +410,63 @@ const appInit = (options: any) => {
     return res.filePath;
   });
 
+  ipcMain.handle("clipboard:writeText", async (_event, payload) => {
+    const text = typeof payload === "string" ? payload : payload?.text ?? "";
+    electron.clipboard.writeText(String(text));
+    return { success: true };
+  });
+
+  ipcMain.on("clipboard:writeText", (_event, payload) => {
+    const text = typeof payload === "string" ? payload : payload?.text ?? "";
+    electron.clipboard.writeText(String(text));
+  });
+
+  ipcMain.handle("shell:openExternal", async (_event, payload) => {
+    const rawUrl = typeof payload === "string" ? payload : payload?.url;
+    if (typeof rawUrl !== "string" || !rawUrl.trim()) {
+      throw new Error("[SecurityError] External URL must be a non-empty string.");
+    }
+    const cleanUrl = rawUrl.trim();
+    let parsed: URL;
+    try {
+      parsed = new URL(cleanUrl);
+    } catch {
+      throw new Error(`[SecurityError] Malformed external URL: '${cleanUrl}'`);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(
+        `[SecurityError] Blocked external protocol '${parsed.protocol}'. Only http: and https: are allowed.`
+      );
+    }
+    await electron.shell.openExternal(cleanUrl);
+    return { success: true };
+  });
+
+  ipcMain.handle("view:registerDerived", async (_event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("view:registerDerived", req);
+    }
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return await ledger.registerDerivedView(req || {});
+  });
+
+  ipcMain.handle("view:getDerived", async (_event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("view:getDerived", req);
+    }
+    const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+    await ledger.initLedger();
+    return ledger.getDerivedViews(req?.projectId);
+  });
+
   ipcMain.handle("project:getWorkspace", async () => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:getWorkspace", {});
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return {
@@ -370,6 +476,10 @@ const appInit = (options: any) => {
   });
 
   ipcMain.handle("project:getFiles", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:getFiles", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     const files = ledger.getProjectFiles(req?.projectId);
@@ -402,48 +512,80 @@ const appInit = (options: any) => {
   });
 
   ipcMain.handle("project:create", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:create", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.createProject(req?.projectName || "Untitled Project", req?.projectId);
   });
 
   ipcMain.handle("project:rename", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:rename", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.renameProject(req?.projectId, req?.newName);
   });
 
   ipcMain.handle("project:delete", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:delete", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.deleteProjectCascade(req?.projectId);
   });
 
   ipcMain.handle("project:deleteAll", async () => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:deleteAll", {});
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.deleteAllProjectsCascade();
   });
 
   ipcMain.handle("project:getCacheSize", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:getCacheSize", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return ledger.getProjectCacheSize(req?.projectId);
   });
 
   ipcMain.handle("project:purgeCache", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:purgeCache", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.purgeProjectCache(req?.projectId);
   });
 
   ipcMain.handle("project:removeFile", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:removeFile", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.removeFileFromProject(req?.projectId, req?.filePath);
   });
 
   ipcMain.handle("project:addFiles", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:addFiles", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     const results = [];
@@ -457,6 +599,10 @@ const appInit = (options: any) => {
   });
 
   ipcMain.handle("project:addFolder", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:addFolder", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     const entries = await ledger.addFolderToProject(req?.projectId, req?.folderPath);
@@ -464,6 +610,10 @@ const appInit = (options: any) => {
   });
 
   ipcMain.handle("project:moveOrphanFiles", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:moveOrphanFiles", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     await ledger.moveOrphanFilesToProject(req?.targetProjectId);
@@ -471,24 +621,35 @@ const appInit = (options: any) => {
   });
 
   ipcMain.handle("project:setActive", async (event, req) => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:setActive", req);
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     ledger.setActiveProjectId(req?.projectId);
     return { success: true };
   });
 
   ipcMain.handle("project:reconcile", async () => {
+    const sup = EngineSupervisor.getInstance();
+    if (!sup.isLegacyMode()) {
+      return await sup.invokeEngine("project:reconcile", {});
+    }
     const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
     await ledger.initLedger();
     return await ledger.performStartupReconciliation();
   });
 
   if (app.setAboutPanelOptions) {
+    const currentVersion =
+      (typeof app.getVersion === "function" ? app.getVersion() : null) ||
+      pkgInfo.version;
     app.setAboutPanelOptions({
       applicationName: "TOAD",
-      applicationVersion: "2.4.8",
-      version: "v2.4.8",
-      copyright: "TOAD - Tabular OLAP Analytics Desktop (v2.4.8)",
-      credits: "TOAD Team & Open Source Contributors",
+      applicationVersion: currentVersion,
+      version: `v${currentVersion}`,
+      copyright: `TOAD - Tabular OLAP Analytics Desktop (v${currentVersion})`,
+      credits: "HelloKittyXamKinLung & Open Source Contributors",
     });
   }
 
@@ -539,6 +700,11 @@ const optionDefinitions = [
     description: "Enable TRACE logging across processes",
   },
   {
+    name: "smoke-check",
+    type: Boolean,
+    description: "Verify UtilityProcess Engine, DuckDB & Rust N-API health and exit",
+  },
+  {
     name: "version",
     alias: "v",
     type: Boolean,
@@ -580,6 +746,11 @@ const showUsage = () => {
 };
 
 const reportFatalError = (msg: string) => {
+  if (process.argv.includes("--smoke-check")) {
+    console.error(JSON.stringify({ smokeCheck: "FAIL", error: msg }));
+    app.exit(1);
+    return;
+  }
   dialog.showErrorBox("Error starting TOAD", msg);
   app.quit();
 };
@@ -787,30 +958,72 @@ const initApp =
           // initialization and is ready to create browser windows.
           // Some APIs can only be used after this event occurs.
           app.on("ready", async () => {
-            // const startMsg = `pid ${process.pid}: Tad started, version: ${app.getVersion()}`
-            // log.log(startMsg)
-            // dialog.showMessageBox({ message: startMsg })
             appInit(options);
+
+            // 1. Start EngineSupervisor FIRST so UtilityProcess owns DuckDB + Ledger SSOT
+            const supervisor = EngineSupervisor.getInstance();
             try {
-              await reltabDuckDB.initToadLedger();
-              reltabDuckDB.ToadParquetLedger.getInstance().subscribe(() => {
-                try {
-                  const wins = BrowserWindow.getAllWindows();
-                  for (const w of wins) {
-                    if (w && !w.isDestroyed() && w.webContents) {
-                      w.webContents.send("project:workspaceChanged");
+              await supervisor.start();
+            } catch (supErr) {
+              log.error("[EngineSupervisor] Error starting EngineSupervisor:", supErr);
+            }
+
+            // 2. Only initialize in-process Main Ledger when running in explicit legacy mode
+            if (supervisor.isLegacyMode()) {
+              try {
+                await reltabDuckDB.initToadLedger();
+                reltabDuckDB.ToadParquetLedger.getInstance().subscribe(() => {
+                  try {
+                    const wins = BrowserWindow.getAllWindows();
+                    for (const w of wins) {
+                      if (w && !w.isDestroyed() && w.webContents) {
+                        w.webContents.send("project:workspaceChanged");
+                      }
                     }
-                  }
-                } catch {}
-              });
-              // Three-Way Startup Reconciliation Engine (SSOT = Parquet Ledger)
-              reltabDuckDB.ToadParquetLedger.getInstance()
-                .performStartupReconciliation()
-                .catch((err: any) => {
-                  log.warn("[StartupReconciliation] Error during startup reconciliation:", err);
+                  } catch {}
                 });
-            } catch (err) {
-              log.warn("Error initializing ToadLedger in main process:", err);
+                reltabDuckDB.ToadParquetLedger.getInstance()
+                  .performStartupReconciliation()
+                  .catch((err: any) => {
+                    log.warn("[StartupReconciliation] Error during startup reconciliation:", err);
+                  });
+              } catch (err) {
+                log.warn("Error initializing ToadLedger in main process:", err);
+              }
+            }
+
+            // 3. Headless packaged self-test (`Toad.exe --smoke-check`)
+            if (options["smoke-check"] || process.argv.includes("--smoke-check")) {
+              try {
+                const status = supervisor.getStatus();
+                const ws = await supervisor.invokeEngine("project:getWorkspace", {});
+                const sqlRows = await supervisor.invokeEngine("runSqlQuery", {
+                  sqlQuery: "SELECT 42 AS answer",
+                });
+                const addon = reltabDuckDB.loadToadCoreAddon();
+                const report = {
+                  smokeCheck: "PASS",
+                  version: app.getVersion(),
+                  engineStatus: status,
+                  projectsCount: Array.isArray(ws?.projects) ? ws.projects.length : 0,
+                  duckdbProbe: Array.isArray(sqlRows) ? sqlRows[0]?.answer : null,
+                  napiAddonLoaded: !!addon,
+                };
+                console.log(JSON.stringify(report));
+                await supervisor.stop();
+                app.exit(0);
+                return;
+              } catch (smokeErr: any) {
+                console.error(
+                  JSON.stringify({
+                    smokeCheck: "FAIL",
+                    error: smokeErr?.message || String(smokeErr),
+                  })
+                );
+                await supervisor.stop();
+                app.exit(1);
+                return;
+              }
             }
 
             if (!noSrcFile) {
@@ -825,7 +1038,7 @@ const initApp =
             if (openFilePath) {
               const openMsg = `pid ${process.pid}: Got open-file for ${openFilePath}`;
               log.warn(openMsg);
-              mainWindow = await appWindow.createFromFile(openFilePath); // dialog.showMessageBox({ message: openMsg })
+              mainWindow = await appWindow.createFromFile(openFilePath);
             } else {
               if (noSrcFile && !awaitingOpenEvent) {
                 const env = (global as any).toadPortableEnv as PortableEnvironment | undefined;
@@ -836,7 +1049,7 @@ const initApp =
                   fs.existsSync(cfg.general.last_directory)
                 ) {
                   log.info(
-                    `[SessionRestore] Tu dong phuc hoi thu muc: ${cfg.general.last_directory}`
+                    `[SessionRestore] Restoring last directory: ${cfg.general.last_directory}`
                   );
                   mainWindow = await appWindow.createFromFile(cfg.general.last_directory);
                 } else {
@@ -848,10 +1061,8 @@ const initApp =
               }
             }
 
-            try {
-              await EngineSupervisor.getInstance().start(mainWindow || undefined);
-            } catch (supErr) {
-              log.error("[EngineSupervisor] Error starting EngineSupervisor:", supErr);
+            if (mainWindow) {
+              supervisor.attachWindow(mainWindow);
             }
 
             isReady = true;
@@ -912,8 +1123,7 @@ const main = () => {
     // Lưu reference toàn cục để các module khác truy cập
     (global as any).toadPortableEnv = portableEnv;
   } catch (err) {
-    log.error("[TOAD] LOI NGHIEM TRONG: Khong the khoi tao Portable AppData:", err);
-    // Fallback: tiếp tục chạy bình thường nếu portable init thất bại
+    log.error("[TOAD] CRITICAL ERROR: Failed to initialize Portable AppData:", err);
   }
 
   const firstInstance = app.requestSingleInstanceLock();
@@ -950,12 +1160,11 @@ const main = () => {
         isQuitting = true;
         event.preventDefault(); // Tạm hoãn thoát để giải phóng file lock
 
-        log.warn("[TOAD] Dang don dep temp truoc khi thoat...");
+        log.warn("[TOAD] Cleaning temporary cache directory before exit...");
 
-        // Chờ 150ms cho Windows giải phóng file handles sau khi DuckDB đóng
         setTimeout(() => {
           cleanTempDir(portableEnv.tempDir);
-          log.warn("[TOAD] Da don dep temp thanh cong. Thoat ung dung.");
+          log.warn("[TOAD] Temporary cache cleaned successfully. Exiting application.");
           app.exit(0);
         }, 150);
       }

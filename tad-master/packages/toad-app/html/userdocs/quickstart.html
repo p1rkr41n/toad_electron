@@ -134,7 +134,7 @@
         <img src="../icon.png" width="44" height="44"
           style="margin-right: 14px; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
         Toad Quick Start Guide
-        <span class="badge-version">v2.3.0</span>
+        <span class="badge-version">v2.6.0</span>
       </h1>
       <p class="lead">The Lightning-Fast Tabular Data Viewer & Pivot Table Analyzer powered by DuckDB & Rust SIMD</p>
     </div>
@@ -389,8 +389,17 @@ $ toad -f --show-queries server_logs.parquet</pre>
     <div class="feature-card">
       <h3>9. Release Notes & Changelog</h3>
 
+      <div class="changelog-box" style="border-left-color: #2563eb; background: #eff6ff;">
+        <h4>Version 2.6.0 (Unified Single-Engine Architecture, N-API Rust Addon, Ledger WAL &amp; Security Hardening)</h4>
+        <ul>
+          <li><strong>Unified Single-Engine UtilityProcess Architecture</strong>: Consolidated workspace ledger and DuckDB query execution into an isolated UtilityProcess connected directly via zero-copy MessagePort.</li>
+          <li><strong>Dual-Target Rust Core (<code>toad_core.node</code> + <code>toad-core.exe</code>)</strong>: Zero-spawn N-API FFI for 8KB Binary Guard, Win32 I/O counters, Gzip (<code>.gz</code>) inspection, and streaming UTF-16LE/BE transcoding with Control Flow Guard (<code>GUARD_CF</code>).</li>
+          <li><strong>Hot-Tier Ledger WAL &amp; Hardened Electron Fuses</strong>: O(1) append-only JSONL WAL with automatic Parquet compaction, Derived View (<code>_rx*</code>) persistence, strict <code>http:/https:</code> external URL allowlist, and Electron Fuses (<code>RunAsNode=0</code>, <code>OnlyLoadAppFromAsar=1</code>, <code>CookieEncryption=1</code>).</li>
+        </ul>
+      </div>
+
       <div class="changelog-box" style="border-left-color: #059669; background: #ecfdf5;">
-        <h4>Version 2.3.0 (First Modular Release — Ring Architecture &amp; Host Bridge Decoupling)</h4>
+        <h4>Version 2.3.0 (First Modular Release — Ring Architecture &amp; Host Bridge Decoupling) (v2.3.0)</h4>
         <ul>
           <li><strong>Ring Architecture &amp; Modularization</strong>:
             <ul>
@@ -1741,8 +1750,8 @@ $ toad -f --show-queries server_logs.parquet</pre>
 
   <footer class="text-center" style="padding: 24px 0; color: #64748b; font-size: 13px;">
     <div class="container">
-      Toad v2.0.0 &bull; MIT License &bull; <a href="mailto:feedback@example.com"
-        onclick="tadOpenExternal(event,'mailto:feedback@example.com')">Send Feedback</a>
+      Toad v2.6.0 &bull; MIT License &bull; <a href="https://github.com/HelloKittyXamKinLung/Toad/issues"
+        onclick="tadOpenExternal(event,'https://github.com/HelloKittyXamKinLung/Toad/issues')">Report Issue / Feedback</a>
     </div>
   </footer>
 
@@ -1786,30 +1795,38 @@ $ toad -f --show-queries server_logs.parquet</pre>
         new Clipboard('.btn');
       }
       try {
-        const electron = require('electron');
-        const setupInfo = await electron.ipcRenderer.invoke('getSetupInfo');
-        const { platform, appDir, appScriptPath, exeDir } = setupInfo;
-        let installCmdHtml;
-        if (platform === 'win32') {
-          installCmdHtml = winSetup(exeDir);
-        } else if (platform === 'darwin') {
-          const installCmd = `sudo ln -s ${appScriptPath} /usr/local/bin/toad`;
-          installCmdHtml = unixSetup(installCmd);
-        }
+        const bridge = window.toadBridge;
+        const setupInfo = bridge && typeof bridge.invoke === 'function'
+          ? await bridge.invoke('getSetupInfo')
+          : null;
+        if (setupInfo) {
+          const { platform, appScriptPath, exeDir } = setupInfo;
+          let installCmdHtml;
+          if (platform === 'win32') {
+            installCmdHtml = winSetup(exeDir);
+          } else if (platform === 'darwin') {
+            const installCmd = `sudo ln -s ${appScriptPath} /usr/local/bin/toad`;
+            installCmdHtml = unixSetup(installCmd);
+          }
 
-        if (installCmdHtml) {
-          const elem = document.getElementById('cmdLineSetup');
-          if (elem) elem.innerHTML = installCmdHtml;
+          if (installCmdHtml) {
+            const elem = document.getElementById('cmdLineSetup');
+            if (elem) elem.innerHTML = installCmdHtml;
+          }
         }
 
         window.tadOpenExternal = function (event, url) {
           event.preventDefault();
-          electron.shell.openExternal(url);
+          if (bridge && typeof bridge.openExternal === 'function') {
+            bridge.openExternal(url);
+          }
           return false;
         };
 
         window.tadOpenExample = function () {
-          electron.ipcRenderer.invoke('openExample');
+          if (bridge && typeof bridge.invoke === 'function') {
+            bridge.invoke('openExample');
+          }
         };
       } catch (err) {
         console.warn("Could not invoke getSetupInfo:", err);

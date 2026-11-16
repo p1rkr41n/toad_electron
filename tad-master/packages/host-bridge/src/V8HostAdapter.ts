@@ -19,6 +19,7 @@ export class V8HostAdapter implements IHostBridge {
   protected clipboard: any = null;
   protected shell: any = null;
   protected dataPort: any = null;
+  private dataPortListeners: Set<(port: any) => void> = new Set();
 
   constructor() {
     this.initAPIs();
@@ -50,19 +51,41 @@ export class V8HostAdapter implements IHostBridge {
   }
 
   protected initPortListener(): void {
-    if (typeof window !== "undefined") {
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
       window.addEventListener("message", (event: MessageEvent) => {
         if (event.data?.type === "toad-engine-port-handshake" && event.ports?.[0]) {
           this.setupDataPort(event.ports[0]);
         }
       });
+      try {
+        window.postMessage({ type: "toad-renderer-port-ready" }, "*");
+      } catch {}
+      if (this.toadBridge && typeof setTimeout === "function") {
+        setTimeout(() => {
+          if (!this.dataPort && this.toadBridge) {
+            this.invoke("engine:request-port", {}).catch(() => {});
+          }
+        }, 50);
+      }
     }
+  }
+
+  public onDataPortChange(listener: (port: any) => void): () => void {
+    this.dataPortListeners.add(listener);
+    return () => {
+      this.dataPortListeners.delete(listener);
+    };
   }
 
   public setupDataPort(port: any): void {
     this.dataPort = port;
     if (this.dataPort && typeof this.dataPort.start === "function") {
       this.dataPort.start();
+    }
+    for (const listener of Array.from(this.dataPortListeners)) {
+      try {
+        listener(this.dataPort);
+      } catch {}
     }
     this.sendEvent("engine:restored", {});
   }

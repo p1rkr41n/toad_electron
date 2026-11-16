@@ -104,8 +104,8 @@ async function invokeDbFunction<T>(
  * MessagePort transport wrapper for asynchronous RPC over MessagePort / worker port.
  */
 export class MessagePortTransport {
+  private static nextGlobalReqId: number = 1_000_000;
   private port: any;
-  private reqId: number = 1;
   private pendingReqs: Map<
     number,
     { resolve: (val: any) => void; reject: (err: any) => void }
@@ -150,8 +150,20 @@ export class MessagePortTransport {
       if (msg.ok) {
         if (msg.binary && (msg.buffer || msg.data)) {
           try {
-            const tableRep = decodeTableRepBinary(msg.buffer || msg.data);
-            pending.resolve(tableRep);
+            const rawBuf = msg.buffer || msg.data;
+            const u8 =
+              rawBuf instanceof Uint8Array
+                ? rawBuf
+                : rawBuf instanceof ArrayBuffer
+                ? new Uint8Array(rawBuf)
+                : new Uint8Array(rawBuf.buffer, rawBuf.byteOffset, rawBuf.byteLength);
+            if (isHybridBinary(u8)) {
+              const tableRep = decodeTableRepBinary(u8);
+              pending.resolve(tableRep);
+            } else {
+              const text = new TextDecoder("utf-8").decode(u8);
+              pending.resolve(deserializeTableRepStr(text));
+            }
           } catch (decodeErr) {
             pending.reject(decodeErr);
           }
@@ -159,9 +171,10 @@ export class MessagePortTransport {
           pending.resolve(msg.data);
         }
       } else {
-        const err = msg.errorObj
+        const err: any = msg.errorObj
           ? deserializeError(msg.errorObj)
           : new Error(msg.error || "Engine query error");
+        err.isEngineApplicationError = true;
         pending.reject(err);
       }
     };
@@ -188,7 +201,7 @@ export class MessagePortTransport {
         new Error("MessagePortTransport: no active MessagePort or postMessage is not a function")
       );
     }
-    const id = this.reqId++;
+    const id = MessagePortTransport.nextGlobalReqId++;
     return new Promise((resolve, reject) => {
       this.pendingReqs.set(id, { resolve, reject });
       try {
@@ -205,9 +218,19 @@ export class MessagePortTransport {
       pending.reject(new Error("MessagePortTransport closed"));
     }
     this.pendingReqs.clear();
-    if (this.port && typeof this.port.close === "function") {
+    const activePort = this.port;
+    if (activePort && this.boundHandler) {
+      if (typeof activePort.off === "function") {
+        activePort.off("message", this.boundHandler);
+      } else if (typeof activePort.removeEventListener === "function") {
+        activePort.removeEventListener("message", this.boundHandler);
+      }
+    }
+    this.port = null;
+    this.boundHandler = null;
+    if (activePort && typeof activePort.close === "function") {
       try {
-        this.port.close();
+        activePort.close();
       } catch {}
     }
   }
@@ -270,8 +293,8 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
     const payload = {
       engine: this.sourceId,
       queryStr: JSON.stringify(query, safeJsonReplacer),
-      offset: offset ? offset : null,
-      limit: limit ? limit : null,
+      offset: offset != null ? offset : null,
+      limit: limit != null ? limit : null,
       options: options ? options : defaultEvalQueryOptions,
     };
     if (
@@ -281,9 +304,21 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
       try {
         const u8 = await (this.tconn as any).invokeBinary("evalQuery", payload);
         if (u8 && u8.byteLength > 0) {
-          return decodeTableRepBinary(u8);
+          if (isHybridBinary(u8)) {
+            return decodeTableRepBinary(u8);
+          }
+          const text = new TextDecoder().decode(u8);
+          const parsed = deserializeTableRepStr(text) as any;
+          const unwrapped = await decodeResult(parsed);
+          if (unwrapped instanceof TableRep) {
+            return unwrapped;
+          }
+          return deserializeTableRepJson(unwrapped);
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (err && err.isEngineApplicationError) {
+          throw err;
+        }
         console.warn("[RemoteConnection] invokeBinary evalQuery failed, falling back:", err);
       }
     }
@@ -294,15 +329,18 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           return res;
         }
         return deserializeTableRepJson(res);
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request evalQuery failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
     }
     const req: DbConnEvalQueryRequest = {
       queryStr: JSON.stringify(query, safeJsonReplacer),
-      offset: offset ? offset : null,
-      limit: limit ? limit : null,
+      offset: offset != null ? offset : null,
+      limit: limit != null ? limit : null,
       options: options ? options : defaultEvalQueryOptions,
     };
     const ret = await invokeDbFunction(
@@ -322,7 +360,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           queryStr: JSON.stringify(query, safeJsonReplacer),
           options: options ? options : defaultEvalQueryOptions,
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request rowCount failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -345,7 +386,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           tableName,
         });
         return Schema.fromJSON(res);
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request getTableSchema failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -370,7 +414,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           engine: this.sourceId,
           queryStr: JSON.stringify(query, safeJsonReplacer),
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request getColumnStatsMap failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -392,7 +439,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
         return await this.portTransport.request("getRootNode", {
           engine: this.sourceId,
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request getRootNode failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -409,7 +459,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           engine: this.sourceId,
           path,
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request getChildren failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -432,7 +485,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           forceReopen: options?.forceReopen,
           isBackground: (options as any)?.isBackground === true,
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request getTableName failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -457,7 +513,10 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           engine: this.sourceId,
           sqlQuery,
         });
-      } catch (portErr) {
+      } catch (portErr: any) {
+        if (portErr && portErr.isEngineApplicationError) {
+          throw portErr;
+        }
         console.warn("[RemoteDataSourceConnection] portTransport.request runSqlQuery failed, falling back to invokeDbFunction:", portErr);
         this.portTransport = null;
       }
@@ -527,6 +586,8 @@ async function decodeResult(res: any): Promise<any> {
 export class RemoteReltabConnection implements ReltabConnection {
   private tconn: TransportClient;
   private dataPort: any = null;
+  private portTransport: MessagePortTransport | null = null;
+  private activeConnections: Set<RemoteDataSourceConnection> = new Set();
 
   constructor(tconn: TransportClient, dataPort?: any) {
     this.tconn = tconn;
@@ -546,19 +607,34 @@ export class RemoteReltabConnection implements ReltabConnection {
     ) {
       this.setDataPort(tconn);
     }
+    if (tconn && typeof (tconn as any).onDataPortChange === "function") {
+      (tconn as any).onDataPortChange((newPort: any) => {
+        this.setDataPort(newPort);
+      });
+    }
   }
 
   public setDataPort(port: any): void {
     if (!port) {
       this.dataPort = null;
+      this.portTransport = null;
+      for (const conn of this.activeConnections) {
+        conn.setDataPort(null);
+      }
       return;
     }
     if (port instanceof MessagePortTransport || typeof (port as any).request === "function") {
       this.dataPort = port;
+      this.portTransport = port as MessagePortTransport;
     } else if (typeof port.postMessage === "function") {
       this.dataPort = port;
+      this.portTransport = new MessagePortTransport(port);
     } else {
       this.dataPort = null;
+      this.portTransport = null;
+    }
+    for (const conn of this.activeConnections) {
+      conn.setDataPort(this.portTransport || this.dataPort);
     }
   }
 
@@ -570,20 +646,23 @@ export class RemoteReltabConnection implements ReltabConnection {
     const conn = new RemoteDataSourceConnection(
       this.tconn,
       sourceId,
-      this.dataPort && (typeof this.dataPort.postMessage === "function" || typeof this.dataPort.request === "function")
-        ? this.dataPort
-        : undefined
+      this.portTransport ||
+        (this.dataPort && (typeof this.dataPort.postMessage === "function" || typeof this.dataPort.request === "function")
+          ? this.dataPort
+          : undefined)
     );
+    this.activeConnections.add(conn);
     return conn;
   }
 
   async getDataSources(): Promise<DataSourceId[]> {
-    if (this.dataPort && (typeof this.dataPort.postMessage === "function" || this.dataPort instanceof MessagePortTransport || typeof (this.dataPort as any).request === "function")) {
+    if (this.portTransport || (this.dataPort && (typeof this.dataPort.postMessage === "function" || this.dataPort instanceof MessagePortTransport || typeof (this.dataPort as any).request === "function"))) {
       try {
         const transport =
-          this.dataPort instanceof MessagePortTransport || typeof (this.dataPort as any).request === "function"
+          this.portTransport ||
+          (this.dataPort instanceof MessagePortTransport || typeof (this.dataPort as any).request === "function"
             ? this.dataPort
-            : new MessagePortTransport(this.dataPort);
+            : new MessagePortTransport(this.dataPort));
         const ret: any = await transport.request("getDataSources", {});
         return ret?.["dataSourceIds"] || ret;
       } catch (err) {

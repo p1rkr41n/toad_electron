@@ -34,6 +34,8 @@ export const COMMAND_ALIAS_MAP: Record<string, string> = {
   // Engine & Query Commands
   "engine:get_status": "engine:status",
   "engine:do_restart": "engine:restart",
+  "view:register_derived": "view:registerDerived",
+  "view:get_derived": "view:getDerived",
   "toad:get_setup_info": "getSetupInfo",
   "toad:open_example": "openExample",
   "toad:eval_query": "DataSourceConnection.evalQuery",

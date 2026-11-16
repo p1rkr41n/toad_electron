@@ -38,6 +38,11 @@ export const dataFileExtensions = [
   "evtx",
   "csv.gz",
   "tsv.gz",
+  "jsonl.gz",
+  "json.gz",
+  "ndjson.gz",
+  "log.gz",
+  "txt.gz",
 ];
 
 interface ImportedFileInfo {
@@ -49,11 +54,15 @@ interface ImportedFileInfo {
 let _uiDuckDBDriver: DuckDBDriver | null = null;
 let _ingestDuckDBDriver: DuckDBDriver | null = null;
 
+export function peekUIDuckDBDriver(): DuckDBDriver | null {
+  return _uiDuckDBDriver;
+}
+
 export async function getUIDuckDBDriver(): Promise<DuckDBDriver> {
   if (!_uiDuckDBDriver) {
     const connKey: DataSourceId = {
       providerName: "duckdb",
-      resourceId: ":memory:ui",
+      resourceId: "",
     };
     const dsConn = await getConnection(connKey, {
       hidden: true,
@@ -61,7 +70,6 @@ export async function getUIDuckDBDriver(): Promise<DuckDBDriver> {
     });
     const dbds = dsConn as DbDataSource;
     _uiDuckDBDriver = dbds.db as reltabDuckDB.DuckDBDriver;
-    // Cấu hình Interactive UI Engine (2 threads, 25% RAM)
     await reltabDuckDB.applyEngineConfig(_uiDuckDBDriver.db, false);
   }
   return _uiDuckDBDriver;
@@ -267,8 +275,23 @@ export class FSDriver implements DbDriver {
     // Tuyệt đối không gọi Ingest Engine, chỉ mount VIEW trực tiếp vào UI Engine trong < 1ms!
     if (isCacheHit && cachedPaths) {
       const extName = path.extname(targetPath).toLowerCase();
-      const baseName = path.basename(targetPath, extName);
-      const tableName = importInfo?.tableName || reltabDuckDB.genTableName(baseName);
+      let persistedViewName: string | undefined;
+      try {
+        const snap = reltabDuckDB.ToadParquetLedger.getInstance().getSnapshot(targetPath);
+        if (snap && snap.extra_json) {
+          const parsedExtra = JSON.parse(snap.extra_json);
+          if (parsedExtra && typeof parsedExtra.view === "string" && parsedExtra.view.trim()) {
+            persistedViewName = parsedExtra.view.trim();
+            if (typeof (reltabDuckDB as any).registerReservedTableName === "function") {
+              (reltabDuckDB as any).registerReservedTableName(persistedViewName);
+            }
+          }
+        }
+      } catch {}
+      const tableName =
+        importInfo?.tableName ||
+        persistedViewName ||
+        reltabDuckDB.genTableName(targetPath);
 
       let uiConn: any = null;
       let mountSuccess = false;
@@ -281,7 +304,7 @@ export class FSDriver implements DbDriver {
         );
 
         // Gateway Schema Validation: Evict misparsed delimiter/column cache on open
-        if (extName === ".csv") {
+        if (extName === ".csv" || targetPath.toLowerCase().endsWith(".csv.gz")) {
           const cols: any = await uiConn.all(`DESCRIBE ${tableName}`);
           const firstColName = (cols[0]?.column_name || "").replace(/^\uFEFF/, "");
           const isOneColRawEvent = cols.length === 1 && firstColName === "raw_event";
@@ -291,9 +314,9 @@ export class FSDriver implements DbDriver {
 
           if (isMisparsed) {
             log.warn(
-              `[DualEngine UI] Phat hien cache loi delimiter (${isOneColRawEvent ? "1-cot raw_event" : "header chua dau phay hoac column01"}) cho "${path.basename(
+              `[DualEngine UI] Detected misparsed delimiter cache (${isOneColRawEvent ? "single raw_event column" : "comma-joined header or synthetic column01"}) for "${path.basename(
                 targetPath
-              )}". Dao thai cache va nap lai da cot!`
+              )}". Evicting cache and re-importing multi-column table.`
             );
             // a) Drop the view if already created
             await uiConn.exec(`DROP VIEW IF EXISTS ${tableName}`);
@@ -303,7 +326,7 @@ export class FSDriver implements DbDriver {
               try {
                 fs.unlinkSync(cachedPaths.parquetPath);
               } catch (unlinkErr) {
-                log.warn(`[DualEngine UI] Khong the xoa file cache hong:`, unlinkErr);
+                log.warn(`[DualEngine UI] Failed to delete evicted cache file:`, unlinkErr);
               }
             }
 
@@ -344,11 +367,11 @@ export class FSDriver implements DbDriver {
 
         if (mountSuccess) {
           log.info(
-            `[DualEngine UI] Mount VIEW thanh cong tu Parquet cache vao UI Engine: ${tableName} (< 1ms)`
+            `[DualEngine UI] Mounted VIEW from Parquet cache into UI Engine: ${tableName} (< 1ms)`
           );
         }
       } catch (viewErr) {
-        log.warn("[DualEngine UI] Loi khi tao VIEW tu Parquet cache:", viewErr);
+        log.warn("[DualEngine UI] Error mounting VIEW from Parquet cache:", viewErr);
         mountSuccess = false;
       } finally {
         if (uiConn) {
@@ -410,10 +433,10 @@ export class FSDriver implements DbDriver {
               tableName
             );
             log.info(
-              `[DualEngine UI] Da mount VIEW san sang cho DataGrid: ${tableName}`
+              `[DualEngine UI] Mounted VIEW ready for DataGrid: ${tableName}`
             );
           } catch (mountErr) {
-            log.warn("[DualEngine UI] Loi khi mount view sau streaming:", mountErr);
+            log.warn("[DualEngine UI] Error mounting VIEW after streaming ingest:", mountErr);
           } finally {
             if (uiConn) {
               this.dbc.connPool.giveBack(uiConn);

@@ -182,6 +182,8 @@ export class DuckDBDriver implements DbDriver {
   dbfile: string;
   db: Database;
   connPool: ConnectionPool;
+  private httpfsLoadPromise: Promise<void> | null = null;
+  private arrowLoadPromise: Promise<void> | null = null;
 
   constructor(dbfile: string, db: Database, dbConn: Connection) {
     this.dbfile = dbfile;
@@ -191,8 +193,26 @@ export class DuckDBDriver implements DbDriver {
     this.connPool = new ConnectionPool(db);
   }
 
+  private ensureHttpfsLoaded(): Promise<void> {
+    if (!this.httpfsLoadPromise) {
+      this.httpfsLoadPromise = loadHttpfsExtension(this.db);
+    }
+    return this.httpfsLoadPromise;
+  }
+
+  private ensureArrowLoaded(): Promise<void> {
+    if (!this.arrowLoadPromise) {
+      this.arrowLoadPromise = loadArrowExtension(this.db);
+    }
+    return this.arrowLoadPromise;
+  }
+
   async runSqlQuery(query: string): Promise<Row[]> {
-    const conn = await this.connPool.take();
+    if (/(?:s3|https?):\/\//i.test(query) || Boolean(process.env.AWS_ACCESS_KEY_ID)) {
+      await this.ensureHttpfsLoaded();
+    }
+    let conn = await this.connPool.take();
+    let connHealthy = false;
     let ret: any;
     const t0 = performance.now();
     const rss0 =
@@ -201,7 +221,23 @@ export class DuckDBDriver implements DbDriver {
         : 0;
     try {
       log.info("runSqlQuery:\n", query);
-      ret = await conn.all(query);
+      try {
+        ret = await conn.all(query);
+        connHealthy = true;
+      } catch (firstErr: any) {
+        if (
+          String(firstErr?.message || "").includes("cannot start a transaction within a transaction") &&
+          !/\bBEGIN\b/i.test(query)
+        ) {
+          conn.close().catch(() => {});
+          conn = await this.db.connect();
+          await initS3(conn);
+          ret = await conn.all(query);
+          connHealthy = true;
+        } else {
+          throw firstErr;
+        }
+      }
       const elapsedMs = performance.now() - t0;
       const rssDeltaMB =
         typeof process !== "undefined" && process.memoryUsage
@@ -211,13 +247,22 @@ export class DuckDBDriver implements DbDriver {
       const msg = `[ENGINE] [DuckDB] SQL Query executed (+${elapsedMs.toFixed(2)}ms, rows=${rowCount}, rssDelta=${rssDeltaMB}MB): ${query.trim().slice(0, 150)}`;
       emitEngineTrace("DuckDB", msg, { elapsedMs, rssDeltaMB });
     } finally {
-      this.connPool.giveBack(conn);
+      if (connHealthy) {
+        this.connPool.giveBack(conn);
+      } else {
+        conn.close().catch(() => {});
+      }
     }
     return ret;
   }
 
   async runSqlQueryArrow(query: string): Promise<Uint8Array | null> {
+    if (/(?:s3|https?):\/\//i.test(query) || Boolean(process.env.AWS_ACCESS_KEY_ID)) {
+      await this.ensureHttpfsLoaded();
+    }
+    await this.ensureArrowLoaded();
     const conn = await this.connPool.take();
+    let connHealthy = false;
     const t0 = performance.now();
     const rss0 =
       typeof process !== "undefined" && process.memoryUsage
@@ -228,7 +273,7 @@ export class DuckDBDriver implements DbDriver {
       log.info("runSqlQueryArrow:\n", query);
       const rawConn = (conn as any).conn || (conn as any)._conn || conn;
       if (rawConn && typeof rawConn.arrowIPCAll === "function") {
-        return await new Promise<Uint8Array>((resolve, reject) => {
+        const out = await new Promise<Uint8Array>((resolve, reject) => {
           rawConn.arrowIPCAll(cleanQuery, (err: any, result: any[]) => {
             if (err) return reject(err);
             const elapsedMs = performance.now() - t0;
@@ -265,13 +310,20 @@ export class DuckDBDriver implements DbDriver {
             resolve(new Uint8Array(arrayBuffer));
           });
         });
+        connHealthy = true;
+        return out;
       }
+      connHealthy = true;
       return null;
     } catch (e) {
       log.warn("runSqlQueryArrow fallback to standard query:", e);
       return null;
     } finally {
-      this.connPool.giveBack(conn);
+      if (connHealthy) {
+        this.connPool.giveBack(conn);
+      } else {
+        conn.close().catch(() => {});
+      }
     }
   }
 
@@ -341,21 +393,47 @@ export class DuckDBDriver implements DbDriver {
   }
 }
 
-const loadExtensions = async (db: Database): Promise<void> => {
+let _httpfsUnavailable = false;
+let _arrowExtUnavailable = false;
+
+const shouldSkipRemoteInstall = (): boolean =>
+  process.env.TOAD_ENGINE_WORKER === "1" ||
+  process.env.TOAD_ENGINE_RECOVERY === "1" ||
+  process.env.TOAD_OFFLINE_EXTENSIONS === "1";
+
+const loadHttpfsExtension = async (db: Database): Promise<void> => {
+  if (_httpfsUnavailable) return;
   try {
-    const ret = await db.exec(`INSTALL 'httpfs'; LOAD 'httpfs'`);
-  } catch (err) {
-    log.error("caught exception loading extensions: ", err);
-    log.error("(ignoring unloadable extensions...)");
+    await db.exec(`LOAD 'httpfs'`);
+  } catch {
+    if (shouldSkipRemoteInstall()) {
+      _httpfsUnavailable = true;
+    } else {
+      try {
+        await db.exec(`INSTALL 'httpfs'; LOAD 'httpfs'`);
+      } catch (err) {
+        _httpfsUnavailable = true;
+        log.error("caught exception loading extensions: ", err);
+        log.error("(ignoring unloadable extensions...)");
+      }
+    }
   }
-  // Try LOAD 'arrow' first for offline/pre-cached extensions, then fallback to INSTALL
+};
+
+const loadArrowExtension = async (db: Database): Promise<void> => {
+  if (_arrowExtUnavailable) return;
   try {
     await db.exec(`LOAD 'arrow'`);
   } catch {
-    try {
-      await db.exec(`INSTALL 'arrow'; LOAD 'arrow'`);
-    } catch (err) {
-      log.warn("caught notice loading arrow extension: ", err);
+    if (shouldSkipRemoteInstall()) {
+      _arrowExtUnavailable = true;
+    } else {
+      try {
+        await db.exec(`INSTALL 'arrow'; LOAD 'arrow'`);
+      } catch (err) {
+        _arrowExtUnavailable = true;
+        log.warn("caught notice loading arrow extension: ", err);
+      }
     }
   }
 };
@@ -364,18 +442,16 @@ const duckdbDataSourceProvider: DataSourceProvider = {
   providerName: "duckdb",
   connect: async (resourceId: any): Promise<DataSourceConnection> => {
     const rawFile = resourceId as string;
-    // Chuẩn hóa: nếu là :memory: hoặc :memory:* (ví dụ :memory:ui, :memory:ingest) -> khởi tạo in-memory DuckDB
     const dbfile = rawFile && rawFile.startsWith(":memory:") ? ":memory:" : rawFile;
     const db = await Database.create(dbfile);
-    await loadExtensions(db);
-    // Khởi tạo và nạp snapshot Parquet State Ledger toàn hệ thống
+    if (Boolean(process.env.AWS_ACCESS_KEY_ID)) {
+      await loadHttpfsExtension(db);
+    }
     try {
       await initToadLedger(db);
     } catch (e) {
-      log.warn("[ToadLedger] Khoi tao ledger gap loi nhe:", e);
+      log.warn("[ToadLedger] Ledger initialization notice:", e);
     }
-    // turn on fast parallel CSV loading:
-    // await db.exec("SET experimental_parallel_csv=true;");
     const dbConn = await db.connect();
     const driver = new DuckDBDriver(rawFile, db, dbConn);
     const dsConn = new DbDataSource(driver);

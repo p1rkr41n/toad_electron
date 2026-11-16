@@ -19,12 +19,6 @@
 
 .PARAMETER Launch
     Automatically launch the built application upon completion.
-
-.EXAMPLE
-    .\fastbuild.ps1
-    .\fastbuild.ps1 -Launch
-    .\fastbuild.ps1 -Dev -Launch
-    .\fastbuild.ps1 -SkipTsc
 #>
 [CmdletBinding()]
 param(
@@ -65,19 +59,37 @@ Write-Output "  Target directory: $OutDir"
 Write-Output "  Mode: $(if ($Dev) { 'Development (Fast)' } else { 'Production (Optimized)' })"
 Write-Output "================================================================="
 
-# --- STEP 1: Build TypeScript Libraries (Unless -SkipTsc) ---
+# --- STEP 1: Build Native & TypeScript Libraries (Unless -SkipTsc) ---
 if (-not $SkipTsc) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
-    Write-Output "`n>>> [STEP 1.1] Building reltab (TypeScript)..."
+
+    $rustDir = "$rootDir\tad-master\packages\toad-core-rust"
+    if ((-not (Test-Path "$appDir\bin\toad_core.node") -or -not (Test-Path "$appDir\bin\toad-core.exe")) -and (Test-Path "$rustDir\Cargo.toml") -and (Get-Command cargo.exe -ErrorAction SilentlyContinue)) {
+        Write-Output "`n>>> [STEP 1.0] Building toad-core-rust (CLI + N-API)..."
+        Set-Location $rustDir
+        & cargo.exe build --release --bin toad-core
+        & cargo.exe build --release --lib --features node-api
+        New-Item -ItemType Directory -Force -Path "$appDir\bin" | Out-Null
+        Copy-Item "$rustDir\target\release\toad-core.exe" -Destination "$appDir\bin\toad-core.exe" -Force
+        Copy-Item "$rustDir\target\release\toad_core.dll" -Destination "$appDir\bin\toad_core.node" -Force
+    }
+
+    Write-Output "`n>>> [STEP 1.1] Building reltab & aggtree (TypeScript)..."
     Set-Location "$rootDir\tad-master\packages\reltab"
     & npm.cmd run build
+    if (Test-Path "$rootDir\tad-master\packages\aggtree\package.json") {
+        Set-Location "$rootDir\tad-master\packages\aggtree"
+        & npm.cmd run build
+    }
 
     Write-Output ">>> [STEP 1.2] Building host-bridge (TypeScript)..."
     Set-Location "$rootDir\tad-master\packages\host-bridge"
     & npm.cmd run build
 
-    Write-Output ">>> [STEP 1.3] Building reltab-duckdb (TypeScript)..."
+    Write-Output ">>> [STEP 1.3] Building reltab-duckdb & reltab-fs (TypeScript)..."
     Set-Location "$rootDir\tad-master\packages\reltab-duckdb"
+    & npm.cmd run build
+    Set-Location "$rootDir\tad-master\packages\reltab-fs"
     & npm.cmd run build
 
     $viewerDir = "$rootDir\tad-master\packages\toadviewer"
@@ -92,6 +104,9 @@ if (-not $SkipTsc) {
         & npm.cmd run build-dev
     } else {
         & npm.cmd run build-prod
+    }
+    if ((Test-Path "$viewerDir\dist\toadviewer.js") -and -not (Test-Path "$viewerDir\dist\tadviewer.js")) {
+        Copy-Item "$viewerDir\dist\toadviewer.js" -Destination "$viewerDir\dist\tadviewer.js" -Force
     }
     $sw.Stop()
     $stageTimes["TypeScript & $viewerName"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
@@ -112,7 +127,6 @@ if ($Dev) {
 $sw.Stop()
 $stageTimes["Webpack $appName"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 
-# Verify main.bundle.js and toadapp.bundle.js (or fallback tadapp.bundle.js) and engineService.bundle.js
 if (-not (Test-Path "$appDir\dist\main.bundle.js")) {
     throw "ERROR: dist\main.bundle.js was not generated!"
 }
@@ -129,17 +143,19 @@ $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Output "`n>>> [STEP 3] Fast packaging Electron directory (--dir, no 7z compression)..."
 Set-Location "$appDir"
 
-# Clean stale win-unpacked
 if (Test-Path "$appDir\release\win-unpacked") {
     Remove-Item -Recurse -Force "$appDir\release\win-unpacked" -ErrorAction SilentlyContinue
 }
 
-# Run electron-builder --dir (pack script)
 & npm.cmd run pack
 $sw.Stop()
 $stageTimes["Electron Directory Packaging"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 
-# Verify win-unpacked exists
+$tscCmd = "$rootDir\tad-master\node_modules\.bin\tsc.cmd"
+if (Test-Path $tscCmd) {
+    & $tscCmd --outDir "$appDir\dist\app" --rootDir "$appDir\app" --module commonjs --target es2019 --esModuleInterop --skipLibCheck --sourceMap false --declaration false "$appDir\app\engineService.ts" "$appDir\app\engineSupervisor.ts" "$appDir\app\fileExport.ts"
+}
+
 $winUnpacked = "$appDir\release\win-unpacked"
 if (-not (Test-Path "$winUnpacked\Toad.exe")) {
     throw "ERROR: Toad.exe was not found in win-unpacked!"
@@ -149,7 +165,6 @@ if (-not (Test-Path "$winUnpacked\Toad.exe")) {
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Output "`n>>> [STEP 4] Deploying to version directory: $OutDir..."
 
-# Stop any running instances in OutDir that lock files
 Get-CimInstance Win32_Process -Filter "Name like 'Toad%'" -ErrorAction SilentlyContinue | Where-Object {
     $_.ExecutablePath -and $_.ExecutablePath.StartsWith($OutDir, [System.StringComparison]::OrdinalIgnoreCase)
 } | ForEach-Object {
@@ -163,23 +178,18 @@ if (Test-Path "$OutDir") {
 }
 New-Item -ItemType Directory -Force -Path "$OutDir" | Out-Null
 
-# Robocopy or Copy-Item for ultra fast directory copy
 robocopy "$winUnpacked" "$OutDir" /E /NFL /NDL /NJH /NJS /nc /ns /np /R:1 /W:1 | Out-Null
 if (-not (Test-Path "$OutDir\Toad.exe")) {
-    # Fallback to Copy-Item
     Copy-Item -Recurse -Force "$winUnpacked\*" "$OutDir\"
 }
 
-# Also update a convenient shortcut pointer in build\latest
 $latestDir = "$rootDir\build\latest"
 if (Test-Path "$latestDir") {
     Remove-Item -Recurse -Force "$latestDir" -ErrorAction SilentlyContinue
 }
 try {
     New-Item -ItemType Junction -Path "$latestDir" -Target "$OutDir" | Out-Null
-} catch {
-    # Ignore junction error if not supported
-}
+} catch {}
 
 $sw.Stop()
 $stageTimes["Directory Deployment"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
@@ -187,9 +197,10 @@ $stageTimes["Directory Deployment"] = [math]::Round($sw.Elapsed.TotalSeconds, 1)
 $totalStopwatch.Stop()
 $totalSec = [math]::Round($totalStopwatch.Elapsed.TotalSeconds, 1)
 
-# Calculate directory size
 $dirBytes = (Get-ChildItem -Path "$OutDir" -Recurse | Measure-Object -Property Length -Sum).Sum
 $dirSizeMB = [math]::Round($dirBytes / 1MB, 1)
+
+Set-Location $rootDir
 
 Write-Output "`n================================================================="
 Write-Output "  FASTBUILD SUCCESSFUL - TOAD v$version"
@@ -209,4 +220,3 @@ if ($Launch) {
     Write-Output "`n>>> Launching $OutDir\Toad.exe..."
     Start-Process "$OutDir\Toad.exe"
 }
-

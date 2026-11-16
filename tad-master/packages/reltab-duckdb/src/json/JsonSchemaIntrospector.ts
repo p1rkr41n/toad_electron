@@ -331,7 +331,7 @@ export async function introspectJsonSchema(
   filePath: string,
   sampleSize: number = 2048
 ): Promise<SchemaIntrospectionResult> {
-  const safePath = filePath.replace(/\\/g, "/");
+  const safePath = escapeSqlStringLiteral(filePath.replace(/\\/g, "/"));
   const describeSql = `DESCRIBE SELECT * FROM read_json_auto('${safePath}', sample_size = ${sampleSize}) LIMIT 0;`;
 
   log.info(`[JsonSchemaIntrospector] Introspecting JSON schema: ${describeSql}`);

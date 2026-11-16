@@ -1,17 +1,32 @@
 import * as reltab from "reltab";
 import * as csv from "fast-csv";
 import * as fs from "fs";
+import { once } from "events";
+import { finished } from "stream/promises";
 import { BrowserWindow, dialog } from "electron";
 import { DbDataSource } from "reltab";
 import { ExportFormat, ParquetExportOptions } from "toadviewer";
 import path from "path";
+import { EngineSupervisor } from "./engineSupervisor";
+
+function safeSend(win: BrowserWindow | null | undefined, channel: string, payload?: any): void {
+  try {
+    if (win && typeof win.isDestroyed === "function" && !win.isDestroyed() && win.webContents) {
+      if (payload === undefined) {
+        win.webContents.send(channel);
+      } else {
+        win.webContents.send(channel, payload);
+      }
+    }
+  } catch {}
+}
 
 export const openExportBeginDialog = async (
   win: BrowserWindow,
   filterRowCount: number,
   query: reltab.QueryExp
 ) => {
-  win.webContents.send("open-export-begin-dialog", {
+  safeSend(win, "open-export-begin-dialog", {
     openState: true,
     filterRowCount,
   });
@@ -40,35 +55,54 @@ const exportParquet = async (
   query: reltab.QueryExp,
   parquetExportOptions: ParquetExportOptions
 ) => {
-  let exportPercent = 0;
+  const exportPercent = 0;
   const exportPathBaseName = path.basename(saveFilename);
-  win.webContents.send("open-export-progress-dialog", {
+  safeSend(win, "open-export-progress-dialog", {
     openState: true,
     exportPathBaseName,
     exportPercent,
   });
 
   try {
-    const appRtc = reltab.getExportConnection() as DbDataSource;
+    const sup = EngineSupervisor.getInstance();
+    const compression = parquetExportOptions?.compression || "snappy";
+    if (!sup.isLegacyMode()) {
+      await sup.invokeEngine(
+        "export:parquet",
+        {
+          saveFilename,
+          queryStr: JSON.stringify(query, reltab.safeJsonReplacer),
+          compression,
+        },
+        600000
+      );
+    } else {
+      const appRtc = (reltab.getExportConnection() ||
+        (await reltab.getConnection(
+          { providerName: "duckdb", resourceId: "" },
+          { hidden: false, forExport: true }
+        ))) as DbDataSource;
 
-    const baseQuery = await appRtc.getSqlForQuery(query);
-
-    const copyQuery = `COPY (${baseQuery}) TO '${saveFilename}' (FORMAT 'parquet', COMPRESSION '${parquetExportOptions.compression}')`;
-
-    const rows = await appRtc.db.runSqlQuery(copyQuery);
+      const baseQuery = await appRtc.getSqlForQuery(query);
+      const safeFile = saveFilename.replace(/\\/g, "/").replace(/'/g, "''");
+      const safeComp = String(compression).replace(/[^a-zA-Z0-9_]/g, "") || "snappy";
+      const copyQuery = `COPY (${baseQuery}) TO '${safeFile}' (FORMAT 'parquet', COMPRESSION '${safeComp}')`;
+      await appRtc.db.runSqlQuery(copyQuery);
+    }
+    safeSend(win, "export-progress", {
+      percentComplete: 1,
+    });
   } catch (rawErr) {
     const err = rawErr as Error;
-    win.webContents.send("close-export-progress-dialog");
-
-    dialog.showErrorBox("Error saving file: ", err.toString());
+    safeSend(win, "close-export-progress-dialog");
+    if (dialog && typeof dialog.showErrorBox === "function") {
+      dialog.showErrorBox("Error saving file: ", err.toString());
+    } else {
+      throw err;
+    }
   }
-  win.webContents.send("export-progress", {
-    percentComplete: 1,
-  });
 };
 
-// maximum number of items outstanding before pause and commit:
-// Some studies of sqlite found this number about optimal
 const BATCHSIZE = 10000;
 const exportCSV = async (
   win: BrowserWindow,
@@ -76,49 +110,100 @@ const exportCSV = async (
   filterRowCount: number,
   query: reltab.QueryExp
 ) => {
-  let exportPercent = 0;
+  const exportPercent = 0;
   const exportPathBaseName = path.basename(saveFilename);
 
-  win.webContents.send("open-export-progress-dialog", {
+  safeSend(win, "open-export-progress-dialog", {
     openState: true,
     exportPathBaseName,
     exportPercent,
   });
-  const csvStream = csv.format({
-    headers: true,
-  });
-  const writableStream = fs.createWriteStream(saveFilename);
-  csvStream.pipe(writableStream);
-  const appRtc = reltab.getExportConnection() as DbDataSource;
-  if (appRtc == null) {
-    console.error("exportCSV: no DataSource available for export");
-    return;
-  }
 
-  const schema = await appRtc.getSchema(query); // Map entries in a row object to array of [displayName, value] pairs
+  try {
+    const sup = EngineSupervisor.getInstance();
+    const queryStr = JSON.stringify(query, reltab.safeJsonReplacer);
+    let schema: reltab.Schema;
+    let legacyRtc: DbDataSource | null = null;
 
-  const mapRow = (row: reltab.Row) => {
-    return schema.columns.map((cid) => [schema.displayName(cid), row[cid]]);
-  };
+    if (!sup.isLegacyMode()) {
+      const schemaJson = await sup.invokeEngine(
+        "export:getQuerySchema",
+        { queryStr },
+        120000
+      );
+      schema =
+        schemaJson instanceof reltab.Schema
+          ? schemaJson
+          : reltab.Schema.fromJSON(schemaJson);
+    } else {
+      legacyRtc = (reltab.getExportConnection() ||
+        (await reltab.getConnection(
+          { providerName: "duckdb", resourceId: "" },
+          { hidden: false, forExport: true }
+        ))) as DbDataSource;
+      schema = await legacyRtc.getSchema(query);
+    }
 
-  let offset = 0;
-  let percentComplete = 0;
-
-  while (offset < filterRowCount) {
-    let limit = Math.min(BATCHSIZE, filterRowCount - offset);
-    let res = await appRtc.evalQuery(query, offset, limit);
-    res.rowData.map((row) => {
-      csvStream.write(mapRow(row));
+    const headerNames = schema.columns.map((cid) => schema.displayName(cid));
+    const csvStream = csv.format({
+      headers: headerNames,
+      writeHeaders: true,
     });
-    offset += res.rowData.length;
-    percentComplete = offset / filterRowCount;
-    win.webContents.send("export-progress", {
-      percentComplete,
-    });
-  }
+    const writableStream = fs.createWriteStream(saveFilename);
+    csvStream.pipe(writableStream);
 
-  csvStream.end();
-  win.webContents.send("export-progress", {
-    percentComplete: 1,
-  });
+    const mapRow = (row: reltab.Row) =>
+      schema.columns.map((cid) => {
+        const val = row[cid];
+        return typeof val === "bigint" ? val.toString() : val;
+      });
+
+    let offset = 0;
+    while (offset < filterRowCount) {
+      const limit = Math.min(BATCHSIZE, filterRowCount - offset);
+      let res: reltab.TableRep;
+      if (!sup.isLegacyMode()) {
+        const rawRes = await sup.invokeEngine(
+          "evalQuery",
+          { queryStr, offset, limit },
+          600000
+        );
+        res =
+          rawRes instanceof reltab.TableRep
+            ? rawRes
+            : reltab.deserializeTableRepJson(rawRes);
+      } else {
+        res = await legacyRtc!.evalQuery(query, offset, limit);
+      }
+
+      if (!res.rowData || res.rowData.length === 0) {
+        break;
+      }
+
+      for (const row of res.rowData) {
+        if (!csvStream.write(mapRow(row))) {
+          await once(csvStream, "drain");
+        }
+      }
+      offset += res.rowData.length;
+      const percentComplete = filterRowCount > 0 ? offset / filterRowCount : 1;
+      safeSend(win, "export-progress", {
+        percentComplete,
+      });
+    }
+
+    csvStream.end();
+    await finished(writableStream);
+    safeSend(win, "export-progress", {
+      percentComplete: 1,
+    });
+  } catch (rawErr) {
+    const err = rawErr as Error;
+    safeSend(win, "close-export-progress-dialog");
+    if (dialog && typeof dialog.showErrorBox === "function") {
+      dialog.showErrorBox("Error saving file: ", err.toString());
+    } else {
+      throw err;
+    }
+  }
 };

@@ -1,24 +1,26 @@
 //! main.rs
 //!
-//! CLI Entrypoint cho TOAD Rust Core Engine (Pure Rust)
-//! Cung cấp các lệnh kiểm tra, phân tích, chuyển đổi EVTX và QA Test Suite.
+//! CLI Entrypoint for TOAD Rust Core Engine v2.6.0
+//! Provides Binary Guard inspection, EVTX -> JSONL conversion, UTF-16/Gzip transcoding,
+//! Portable AppData management, Win32 I/O counter monitoring, and QA self-tests.
 
 use std::path::{Path, PathBuf};
 use toad_core::*;
 
 fn print_help() {
     println!(
-        r#"TOAD Core Engine v1.1.0 - High-Performance Rust Engine for Toad Viewer
+        r#"TOAD Core Engine v2.6.0 - High-Performance Native Rust Engine for Toad Viewer
 
 USAGE:
-  toad-core inspect <FILE>                   : Kiem tra Binary Guard & Schema
-  toad-core evtx-dump <INPUT> <OUTPUT> [MAX] : Chuyen doi truc tiep EVTX -> JSONL
-  toad-core init-portable [EXE_DIR]          : Khoi tao va validate toadAppData
-  toad-core clean-temp <TEMP_DIR>            : Don sach temp voi retry EBUSY
-  toad-core normalize-csv <INPUT> <OUTPUT>   : Chuan hoa delimiter va dong CSV
-  toad-core get-io [PID]                     : Doc chi so IO doc/ghi cua tien trinh
-  toad-core watch-io [PID] [INTERVAL_MS]     : Theo doi lien tuc IO tien trinh realtime
-  toad-core test-qa                          : Chay toan bo QA Test Suite
+  toad-core inspect <FILE>                   : Run 8KB Binary Guard & format/encoding detection
+  toad-core evtx-dump <INPUT> <OUTPUT> [MAX] : Stream-convert EVTX -> structured JSONL
+  toad-core transcode <INPUT> <OUTPUT>       : Stream-transcode UTF-16 / Gzip text -> UTF-8
+  toad-core init-portable [EXE_DIR]          : Initialize and validate portable toadAppData
+  toad-core clean-temp <TEMP_DIR>            : Clean temporary cache with EBUSY retry
+  toad-core normalize-csv <INPUT> <OUTPUT>   : Normalize dirty CSV delimiter and row columns
+  toad-core get-io [PID]                     : Read Win32 process read/write I/O bytes
+  toad-core watch-io [PID] [INTERVAL_MS]     : Continuously stream process I/O counters
+  toad-core test-qa                          : Run built-in Rust QA self-test suite
 "#
     );
 }
@@ -34,26 +36,29 @@ fn main() -> std::io::Result<()> {
     match args[1].as_str() {
         "inspect" => {
             if args.len() < 3 {
-                eprintln!("Loi: Thieu duong dan file! Cu phap: toad-core inspect <FILE>");
+                eprintln!("Error: Missing file path. Usage: toad-core inspect <FILE>");
                 std::process::exit(1);
             }
             let path = Path::new(&args[2]);
-            println!("=== [TOAD Core] Kiem tra file: {} ===", path.display());
+            println!("=== [TOAD Core] Inspecting file: {} ===", path.display());
             match inspect_file(path) {
                 Ok(cat) => {
-                    println!("[Binary Guard] Trang thai: HOP LE");
-                    println!("[Binary Guard] Dinh dang: {:?}", cat);
+                    println!("[Binary Guard] Status: VALID");
+                    println!("[Binary Guard] Format: {:?}", cat);
+                    if let Ok(enc) = detect_text_encoding(path) {
+                        println!("[Binary Guard] Encoding: {}", enc.as_str());
+                    }
                     if cat == FileFormatCategory::DelimitedText {
                         if let Ok(meta) = inspect_csv(path) {
-                            println!("[CSV Engine] Dau phan cach: '{}'", meta.delimiter);
-                            println!("[CSV Engine] So cot: {}", meta.column_count);
-                            println!("[CSV Engine] Tieu de cot: {:?}", meta.headers);
-                            println!("[CSV Engine] So dong uoc tinh: {}", meta.estimated_rows);
+                            println!("[CSV Engine] Delimiter: '{}'", meta.delimiter);
+                            println!("[CSV Engine] Columns: {}", meta.column_count);
+                            println!("[CSV Engine] Headers: {:?}", meta.headers);
+                            println!("[CSV Engine] Estimated rows: {}", meta.estimated_rows);
                         }
                     }
                 }
                 Err(err) => {
-                    eprintln!("[Binary Guard] BI CHAN: {}", err);
+                    eprintln!("[Binary Guard] BLOCKED: {}", err);
                     std::process::exit(1);
                 }
             }
@@ -61,7 +66,7 @@ fn main() -> std::io::Result<()> {
 
         "evtx-dump" => {
             if args.len() < 4 {
-                eprintln!("Loi: Thieu tham so! Cu phap: toad-core evtx-dump <INPUT> <OUTPUT> [MAX]");
+                eprintln!("Error: Missing arguments. Usage: toad-core evtx-dump <INPUT> <OUTPUT> [MAX]");
                 std::process::exit(1);
             }
             let input = Path::new(&args[2]);
@@ -72,14 +77,28 @@ fn main() -> std::io::Result<()> {
                 None
             };
 
-            println!("=== [TOAD Core] Bat dau chuyen doi EVTX -> JSONL ===");
-            println!("    Nguon : {}", input.display());
-            println!("    Dich  : {}", output.display());
+            println!("=== [TOAD Core] Converting EVTX -> JSONL ===");
+            println!("    Input : {}", input.display());
+            println!("    Output: {}", output.display());
             let stats = convert_evtx_to_jsonl(input, output, max)?;
-            println!("[EVTX Engine] Chuyen doi hoan tat thanh cong!");
-            println!("    So ban ghi trich xuat : {}", stats.total_records);
-            println!("    So ban ghi loi        : {}", stats.errors);
-            println!("    Thoi gian xu ly       : {:.2} ms", stats.elapsed_ms);
+            println!("[EVTX Engine] Conversion completed.");
+            println!("    Extracted records : {}", stats.total_records);
+            println!("    Parse errors      : {}", stats.errors);
+            println!("    Elapsed time      : {:.2} ms", stats.elapsed_ms);
+        }
+
+        "transcode" => {
+            if args.len() < 4 {
+                eprintln!("Error: Missing arguments. Usage: toad-core transcode <INPUT> <OUTPUT>");
+                std::process::exit(1);
+            }
+            let input = Path::new(&args[2]);
+            let output = Path::new(&args[3]);
+            let stats = transcode_to_utf8(input, output)?;
+            println!(
+                r#"{{"encoding":"{}","bytes_written":{},"elapsed_ms":{:.2}}}"#,
+                stats.encoding, stats.bytes_written, stats.elapsed_ms
+            );
         }
 
         "init-portable" => {
@@ -95,23 +114,23 @@ fn main() -> std::io::Result<()> {
 
         "clean-temp" => {
             if args.len() < 3 {
-                eprintln!("Loi: Thieu duong dan temp! Cu phap: toad-core clean-temp <TEMP_DIR>");
+                eprintln!("Error: Missing temp directory path. Usage: toad-core clean-temp <TEMP_DIR>");
                 std::process::exit(1);
             }
             let dir = Path::new(&args[2]);
             let count = clean_temp_dir(dir)?;
-            println!("[TOAD Core] Da don dep sach {} muc trong temp.", count);
+            println!("[TOAD Core] Cleaned {} temporary item(s).", count);
         }
 
         "normalize-csv" => {
             if args.len() < 4 {
-                eprintln!("Loi: Thieu tham so! Cu phap: toad-core normalize-csv <INPUT> <OUTPUT>");
+                eprintln!("Error: Missing arguments. Usage: toad-core normalize-csv <INPUT> <OUTPUT>");
                 std::process::exit(1);
             }
             let input = Path::new(&args[2]);
             let output = Path::new(&args[3]);
             let count = normalize_dirty_csv(input, output, ',')?;
-            println!("[TOAD Core] Da chuan hoa {} dong du lieu.", count);
+            println!("[TOAD Core] Normalized {} data row(s).", count);
         }
 
         "get-io" => {
@@ -125,7 +144,7 @@ fn main() -> std::io::Result<()> {
                     println!(r#"{{"pid":{},"read_bytes":{},"write_bytes":{}}}"#, pid, r, w);
                 }
                 None => {
-                    eprintln!("Loi: Khong the doc chi so IO cho PID {}", pid);
+                    eprintln!("Error: Unable to read I/O counters for PID {}", pid);
                     std::process::exit(1);
                 }
             }
@@ -170,7 +189,6 @@ fn main() -> std::io::Result<()> {
     Ok(())
 }
 
-/// Bo kiem thu QA Test Suite toan dien
 fn run_qa_test_suite() -> std::io::Result<()> {
     println!("============================================================");
     println!("           TOAD RUST CORE ENGINE - QA TEST SUITE            ");
@@ -179,29 +197,26 @@ fn run_qa_test_suite() -> std::io::Result<()> {
     let tmp_base = std::env::temp_dir().join(format!("toad_qa_{}", gen_random_suffix(4)));
     std::fs::create_dir_all(&tmp_base)?;
 
-    // QA Test 1: Binary Guard
-    println!("\n[QA 1] Kiem thu Binary Guard:");
+    println!("\n[QA 1] Binary Guard Check:");
     let valid_csv = tmp_base.join("clean.csv");
     std::fs::write(&valid_csv, "id,name,role\n1,Alice,Dev\n2,Bob,Sec\n")?;
 
     let cat = inspect_file(&valid_csv)?;
     assert_eq!(cat, FileFormatCategory::DelimitedText);
-    println!("  -> [PASS] CSV hop le duoc chap nhan.");
+    println!("  -> [PASS] Valid CSV accepted.");
 
     let malicious_bin = tmp_base.join("danger.csv");
     std::fs::write(&malicious_bin, b"Test\x00NullByteData")?;
     let bin_res = inspect_file(&malicious_bin);
     assert!(bin_res.is_err());
-    println!("  -> [PASS] Binary co null-byte bi chan thanh cong.");
+    println!("  -> [PASS] Null-byte binary blocked.");
 
-    // QA Test 2: Portable AppData & Auto-Heal
-    println!("\n[QA 2] Kiem thu Portable AppData & Auto-Heal:");
+    println!("\n[QA 2] Portable AppData & Auto-Heal:");
     let env = init_portable_environment(Some(tmp_base.clone()))?;
     assert!(env.app_data_dir.exists());
     assert!(env.app_data_dir.join("config.ini").exists());
-    println!("  -> [PASS] Da tu sinh thu muc: {}", env.app_data_dir.display());
+    println!("  -> [PASS] Created portable dir: {}", env.app_data_dir.display());
 
-    // Pha hong config.ini de test Auto-Heal
     let cfg_path = env.app_data_dir.join("config.ini");
     std::fs::write(
         &cfg_path,
@@ -210,10 +225,9 @@ fn run_qa_test_suite() -> std::io::Result<()> {
     let healed = validate_and_ensure_config(&cfg_path)?;
     assert_eq!(healed.general.viewer, "toad");
     assert_eq!(healed.parquet.row_group_size, 100_000);
-    println!("  -> [PASS] Auto-Heal da tu dong va loi cau hinh bi hong.");
+    println!("  -> [PASS] Auto-Heal restored corrupted configuration.");
 
-    // QA Test 3: CSV Normalizer
-    println!("\n[QA 3] Kiem thu Sniffer & Chuan hoa CSV ban:");
+    println!("\n[QA 3] Dirty CSV Delimiter Sniffer & Normalizer:");
     let dirty_csv = tmp_base.join("dirty.csv");
     std::fs::write(
         &dirty_csv,
@@ -222,20 +236,19 @@ fn run_qa_test_suite() -> std::io::Result<()> {
     let clean_csv = tmp_base.join("normalized.csv");
     let rows = normalize_dirty_csv(&dirty_csv, &clean_csv, ',')?;
     assert_eq!(rows, 3);
-    println!("  -> [PASS] Da nhan dien delimiter ';' va chuan hoa {} dong.", rows);
+    println!("  -> [PASS] Detected ';' delimiter and normalized {} rows.", rows);
 
-    // QA Test 4: Temp Cleaner
-    println!("\n[QA 4] Kiem thu Don dep Temp:");
+    println!("\n[QA 4] Temp Cleaner (preserving Ledger & WAL):");
     std::fs::write(env.temp_dir.join("test.parquet"), b"dummy")?;
+    std::fs::write(env.temp_dir.join("toad_ledger.wal.jsonl"), b"{}\n")?;
     let cleaned = clean_temp_dir(&env.temp_dir)?;
     assert_eq!(cleaned, 1);
-    assert_eq!(std::fs::read_dir(&env.temp_dir)?.count(), 0);
-    println!("  -> [PASS] Don sach 100% file rac trong temp.");
+    assert!(env.temp_dir.join("toad_ledger.wal.jsonl").exists());
+    println!("  -> [PASS] Cleaned temp cache while preserving WAL.");
 
-    // QA Test 5: Native EVTX Parser
-    let sample_evtx = Path::new("D:/Shared_UserData/Downloads/tad/data_sample/System.evtx");
+    let sample_evtx = Path::new("D:/Shared_UserData/Downloads/data_sample/System.evtx");
     if sample_evtx.exists() {
-        println!("\n[QA 5] Kiem thu Native Multi-Threaded EVTX Parser:");
+        println!("\n[QA 5] Native Multi-Threaded EVTX Parser:");
         let out_jsonl = tmp_base.join("evtx_qa.jsonl");
         let stats = convert_evtx_to_jsonl(sample_evtx, &out_jsonl, Some(500))?;
         assert_eq!(stats.total_records, 500);
@@ -245,7 +258,10 @@ fn run_qa_test_suite() -> std::io::Result<()> {
         for line in lines_content.lines().take(50) {
             if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
                 if let Some(tc) = v.get("TimeCreated").and_then(|t| t.as_str()) {
-                    assert!(tc.ends_with('Z') && tc.contains('T'), "TimeCreated must be ISO-8601 UTC RFC3339");
+                    assert!(
+                        tc.ends_with('Z') && tc.contains('T'),
+                        "TimeCreated must be ISO-8601 UTC RFC3339"
+                    );
                 }
                 assert!(v.get("Binary").is_some(), "Binary column must exist");
                 assert!(v.get("param1").is_some(), "param1 column must exist");
@@ -257,16 +273,15 @@ fn run_qa_test_suite() -> std::io::Result<()> {
         }
 
         println!(
-            "  -> [PASS] Trich xuat 500 ban ghi EVTX trong {:.2} ms (chuan ISO-8601, EventID so, Binary & param day du).",
+            "  -> [PASS] Extracted 500 EVTX records in {:.2} ms.",
             stats.elapsed_ms
         );
     }
 
-    // Don dep tmp_base
     let _ = std::fs::remove_dir_all(&tmp_base);
 
     println!("\n============================================================");
-    println!("          TAT CA CAC BAI TEST QA DEU DAT CHUAN (100%)       ");
+    println!("            ALL RUST QA SELF-TESTS PASSED (100%)            ");
     println!("============================================================");
 
     Ok(())

@@ -16,13 +16,14 @@ import { Row, TableRep } from "../TableRep";
 import { decodeTableData } from "../QueryExp";
 import { DuckDBDialect } from "../dialects/DuckDBDialect";
 import { serializeError, deserializeError } from "./errorUtils";
-import {
-  tableFromIPC,
-  tableToIPC,
-  Table as ArrowTable,
-  Schema as ArrowSchema,
-  tableFromArrays,
-} from "@apache-arrow/es2015-cjs";
+
+let _arrowMod: typeof import("@apache-arrow/es2015-cjs") | null = null;
+function getArrow(): typeof import("@apache-arrow/es2015-cjs") {
+  if (!_arrowMod) {
+    _arrowMod = require("@apache-arrow/es2015-cjs");
+  }
+  return _arrowMod!;
+}
 
 export const HYBRID_MAGIC_BYTES = [0x54, 0x4f, 0x41, 0x44]; // "TOAD"
 export const HYBRID_PROTOCOL_VERSION = 1;
@@ -230,6 +231,7 @@ export function arrowIPCToTableRep(buffer: ArrayBuffer | Uint8Array): TableRep {
     return new TableRep(new Schema(DuckDBDialect, [], {}), []);
   }
 
+  const { tableFromIPC } = getArrow();
   const arrowTable = tableFromIPC(u8);
   const numRows = arrowTable.numRows;
   const fields = arrowTable.schema.fields;
@@ -324,6 +326,12 @@ export function encodeTableRepArrow(tableRep: TableRep): {
     }
   }
 
+  const {
+    tableFromArrays,
+    Schema: ArrowSchema,
+    Table: ArrowTable,
+    tableToIPC,
+  } = getArrow();
   const arrowTable = tableFromArrays(columnData);
   const metaMap = new Map<string, string>([
     ["toadSchema", JSON.stringify(schemaJson)],
@@ -344,6 +352,63 @@ export function encodeTableRepArrow(tableRep: TableRep): {
   return {
     buffer: arrayBuffer,
     byteLength: ipcBytes.byteLength,
+    metadata,
+  };
+}
+
+/**
+ * Encodes TableRep into legacy TOAD hybrid v1 binary format ('TOAD' magic header + JSON metadata + UTF-8 row stream).
+ */
+export function encodeLegacyTableRepBinary(tableRep: TableRep): {
+  buffer: ArrayBuffer;
+  byteLength: number;
+  metadata: TableRepMetadata;
+} {
+  const schemaJson = tableRep.schema.toJSON();
+  const rowCount = tableRep.rowData.length;
+  const columnCount = tableRep.schema.columns.length;
+
+  const metadata: TableRepMetadata = {
+    version: HYBRID_PROTOCOL_VERSION,
+    rowCount,
+    columnCount,
+    columns: tableRep.schema.columns,
+    schema: schemaJson,
+  };
+
+  const metaBytes = textEncoder.encode(JSON.stringify(metadata));
+  const dataBytes =
+    rowCount > 0
+      ? textEncoder.encode(
+          JSON.stringify(tableRep.rowData, (_, v) =>
+            typeof v === "bigint"
+              ? Number.isSafeInteger(Number(v))
+                ? Number(v)
+                : v.toString()
+              : v
+          )
+        )
+      : new Uint8Array(0);
+
+  const totalLength = 12 + metaBytes.byteLength + dataBytes.byteLength;
+  const buffer = new ArrayBuffer(totalLength);
+  const u8 = new Uint8Array(buffer);
+  const view = new DataView(buffer);
+
+  u8[0] = HYBRID_MAGIC_BYTES[0];
+  u8[1] = HYBRID_MAGIC_BYTES[1];
+  u8[2] = HYBRID_MAGIC_BYTES[2];
+  u8[3] = HYBRID_MAGIC_BYTES[3];
+  view.setUint32(4, HYBRID_PROTOCOL_VERSION, true);
+  view.setUint32(8, metaBytes.byteLength, true);
+  u8.set(metaBytes, 12);
+  if (dataBytes.byteLength > 0) {
+    u8.set(dataBytes, 12 + metaBytes.byteLength);
+  }
+
+  return {
+    buffer,
+    byteLength: totalLength,
     metadata,
   };
 }
@@ -400,23 +465,29 @@ export function decodeTableRepBinary(buffer: ArrayBuffer | Uint8Array): TableRep
     throw new Error("decodeTableRepBinary: invalid input, expected ArrayBuffer or Uint8Array");
   }
 
-  if (u8.byteLength < 4) {
-    throw new Error("decodeTableRepBinary: buffer too short (< 4 bytes)");
+  // 1. Modern path: Apache Arrow IPC Stream (0xFFFFFFFF continuation marker)
+  if (isArrowIPC(u8)) {
+    if (u8.byteLength < 8) {
+      throw new Error("decodeTableRepBinary: buffer too short (< 8 bytes)");
+    }
+    return arrowIPCToTableRep(u8);
   }
 
-  // 1. If buffer has "TOAD" magic bytes -> decode as legacy v1 format
+  // 2. TOAD Hybrid v1 binary format (requires 12-byte header starting with 'TOAD')
+  if (u8.byteLength < 12) {
+    throw new Error("decodeTableRepBinary: buffer too short (< 12 bytes)");
+  }
+
   if (
-    u8.byteLength >= 12 &&
-    u8[0] === HYBRID_MAGIC_BYTES[0] &&
-    u8[1] === HYBRID_MAGIC_BYTES[1] &&
-    u8[2] === HYBRID_MAGIC_BYTES[2] &&
-    u8[3] === HYBRID_MAGIC_BYTES[3]
+    u8[0] !== HYBRID_MAGIC_BYTES[0] ||
+    u8[1] !== HYBRID_MAGIC_BYTES[1] ||
+    u8[2] !== HYBRID_MAGIC_BYTES[2] ||
+    u8[3] !== HYBRID_MAGIC_BYTES[3]
   ) {
-    return decodeLegacyTableRepBinary(u8);
+    throw new Error("decodeTableRepBinary: invalid magic bytes (expected 'TOAD' or Arrow IPC stream)");
   }
 
-  // 2. Default & modern path: Apache Arrow IPC Stream
-  return arrowIPCToTableRep(u8);
+  return decodeLegacyTableRepBinary(u8);
 }
 
 /**
@@ -436,9 +507,16 @@ export function encodeTableRepBinary(tableRep: TableRep): {
  * If the result is a TableRep or raw binary (Arrow IPC Stream buffer), it is
  * transferred via zero-copy transfer list.
  */
-export function postHybridResponse(port: any, id: number, result: any): void {
+export function postHybridResponse(
+  port: any,
+  id: number,
+  result: any,
+  useLegacyFrame = false
+): void {
   if (result instanceof TableRep) {
-    const { buffer, metadata } = encodeTableRepArrow(result);
+    const { buffer, metadata } = useLegacyFrame
+      ? encodeLegacyTableRepBinary(result)
+      : encodeTableRepArrow(result);
     const msg: EngineQueryResp = {
       id,
       ok: true,

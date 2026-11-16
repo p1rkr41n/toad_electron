@@ -509,18 +509,16 @@ export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
  * Quét tìm hoặc tạo mới thư mục toadAppData_[5_chars] cạnh file exe
  */
 export function ensurePortableAppDataDir(exeDir: string): string {
-  // 1. Kiểm tra thư mục toadAppData trực tiếp nếu có
   const directAppData = path.join(exeDir, "toadAppData");
   try {
     if (fs.existsSync(directAppData) && fs.statSync(directAppData).isDirectory()) {
-      log.info(`[PortableAppData] Su dung thu muc toadAppData: ${directAppData}`);
+      log.info(`[PortableAppData] Using direct toadAppData directory: ${directAppData}`);
       return directAppData;
     }
   } catch (err) {
-    log.warn("[PortableAppData] Loi khi kiem tra thu muc toadAppData:", err);
+    log.warn("[PortableAppData] Error checking direct toadAppData directory:", err);
   }
 
-  // 2. Quét tìm thư mục toadAppData_* hiện có
   try {
     const entries = fs.readdirSync(exeDir, { withFileTypes: true });
     for (const ent of entries) {
@@ -529,20 +527,19 @@ export function ensurePortableAppDataDir(exeDir: string): string {
         /^toadAppData_[a-z0-9]{5}$/i.test(ent.name)
       ) {
         const found = path.join(exeDir, ent.name);
-        log.info(`[PortableAppData] Tai su dung thu muc co san: ${found}`);
+        log.info(`[PortableAppData] Reusing existing directory: ${found}`);
         return found;
       }
     }
   } catch (err) {
-    log.warn("[PortableAppData] Loi khi quet thu muc exe:", err);
+    log.warn("[PortableAppData] Error scanning executable directory:", err);
   }
 
-  // 3. Nếu chưa có, sinh mới
   const suffix = genRandomSuffix(5);
   const newDirName = `toadAppData_${suffix}`;
   const fullPath = path.join(exeDir, newDirName);
   fs.mkdirSync(fullPath, { recursive: true });
-  log.info(`[PortableAppData] Da tao thu muc moi: ${fullPath}`);
+  log.info(`[PortableAppData] Created new directory: ${fullPath}`);
   return fullPath;
 }
 
@@ -552,42 +549,33 @@ export function ensurePortableAppDataDir(exeDir: string): string {
 
 const VALID_COMPRESSIONS = ["zstd", "snappy", "gzip", "none"];
 
-/**
- * Thẩm định toàn diện file config.ini (4 cấp độ):
- * 1. Existence Check
- * 2. Syntax & Parsing
- * 3. Schema & Key Completeness (Auto-Heal)
- * 4. Value Range & Type Validation
- */
 export function validateAndEnsureConfig(configPath: string): ToadConfig {
-  // Cấp 1: Existence Check
   if (!fs.existsSync(configPath)) {
-    log.info("[ConfigValidation] File config.ini chua ton tai, tao moi tu template");
+    log.info("[ConfigValidation] config.ini not found; creating from default template");
     try {
       fs.writeFileSync(configPath, DEFAULT_CONFIG_INI_TEXT, "utf8");
     } catch (err) {
-      log.error("[ConfigValidation] Khong the ghi file config.ini:", err);
+      log.error("[ConfigValidation] Failed to write config.ini:", err);
     }
     return { ...DEFAULT_CONFIG };
   }
 
-  // Cấp 2: Syntax & Parsing
   let parsed: IniData;
   try {
     const rawContent = fs.readFileSync(configPath, "utf8");
     parsed = parseIni(rawContent);
   } catch (err) {
     log.warn(
-      "[ConfigValidation] File config.ini bi hong cu phap, backup va phuc hoi mac dinh:",
+      "[ConfigValidation] Corrupted config.ini syntax; backing up and restoring defaults:",
       err
     );
     try {
       const backupName = `${configPath}.corrupt_${Date.now()}`;
       fs.renameSync(configPath, backupName);
       fs.writeFileSync(configPath, DEFAULT_CONFIG_INI_TEXT, "utf8");
-      log.info(`[ConfigValidation] Da backup file hong sang: ${backupName}`);
+      log.info(`[ConfigValidation] Backed up corrupted config.ini to: ${backupName}`);
     } catch (backupErr) {
-      log.error("[ConfigValidation] Khong the backup file hong:", backupErr);
+      log.error("[ConfigValidation] Failed to back up corrupted config.ini:", backupErr);
     }
     return { ...DEFAULT_CONFIG };
   }
@@ -837,9 +825,9 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
     system: { temp_cleanup, binary_guard, uv_threadpool_size, log_level },
   };
 
-  // Auto-Heal: Ghi lại file nếu có trường bị thiếu hoặc giá trị đã sửa
+  // Auto-Heal: rewrite config if missing keys or invalid values were repaired
   if (needRewrite) {
-    log.info("[ConfigValidation] Da phat hien key thieu/sai, tu dong va (Auto-Heal)");
+    log.info("[ConfigValidation] Missing or invalid keys detected; auto-healing config.ini");
     try {
       let healedContent: string | null = null;
       try {
@@ -850,7 +838,7 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
           }
         }
       } catch (patchErr) {
-        log.warn("[ConfigValidation] Khong the patch in-place, fallback ve stringifyConfig:", patchErr);
+        log.warn("[ConfigValidation] In-place INI patch failed; falling back to stringifyConfig:", patchErr);
       }
 
       if (!healedContent) {
@@ -859,11 +847,11 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
 
       fs.writeFileSync(configPath, healedContent, "utf8");
     } catch (err) {
-      log.warn("[ConfigValidation] Khong the ghi lai config.ini:", err);
+      log.warn("[ConfigValidation] Failed to write healed config.ini:", err);
     }
   }
 
-  log.info("[ConfigValidation] Cau hinh da tham dinh thanh cong:", validatedConfig);
+  log.info("[ConfigValidation] Configuration validated successfully:", validatedConfig);
   return validatedConfig;
 }
 
@@ -930,11 +918,11 @@ export function resolveEffectiveLogLevel(
 // =============================================================================
 
 /**
- * Đảm bảo file filters_preset.json tồn tại và hợp lệ
+ * Ensure filters_preset.json exists and conforms to expected schema.
  */
 export function validateAndEnsurePresets(presetsPath: string): void {
   if (!fs.existsSync(presetsPath)) {
-    log.info("[PresetsValidation] Tao moi filters_preset.json");
+    log.info("[PresetsValidation] Creating default filters_preset.json");
     try {
       fs.writeFileSync(
         presetsPath,
@@ -942,7 +930,7 @@ export function validateAndEnsurePresets(presetsPath: string): void {
         "utf8"
       );
     } catch (err) {
-      log.warn("[PresetsValidation] Khong the tao file presets:", err);
+      log.warn("[PresetsValidation] Failed to create filters_preset.json:", err);
     }
     return;
   }
@@ -952,13 +940,12 @@ export function validateAndEnsurePresets(presetsPath: string): void {
     const raw = fs.readFileSync(presetsPath, "utf8");
     const parsed = JSON.parse(raw);
 
-    // Kiểm tra cấu trúc cơ bản
     if (!parsed.version || !Array.isArray(parsed.presets)) {
-      throw new Error("Cau truc filters_preset.json khong hop le");
+      throw new Error("Invalid filters_preset.json schema");
     }
   } catch (err) {
     log.warn(
-      "[PresetsValidation] File filters_preset.json bi hong, backup va phuc hoi:",
+      "[PresetsValidation] Corrupted filters_preset.json detected; backing up and restoring defaults:",
       err
     );
     try {
@@ -969,14 +956,13 @@ export function validateAndEnsurePresets(presetsPath: string): void {
         JSON.stringify(DEFAULT_PRESETS_JSON, null, 2),
         "utf8"
       );
-      log.info(`[PresetsValidation] Da backup va phuc hoi presets`);
+      log.info("[PresetsValidation] Backed up and restored filters_preset.json");
     } catch (backupErr) {
-      log.warn("[PresetsValidation] Loi khi backup presets:", backupErr);
+      log.warn("[PresetsValidation] Failed to back up corrupted presets:", backupErr);
     }
   }
 }
 
-// =============================================================================
 // =============================================================================
 // TOAD RUST CORE BINARY DISCOVERY
 // =============================================================================
@@ -1006,30 +992,28 @@ export function findToadCoreBinary(): string | null {
 }
 
 // =============================================================================
-// TEMP DIRECTORY CLEANUP (với Rust Core & Windows EBUSY Retry)
+// TEMP DIRECTORY CLEANUP (Windows EBUSY Retry & Ledger/WAL Preservation)
 // =============================================================================
 
-/**
- * Xóa sạch 100% file/thư mục bên trong thư mục temp
- * Ưu tiên gọi toad-core.exe clean-temp (Rust SIMD & retry)
- */
 export function cleanTempDir(tempDir: string): void {
   try {
     if (!fs.existsSync(tempDir)) return;
 
-    // TypeScript cleaner với Windows retry loop, bảo vệ tuyệt đối state ledger
     const items = fs.readdirSync(tempDir);
     let cleanedCount = 0;
     let failedCount = 0;
 
     for (const item of items) {
-      if (item === "toad_ledger.parquet" || item.endsWith("_ledger.parquet")) {
-        continue; // Bảo tồn state ledger
+      if (
+        item === "toad_ledger.parquet" ||
+        item.endsWith("_ledger.parquet") ||
+        item.endsWith(".wal.jsonl")
+      ) {
+        continue;
       }
       const fullPath = path.join(tempDir, item);
       let deleted = false;
 
-      // Retry tối đa 3 lần (xử lý Windows EBUSY file lock)
       for (let attempt = 0; attempt < 3 && !deleted; attempt++) {
         try {
           const stat = fs.statSync(fullPath);
@@ -1049,7 +1033,7 @@ export function cleanTempDir(tempDir: string): void {
           } else if (attempt >= 2) {
             failedCount++;
             log.warn(
-              `[TempCleaner] Khong the xoa: ${item} (${err.code || err.message})`
+              `[TempCleaner] Failed to remove: ${item} (${err.code || err.message})`
             );
           }
         }
@@ -1058,17 +1042,14 @@ export function cleanTempDir(tempDir: string): void {
 
     if (cleanedCount > 0 || failedCount > 0) {
       log.info(
-        `[TempCleaner] Da don dep temp: ${cleanedCount} thanh cong, ${failedCount} that bai`
+        `[TempCleaner] Temp cleanup complete: ${cleanedCount} removed, ${failedCount} failed`
       );
     }
   } catch (err) {
-    log.warn("[TempCleaner] Loi tong quat khi don temp:", err);
+    log.warn("[TempCleaner] Unexpected error during temp cleanup:", err);
   }
 }
 
-/**
- * Cập nhật last_directory vào config.ini và memory config khi người dùng mở thư mục
- */
 export function updateLastOpenedDirectory(appDataDir: string, dirPath: string): void {
   try {
     if (!dirPath) return;
@@ -1082,7 +1063,6 @@ export function updateLastOpenedDirectory(appDataDir: string, dirPath: string): 
     const configPath = path.join(appDataDir, "config.ini");
     if (!fs.existsSync(configPath)) return;
 
-    // Cập nhật bộ nhớ config hiện tại nếu có
     const env = (global as any).toadPortableEnv;
     if (env && env.config && env.config.general) {
       env.config.general.last_directory = targetDir;
@@ -1095,19 +1075,17 @@ export function updateLastOpenedDirectory(appDataDir: string, dirPath: string): 
       content = content.replace(/\[general\]/i, `[general]\nlast_directory = ${targetDir}`);
     }
     fs.writeFileSync(configPath, content, "utf8");
-    log.info(`[PortableAppData] Da cap nhat last_directory vao config.ini: ${targetDir}`);
+    log.info(`[PortableAppData] Updated last_directory in config.ini: ${targetDir}`);
   } catch (err) {
-    log.warn("[PortableAppData] Khong the cap nhat last_directory:", err);
+    log.warn("[PortableAppData] Failed to update last_directory:", err);
   }
 }
 
 export const setLastOpenedDirectory = updateLastOpenedDirectory;
 
 /**
- * Quét dọn các file tạm dở dang mồ côi (*.tmp, *.tmp_*.parquet) từ các phiên bị crash trước đó.
- * Được gọi ngay khi khởi động ứng dụng (không phụ thuộc temp_cleanup).
- * Quét đệ quy toàn bộ thư mục con của temp/ (vd: temp/okgrg/, temp/ekm8j/).
- * Tuyệt đối bảo tồn các tệp cache hoàn chỉnh (*_cached_*.parquet) và state ledger (*_ledger.parquet).
+ * Purges orphan partial temporary files (*.tmp, *.tmp_*.parquet) left behind by interrupted sessions.
+ * Preserves valid Parquet caches (*_cached_*.parquet) and state ledgers (*_ledger.parquet, *.wal.jsonl).
  */
 export function purgeOrphanTempFiles(tempDir: string): number {
   let purgedCount = 0;
@@ -1117,58 +1095,54 @@ export function purgeOrphanTempFiles(tempDir: string): number {
     const walkAndPurge = (dir: string): void => {
       const entries = fs.readdirSync(dir);
       for (const entry of entries) {
-        if (entry === "toad_ledger.parquet" || entry.endsWith("_ledger.parquet")) {
-          continue; // Bảo tồn state ledger
+        if (
+          entry === "toad_ledger.parquet" ||
+          entry.endsWith("_ledger.parquet") ||
+          entry.endsWith(".wal.jsonl")
+        ) {
+          continue;
         }
         const fullPath = path.join(dir, entry);
         try {
           const stat = fs.statSync(fullPath);
           if (stat.isDirectory()) {
             walkAndPurge(fullPath);
-            // Don thu muc con neu da rong
             try {
               if (fs.readdirSync(fullPath).length === 0) {
                 fs.rmdirSync(fullPath);
               }
             } catch {}
           } else {
-            // Nhận diện file rác tạm: đuôi .tmp hoặc chứa .tmp_ (ví dụ sample_40gb_cached_*.tmp_1793626527527.parquet)
             const isOrphan = entry.endsWith(".tmp") || entry.includes(".tmp_");
             if (isOrphan) {
               fs.unlinkSync(fullPath);
               purgedCount++;
-              log.info(`[OrphanPurge] Da don file rac mo coi: ${entry}`);
+              log.info(`[OrphanPurge] Purged orphan temp file: ${entry}`);
             }
           }
         } catch (err: any) {
-          log.warn(`[OrphanPurge] Khong the xoa file mo coi ${entry}:`, err?.message);
+          log.warn(`[OrphanPurge] Could not remove orphan file ${entry}:`, err?.message);
         }
       }
-    }
+    };
 
     walkAndPurge(tempDir);
   } catch (err: any) {
-    log.warn("[OrphanPurge] Loi khi quet thu muc temp:", err?.message);
+    log.warn("[OrphanPurge] Error scanning temp directory:", err?.message);
   }
   return purgedCount;
 }
 
 // =============================================================================
-// ENTRYPOINT: Khởi tạo toàn bộ Portable Environment
+// ENTRYPOINT: Portable Environment Bootstrap
 // =============================================================================
 
-/**
- * Hàm chính: Khởi tạo hoàn chỉnh Portable AppData Environment
- * Đảm bảo đọc config.ini TRƯỚC TIÊN để quyết định có dọn dẹp temp hay không
- */
 export function initPortableEnvironment(): PortableEnvironment {
-  log.info("=== [PortableAppData] Bat dau khoi tao Portable Environment ===");
+  log.info("=== [PortableAppData] Initializing Portable Environment ===");
 
-  // 1. Xác định thư mục exe thật
   const exeDir = getExecutableDir();
-  log.info(`[PortableAppData] Thu muc exe: ${exeDir}`);
+  log.info(`[PortableAppData] Executable dir: ${exeDir}`);
 
-  // 2. Khởi tạo AppData directory
   const appDataDir = ensurePortableAppDataDir(exeDir);
   log.info(`[PortableAppData] AppData dir: ${appDataDir}`);
 
@@ -1184,22 +1158,19 @@ export function initPortableEnvironment(): PortableEnvironment {
   const configPath = path.join(appDataDir, "config.ini");
   const presetsPath = path.join(appDataDir, "filters_preset.json");
 
-  // ĐỌC VÀ VALIDATE CONFIG TRƯỚC TIÊN
   const config = validateAndEnsureConfig(configPath);
   validateAndEnsurePresets(presetsPath);
 
-  // Quét dọn các file dở dang mồ côi (*.tmp_*.parquet) từ các lần crash trước
   const orphanPurged = purgeOrphanTempFiles(tempDir);
   if (orphanPurged > 0) {
-    log.info(`[PortableAppData] Startup Orphan Cleaner da giai phong ${orphanPurged} file rac do dang`);
+    log.info(`[PortableAppData] Startup Orphan Cleaner removed ${orphanPurged} incomplete temp files`);
   }
 
-  // Chỉ dọn dẹp file temp tồn đọng nếu temp_cleanup = true trong config.ini
   if (config.system.temp_cleanup) {
-    log.info("[PortableAppData] temp_cleanup = true -> Dang don dep file temp ton dong (Orphan Clean)...");
+    log.info("[PortableAppData] temp_cleanup = true -> Cleaning residual temp cache...");
     cleanTempDir(tempDir);
   } else {
-    log.info("[PortableAppData] temp_cleanup = false -> Bao luu toan bo cache Parquet trong temp/");
+    log.info("[PortableAppData] temp_cleanup = false -> Preserving Parquet cache in temp/");
   }
 
   // Export environment variables for IPC and child processes
@@ -1224,7 +1195,7 @@ export function initPortableEnvironment(): PortableEnvironment {
   };
   (global as any).toadPortableEnv = envResult;
 
-  log.info("=== [PortableAppData] Khoi tao hoan tat ===");
+  log.info("=== [PortableAppData] Initialization complete ===");
   log.info(`    AppData    : ${appDataDir}`);
   log.info(`    Temp       : ${tempDir}`);
   log.info(`    Config     : ${configPath}`);

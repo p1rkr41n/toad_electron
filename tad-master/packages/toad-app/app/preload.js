@@ -70,6 +70,11 @@ const STRICT_CAPABILITIES_WHITELIST = Object.freeze([
   "engine:request-port",
   "engine:restored",
   "toad-engine-port",
+  "cache:invalidate",
+  "view:registerDerived",
+  "view:getDerived",
+  "project:workspaceChanged",
+  "toad-ingest-progress",
   "getSetupInfo",
   "toad:get_setup_info",
   "openExample",
@@ -196,12 +201,56 @@ if (typeof process !== "undefined" && Array.isArray(process.argv)) {
   }
 }
 
-// 4. Listen for "toad-engine-port" from Main and forward to Renderer via window.postMessage
+function isSafeExternalUrl(rawUrl) {
+  if (typeof rawUrl !== "string") return false;
+  const trimmed = rawUrl.trim();
+  if (!trimmed || trimmed.length > 4096) return false;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function assertSafeExternalUrl(rawUrl) {
+  if (!isSafeExternalUrl(rawUrl)) {
+    throw new Error(
+      `[SecurityError: Blocked External URL] Only http: and https: URLs are permitted (rejected: '${String(rawUrl)}').`
+    );
+  }
+}
+
+// 4. Race-free MessagePort handshake between Main ("toad-engine-port") and Renderer ("toad-renderer-port-ready")
+let pendingEnginePort = null;
+let rendererPortReady = false;
+
+function deliverPendingEnginePort() {
+  if (pendingEnginePort && rendererPortReady && typeof window !== "undefined") {
+    const portToTransfer = pendingEnginePort;
+    pendingEnginePort = null;
+    window.postMessage({ type: "toad-engine-port-handshake" }, "*", [portToTransfer]);
+  }
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("message", (event) => {
+    if (event && event.data && event.data.type === "toad-renderer-port-ready") {
+      rendererPortReady = true;
+      deliverPendingEnginePort();
+    }
+  });
+}
+
 if (ipcRenderer && typeof ipcRenderer.on === "function") {
   ipcRenderer.on("toad-engine-port", (event) => {
     const port = event.ports && event.ports[0];
     if (port && typeof window !== "undefined") {
-      window.postMessage({ type: "toad-engine-port-handshake" }, "*", [port]);
+      if (rendererPortReady) {
+        window.postMessage({ type: "toad-engine-port-handshake" }, "*", [port]);
+      } else {
+        pendingEnginePort = port;
+      }
     }
   });
 }
@@ -356,11 +405,12 @@ const toadBridge = {
       }
     }
 
-    // Handle local shell openExternal capabilities directly in preload if available
+    // Handle local shell openExternal capabilities directly in preload with strict http/https allowlist
     if (resolved === "shell:openExternal") {
       const url = typeof payload === "string" ? payload : payload?.url;
+      assertSafeExternalUrl(url);
       if (electronShell && typeof electronShell.openExternal === "function") {
-        return electronShell.openExternal(url);
+        return electronShell.openExternal(url.trim());
       }
     }
 
@@ -424,11 +474,17 @@ const toadBridge = {
     },
   },
   openExternal: (url) => {
+    try {
+      assertSafeExternalUrl(url);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+    const cleanUrl = url.trim();
     if (electronShell && typeof electronShell.openExternal === "function") {
-      return electronShell.openExternal(url);
+      return electronShell.openExternal(cleanUrl);
     }
     if (ipcRenderer && typeof ipcRenderer.invoke === "function") {
-      return ipcRenderer.invoke("shell:openExternal", url);
+      return ipcRenderer.invoke("shell:openExternal", cleanUrl);
     }
     return Promise.resolve();
   },
@@ -466,6 +522,7 @@ if (typeof module !== "undefined" && module.exports) {
     toadBridge,
     toadLogger: uiLogger,
     assertCapability,
+    isSafeExternalUrl,
     STRICT_CAPABILITIES_WHITELIST,
     COMMAND_ALIAS_MAP,
   };

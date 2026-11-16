@@ -1,17 +1,220 @@
 /**
  * Ingest Worker Process (Out-of-Process Crash Firewall)
  *
- * Chạy độc lập trong tiến trình con Node/Electron nhằm cô lập hoàn toàn các lỗi sập
- * C++ Assertion/Crash (như vector.cpp:1859) của DuckDB native addon, bảo vệ tiến trình
- * giao diện chính (Electron / Tad) không bao giờ bị terminate bất ngờ.
+ * Runs inside an isolated child/utility process so any native DuckDB assertion
+ * or malformed input crash cannot terminate the interactive Engine or UI.
  */
 
-import * as path from "path";
 import * as fs from "fs";
 import { Database } from "duckdb-async";
 
 function escapeSqlPath(p: string): string {
   return p.replace(/\\/g, "/").replace(/'/g, "''");
+}
+
+function notifyParent(msg: any): void {
+  if (typeof process.send === "function") {
+    process.send(msg);
+  } else if (
+    (process as any).parentPort &&
+    typeof (process as any).parentPort.postMessage === "function"
+  ) {
+    (process as any).parentPort.postMessage(msg);
+  }
+}
+
+export interface NormalizedIngestWorkerConfig {
+  compression: string;
+  rowGroupSize: number;
+  maxMemory: string | null;
+  threads: number;
+  isComplexLog: boolean;
+  safeParallel: boolean;
+}
+
+export function normalizeWorkerConfig(
+  cfg: any,
+  argvComplexFlag?: string
+): NormalizedIngestWorkerConfig {
+  const safeCfg = cfg && typeof cfg === "object" ? cfg : {};
+  const compression = String(safeCfg.compression || "snappy").toUpperCase();
+  const rawRowGroup = Number(safeCfg.row_group_size ?? safeCfg.rowGroupSize);
+  const rowGroupSize =
+    Number.isFinite(rawRowGroup) && rawRowGroup >= 1000 ? Math.floor(rawRowGroup) : 122880;
+
+  const rawMem = safeCfg.max_memory ?? safeCfg.maxMemory;
+  const maxMemory =
+    typeof rawMem === "string" && /^\d+(\.\d+)?\s*(KB|MB|GB|TB|KiB|MiB|GiB)$/i.test(rawMem.trim())
+      ? rawMem.trim()
+      : null;
+
+  const rawThreads = Number(safeCfg.threads ?? safeCfg.workerThreads ?? 0);
+  const threads =
+    Number.isFinite(rawThreads) && rawThreads > 0 ? Math.floor(rawThreads) : 0;
+
+  const isComplexLog = argvComplexFlag === "1" || safeCfg.isComplex === true;
+  const safeParallel =
+    safeCfg.safe_mode_parallel !== false && safeCfg.safeModeParallel !== false;
+
+  return {
+    compression,
+    rowGroupSize,
+    maxMemory,
+    threads,
+    isComplexLog,
+    safeParallel,
+  };
+}
+
+export async function executeIngestWorkerJob(
+  filePath: string,
+  targetParquetPath: string,
+  rawCfg: any = {},
+  argvComplexFlag?: string
+): Promise<void> {
+  const norm = normalizeWorkerConfig(rawCfg, argvComplexFlag);
+  const safeSrc = escapeSqlPath(filePath);
+  const safeDst = escapeSqlPath(targetParquetPath);
+
+  const lowerPath = filePath.toLowerCase();
+  const isGz = lowerPath.endsWith(".gz");
+  const innerPath = isGz ? lowerPath.slice(0, -3) : lowerPath;
+  const gzClause = isGz ? "compression = 'gzip'," : "";
+
+  const isJsonLike =
+    innerPath.endsWith(".jsonl") ||
+    innerPath.endsWith(".ndjson") ||
+    innerPath.endsWith(".json");
+
+  const db = await Database.create(":memory:");
+  const dbConn = await db.connect();
+
+  try {
+    await dbConn.exec("SET preserve_insertion_order = false");
+    if (norm.maxMemory) {
+      await dbConn.exec(`SET max_memory = '${norm.maxMemory}'`);
+    }
+    if (norm.threads > 0) {
+      await dbConn.exec(`SET threads = ${norm.threads}`);
+    }
+
+    if (isJsonLike) {
+      const jsonQuery = `
+        COPY (
+          SELECT * FROM read_json_auto(
+            '${safeSrc}',
+            ${gzClause}
+            ignore_errors = true,
+            maximum_object_size = 33554432
+          )
+        ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+      `;
+      await dbConn.exec(jsonQuery);
+    } else if (norm.isComplexLog) {
+      const safeLogQuery = `
+        COPY (
+          SELECT * FROM read_csv(
+            '${safeSrc}',
+            ${gzClause}
+            auto_detect = true,
+            sample_size = 100000,
+            ignore_errors = true,
+            null_padding = true,
+            parallel = ${norm.safeParallel ? "true" : "false"},
+            all_varchar = true,
+            delim = ','
+          )
+        ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+      `;
+      try {
+        await dbConn.exec(safeLogQuery);
+      } catch {
+        const forceHeaderQuery = `
+          COPY (
+            SELECT * FROM read_csv(
+              '${safeSrc}',
+              ${gzClause}
+              header = true,
+              delim = ',',
+              ignore_errors = true,
+              null_padding = true,
+              parallel = ${norm.safeParallel ? "true" : "false"},
+              all_varchar = true
+            )
+          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+        `;
+        await dbConn.exec(forceHeaderQuery);
+      }
+    } else {
+      const isCsv = innerPath.endsWith(".csv");
+      const isTsv = innerPath.endsWith(".tsv");
+      const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
+      let succeeded = false;
+
+      try {
+        const tier0 = `
+          COPY (
+            SELECT * FROM read_csv(
+              '${safeSrc}',
+              ${gzClause}
+              ${defaultDelimClause}
+              auto_detect = true,
+              sample_size = 100000,
+              ignore_errors = true,
+              null_padding = true,
+              all_varchar = true
+            )
+          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+        `;
+        await dbConn.exec(tier0);
+        succeeded = true;
+      } catch {}
+
+      if (!succeeded) {
+        try {
+          const tier1 = `
+            COPY (
+              SELECT * FROM read_csv(
+                '${safeSrc}',
+                ${gzClause}
+                ${defaultDelimClause}
+                auto_detect = true,
+                sample_size = 100000,
+                ignore_errors = true,
+                null_padding = true,
+                parallel = false,
+                all_varchar = true
+              )
+            ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+          `;
+          await dbConn.exec(tier1);
+          succeeded = true;
+        } catch {}
+      }
+
+      if (!succeeded) {
+        const tier2b = `
+          COPY (
+            SELECT * FROM read_csv(
+              '${safeSrc}',
+              ${gzClause}
+              header = true,
+              ${defaultDelimClause || "delim = ',',"}
+              ignore_errors = true,
+              null_padding = true,
+              parallel = false,
+              all_varchar = true
+            )
+          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${norm.compression}, ROW_GROUP_SIZE ${norm.rowGroupSize});
+        `;
+        await dbConn.exec(tier2b);
+      }
+    }
+  } finally {
+    try {
+      await (dbConn as any).close();
+    } catch {}
+  }
 }
 
 async function runWorker() {
@@ -29,163 +232,10 @@ async function runWorker() {
     cfg = JSON.parse(cfgJson);
   } catch {}
 
-  const isComplexLog = process.argv[5] === "1" || cfg.isComplex === true;
-  const safeParallel = (cfg as any).safe_mode_parallel !== false && (cfg as any).safeModeParallel !== false;
-
-  const compression = (cfg.compression || "snappy").toUpperCase();
-  const rowGroupSize = cfg.row_group_size || 122880;
-  const safeSrc = escapeSqlPath(filePath);
-  const safeDst = escapeSqlPath(targetParquetPath);
-
-  const db = await Database.create(":memory:");
-  const dbConn = await db.connect();
-
   try {
-    // Dynamic thread & memory budgeting for worker
-    await dbConn.exec("SET preserve_insertion_order = false");
-    if (
-      cfg.max_memory &&
-      typeof cfg.max_memory === "string" &&
-      /\d+\s*(MB|GB)/i.test(cfg.max_memory)
-    ) {
-      await dbConn.exec(`SET max_memory = '${cfg.max_memory.trim()}'`);
-    }
-
-    if (isComplexLog) {
-      // Safe Ingest Profile (100% VARCHAR, 0% Crash assertion)
-      // Stage 1: Auto-detect with all_varchar = true, delim = ','
-      const safeLogQuery = `
-        COPY (
-          SELECT * FROM read_csv(
-            '${safeSrc}',
-            auto_detect = true,
-            sample_size = 100000,
-            ignore_errors = true,
-            null_padding = true,
-            parallel = ${safeParallel ? "true" : "false"},
-            all_varchar = true,
-            delim = ','
-          )
-        ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-      `;
-      try {
-        await dbConn.exec(safeLogQuery);
-      } catch (errStage1) {
-        // Stage 2: Force Header Fallback (đọc trực tiếp dòng 1 làm danh sách cột)
-        const forceHeaderQuery = `
-          COPY (
-            SELECT * FROM read_csv(
-              '${safeSrc}',
-              header = true,
-              delim = ',',
-              ignore_errors = true,
-              null_padding = true,
-              parallel = ${safeParallel ? "true" : "false"},
-              all_varchar = true
-            )
-          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-        `;
-        await dbConn.exec(forceHeaderQuery);
-      }
-    } else {
-      // Standard CSV with 3-tier fallback (định rõ delim cho CSV/TSV, TUYỆT ĐỐI không dùng escape='' làm hỏng sniffer)
-      const isCsv = filePath.toLowerCase().endsWith(".csv");
-      const isTsv = filePath.toLowerCase().endsWith(".tsv");
-      const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
-      let succeeded = false;
-
-      // Tier 0: RFC-4180 chuẩn (delim=',', all_varchar=true)
-      try {
-        const tier0 = `
-          COPY (
-            SELECT * FROM read_csv(
-              '${safeSrc}',
-              ${defaultDelimClause}
-              auto_detect = true,
-              sample_size = 100000,
-              ignore_errors = true,
-              null_padding = true,
-              all_varchar = true
-            )
-          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-        `;
-        await dbConn.exec(tier0);
-        succeeded = true;
-      } catch (err0) {
-        // Fallback Tier 1
-      }
-
-      if (!succeeded) {
-        // Tier 1: parallel=false, all_varchar=true
-        try {
-          const tier1 = `
-            COPY (
-              SELECT * FROM read_csv(
-                '${safeSrc}',
-                ${defaultDelimClause}
-                auto_detect = true,
-                sample_size = 100000,
-                ignore_errors = true,
-                null_padding = true,
-                parallel = false,
-                all_varchar = true
-              )
-            ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-          `;
-          await dbConn.exec(tier1);
-          succeeded = true;
-        } catch (err1) {
-          // Fallback Tier 2
-        }
-      }
-
-      if (!succeeded) {
-        // Tier 2: all_varchar=true (100% columns VARCHAR, triệt tiêu assertion)
-        try {
-          const tier2 = `
-            COPY (
-              SELECT * FROM read_csv(
-                '${safeSrc}',
-                ${defaultDelimClause}
-                auto_detect = true,
-                sample_size = 100000,
-                ignore_errors = true,
-                null_padding = true,
-                parallel = false,
-                all_varchar = true
-              )
-            ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-          `;
-          await dbConn.exec(tier2);
-          succeeded = true;
-        } catch (err2) {
-          // Fallback Tier 2b
-        }
-      }
-
-      if (!succeeded) {
-        // Tier 2b: Force Header fallback
-        const tier2b = `
-          COPY (
-            SELECT * FROM read_csv(
-              '${safeSrc}',
-              header = true,
-              ${defaultDelimClause || "delim = ',',"}
-              ignore_errors = true,
-              null_padding = true,
-              parallel = false,
-              all_varchar = true
-            )
-          ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
-        `;
-        await dbConn.exec(tier2b);
-      }
-    }
-
+    await executeIngestWorkerJob(filePath, targetParquetPath, cfg, process.argv[5]);
     if (fs.existsSync(targetParquetPath) && fs.statSync(targetParquetPath).size > 0) {
-      if (process.send) {
-        process.send({ success: true });
-      }
+      notifyParent({ success: true });
       process.exit(0);
     } else {
       process.exit(1);
@@ -193,10 +243,6 @@ async function runWorker() {
   } catch (err: any) {
     console.error("[IngestWorker] Worker query execution failed:", err?.message || err);
     process.exit(1);
-  } finally {
-    try {
-      await (dbConn as any).close();
-    } catch {}
   }
 }
 

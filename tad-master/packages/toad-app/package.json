@@ -1,12 +1,12 @@
 {
   "name": "toad-app",
-  "version": "2.5.2.2",
-  "homepage": "https://example.com",
+  "version": "2.6.0",
+  "homepage": "https://github.com/HelloKittyXamKinLung/Toad",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/example/toad.git"
+    "url": "https://github.com/HelloKittyXamKinLung/Toad.git"
   },
   "scripts": {
     "clean": "rimraf dist",
@@ -34,28 +34,23 @@
     "sql",
     "database"
   ],
-  "author": "HelloKittyXamKinLung <dev@example.com>",
+  "author": "HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
     "host-bridge": "^2.3.1",
-    "aggtree": "^0.12.0",
     "command-line-args": "^5.2.0",
     "command-line-usage": "^6.1.1",
     "console.table": "^0.10.0",
     "electron-log": "^4.4.4",
-    "electron-updater": "^4.6.1",
     "fast-csv": "^4.3.6",
     "loglevel": "^1.8.0",
-    "oneref": "^0.9.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "reltab": "^0.12.0",
     "reltab-duckdb": "^0.12.0",
     "reltab-fs": "^0.12.0",
-    "source-map-support": "^0.5.21",
-    "toadviewer": "^0.12.0"
+    "source-map-support": "^0.5.21"
   },
   "devDependencies": {
+    "aggtree": "^0.12.0",
     "@blueprintjs/icons": "^4.10.1",
     "@electron/notarize": "^2.3.2",
     "@types/command-line-args": "^5.2.0",
@@ -76,6 +71,9 @@
     "less": "^3.13.1",
     "less-loader": "^10.2.0",
     "mkdirp": "^1.0.4",
+    "oneref": "^0.9.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "recursive-copy-cli": "^1.0.20",
     "resolve-url-loader": "^4.0.0",
     "rimraf": "^5.0.5",
@@ -83,13 +81,14 @@
     "sass-loader": "^14.2.1",
     "source-map-loader": "^3.0.1",
     "style-loader": "^3.3.1",
+    "toadviewer": "^0.12.0",
     "ts-loader": "^9.2.6",
     "webpack": "^5.65.0",
     "webpack-cli": "^4.9.1",
     "webpack-node-externals": "^3.0.0"
   },
   "build": {
-    "appId": "org.example.toad",
+    "appId": "io.github.hellokittyxamkinlung.toad",
     "compression": "maximum",
     "asarUnpack": [
       "**/*.node"
@@ -139,6 +138,19 @@
       "!**/node_modules/@popperjs/**",
       "!**/node_modules/toadviewer/**",
       "!**/node_modules/tadviewer/**",
+      "!**/node_modules/aggtree/**",
+      "!**/node_modules/oneref/**",
+      "!**/node_modules/dom-helpers/**",
+      "!**/node_modules/react-*/**",
+      "!**/node_modules/dnd-core/**",
+      "!**/node_modules/@emotion/**",
+      "!**/node_modules/d3-*/**",
+      "!**/node_modules/flatpickr/**",
+      "!**/node_modules/electron-updater/**",
+      "!**/node_modules/**/test/**",
+      "!**/node_modules/**/tests/**",
+      "!**/node_modules/**/docs/**",
+      "!**/*.d.ts",
       "!**/*.map",
       "!**/*.ts",
       "!**/*.tsx",
@@ -208,6 +220,16 @@
       {
         "ext": "csv.gz",
         "name": "Compressed CSV files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "tsv.gz",
+        "name": "Compressed TSV files",
+        "role": "Viewer"
+      },
+      {
+        "ext": "jsonl.gz",
+        "name": "Compressed JSON Lines files",
         "role": "Viewer"
       },
       {

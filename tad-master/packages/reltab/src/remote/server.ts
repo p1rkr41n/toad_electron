@@ -38,6 +38,7 @@ import {
   EngineQueryReq,
   EngineQueryResp,
   encodeTableRepBinary,
+  encodeLegacyTableRepBinary,
   postHybridResponse,
   postHybridError,
 } from "./hybridProtocol";
@@ -50,8 +51,8 @@ const dbConnEvalQuery = async (
 ): Promise<TableRep> => {
   const query = deserializeQueryReq(req.queryStr) as any;
   const hrstart = process.hrtime();
-  const offset = req.offset ? req.offset : undefined;
-  const limit = req.limit ? req.limit : undefined;
+  const offset = req.offset != null ? req.offset : undefined;
+  const limit = req.limit != null ? req.limit : undefined;
   const options = req.options ? req.options : undefined;
   const qres = await conn.evalQuery(query, offset, limit, options);
   const elapsed = process.hrtime(hrstart);
@@ -307,10 +308,24 @@ const exceptionHandler =
     }
   };
 
-const simpleJSONHandler =
+export const simpleJSONHandler =
   (hf: AnyReqHandler): EncodedRequestHandler =>
-  async (encodedReq: string): Promise<string> => {
-    const req = JSON.parse(encodedReq);
+  async (encodedReq: any): Promise<string> => {
+    let req =
+      typeof encodedReq === "string"
+        ? encodedReq.trim()
+          ? JSON.parse(encodedReq)
+          : {}
+        : encodedReq ?? {};
+    if (
+      req &&
+      typeof req === "object" &&
+      "engine" in req &&
+      !("req" in req)
+    ) {
+      const { engine, ...rest } = req;
+      req = { engine, req: rest };
+    }
     const resp = await hf(req);
     return JSON.stringify(
       resp,
@@ -386,7 +401,8 @@ export class LocalReltabConnection implements ReltabConnection {
  */
 export async function dispatchEngineCommand(
   cmd: string,
-  payload: any
+  payload: any,
+  dispatchOpts?: { binary?: boolean }
 ): Promise<any> {
   const normalizedCmd = cmd.startsWith("DataSourceConnection.")
     ? cmd.substring("DataSourceConnection.".length)
@@ -417,7 +433,13 @@ export async function dispatchEngineCommand(
         limit: payload?.limit ?? null,
         options: payload?.options ?? { showQueries: false },
       };
-      if (typeof (conn as any).evalQueryArrow === "function") {
+      const preferArrow =
+        dispatchOpts?.binary === true || payload?.binary === true;
+      if (
+        preferArrow &&
+        (req.limit == null || req.limit > 0) &&
+        typeof (conn as any).evalQueryArrow === "function"
+      ) {
         try {
           const arrowBuf = await (conn as any).evalQueryArrow(
             deserializeQueryReq(req.queryStr),
@@ -512,13 +534,19 @@ export async function handleEngineQueryReq(
   port?: any
 ): Promise<EngineQueryResp> {
   const { id, cmd, payload } = req;
+  const preferArrow = req.binary === true;
+  const useLegacyFrame = !preferArrow;
   try {
-    const result = await dispatchEngineCommand(cmd, payload);
+    const result = await dispatchEngineCommand(cmd, payload, {
+      binary: preferArrow,
+    });
     if (port) {
-      postHybridResponse(port, id, result);
+      postHybridResponse(port, id, result, useLegacyFrame);
     }
     if (result instanceof TableRep) {
-      const { buffer, metadata } = encodeTableRepBinary(result);
+      const { buffer, metadata } = useLegacyFrame
+        ? encodeLegacyTableRepBinary(result)
+        : encodeTableRepBinary(result);
       return { id, ok: true, binary: true, metadata, buffer };
     }
     if (

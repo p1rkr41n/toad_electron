@@ -33,6 +33,7 @@ import {
   MultipleLoadingManager,
   getCanonicalPathFromDSPath,
 } from "./MultipleLoadingManager";
+import { getHostBridge } from "host-bridge";
 
 export async function initAppState(
   rtc: reltab.ReltabConnection,
@@ -296,13 +297,62 @@ export const reopenCurrentView = async (
   stateRef: StateRef<AppState>
 ): Promise<void> => {
   const appState = mutableGet(stateRef);
-  const dsPath = appState.viewState?.dsPath;
+  const curVs = appState.viewState;
+  const dsPath = curVs?.dsPath;
   if (!dsPath) return;
 
   try {
     await startAppLoadingTimer(stateRef);
-    const curViewParams = appState.viewState?.viewParams;
-    await replaceCurrentView(dsPath, stateRef, curViewParams, true);
+    const curViewParams = curVs?.viewParams;
+    const baseRep = (curVs?.baseQuery as any)?._rep;
+    const activeTableName =
+      baseRep && baseRep.operator === "table" && typeof baseRep.tableName === "string"
+        ? baseRep.tableName
+        : null;
+
+    // Preserve active Derived View (_rx*) across Engine crash recovery
+    if (activeTableName && /_rx\d+/.test(activeTableName) && curVs?.dbc) {
+      try {
+        const derivedQuery = reltab.tableQuery(activeTableName);
+        const baseSchema = await aggtree.getBaseSchema(
+          curVs.dbc,
+          derivedQuery,
+          appState.showRecordCount
+        );
+        const restoredVs = new ViewState({
+          dbc: curVs.dbc,
+          dsPath,
+          baseSchema,
+          baseQuery: derivedQuery,
+          viewParams: curViewParams || curVs.initialViewParams,
+          initialViewParams: curVs.initialViewParams,
+          pageSize: getDefaultPageSize(),
+          dataView: null,
+        });
+        await awaitableUpdate_(
+          stateRef,
+          (st: AppState): AppState => st.set("viewState", restoredVs) as AppState
+        );
+        await waitForDataView(stateRef, 8000);
+        return;
+      } catch (derivedErr) {
+        log.warn(
+          `[Actions] Derived view ${activeTableName} unavailable after recovery, falling back to base dataset:`,
+          derivedErr
+        );
+        await replaceCurrentView(dsPath, stateRef, undefined, false).catch(() =>
+          replaceCurrentView(dsPath, stateRef, undefined, true)
+        );
+        await waitForDataView(stateRef, 8000);
+        return;
+      }
+    }
+
+    try {
+      await replaceCurrentView(dsPath, stateRef, curViewParams, false);
+    } catch {
+      await replaceCurrentView(dsPath, stateRef, curViewParams, true);
+    }
     await waitForDataView(stateRef, 8000);
   } finally {
     stopAppLoadingTimer(stateRef);
@@ -1187,7 +1237,16 @@ export const applyColumnExtraction = async (
     throw new Error("Cannot determine current table name for column extraction");
   }
 
-  // 2. Generate unique new view name
+  // 2. Generate unique new view name (monotonic even after crash recovery / reload)
+  const existingRxMatches = currentTableName.match(/_rx(\d+)/g);
+  if (existingRxMatches) {
+    for (const token of existingRxMatches) {
+      const idx = Number(token.slice(3));
+      if (Number.isFinite(idx) && idx >= regexViewSeq) {
+        regexViewSeq = idx + 1;
+      }
+    }
+  }
   const newTableName = `${currentTableName}_rx${regexViewSeq++}`;
 
   // 3. Handle Header Prefix CTE isolation if enabled
@@ -1429,30 +1488,39 @@ export const applyColumnExtraction = async (
         const baseColumnsSelect = `${selectExclude}, ${headerProjectClause}${extractClauses.join(", ")}`;
         const baseExtractSql = `${cteClause}SELECT ${baseColumnsSelect} ${fromSourceClause}`;
         const unmatchedClause = `CASE WHEN (${allExtractedNullCond}) THEN ${targetColForExtract} ELSE NULL END AS "${unmatchedColName.replace(/"/g, '""')}"`;
-        createViewSql = `CREATE VIEW "${newTableName}" AS SELECT *, ${unmatchedClause} FROM (${baseExtractSql}) _sub_extract`;
+        createViewSql = `CREATE OR REPLACE VIEW "${newTableName}" AS SELECT *, ${unmatchedClause} FROM (${baseExtractSql}) _sub_extract`;
         finalNewColNames.push(unmatchedColName);
       } else {
         log.info(`[Toad v2.0.5] 100% matched clean table! Auto-pruning empty "${unmatchedColName}" column.`);
         const columnsSelectPart = `${selectExclude}, ${headerProjectClause}${extractClauses.join(", ")}`;
-        createViewSql = `${cteClause}CREATE VIEW "${newTableName}" AS SELECT ${columnsSelectPart} ${fromSourceClause}`;
+        createViewSql = `CREATE OR REPLACE VIEW "${newTableName}" AS ${cteClause}SELECT ${columnsSelectPart} ${fromSourceClause}`;
       }
     } else {
       const columnsSelectPart = extractClauses.length > 0
         ? `${selectExclude}, ${headerProjectClause}${extractClauses.join(", ")}`
         : (hasHeader ? `${selectExclude}, ${headerProjectClause.slice(0, -2)}` : `*`);
-      createViewSql = `${cteClause}CREATE VIEW "${newTableName}" AS SELECT ${columnsSelectPart} ${fromSourceClause}`;
+      createViewSql = `CREATE OR REPLACE VIEW "${newTableName}" AS ${cteClause}SELECT ${columnsSelectPart} ${fromSourceClause}`;
     }
   } else {
     const columnsSelectPart = extractClauses.length > 0
       ? `${selectExclude}, ${headerProjectClause}${extractClauses.join(", ")}`
       : (hasHeader ? `${selectExclude}, ${headerProjectClause.slice(0, -2)}` : `*`);
-    createViewSql = `${cteClause}CREATE VIEW "${newTableName}" AS SELECT ${columnsSelectPart} ${fromSourceClause}`;
+    createViewSql = `CREATE OR REPLACE VIEW "${newTableName}" AS ${cteClause}SELECT ${columnsSelectPart} ${fromSourceClause}`;
   }
 
-  log.info("[Toad Column Extractor v2.0.5] Creating View SQL:\n", createViewSql);
+  log.info("[Toad Column Extractor] Creating View SQL:\n", createViewSql);
 
-  // 6. Execute in DuckDB
+  // 6. Execute in DuckDB and persist Derived View definition into Ledger for crash recovery
   await dbc.runSqlQuery(createViewSql);
+  try {
+    getHostBridge()
+      .invokeCmd("view:registerDerived", {
+        viewName: newTableName,
+        parentTable: currentTableName,
+        sql: createViewSql,
+      })
+      .catch(() => {});
+  } catch {}
 
   // 7. Construct new base query and retrieve updated schema
   const newBaseQuery = reltab.tableQuery(newTableName);

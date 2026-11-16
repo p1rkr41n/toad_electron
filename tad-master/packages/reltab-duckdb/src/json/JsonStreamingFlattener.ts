@@ -11,6 +11,7 @@
 
 import * as log from "loglevel";
 import {
+  escapeSqlStringLiteral,
   introspectJsonSchema,
   quoteSqlIdentifier,
   SchemaIntrospectionResult,
@@ -43,8 +44,8 @@ export function generateDynamicProjectionSql(
   introspection: SchemaIntrospectionResult,
   options?: JsonFlattenerOptions
 ): string {
-  const safeSrc = sourcePath.replace(/\\/g, "/");
-  const safeDst = targetParquetPath.replace(/\\/g, "/");
+  const safeSrc = escapeSqlStringLiteral(sourcePath.replace(/\\/g, "/"));
+  const safeDst = escapeSqlStringLiteral(targetParquetPath.replace(/\\/g, "/"));
   const compression = (options?.compression || "snappy").toUpperCase();
   const rowGroupSize = options?.rowGroupSize || 100000;
   const sampleSize = options?.sampleSize || 2048;
@@ -149,8 +150,8 @@ export async function streamFlattenedJsonToParquet(
   options?: JsonFlattenerOptions
 ): Promise<JsonStreamResult> {
   const startTime = Date.now();
-  const safeSrc = filePath.replace(/\\/g, "/");
-  const safeDst = parquetPath.replace(/\\/g, "/");
+  const safeSrc = escapeSqlStringLiteral(filePath.replace(/\\/g, "/"));
+  const safeDst = escapeSqlStringLiteral(parquetPath.replace(/\\/g, "/"));
   const compression = (options?.compression || "snappy").toUpperCase();
   const rowGroupSize = options?.rowGroupSize || 100000;
   const sampleSize = options?.sampleSize || 2048;

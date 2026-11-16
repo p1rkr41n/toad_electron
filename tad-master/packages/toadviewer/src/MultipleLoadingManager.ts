@@ -902,7 +902,7 @@ export class MultipleLoadingManager {
             colCount = schema.columns.length;
           }
         } catch (schemaErr) {
-          log.warn(`[MultipleLoading] Khong the lay schema cho ${tableName}:`, schemaErr);
+          log.warn(`[MultipleLoading] Unable to fetch schema for ${tableName}:`, schemaErr);
         }
 
         const totalRowCount = await processingItem.dsc.rowCount(baseQuery);
@@ -1124,10 +1124,10 @@ export class MultipleLoadingManager {
         this.setFirstPageCache(it.canonicalPath, updated);
         this.setFirstPageCache(it.key, updated);
         log.info(
-          `[MultipleLoading] Re-warmed RAM Cache cho ${it.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, cols: ${colCount}, pageSize: ${newSize}, bufferPages: ${bufferPages})`
+          `[MultipleLoading] Re-warmed RAM Cache for ${it.fileName} (${totalRowCount} rows, ${tableRep.rowData.length} cached rows, cols: ${colCount}, pageSize: ${newSize}, bufferPages: ${bufferPages})`
         );
       } catch (err) {
-        log.warn(`[MultipleLoading] Loi khi rewarm cache cho ${it.fileName}:`, err);
+        log.warn(`[MultipleLoading] Error re-warming cache for ${it.fileName}:`, err);
       }
     }
   }

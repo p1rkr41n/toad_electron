@@ -29,6 +29,7 @@ import {
   emitParseDialogClosed,
 } from "../utils/GridOverlayBus";
 import { calculateLineCount, getHeightAndScrollState } from "../utils/CellLineCalculator";
+import { getHostBridge } from "host-bridge";
 
 export type DialogMode = "simple" | "nested_json" | "advanced";
 export type DialogFormatType = ExtractionFormatType | "nested_json";
@@ -199,7 +200,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [inlineEditVal, setInlineEditVal] = useState<string>("");
 
-  // 1,000-Row Real-Data Validation State (Toad v2.5.2.2)
+  // 1,000-Row Real-Data Validation State (Toad v2.6.0)
   const [isValidating, setIsValidating] = useState<boolean>(false);
   const [hasTested, setHasTested] = useState<boolean>(false);
   const [realTotalRows, setRealTotalRows] = useState<number>(0);
@@ -547,7 +548,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
     return "VARCHAR";
   };
 
-  // Lexicographical Column Naming Helpers (v2.5.2.2)
+  // Lexicographical Column Naming Helpers (v2.6.0)
   const formatStrColName = (idx: number): string => {
     if (idx <= 0) idx = 1;
     if (idx <= 999) {
@@ -1213,8 +1214,12 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
           excludeExistingColumns: collisions,
         });
 
-        // 5. Execute CREATE VIEW in DuckDB
-        await dbc.runSqlQuery(sqlResult.createViewSql);
+        // 5. Execute CREATE OR REPLACE VIEW in DuckDB
+        const idempotentJsonViewSql = sqlResult.createViewSql.replace(
+          /^CREATE\s+VIEW\b/i,
+          "CREATE OR REPLACE VIEW"
+        );
+        await dbc.runSqlQuery(idempotentJsonViewSql);
 
         // 6. Retrieve updated schema and update display columns
         const newBaseQuery = reltab.tableQuery(newTableName);
@@ -1239,6 +1244,15 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
 
         actions.setRegexDialogOpen(false, stateRef);
         update(stateRef, (st: AppState): AppState => st.set("viewState", nextViewState) as AppState);
+        try {
+          getHostBridge()
+            .invokeCmd("view:registerDerived", {
+              viewName: newTableName,
+              parentTable: currentTableName,
+              sql: idempotentJsonViewSql,
+            })
+            .catch(() => {});
+        } catch {}
       } else if (mode === "simple") {
         const activeMappings: ExtractionFieldMapping[] = simpleRows
           .filter((r) => r.enabled && r.outputColName.trim().length > 0)
@@ -1547,7 +1561,7 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
               Parse Columns
             </h4>
             <span style={{ fontSize: "10px", fontWeight: 600, color: "var(--md-sys-color-primary, #0369a1)", background: "rgba(138, 180, 248, 0.12)", border: "1px solid rgba(138, 180, 248, 0.28)", padding: "1px 6px", borderRadius: "10px" }}>
-              v2.5.2.2
+              v2.6.0
             </span>
           </div>
           {/* Linear-style Capsule Segmented Switch */}
@@ -2797,6 +2811,6 @@ export const RegexDialog: React.FC<RegexDialogProps> = ({
   );
 };
 
-// Toad v2.5.2.2: Canonical ParseDialog export with backward-compatible RegexDialog alias
+// Toad v2.6.0: Canonical ParseDialog export with backward-compatible RegexDialog alias
 export const ParseDialog = RegexDialog;
 

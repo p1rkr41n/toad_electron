@@ -59,8 +59,9 @@ export const showQuickStart = () => {
       width: 950,
       height: 700,
       webPreferences: {
-        nodeIntegration: true,
-        contextIsolation: false,
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: path.join(__dirname, "preload.js"),
       },
     });
     win.loadURL(

@@ -1,27 +1,38 @@
 /**
- * Dedicated Engine Service for TOAD / Tad
+ * Dedicated Engine Service for TOAD v2.6.0 (Unified Single-Engine Architecture)
  *
  * Runs inside Electron utilityProcess (and headless Node.js child_process / worker_threads).
- * Hosts the DuckDB connection pool, Ingest pipeline, and ToadParquetLedger WAL.
- * Communicates directly with Renderer across a MessagePort using the Hybrid Data Protocol:
- *  - Small metadata & control: JSON
- *  - Tabular query blocks: Zero-copy Transferable ArrayBuffer
+ * Acts as the Single Source of Truth for:
+ *  - DuckDB interactive UI & background ingestion drivers (`reltab-duckdb` + `reltab-fs`)
+ *  - `ToadParquetLedger` append-only JSONL WAL + Parquet compaction + Derived Views (`_rx*`)
+ *  - Direct Renderer <-> Engine Hybrid Binary protocol over `MessagePort`
+ *  - Main <-> Engine `supervisor-rpc` control channel over `process.parentPort`
  */
 
 import * as path from "path";
 import * as fs from "fs";
-import * as os from "os";
 import * as log from "loglevel";
+
+// Hydrate Portable AppData environment BEFORE importing reltab-duckdb / reltab-fs
+if (
+  typeof global !== "undefined" &&
+  !(global as any).toadPortableEnv &&
+  typeof process !== "undefined" &&
+  process.env.TOAD_PORTABLE_ENV_JSON
+) {
+  try {
+    (global as any).toadPortableEnv = JSON.parse(process.env.TOAD_PORTABLE_ENV_JSON);
+  } catch {}
+}
+
 import * as reltab from "reltab";
 import * as reltabDuckDB from "reltab-duckdb";
+import "reltab-duckdb";
+import * as reltabFS from "reltab-fs";
+import "reltab-fs";
 import {
-  TableRep,
-  Schema,
-  Row,
   EngineQueryReq,
   EngineQueryResp,
-  encodeTableRepBinary,
-  postHybridResponse,
   postHybridError,
   handleEngineQueryReq,
   dispatchEngineCommand,
@@ -42,7 +53,6 @@ export function forwardEngineLogs(entries: any[]): void {
       return;
     } catch {}
   }
-  // In-process fallback (if ToadLogger available)
   try {
     const ToadLogger = require("./toadLogger").ToadLogger;
     if (ToadLogger && typeof ToadLogger.ingestBatch === "function") {
@@ -52,14 +62,27 @@ export function forwardEngineLogs(entries: any[]): void {
   } catch {}
 }
 
-// Global hook for reltab-duckdb if running in-process
+function postToSupervisor(msg: any): void {
+  const parent = typeof process !== "undefined" ? (process as any).parentPort : null;
+  if (parent && typeof parent.postMessage === "function") {
+    try {
+      parent.postMessage(msg);
+      return;
+    } catch {}
+  }
+  if (typeof process !== "undefined" && typeof process.send === "function") {
+    try {
+      process.send(msg);
+    } catch {}
+  }
+}
+
 if (typeof global !== "undefined") {
   (global as any).__toadEngineLogEmitter = (entry: any) => {
     forwardEngineLogs([entry]);
   };
 }
 
-// Register early uncaughtException and unhandledRejection handlers in Engine Worker
 if (typeof process !== "undefined" && typeof process.on === "function") {
   process.on("uncaughtException", (error: any) => {
     const msg =
@@ -111,16 +134,50 @@ export interface EngineServiceStatus {
   activeViewsCount: number;
 }
 
+export function mapLedgerFilesToProjectDto(files: any[], fallbackProjectId?: string): any[] {
+  return (files || []).map((f: any) => {
+    let folderRoot: string | undefined;
+    let folderName: string | undefined;
+    let relPath: string | undefined;
+    if (f.extra_json) {
+      try {
+        const ex = JSON.parse(f.extra_json);
+        folderRoot = ex.folderRoot;
+        folderName = ex.folderName;
+        relPath = ex.relPath;
+      } catch {}
+    }
+    return {
+      filePath: f.source_path,
+      fileName: path.basename(f.source_path || "") || "Unnamed File",
+      projectId: f.project_id || fallbackProjectId,
+      projectName: f.project_name || "Untitled-1",
+      fileSizeBytes: f.source_size,
+      rowCount: f.row_count,
+      status: f.status,
+      parquetPath: f.parquet_path,
+      folderRoot,
+      folderName,
+      relPath,
+    };
+  });
+}
+
 class EngineService {
   private static instance: EngineService | null = null;
   private isInitialized = false;
   private isInitializing = false;
+  private initPromise: Promise<void> | null = null;
+  private lastInitReplay: { count: number; elapsedMs: number } | null = null;
+  private processIpcAttached = false;
   private dataPort: any = null;
+  private dataPorts: Set<any> = new Set();
   private parentPort: any = null;
   private startTime = Date.now();
   private queryCount = 0;
   private activeViewsCount = 0;
   private customLedgerPath?: string;
+  private unsubscribeLedger: (() => void) | null = null;
 
   public static getInstance(): EngineService {
     if (!EngineService.instance) {
@@ -130,72 +187,96 @@ class EngineService {
   }
 
   public async init(options?: EngineServiceOptions): Promise<void> {
+    if (options?.dataPort) {
+      this.setupDataPort(options.dataPort);
+    }
+    if (options?.parentPort) {
+      this.setupParentPort(options.parentPort);
+    } else if (typeof process !== "undefined" && (process as any).parentPort) {
+      this.setupParentPort((process as any).parentPort);
+    } else if (typeof process !== "undefined" && typeof process.on === "function") {
+      this.setupProcessIpc();
+    }
+
     if (this.isInitialized) return;
-    if (this.isInitializing) return;
+    if (this.initPromise) return this.initPromise;
     this.isInitializing = true;
 
-    try {
-      if (options?.customLedgerPath) {
-        this.customLedgerPath = options.customLedgerPath;
-      }
-      if (options?.showQueries) {
-        log.setLevel(log.levels.INFO);
-      }
-
-      // 1. Initialize DuckDB Driver and default DuckDB connection
-      await reltabDuckDB.initToadLedger();
-      // Ensure DuckDB provider is initialized in reltab instance cache
+    this.initPromise = (async () => {
       try {
-        const defaultConn = await reltab.getConnection({ providerName: "duckdb", resourceId: "" });
-        if (typeof (defaultConn as any).evalQueryArrow === "function") {
-          log.info("[EngineService] Vectorized Apache Arrow IPC Stream engine ready.");
+        if (options?.customLedgerPath) {
+          this.customLedgerPath = options.customLedgerPath;
         }
-      } catch (connErr) {
-        log.warn("[EngineService] DuckDB initial connection notice:", connErr);
+        if (options?.showQueries) {
+          log.setLevel(log.levels.INFO);
+        }
+
+        const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+        if (this.customLedgerPath) {
+          (ledger as any).ledgerPath = this.customLedgerPath;
+        }
+
+        let sharedDb: any = undefined;
+        try {
+          const defaultConn = await reltab.getConnection(
+            { providerName: "duckdb", resourceId: "" },
+            { hidden: false, forExport: true }
+          );
+          sharedDb = (defaultConn as any)?.db?.db;
+          if (typeof (defaultConn as any).evalQueryArrow === "function") {
+            log.info("[EngineService] Vectorized Apache Arrow IPC Stream engine ready.");
+          }
+        } catch (connErr) {
+          log.warn("[EngineService] DuckDB initial connection notice:", connErr);
+        }
+
+        await ledger.initLedger(sharedDb);
+
+        if (!this.unsubscribeLedger) {
+          this.unsubscribeLedger = ledger.subscribe(() => {
+            postToSupervisor({ type: "project:workspaceChanged" });
+          });
+        }
+
+        const replayRes = await this.replayLedgerViews();
+        this.lastInitReplay = replayRes;
+
+        this.isInitialized = true;
+        postToSupervisor({ type: "views-replayed", ...replayRes });
+
+        if (
+          !options?.customLedgerPath &&
+          process.env.TOAD_ENGINE_WORKER === "1" &&
+          process.env.TOAD_ENGINE_RECOVERY !== "1" &&
+          Boolean(process.env.TOAD_PORTABLE_ENV_JSON)
+        ) {
+          ledger.performStartupReconciliation().catch((err: any) => {
+            log.warn("[EngineService] Startup reconciliation warning:", err);
+          });
+        }
+
+        log.info(`[EngineService] Engine initialized successfully (PID: ${process.pid})`);
+        forwardEngineLogs([
+          {
+            processTag: "ENGINE",
+            moduleTag: "EngineService",
+            level: "info",
+            message: `Engine worker service initialized successfully (PID: ${process.pid})`,
+            timestamp: Date.now(),
+          },
+        ]);
+      } finally {
+        this.isInitializing = false;
+        this.initPromise = null;
       }
+    })();
 
-      // 2. Initialize ToadParquetLedger
-      const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
-      if (this.customLedgerPath) {
-        (ledger as any).ledgerPath = this.customLedgerPath;
-      }
-      await ledger.initLedger();
-
-      // 3. Replay active ledger views into DuckDB
-      await this.replayLedgerViews();
-
-      // 4. Attach dataPort if provided
-      if (options?.dataPort) {
-        this.setupDataPort(options.dataPort);
-      }
-
-      // 5. Attach parentPort if provided or from environment
-      if (options?.parentPort) {
-        this.setupParentPort(options.parentPort);
-      } else if (typeof process !== "undefined" && (process as any).parentPort) {
-        this.setupParentPort((process as any).parentPort);
-      } else if (typeof process !== "undefined" && typeof process.on === "function") {
-        this.setupProcessIpc();
-      }
-
-      this.isInitialized = true;
-      log.info(`[EngineService] Engine initialized successfully (PID: ${process.pid})`);
-      forwardEngineLogs([
-        {
-          processTag: "ENGINE",
-          moduleTag: "EngineService",
-          level: "info",
-          message: `Engine worker service initialized successfully (PID: ${process.pid})`,
-          timestamp: Date.now(),
-        },
-      ]);
-    } finally {
-      this.isInitializing = false;
-    }
+    return this.initPromise;
   }
 
   /**
-   * Re-registers all active views from toad_ledger.parquet into DuckDB in < 5ms.
+   * Re-registers all active Parquet views AND Derived Views (`_rx*`) from Ledger
+   * into both the default DuckDB connection and the interactive `reltab-fs` UI DuckDB driver.
    */
   public async replayLedgerViews(): Promise<{ count: number; elapsedMs: number }> {
     const t0 = performance.now();
@@ -204,35 +285,237 @@ class EngineService {
 
     let restoredCount = 0;
     try {
-      const dbConn = await reltab.getConnection({ providerName: "duckdb", resourceId: "" });
-      const entries = ledger.getAllEntries ? ledger.getAllEntries() : [];
+      const dbConn: any = await reltab.getConnection({ providerName: "duckdb", resourceId: "" });
+      const primaryDriver: any = dbConn?.db || dbConn;
+      const uiDriver: any =
+        typeof (reltabFS as any).peekUIDuckDBDriver === "function"
+          ? (reltabFS as any).peekUIDuckDBDriver()
+          : null;
 
-      for (const entry of entries) {
-        if (entry.status === "READY" && entry.parquet_path) {
-          const pPath = entry.parquet_path;
-          if (fs.existsSync(pPath)) {
+      const primaryRawConn = primaryDriver?.connPool
+        ? await primaryDriver.connPool.take()
+        : null;
+      const uiRawConn =
+        uiDriver && uiDriver !== primaryDriver && uiDriver.connPool
+          ? await uiDriver.connPool.take()
+          : null;
+
+      const runDdlOnConn = async (rawConn: any, fallbackRunner: any, sql: string, viewIdent?: string) => {
+        const execOnce = async (s: string) => {
+          if (rawConn && typeof rawConn.exec === "function") {
+            await rawConn.exec(s);
+          } else if (fallbackRunner && typeof fallbackRunner.runSqlQuery === "function") {
+            await fallbackRunner.runSqlQuery(s);
+          }
+        };
+        try {
+          await execOnce(sql);
+        } catch (err: any) {
+          if (viewIdent && String(err?.message || "").includes("of type Table")) {
+            await execOnce(`DROP TABLE IF EXISTS "${viewIdent.replace(/"/g, '""')}"`);
+            await execOnce(sql);
+          } else {
+            throw err;
+          }
+        }
+      };
+
+      try {
+        const execOnAllEngines = async (sql: string, viewIdent?: string) => {
+          await runDdlOnConn(primaryRawConn, dbConn, sql, viewIdent);
+          if (uiRawConn || (uiDriver && uiDriver !== primaryDriver)) {
             try {
-              const stat = fs.statSync(pPath);
-              if (stat.size > 0) {
+              await runDdlOnConn(uiRawConn, uiDriver, sql, viewIdent);
+            } catch {}
+          }
+        };
+
+        const entries = ledger.getAllEntries ? ledger.getAllEntries() : [];
+        const preparedViews: Array<{
+          viewName: string;
+          query: string;
+          aliasViewName?: string;
+          aliasQuery?: string;
+          pPath: string;
+          rowCount?: number;
+        }> = [];
+        const usedViewNames = new Set<string>();
+
+        for (const entry of entries) {
+          if (entry.status === "READY" && entry.parquet_path) {
+            const pPath = entry.parquet_path;
+            if (fs.existsSync(pPath) && reltabDuckDB.isValidParquetFileSync(pPath)) {
+              try {
                 const safePath = pPath.replace(/\\/g, "/");
-                const viewName = entry.source_path
-                  ? reltabDuckDB.genTableName(entry.source_path)
-                  : path.basename(pPath, ".parquet").replace(/[^a-zA-Z0-9_]/g, "_");
-
-                const query = `CREATE OR REPLACE VIEW "${viewName}" AS SELECT * FROM parquet_scan('${safePath}')`;
-                await dbConn.runSqlQuery(query);
-                restoredCount++;
-
-                if (entry.row_count) {
-                  (global as any)._toadTableRowCountCache =
-                    (global as any)._toadTableRowCountCache || {};
-                  (global as any)._toadTableRowCountCache[viewName] = Number(entry.row_count);
+                let persistedView = "";
+                if (entry.extra_json) {
+                  try {
+                    const ex = JSON.parse(entry.extra_json);
+                    if (ex && typeof ex.view === "string" && ex.view.trim()) {
+                      persistedView = ex.view.trim();
+                    }
+                  } catch {}
                 }
+
+                let baseIdent = "";
+                if (entry.source_path) {
+                  let rawBase = path.basename(entry.source_path);
+                  if (rawBase.toLowerCase().endsWith(".gz")) {
+                    rawBase = rawBase.slice(0, -3);
+                  }
+                  const ext = path.extname(rawBase);
+                  if (ext) {
+                    rawBase = rawBase.slice(0, -ext.length);
+                  }
+                  baseIdent = rawBase.replace(/[^a-zA-Z0-9_]/g, "_");
+                } else {
+                  baseIdent = path.basename(pPath, ".parquet").replace(/[^a-zA-Z0-9_]/g, "_");
+                }
+                if (!baseIdent) {
+                  baseIdent = "table_restored";
+                }
+                if (/^[0-9]/.test(baseIdent)) {
+                  baseIdent = `t_${baseIdent}`;
+                }
+
+                let viewName = persistedView && !usedViewNames.has(persistedView) ? persistedView : baseIdent;
+                if (usedViewNames.has(viewName)) {
+                  let suffix = 1;
+                  while (usedViewNames.has(`${baseIdent}_${suffix}`)) {
+                    suffix++;
+                  }
+                  viewName = `${baseIdent}_${suffix}`;
+                }
+                usedViewNames.add(viewName);
+                if (typeof (reltabDuckDB as any).registerReservedTableName === "function") {
+                  (reltabDuckDB as any).registerReservedTableName(viewName);
+                }
+
+                const escapedScanPath = safePath.replace(/'/g, "''");
+                const query = `CREATE OR REPLACE VIEW "${viewName.replace(/"/g, '""')}" AS SELECT * FROM parquet_scan('${escapedScanPath}')`;
+                let aliasViewName: string | undefined;
+                let aliasQuery: string | undefined;
+                if (baseIdent && baseIdent !== viewName && !usedViewNames.has(baseIdent)) {
+                  usedViewNames.add(baseIdent);
+                  aliasViewName = baseIdent;
+                  aliasQuery = `CREATE OR REPLACE VIEW "${baseIdent.replace(/"/g, '""')}" AS SELECT * FROM parquet_scan('${escapedScanPath}')`;
+                }
+                preparedViews.push({
+                  viewName,
+                  query,
+                  aliasViewName,
+                  aliasQuery,
+                  pPath,
+                  rowCount: entry.row_count ? Number(entry.row_count) : undefined,
+                });
+              } catch (statErr) {
+                log.warn(`[EngineService] Failed to inspect Parquet for ${pPath}:`, statErr);
               }
-            } catch (viewErr) {
-              log.warn(`[EngineService] Failed to restore view for ${pPath}:`, viewErr);
             }
           }
+        }
+
+        if (preparedViews.length > 0) {
+          const batchSql = preparedViews
+            .map((v) => (v.aliasQuery ? `${v.query};\n${v.aliasQuery}` : v.query))
+            .join(";\n");
+          let batchOk = false;
+          if (primaryRawConn && typeof primaryRawConn.exec === "function") {
+            try {
+              await primaryRawConn.exec(batchSql);
+              if (uiRawConn && typeof uiRawConn.exec === "function") {
+                try {
+                  await uiRawConn.exec(batchSql);
+                } catch {}
+              }
+              batchOk = true;
+              restoredCount += preparedViews.length;
+              for (const v of preparedViews) {
+                if (v.rowCount) {
+                  (global as any)._toadTableRowCountCache =
+                    (global as any)._toadTableRowCountCache || {};
+                  (global as any)._toadTableRowCountCache[v.viewName] = v.rowCount;
+                  if (v.aliasViewName) {
+                    (global as any)._toadTableRowCountCache[v.aliasViewName] = v.rowCount;
+                  }
+                }
+              }
+            } catch (batchErr: any) {
+              if (String(batchErr?.message || "").includes("of type Table")) {
+                try {
+                  const dropAndCreateBatch = preparedViews
+                    .map((v) => {
+                      const mainPart = `DROP TABLE IF EXISTS "${v.viewName.replace(/"/g, '""')}";\n${v.query}`;
+                      if (!v.aliasViewName || !v.aliasQuery) return mainPart;
+                      return `${mainPart};\nDROP TABLE IF EXISTS "${v.aliasViewName.replace(/"/g, '""')}";\n${v.aliasQuery}`;
+                    })
+                    .join(";\n");
+                  await primaryRawConn.exec(dropAndCreateBatch);
+                  if (uiRawConn && typeof uiRawConn.exec === "function") {
+                    try {
+                      await uiRawConn.exec(dropAndCreateBatch);
+                    } catch {}
+                  }
+                  batchOk = true;
+                  restoredCount += preparedViews.length;
+                  for (const v of preparedViews) {
+                    if (v.rowCount) {
+                      (global as any)._toadTableRowCountCache =
+                        (global as any)._toadTableRowCountCache || {};
+                      (global as any)._toadTableRowCountCache[v.viewName] = v.rowCount;
+                      if (v.aliasViewName) {
+                        (global as any)._toadTableRowCountCache[v.aliasViewName] = v.rowCount;
+                      }
+                    }
+                  }
+                } catch {}
+              }
+            }
+          }
+
+          if (!batchOk) {
+            for (const v of preparedViews) {
+              try {
+                await execOnAllEngines(v.query, v.viewName);
+                if (v.aliasQuery && v.aliasViewName) {
+                  await execOnAllEngines(v.aliasQuery, v.aliasViewName);
+                }
+                restoredCount++;
+                if (v.rowCount) {
+                  (global as any)._toadTableRowCountCache =
+                    (global as any)._toadTableRowCountCache || {};
+                  (global as any)._toadTableRowCountCache[v.viewName] = v.rowCount;
+                  if (v.aliasViewName) {
+                    (global as any)._toadTableRowCountCache[v.aliasViewName] = v.rowCount;
+                  }
+                }
+              } catch (viewErr) {
+                log.warn(`[EngineService] Failed to restore view for ${v.pPath}:`, viewErr);
+              }
+            }
+          }
+        }
+
+        // Replay persisted Derived Views (`_rx*`) in creation order
+        const derivedViews =
+          typeof ledger.getDerivedViews === "function" ? ledger.getDerivedViews() : [];
+        for (const dv of derivedViews) {
+          if (dv && dv.sql) {
+            try {
+              const safeSql = dv.sql.replace(/^CREATE\s+VIEW\b/i, "CREATE OR REPLACE VIEW");
+              await execOnAllEngines(safeSql, dv.viewName);
+              restoredCount++;
+            } catch (dvErr) {
+              log.warn(`[EngineService] Failed to replay derived view ${dv.viewName}:`, dvErr);
+            }
+          }
+        }
+      } finally {
+        if (primaryRawConn && primaryDriver?.connPool) {
+          primaryDriver.connPool.giveBack(primaryRawConn);
+        }
+        if (uiRawConn && uiDriver?.connPool) {
+          uiDriver.connPool.giveBack(uiRawConn);
         }
       }
     } catch (err) {
@@ -245,12 +528,16 @@ class EngineService {
     return { count: restoredCount, elapsedMs };
   }
 
-  /**
-   * Mounts incoming data MessagePort directly from supervisor or handshake.
-   */
   public setupDataPort(port: any): void {
     this.dataPort = port;
     if (!port) return;
+    if (this.dataPorts.has(port)) return;
+    this.dataPorts.add(port);
+    if (typeof port.on === "function") {
+      port.on("close", () => {
+        this.dataPorts.delete(port);
+      });
+    }
 
     const handleMessage = async (eventOrData: any) => {
       let req: any = eventOrData;
@@ -284,12 +571,72 @@ class EngineService {
     log.info("[EngineService] Data MessagePort attached and listening.");
   }
 
-  /**
-   * Mounts supervisor control channel (Electron process.parentPort).
-   */
+  private async handleSupervisorControlMsg(
+    msg: any,
+    ports: any[] | undefined,
+    replyFn: (resp: any) => void
+  ): Promise<void> {
+    if (!msg) return;
+
+    if (msg.type === "init-data-channel") {
+      if (ports && ports[0]) {
+        this.setupDataPort(ports[0]);
+        replyFn({ type: "data-channel-ready", pid: process.pid });
+      }
+      return;
+    }
+
+    if (msg.type === "ping" || msg.cmd === "ping") {
+      replyFn({
+        type: "pong",
+        seq: msg.seq,
+        timestamp: Date.now(),
+        pid: process.pid,
+      });
+      return;
+    }
+
+    if (msg.type === "replay-views" || msg.cmd === "replay-views") {
+      if (this.initPromise && !this.isInitialized) {
+        await this.initPromise;
+        replyFn({
+          type: "views-replayed",
+          ...(this.lastInitReplay || { count: this.activeViewsCount, elapsedMs: 0 }),
+        });
+        return;
+      }
+      const res = await this.replayLedgerViews();
+      replyFn({ type: "views-replayed", ...res });
+      return;
+    }
+
+    if (msg.type === "supervisor-rpc" && msg.rpcId) {
+      try {
+        if (this.initPromise && !this.isInitialized) {
+          await this.initPromise;
+        }
+        const data = await this.executeRpcCommand(msg.cmd, msg.payload);
+        replyFn({ type: "supervisor-rpc-result", rpcId: msg.rpcId, ok: true, data });
+      } catch (err: any) {
+        replyFn({
+          type: "supervisor-rpc-result",
+          rpcId: msg.rpcId,
+          ok: false,
+          error: err?.message || String(err),
+        });
+      }
+      return;
+    }
+
+    if (msg.type === "shutdown") {
+      await this.shutdown();
+      process.exit(0);
+    }
+  }
+
   public setupParentPort(parentPort: any): void {
+    if (!parentPort || this.parentPort === parentPort) return;
     this.parentPort = parentPort;
-    if (!parentPort) return;
 
     const handleParentMsg = async (eventOrData: any) => {
       let msg: any = eventOrData;
@@ -303,29 +650,10 @@ class EngineService {
       ) {
         msg = eventOrData.data;
       }
-      if (!msg) return;
-
-      // MessagePort transfer from supervisor
-      if (msg.type === "init-data-channel") {
-        const ports = eventOrData?.ports || msg.ports;
-        if (ports && ports[0]) {
-          this.setupDataPort(ports[0]);
-          parentPort.postMessage({ type: "data-channel-ready", pid: process.pid });
-        }
-      } else if (msg.type === "ping" || msg.cmd === "ping") {
-        parentPort.postMessage({
-          type: "pong",
-          seq: msg.seq,
-          timestamp: Date.now(),
-          pid: process.pid,
-        });
-      } else if (msg.type === "replay-views" || msg.cmd === "replay-views") {
-        const res = await this.replayLedgerViews();
-        parentPort.postMessage({ type: "views-replayed", ...res });
-      } else if (msg.type === "shutdown") {
-        await this.shutdown();
-        process.exit(0);
-      }
+      const ports = eventOrData?.ports || msg?.ports;
+      await this.handleSupervisorControlMsg(msg, ports, (resp) =>
+        parentPort.postMessage(resp)
+      );
     };
 
     if (typeof parentPort.on === "function") {
@@ -343,44 +671,23 @@ class EngineService {
     log.info("[EngineService] ParentPort attached and monitoring supervisor signals.");
   }
 
-  /**
-   * Setup Node.js process message channel (for child_process.fork in tests).
-   */
   private setupProcessIpc(): void {
-    if (typeof process.send !== "function") return;
+    if (typeof process.send !== "function" || this.processIpcAttached) return;
+    this.processIpcAttached = true;
 
     process.on("message", async (msg: any, sendHandle: any) => {
-      if (!msg) return;
-      if (msg.type === "init-data-channel" && sendHandle) {
-        this.setupDataPort(sendHandle);
-        process.send?.({ type: "data-channel-ready", pid: process.pid });
-      } else if (msg.type === "ping") {
-        process.send?.({ type: "pong", seq: msg.seq, timestamp: Date.now() });
-      } else if (msg.type === "shutdown") {
-        await this.shutdown();
-        process.exit(0);
-      }
+      await this.handleSupervisorControlMsg(
+        msg,
+        sendHandle ? [sendHandle] : undefined,
+        (resp) => process.send?.(resp)
+      );
     });
   }
 
-  /**
-   * Dispatches client requests received over MessagePort.
-   */
-  public async handleClientRequest(port: any, req: EngineQueryReq): Promise<EngineQueryResp> {
-    const { id, cmd, payload } = req;
-
-    // 1. Liveness heartbeat ping
+  public async executeRpcCommand(cmd: string, payload: any): Promise<any> {
     if (cmd === "ping") {
-      const resp: EngineQueryResp = {
-        id,
-        ok: true,
-        data: "pong",
-      };
-      port.postMessage(resp);
-      return resp;
+      return "pong";
     }
-
-    // 2. Engine status check
     if (cmd === "engine:status" || cmd === "status") {
       const status: EngineServiceStatus = {
         state: "running",
@@ -389,130 +696,178 @@ class EngineService {
         queryCount: this.queryCount,
         activeViewsCount: this.activeViewsCount,
       };
-      const resp: EngineQueryResp = { id, ok: true, data: status };
-      port.postMessage(resp);
-      return resp;
+      return status;
     }
-
-    // 3. Ledger initialization & replay
     if (cmd === "initLedger") {
-      try {
-        const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
-        await ledger.initLedger();
-        const resp: EngineQueryResp = { id, ok: true, data: { success: true } };
-        port.postMessage(resp);
-        return resp;
-      } catch (err: any) {
-        postHybridError(port, id, err);
-        return { id, ok: false, error: err.message };
-      }
+      const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+      await ledger.initLedger();
+      return { success: true };
     }
-
     if (cmd === "replayLedgerViews" || cmd === "replayViews") {
-      try {
-        const res = await this.replayLedgerViews();
-        const resp: EngineQueryResp = { id, ok: true, data: res };
-        port.postMessage(resp);
-        return resp;
-      } catch (err: any) {
-        postHybridError(port, id, err);
-        return { id, ok: false, error: err.message };
+      return await this.replayLedgerViews();
+    }
+    if (cmd === "view:registerDerived") {
+      const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+      await ledger.initLedger();
+      return await ledger.registerDerivedView(payload || {});
+    }
+    if (cmd === "view:getDerived") {
+      const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+      await ledger.initLedger();
+      return ledger.getDerivedViews(payload?.projectId);
+    }
+    if (cmd === "export:parquet") {
+      const appRtc = (reltab.getExportConnection() ||
+        (await reltab.getConnection(
+          { providerName: "duckdb", resourceId: "" },
+          { hidden: false, forExport: true }
+        ))) as reltab.DbDataSource;
+      const query =
+        typeof payload?.queryStr === "string"
+          ? reltab.deserializeQueryReq(payload.queryStr)
+          : payload?.query;
+      const baseQuery = await appRtc.getSqlForQuery(query);
+      const safeFile = String(payload?.saveFilename || "")
+        .replace(/\\/g, "/")
+        .replace(/'/g, "''");
+      const safeComp =
+        String(payload?.compression || "snappy").replace(/[^a-zA-Z0-9_]/g, "") ||
+        "snappy";
+      const copyQuery = `COPY (${baseQuery}) TO '${safeFile}' (FORMAT 'parquet', COMPRESSION '${safeComp}')`;
+      await appRtc.db.runSqlQuery(copyQuery);
+      return { success: true };
+    }
+    if (cmd === "export:getQuerySchema") {
+      const appRtc = (reltab.getExportConnection() ||
+        (await reltab.getConnection(
+          { providerName: "duckdb", resourceId: "" },
+          { hidden: false, forExport: true }
+        ))) as reltab.DbDataSource;
+      const query =
+        typeof payload?.queryStr === "string"
+          ? reltab.deserializeQueryReq(payload.queryStr)
+          : payload?.query;
+      const schema = await appRtc.getSchema(query);
+      return schema.toJSON();
+    }
+    if (cmd.startsWith("project:")) {
+      const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
+      await ledger.initLedger();
+      switch (cmd) {
+        case "project:getWorkspace":
+          return {
+            projects: ledger.getProjects(),
+            activeProjectId: ledger.getActiveProjectId(),
+          };
+        case "project:getFiles":
+          return mapLedgerFilesToProjectDto(
+            ledger.getProjectFiles(payload?.projectId),
+            payload?.projectId
+          );
+        case "project:create":
+          return await ledger.createProject(
+            payload?.projectName || "Untitled Project",
+            payload?.projectId
+          );
+        case "project:rename":
+          return await ledger.renameProject(payload?.projectId, payload?.newName);
+        case "project:delete":
+          return await ledger.deleteProjectCascade(payload?.projectId);
+        case "project:deleteAll":
+          return await ledger.deleteAllProjectsCascade();
+        case "project:getCacheSize":
+          return ledger.getProjectCacheSize(payload?.projectId);
+        case "project:purgeCache":
+          return await ledger.purgeProjectCache(payload?.projectId);
+        case "project:removeFile":
+          return await ledger.removeFileFromProject(payload?.projectId, payload?.filePath);
+        case "project:addFiles": {
+          const added: any[] = [];
+          if (payload?.filePaths && Array.isArray(payload.filePaths)) {
+            for (const f of payload.filePaths) {
+              const entry = await ledger.addFileToProject(payload.projectId, f);
+              added.push(entry);
+            }
+          }
+          return added;
+        }
+        case "project:addFolder": {
+          const entries = await ledger.addFolderToProject(
+            payload?.projectId,
+            payload?.folderPath
+          );
+          return entries.map((e) => e.source_path);
+        }
+        case "project:moveOrphanFiles":
+          await ledger.moveOrphanFilesToProject(payload?.targetProjectId);
+          return { success: true };
+        case "project:setActive":
+          ledger.setActiveProjectId(payload?.projectId);
+          return { success: true };
+        case "project:reconcile":
+          return await ledger.performStartupReconciliation();
+        default:
+          throw new Error(`Unknown project command: ${cmd}`);
       }
     }
 
-    // 4. Project Workspace Ledger Commands
-    if (cmd.startsWith("project:")) {
+    return await dispatchEngineCommand(cmd, payload);
+  }
+
+  public async handleClientRequest(port: any, req: EngineQueryReq): Promise<EngineQueryResp> {
+    if (this.initPromise && !this.isInitialized) {
+      await this.initPromise;
+    }
+    const { id, cmd, payload } = req;
+
+    if (
+      cmd === "ping" ||
+      cmd === "engine:status" ||
+      cmd === "status" ||
+      cmd === "initLedger" ||
+      cmd === "replayLedgerViews" ||
+      cmd === "replayViews" ||
+      cmd === "view:registerDerived" ||
+      cmd === "view:getDerived" ||
+      cmd.startsWith("export:") ||
+      cmd.startsWith("project:")
+    ) {
       try {
-        const ledger = reltabDuckDB.ToadParquetLedger.getInstance();
-        await ledger.initLedger();
-        let result: any;
-        switch (cmd) {
-          case "project:getWorkspace":
-            result = {
-              projects: ledger.getProjects(),
-              activeProjectId: ledger.getActiveProjectId(),
-            };
-            break;
-          case "project:getFiles":
-            result = ledger.getProjectFiles(payload?.projectId);
-            break;
-          case "project:create":
-            result = await ledger.createProject(
-              payload?.projectName || "Untitled Project",
-              payload?.projectId
-            );
-            break;
-          case "project:rename":
-            result = await ledger.renameProject(payload?.projectId, payload?.newName);
-            break;
-          case "project:delete":
-            result = await ledger.deleteProjectCascade(payload?.projectId);
-            break;
-          case "project:deleteAll":
-            result = await ledger.deleteAllProjectsCascade();
-            break;
-          case "project:getCacheSize":
-            result = ledger.getProjectCacheSize(payload?.projectId);
-            break;
-          case "project:purgeCache":
-            result = await ledger.purgeProjectCache(payload?.projectId);
-            break;
-          case "project:removeFile":
-            result = await ledger.removeFileFromProject(payload?.projectId, payload?.filePath);
-            break;
-          case "project:addFiles":
-            result = [];
-            if (payload?.filePaths && Array.isArray(payload.filePaths)) {
-              for (const f of payload.filePaths) {
-                const entry = await ledger.addFileToProject(payload.projectId, f);
-                result.push(entry);
-              }
-            }
-            break;
-          case "project:addFolder":
-            result = await ledger.addFolderToProject(payload?.projectId, payload?.folderPath);
-            break;
-          case "project:moveOrphanFiles":
-            await ledger.moveOrphanFilesToProject(payload?.targetProjectId);
-            result = { success: true };
-            break;
-          case "project:setActive":
-            ledger.setActiveProjectId(payload?.projectId);
-            result = { success: true };
-            break;
-          case "project:reconcile":
-            result = await ledger.performStartupReconciliation();
-            break;
-          default:
-            throw new Error(`Unknown project command: ${cmd}`);
-        }
+        const result = await this.executeRpcCommand(cmd, payload);
         const resp: EngineQueryResp = { id, ok: true, data: result };
         port.postMessage(resp);
         return resp;
       } catch (err: any) {
         postHybridError(port, id, err);
-        return { id, ok: false, error: err.message };
+        return { id, ok: false, error: err?.message || String(err) };
       }
     }
 
-    // 5. Standard Relational Data Commands (evalQuery, rowCount, getTableSchema, runSqlQuery, etc.)
     return await handleEngineQueryReq(req, port);
   }
 
   public async shutdown(): Promise<void> {
-    log.info("[EngineService] Shutting down DuckDB engine...");
-    if (this.dataPort && typeof this.dataPort.close === "function") {
-      try {
-        this.dataPort.close();
-      } catch {}
+    log.info("[EngineService] Shutting down DuckDB engine & flushing Ledger WAL...");
+    try {
+      await reltabDuckDB.ToadParquetLedger.getInstance().flushWal();
+    } catch {}
+    if (this.unsubscribeLedger) {
+      this.unsubscribeLedger();
+      this.unsubscribeLedger = null;
     }
+    for (const p of Array.from(this.dataPorts)) {
+      if (p && typeof p.close === "function") {
+        try {
+          p.close();
+        } catch {}
+      }
+    }
+    this.dataPorts.clear();
+    this.dataPort = null;
     this.isInitialized = false;
   }
 }
 
-/**
- * Programmatic bootstrap entrypoint for tests and supervisor.
- */
 export async function startEngineService(
   options?: EngineServiceOptions
 ): Promise<EngineService> {
@@ -527,7 +882,6 @@ export async function replayLedgerViews(): Promise<{ count: number; elapsedMs: n
 
 export { EngineService };
 
-// Auto-run if executed as standalone process (Electron utilityProcess or Node CLI)
 if (
   (typeof process !== "undefined" && (process as any).parentPort) ||
   (typeof require !== "undefined" && (require.main === module || !module.parent))

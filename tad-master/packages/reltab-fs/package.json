@@ -1,7 +1,7 @@
 {
   "name": "reltab-fs",
   "version": "0.14.0",
-  "description": "filesystem datasource for reltab",
+  "description": "Filesystem datasource & Dual DuckDB gateway for reltab",
   "main": "dist/reltab-fs.js",
   "types": "dist/reltab-fs.d.ts",
   "scripts": {
@@ -15,9 +15,9 @@
     "relational",
     "sql",
     "database",
-    "sqlite"
+    "duckdb"
   ],
-  "author": "HelloKittyXamKinLung <dev@example.com>",
+  "author": "HelloKittyXamKinLung <p1rkr41n@users.noreply.github.com>",
   "license": "MIT",
   "dependencies": {
     "loglevel": "^1.8.0",

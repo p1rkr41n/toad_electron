@@ -159,6 +159,9 @@ const init = async () => {
     const tconn = getHostBridge();
 
     const rtc = new RemoteReltabConnection(tconn);
+    if ((tconn as any)?.dataPort) {
+      rtc.setDataPort((tconn as any).dataPort);
+    }
 
     var pivotRequester: PivotRequester | undefined | null = null;
 
@@ -275,7 +278,22 @@ const init = async () => {
       await actions.reopenCurrentView(stateRef);
     });
 
-    bridge.onEvent("engine:restored", async (details: any) => {
+    bridge.onEvent("cache:invalidate", (payload: any) => {
+      try {
+        const mlm = MultipleLoadingManager.getInstance() as any;
+        if (mlm && typeof mlm.clearFirstPageCache === "function") {
+          if (payload && payload.sourcePath) {
+            mlm.clearFirstPageCache(payload.sourcePath);
+          } else {
+            mlm.clearFirstPageCache();
+          }
+        }
+      } catch (err) {
+        log.warn("appMain: error handling cache:invalidate:", err);
+      }
+    });
+
+    const handleEngineRestoredEvent = async (details: any) => {
       log.info("appMain: received engine:restored IPC", details);
       if ((bridge as any)?.dataPort) {
         rtc.setDataPort((bridge as any).dataPort);
@@ -285,7 +303,18 @@ const init = async () => {
           new CustomEvent("engine:restored", { detail: details })
         );
       }
-    });
+    };
+
+    if (typeof bridge.onEvent === "function") {
+      bridge.onEvent("engine:restored", handleEngineRestoredEvent);
+    } else {
+      const ipcRenderer = (window as any)?.electron?.ipcRenderer;
+      if (ipcRenderer && typeof ipcRenderer.on === "function") {
+        ipcRenderer.on("engine:restored", (_evt: any, details: any) => {
+          handleEngineRestoredEvent(details);
+        });
+      }
+    }
 
     bridge.onEvent("project-add-files", async () => {
       try {

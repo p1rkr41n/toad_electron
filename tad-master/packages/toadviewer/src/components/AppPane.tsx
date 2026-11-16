@@ -517,7 +517,14 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
       bridge = getHostBridge();
     } catch {}
 
+    let lastRestoreHandledAt = 0;
     const handleRestored = async () => {
+      const now = Date.now();
+      if (now - lastRestoreHandledAt < 250) {
+        return;
+      }
+      lastRestoreHandledAt = now;
+
       try {
         const toaster = getAppToaster();
         if (toaster) {

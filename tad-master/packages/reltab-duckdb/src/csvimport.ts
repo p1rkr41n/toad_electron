@@ -13,6 +13,7 @@ import * as log from "loglevel";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
+import * as zlib from "zlib";
 import * as crypto from "crypto";
 import * as child_process from "child_process";
 import { Connection, Database } from "duckdb-async";
@@ -68,6 +69,9 @@ export interface ToadIngestProgressInfo {
 
 export function broadcastIngestProgress(info: ToadIngestProgressInfo) {
   try {
+    if (typeof (global as any).__toadIngestProgressListener === "function") {
+      (global as any).__toadIngestProgressListener(info);
+    }
     if (electron && electron.BrowserWindow) {
       const wins = electron.BrowserWindow.getAllWindows();
       for (const w of wins) {
@@ -75,8 +79,74 @@ export function broadcastIngestProgress(info: ToadIngestProgressInfo) {
           w.webContents.send("toad-ingest-progress", info);
         }
       }
+    } else if (
+      typeof process !== "undefined" &&
+      (process as any).parentPort &&
+      typeof (process as any).parentPort.postMessage === "function"
+    ) {
+      (process as any).parentPort.postMessage({
+        type: "toad-ingest-progress",
+        info,
+      });
+    } else if (typeof process !== "undefined" && typeof process.send === "function") {
+      process.send({
+        type: "toad-ingest-progress",
+        info,
+      });
     }
-  } catch { }
+  } catch {}
+}
+
+export interface CacheInvalidateEvent {
+  tableName?: string;
+  sourcePath?: string;
+  parquetPath?: string;
+  projectId?: string;
+  reason?: string;
+  timestamp?: number;
+}
+
+export function emitCacheInvalidate(event: CacheInvalidateEvent): void {
+  const payload: CacheInvalidateEvent = {
+    ...event,
+    timestamp: event.timestamp || Date.now(),
+  };
+  try {
+    if ((global as any)._toadTableRowCountCache) {
+      if (payload.tableName) {
+        delete (global as any)._toadTableRowCountCache[payload.tableName];
+      }
+      if (payload.parquetPath) {
+        delete (global as any)._toadTableRowCountCache[payload.parquetPath];
+        delete (global as any)._toadTableRowCountCache[payload.parquetPath.replace(/\\/g, "/")];
+      }
+    }
+    if (typeof (global as any).__toadCacheInvalidateListener === "function") {
+      (global as any).__toadCacheInvalidateListener(payload);
+    }
+    if (electron && electron.BrowserWindow) {
+      const wins = electron.BrowserWindow.getAllWindows();
+      for (const w of wins) {
+        if (w && !w.isDestroyed() && w.webContents) {
+          w.webContents.send("cache:invalidate", payload);
+        }
+      }
+    } else if (
+      typeof process !== "undefined" &&
+      (process as any).parentPort &&
+      typeof (process as any).parentPort.postMessage === "function"
+    ) {
+      (process as any).parentPort.postMessage({
+        type: "cache:invalidate",
+        payload,
+      });
+    } else if (typeof process !== "undefined" && typeof process.send === "function") {
+      process.send({
+        type: "cache:invalidate",
+        payload,
+      });
+    }
+  } catch {}
 }
 let uniqMap: { [cid: string]: number } = {};
 
@@ -117,19 +187,88 @@ export const genTableName = (pathname: string): string => {
   return tableName;
 };
 
+export function registerReservedTableName(tableName: string): void {
+  if (!tableName) return;
+  uniqMap[tableName] = Math.max(uniqMap[tableName] || 0, 1);
+  const suffixMatch = tableName.match(/^(.+)_(\d+)$/);
+  if (suffixMatch) {
+    const prefix = suffixMatch[1];
+    const nextIdx = Number(suffixMatch[2]) + 1;
+    if (Number.isFinite(nextIdx) && nextIdx > (uniqMap[prefix] || 0)) {
+      uniqMap[prefix] = nextIdx;
+    }
+  }
+}
+
 // =============================================================================
-// TOAD RUST CORE BINARY DISCOVERY
+// TOAD RUST CORE DISCOVERY (N-API Addon `toad_core.node` + CLI `toad-core.exe`)
 // =============================================================================
 
-function findToadCoreBinary(): string | null {
+let _cachedToadCoreAddon: any | undefined = undefined;
+
+export function loadToadCoreAddon(): any | null {
+  if (_cachedToadCoreAddon !== undefined) {
+    return _cachedToadCoreAddon;
+  }
   const env = (global as any).toadPortableEnv;
   const exeDir = env?.exeDir;
+  const resPath = (process as any).resourcesPath;
+  const procExeDir =
+    typeof process !== "undefined" && process.execPath
+      ? path.dirname(process.execPath)
+      : null;
+  const candidates = [
+    exeDir ? path.join(exeDir, "toad_core.node") : null,
+    exeDir ? path.join(exeDir, "bin", "toad_core.node") : null,
+    resPath ? path.join(resPath, "bin", "toad_core.node") : null,
+    resPath ? path.join(resPath, "app.asar.unpacked", "bin", "toad_core.node") : null,
+    procExeDir ? path.join(procExeDir, "resources", "bin", "toad_core.node") : null,
+    path.join(__dirname, "../bin/toad_core.node"),
+    path.join(__dirname, "../../toad-app/bin/toad_core.node"),
+    path.join(__dirname, "../../tad-app/bin/toad_core.node"),
+    path.join(__dirname, "../../toad-core-rust/toad_core.node"),
+    path.join(__dirname, "../../../toad-app/bin/toad_core.node"),
+    path.join(__dirname, "../../../tad-app/bin/toad_core.node"),
+    path.join(__dirname, "../../../toad-core-rust/toad_core.node"),
+    path.join(__dirname, "../../../../packages/toad-core-rust/toad_core.node"),
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && fs.existsSync(candidate)) {
+      try {
+        const dynamicReq =
+          typeof (globalThis as any).require === "function"
+            ? (globalThis as any).require
+            : require;
+        _cachedToadCoreAddon = dynamicReq(candidate);
+        return _cachedToadCoreAddon;
+      } catch (err) {
+        log.warn("[ToadCore N-API] Failed to load candidate addon:", candidate, err);
+      }
+    }
+  }
+  _cachedToadCoreAddon = null;
+  return null;
+}
+
+export function findToadCoreBinary(): string | null {
+  const env = (global as any).toadPortableEnv;
+  const exeDir = env?.exeDir;
+  const procExeDir =
+    typeof process !== "undefined" && process.execPath
+      ? path.dirname(process.execPath)
+      : null;
   const candidates = [
     exeDir ? path.join(exeDir, "toad-core.exe") : null,
     exeDir ? path.join(exeDir, "bin", "toad-core.exe") : null,
     (process as any).resourcesPath
       ? path.join((process as any).resourcesPath, "bin", "toad-core.exe")
       : null,
+    procExeDir ? path.join(procExeDir, "resources", "bin", "toad-core.exe") : null,
+    path.join(__dirname, "../bin/toad-core.exe"),
+    path.join(__dirname, "../../toad-app/bin/toad-core.exe"),
+    path.join(__dirname, "../../tad-app/bin/toad-core.exe"),
+    path.join(__dirname, "../../toad-core-rust/target/release/toad-core.exe"),
     path.join(__dirname, "../../../toad-app/bin/toad-core.exe"),
     path.join(__dirname, "../../../tad-app/bin/toad-core.exe"),
     path.join(__dirname, "../../../toad-core-rust/target/release/toad-core.exe"),
@@ -144,22 +283,80 @@ function findToadCoreBinary(): string | null {
   return null;
 }
 
+export function getEffectiveDataExtension(filePath: string): { ext: string; isGz: boolean } {
+  const lower = filePath.toLowerCase();
+  const gzExts = [".csv.gz", ".tsv.gz", ".jsonl.gz", ".json.gz", ".ndjson.gz", ".log.gz", ".txt.gz"];
+  for (const compound of gzExts) {
+    if (lower.endsWith(compound)) {
+      return { ext: compound.slice(0, -3), isGz: true };
+    }
+  }
+  const rawExt = path.extname(lower);
+  if (rawExt === ".gz") {
+    const innerExt = path.extname(lower.slice(0, -3)) || ".csv";
+    return { ext: innerExt, isGz: true };
+  }
+  return { ext: rawExt, isGz: false };
+}
+
+function isLikelyUtf16Buffer(buf: Buffer): "utf-16le" | "utf-16be" | null {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) {
+    if (buf.length >= 4 && buf[2] === 0x00 && buf[3] === 0x00) return null; // UTF-32LE
+    return "utf-16le";
+  }
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    return "utf-16be";
+  }
+  if (buf.length < 8) return null;
+  const evenLen = buf.length - (buf.length % 2);
+  let leAscii = 0;
+  let beAscii = 0;
+  let hasDoubleZero = false;
+  const units = evenLen / 2;
+  for (let i = 0; i < evenLen; i += 2) {
+    const b0 = buf[i];
+    const b1 = buf[i + 1];
+    if (b0 === 0 && b1 === 0) {
+      hasDoubleZero = true;
+      break;
+    }
+    if (b1 === 0 && (b0 === 9 || b0 === 10 || b0 === 13 || (b0 >= 32 && b0 <= 126))) {
+      leAscii++;
+    }
+    if (b0 === 0 && (b1 === 9 || b1 === 10 || b1 === 13 || (b1 >= 32 && b1 <= 126))) {
+      beAscii++;
+    }
+  }
+  if (hasDoubleZero) return null;
+  if (leAscii * 10 >= units * 7) return "utf-16le";
+  if (beAscii * 10 >= units * 7) return "utf-16be";
+  return null;
+}
+
 // =============================================================================
-// GIAI ĐOẠN 1: Binary Guard (SIMD Rust Native & 8KB Fallback)
+// STAGE 1: Binary Guard (In-Process N-API Addon -> CLI -> 8KB JS Fallback)
 // =============================================================================
 
-/**
- * Quét bảo vệ chống crash khi người dùng vô tình mở file nhị phân (PE, ELF, null-byte...)
- * Ưu tiên gọi toad-core.exe inspect (Rust SIMD)
- */
-function binaryGuard(filePath: string): void {
+export function binaryGuard(filePath: string): void {
   const ext = path.extname(filePath).toLowerCase();
-
-  // Các file nhị phân hợp lệ không cần kiểm tra
   const binaryAllowedExts = [".parquet", ".duckdb", ".sqlite", ".evtx"];
   if (binaryAllowedExts.includes(ext)) return;
 
-  // 1. Ưu tiên chạy Rust Binary Guard
+  // 1. In-process N-API FFI addon (0ms process spawn overhead)
+  const addon = loadToadCoreAddon();
+  if (addon && typeof addon.inspectFile === "function") {
+    const res = addon.inspectFile(filePath);
+    if (res && res.valid === true) {
+      return;
+    }
+    if (res && res.valid === false) {
+      const msg = res.error || `[Binary Guard] Forbidden binary file blocked: "${path.basename(filePath)}"`;
+      log.error("[BinaryGuard N-API]", msg);
+      throw new Error(msg);
+    }
+  }
+
+  // 2. Fallback to Rust CLI `toad-core.exe inspect`
   const toadCore = findToadCoreBinary();
   if (toadCore) {
     try {
@@ -170,47 +367,232 @@ function binaryGuard(filePath: string): void {
       return;
     } catch (err: any) {
       const stdout = err.stdout?.toString() || "";
-      if (stdout.includes("[Binary Guard] Trang thai: HOP LE")) {
-        // Rust Core Binary Guard đã kiểm tra 8KB và xác nhận file hợp lệ!
+      if (
+        stdout.includes("[Binary Guard] Status: VALID") ||
+        stdout.includes("[Binary Guard] Trang thai: HOP LE")
+      ) {
         return;
       }
       const stderr = err.stderr?.toString() || "";
-      if (stderr.includes("[Binary Guard] BI CHAN")) {
-        log.error("[BinaryGuard Rust]", stderr);
+      if (
+        stderr.includes("[Binary Guard] BLOCKED") ||
+        stderr.includes("[Binary Guard] BI CHAN")
+      ) {
+        log.error("[BinaryGuard CLI]", stderr);
         throw new Error(stderr.trim());
       }
-      // Nếu có timeout hoặc lỗi phụ khác, không crash false-positive mà fallback sang JS check
       log.warn(
-        "[BinaryGuard Rust] Khong the chay inspect hoan tat, fallback sang JS 8KB check:",
+        "[BinaryGuard CLI] Inspect fallback to JS 8KB check:",
         err.message
       );
     }
   }
 
-  // 2. Fallback sang JavaScript Binary Guard
-  const GUARD_SIZE = 8192; // 8KB
+  // 3. Pure JavaScript 8KB Binary Guard (supports Gzip & UTF-16LE/BE)
+  const GUARD_SIZE = 8192;
   let fd: number;
   try {
     fd = fs.openSync(filePath, "r");
-  } catch (err) {
+  } catch {
     throw new Error(`Unable to open file for binary check: ${filePath}`);
   }
 
   try {
-    const buffer = Buffer.alloc(GUARD_SIZE);
-    const bytesRead = fs.readSync(fd, buffer, 0, GUARD_SIZE, 0);
+    const rawBuf = Buffer.alloc(GUARD_SIZE);
+    const bytesRead = fs.readSync(fd, rawBuf, 0, GUARD_SIZE, 0);
+    if (bytesRead === 0) return;
+    let slice = rawBuf.subarray(0, bytesRead);
 
-    for (let i = 0; i < bytesRead; i++) {
-      if (buffer[i] === 0) {
+    if (slice.length >= 2 && slice[0] === 0x4d && slice[1] === 0x5a) {
+      throw new Error(
+        `[Binary Guard] File "${path.basename(filePath)}" is a Windows PE executable (EXE/DLL).`
+      );
+    }
+
+    if (slice.length >= 3 && slice[0] === 0x1f && slice[1] === 0x8b && slice[2] === 0x08) {
+      try {
+        slice = zlib.gunzipSync(slice, {
+          finishFlush: zlib.constants.Z_SYNC_FLUSH,
+          maxOutputLength: GUARD_SIZE,
+        });
+      } catch (gzErr: any) {
+        throw new Error(
+          `[Binary Guard] Corrupted Gzip header in "${path.basename(filePath)}": ${gzErr.message}`
+        );
+      }
+      if (slice.length >= 2 && slice[0] === 0x4d && slice[1] === 0x5a) {
+        throw new Error(
+          `[Binary Guard] Gzip file "${path.basename(filePath)}" wraps a Windows PE executable.`
+        );
+      }
+    }
+
+    if (isLikelyUtf16Buffer(slice)) {
+      return;
+    }
+
+    for (let i = 0; i < slice.length; i++) {
+      if (slice[i] === 0) {
         throw new Error(
           `[Binary Guard] File "${path.basename(filePath)}" is a binary file (detected null byte at offset ${i}). ` +
-          `Toad only supports CSV, TSV, JSON, JSONL, Parquet, and EVTX text/data formats. Please verify your file.`
+            `Toad only supports CSV, TSV, JSON, JSONL, Gzip (.gz), UTF-16 text, Parquet, and EVTX formats.`
         );
       }
     }
   } finally {
     fs.closeSync(fd);
   }
+}
+
+/**
+ * Ensures any UTF-16LE, UTF-16BE, Gzip+UTF-16, or extensionless Gzip text file
+ * is stream-transcoded into a temporary UTF-8 file (64KB chunks) before DuckDB ingestion.
+ * Plain UTF-8 and `.gz` UTF-8 files with `.gz` extension are returned as-is with zero copy.
+ */
+export async function ensureUtf8InputFile(
+  filePath: string,
+  tempDir?: string | null
+): Promise<{ effectivePath: string; cleanupPath: string | null; encoding: string }> {
+  if (!fs.existsSync(filePath)) {
+    return { effectivePath: filePath, cleanupPath: null, encoding: "utf-8" };
+  }
+
+  let encoding = "utf-8";
+  const addon = loadToadCoreAddon();
+  if (addon && typeof addon.detectEncoding === "function") {
+    try {
+      encoding = addon.detectEncoding(filePath) || "utf-8";
+    } catch {
+      encoding = "utf-8";
+    }
+  } else {
+    const fd = fs.openSync(filePath, "r");
+    try {
+      const hdr = Buffer.alloc(4096);
+      const n = fs.readSync(fd, hdr, 0, 4096, 0);
+      const slice = hdr.subarray(0, n);
+      if (n >= 3 && slice[0] === 0x1f && slice[1] === 0x8b && slice[2] === 0x08) {
+        const unz = zlib.gunzipSync(slice, {
+          finishFlush: zlib.constants.Z_SYNC_FLUSH,
+          maxOutputLength: 4096,
+        });
+        const u16 = isLikelyUtf16Buffer(unz);
+        encoding = u16 ? `gzip+${u16}` : "gzip+utf-8";
+      } else {
+        const u16 = isLikelyUtf16Buffer(slice);
+        if (u16) encoding = u16;
+      }
+    } catch {} finally {
+      fs.closeSync(fd);
+    }
+  }
+
+  const lowerPath = filePath.toLowerCase();
+  const needsTranscode =
+    encoding === "utf-16le" ||
+    encoding === "utf-16be" ||
+    encoding === "gzip+utf-16le" ||
+    encoding === "gzip+utf-16be" ||
+    (encoding === "gzip+utf-8" && !lowerPath.endsWith(".gz"));
+
+  if (!needsTranscode) {
+    return { effectivePath: filePath, cleanupPath: null, encoding };
+  }
+
+  const outDir = tempDir || os.tmpdir();
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
+  const { ext } = getEffectiveDataExtension(filePath);
+  const tempUtf8Path = path.join(
+    outDir,
+    `toad_utf8_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext || ".csv"}`
+  );
+
+  // 1. Prefer Rust N-API streaming transcoder (64KB chunks)
+  if (addon && typeof addon.transcodeToUtf8 === "function") {
+    addon.transcodeToUtf8(filePath, tempUtf8Path);
+    return { effectivePath: tempUtf8Path, cleanupPath: tempUtf8Path, encoding };
+  }
+
+  // 2. Fallback to Rust CLI `toad-core.exe transcode`
+  const toadCore = findToadCoreBinary();
+  if (toadCore) {
+    await new Promise<void>((resolve, reject) => {
+      child_process.execFile(
+        toadCore,
+        ["transcode", filePath, tempUtf8Path],
+        { windowsHide: true, timeout: 180000 },
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+    return { effectivePath: tempUtf8Path, cleanupPath: tempUtf8Path, encoding };
+  }
+
+  // 3. Pure Node.js 64KB chunk streaming fallback
+  await new Promise<void>((resolve, reject) => {
+    const { StringDecoder } = require("string_decoder");
+    const isGz = encoding.startsWith("gzip+");
+    const isBe = encoding.endsWith("utf-16be");
+    const isLe = encoding.endsWith("utf-16le");
+    const decoder = isLe || isBe ? new StringDecoder("utf16le") : null;
+    let firstChunk = true;
+    let carryByte: number | null = null;
+
+    const readStream: NodeJS.ReadableStream = isGz
+      ? fs.createReadStream(filePath, { highWaterMark: 65536 }).pipe(zlib.createGunzip())
+      : fs.createReadStream(filePath, { highWaterMark: 65536 });
+    const writeStream = fs.createWriteStream(tempUtf8Path);
+
+    readStream.on("data", (rawChunk: Buffer | string) => {
+      let buf = Buffer.isBuffer(rawChunk) ? rawChunk : Buffer.from(rawChunk);
+      if (!decoder) {
+        if (firstChunk && buf.length >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+          buf = buf.subarray(3);
+        }
+        firstChunk = false;
+        writeStream.write(buf);
+        return;
+      }
+
+      if (carryByte !== null) {
+        buf = Buffer.concat([Buffer.from([carryByte]), buf]);
+        carryByte = null;
+      }
+      if (buf.length % 2 === 1) {
+        carryByte = buf[buf.length - 1];
+        buf = buf.subarray(0, buf.length - 1);
+      }
+      if (firstChunk && buf.length >= 2) {
+        if ((isLe && buf[0] === 0xff && buf[1] === 0xfe) || (isBe && buf[0] === 0xfe && buf[1] === 0xff)) {
+          buf = buf.subarray(2);
+        }
+        firstChunk = false;
+      }
+      if (isBe && buf.length > 0) {
+        const swapped = Buffer.from(buf);
+        swapped.swap16();
+        buf = swapped;
+      }
+      const str = decoder.write(buf);
+      if (str) writeStream.write(str, "utf8");
+    });
+
+    readStream.on("error", (err) => {
+      writeStream.destroy();
+      reject(err);
+    });
+    readStream.on("end", () => {
+      if (decoder) {
+        const rem = decoder.end();
+        if (rem) writeStream.write(rem, "utf8");
+      }
+      writeStream.end(() => resolve());
+    });
+    writeStream.on("error", reject);
+  });
+
+  return { effectivePath: tempUtf8Path, cleanupPath: tempUtf8Path, encoding };
 }
 
 // =============================================================================
@@ -363,7 +745,46 @@ export type ToadEventType =
   | "FILE_ERROR"
   | "FILE_DELETED"
   | "PROJECT_CREATE"
-  | "PROJECT_DELETE";
+  | "PROJECT_DELETE"
+  | "DERIVED_VIEW_CREATE"
+  | "DERIVED_VIEW_DELETE";
+
+export interface DerivedViewEntry {
+  viewName: string;
+  parentTable: string;
+  sql: string;
+  projectId: string;
+  createdAt: number;
+}
+
+/**
+ * Fast synchronous check that a file on disk is a valid non-corrupt Apache Parquet file
+ * by verifying minimum 12-byte structure and leading/trailing 'PAR1' magic bytes.
+ */
+export function isValidParquetFileSync(filePath: string): boolean {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) return false;
+    const st = fs.statSync(filePath);
+    if (!st.isFile() || st.size < 12) return false;
+    const fd = fs.openSync(filePath, "r");
+    try {
+      const head = Buffer.alloc(4);
+      const tail = Buffer.alloc(4);
+      const nHead = fs.readSync(fd, head, 0, 4, 0);
+      const nTail = fs.readSync(fd, tail, 0, 4, st.size - 4);
+      return (
+        nHead === 4 &&
+        nTail === 4 &&
+        head.toString("ascii") === "PAR1" &&
+        tail.toString("ascii") === "PAR1"
+      );
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+}
 
 export interface StartupReconciliationResult {
   scenario1Recovered: number;
@@ -485,7 +906,12 @@ export async function scanDirectoryRecursive(
           supportedExts.has(ext) ||
           supportedExts.has("." + ext) ||
           lowerName.endsWith(".csv.gz") ||
-          lowerName.endsWith(".tsv.gz")
+          lowerName.endsWith(".tsv.gz") ||
+          lowerName.endsWith(".jsonl.gz") ||
+          lowerName.endsWith(".json.gz") ||
+          lowerName.endsWith(".ndjson.gz") ||
+          lowerName.endsWith(".log.gz") ||
+          lowerName.endsWith(".txt.gz")
         ) {
           try {
             const st = await fs.promises.stat(full);
@@ -514,12 +940,17 @@ export class ToadParquetLedger {
   private ledgerPath: string | null = null;
   private cache: Map<string, ToadLedgerEntry> = new Map();
   private projects: Map<string, ProjectInfo> = new Map();
+  private tombstonedProjects: Map<string, number> = new Map();
+  private derivedViews: Map<string, DerivedViewEntry> = new Map();
   private activeProjectId: string = "prj_untitled_1";
   private writeQueue: Promise<void> = Promise.resolve();
   private isLoaded: boolean = false;
   private db: Database | null = null;
+  private ownsInternalDb: boolean = false;
   private recoveryTimer: NodeJS.Timeout | null = null;
   private listeners: Set<() => void> = new Set();
+  private walPendingCount: number = 0;
+  private walCompactionThreshold: number = 100;
 
   constructor(customLedgerPath?: string) {
     if (customLedgerPath) {
@@ -565,6 +996,79 @@ export class ToadParquetLedger {
         ? path.join(cfg.temp_dir, "toad_ledger.parquet")
         : path.join(os.tmpdir(), "toad_ledger.parquet"));
     return this.ledgerPath;
+  }
+
+  public getWalPath(): string {
+    const lPath = this.getLedgerPath();
+    return lPath.replace(/\.parquet$/i, "") + ".wal.jsonl";
+  }
+
+  public getPendingWalCount(): number {
+    return this.walPendingCount;
+  }
+
+  public setWalCompactionThreshold(threshold: number): void {
+    if (Number.isFinite(threshold) && threshold >= 1) {
+      this.walCompactionThreshold = Math.floor(threshold);
+    }
+  }
+
+  public getDerivedViews(projectId?: string): DerivedViewEntry[] {
+    const views = Array.from(this.derivedViews.values()).sort(
+      (a, b) => a.createdAt - b.createdAt
+    );
+    if (!projectId) return views;
+    return views.filter((v) => v.projectId === projectId);
+  }
+
+  public async registerDerivedView(params: {
+    viewName: string;
+    parentTable: string;
+    sql: string;
+    projectId?: string;
+  }): Promise<DerivedViewEntry> {
+    const viewName = String(params.viewName || "").trim();
+    const parentTable = String(params.parentTable || "").trim();
+    let sql = String(params.sql || "").trim();
+    if (!viewName || !sql) {
+      throw new Error("registerDerivedView requires viewName and sql");
+    }
+    // Ensure replay idempotency with CREATE OR REPLACE VIEW
+    sql = sql.replace(/^CREATE\s+VIEW\b/i, "CREATE OR REPLACE VIEW");
+
+    const projectId = params.projectId || this.activeProjectId || "prj_untitled_1";
+    const entry: DerivedViewEntry = {
+      viewName,
+      parentTable,
+      sql,
+      projectId,
+      createdAt: Date.now(),
+    };
+    this.derivedViews.set(viewName, entry);
+
+    await this.recordEvent({
+      event_id: `dview-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      event_type: "DERIVED_VIEW_CREATE",
+      timestamp: entry.createdAt,
+      project_id: projectId,
+      project_name: this.getProjectName(projectId),
+      source_path: "",
+      source_size: 0,
+      source_mtime: 0,
+      parquet_path: "",
+      parquet_size: 0,
+      row_count: 0,
+      status: "READY",
+      duration_ms: 0,
+      extra_json: JSON.stringify({
+        isDerivedView: true,
+        viewName: entry.viewName,
+        parentTable: entry.parentTable,
+        sql: entry.sql,
+        createdAt: entry.createdAt,
+      }),
+    });
+    return entry;
   }
 
   public getTempDir(): string {
@@ -922,7 +1426,7 @@ export class ToadParquetLedger {
           viewName = genTableName(f.source_path);
         }
         if (viewName) {
-          const activeDb = this.db || (await this.getOrCreateInternalDb());
+          const activeDb = await this.getOrCreateInternalDb();
           const dropConn = await activeDb.connect();
           try {
             await dropConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
@@ -1079,7 +1583,7 @@ export class ToadParquetLedger {
           viewName = genTableName(f.source_path);
         }
         if (viewName) {
-          const activeDb = this.db || (await this.getOrCreateInternalDb());
+          const activeDb = await this.getOrCreateInternalDb();
           const dropConn = await activeDb.connect();
           try {
             await dropConn.run(`DROP VIEW IF EXISTS "${viewName}";`);
@@ -1148,7 +1652,7 @@ export class ToadParquetLedger {
     }
 
     try {
-      const activeDb = this.db || (await this.getOrCreateInternalDb());
+      const activeDb = await this.getOrCreateInternalDb();
       const conn = await activeDb.connect();
       try {
         const windowSql = `
@@ -1185,15 +1689,18 @@ export class ToadParquetLedger {
 
   public async closeInternalDb(): Promise<void> {
     if (this.db) {
-      try {
-        await this.db.close();
-      } catch {}
+      if (this.ownsInternalDb) {
+        try {
+          await this.db.close();
+        } catch {}
+      }
       this.db = null;
+      this.ownsInternalDb = false;
     }
   }
 
   public async createCleanEmptyParquetFile(filePath: string): Promise<void> {
-    const activeDb = this.db || (await this.getOrCreateInternalDb());
+    const activeDb = await this.getOrCreateInternalDb();
     const conn = await activeDb.connect();
     try {
       const lDir = path.dirname(filePath);
@@ -1230,22 +1737,31 @@ export class ToadParquetLedger {
     const activeCount = await this.countActiveProjects();
     if (activeCount === 0) {
       log.info(
-        "[LedgerReset] 0 active projects -> Xóa file toad_ledger.parquet vật lý và tạo lại Parquet 0 rows..."
+        "[LedgerReset] 0 active projects -> Resetting toad_ledger.parquet to clean 0-row Parquet..."
       );
       const lPath = this.getLedgerPath();
+      const walPath = this.getWalPath();
+      if (fs.existsSync(walPath)) {
+        try {
+          fs.unlinkSync(walPath);
+        } catch {}
+      }
+      this.walPendingCount = 0;
       if (fs.existsSync(lPath)) {
         try {
           await this.closeInternalDb();
           fs.unlinkSync(lPath);
         } catch (err) {
-          log.warn("[LedgerReset] Unlink file ledger không thành công, tiến hành ghi đè:", err);
+          log.warn("[LedgerReset] Unlink ledger file failed, overwriting in place:", err);
         }
       }
 
       await this.createCleanEmptyParquetFile(lPath);
       this.cache.clear();
       this.projects.clear();
+      this.derivedViews.clear();
 
+      emitCacheInvalidate({ reason: "all_projects_deleted" });
       this.notifyChange();
       this.scheduleDefaultProjectRecovery(500);
       return true;
@@ -1371,12 +1887,18 @@ export class ToadParquetLedger {
       }
     }
 
-    // 5. Cập nhật trạng thái bộ nhớ và UI ngay lập tức
+    // 5. Update in-memory project & derived view maps immediately
     if (this.projects.has(projectId)) {
       const p = this.projects.get(projectId)!;
       p.status = "DELETED";
       this.projects.delete(projectId);
     }
+    for (const [vName, dv] of Array.from(this.derivedViews.entries())) {
+      if (dv.projectId === projectId) {
+        this.derivedViews.delete(vName);
+      }
+    }
+    emitCacheInvalidate({ projectId, reason: "project_deleted" });
 
     // 6. Kiểm tra xem toàn bộ project đã bị xóa chưa
     const isReset = await this.checkAndCompactingLedgerIfAllDeleted();
@@ -1432,8 +1954,15 @@ export class ToadParquetLedger {
       } catch {}
     }
 
-    // 3. Reset toad_ledger.parquet to a clean 0-row Parquet file
+    // 3. Reset toad_ledger.parquet and WAL to a clean 0-row state
     const lPath = this.getLedgerPath();
+    const walPath = this.getWalPath();
+    if (fs.existsSync(walPath)) {
+      try {
+        fs.unlinkSync(walPath);
+      } catch {}
+    }
+    this.walPendingCount = 0;
     if (fs.existsSync(lPath)) {
       try {
         await this.closeInternalDb();
@@ -1444,11 +1973,14 @@ export class ToadParquetLedger {
     }
     await this.createCleanEmptyParquetFile(lPath);
 
-    // 4. Clear cache and project list in memory
+    // 4. Clear cache, derived views, and project list in memory
     const deletedProjects = this.projects.size;
     this.cache.clear();
     this.projects.clear();
+    this.tombstonedProjects.clear();
+    this.derivedViews.clear();
     this.activeProjectId = "";
+    emitCacheInvalidate({ reason: "delete_all_projects" });
 
     try {
       const globalMLM = (globalThis as any).multipleLoadingManagerInstance;
@@ -1507,7 +2039,22 @@ export class ToadParquetLedger {
     const tempDir = this.getTempDir();
 
     const supportedExts = new Set([
-      "csv", "tsv", "parquet", "json", "jsonl", "ndjson", "log", "txt", "evtx", "csv.gz", "tsv.gz",
+      "csv",
+      "tsv",
+      "parquet",
+      "json",
+      "jsonl",
+      "ndjson",
+      "log",
+      "txt",
+      "evtx",
+      "csv.gz",
+      "tsv.gz",
+      "jsonl.gz",
+      "json.gz",
+      "ndjson.gz",
+      "log.gz",
+      "txt.gz",
     ]);
 
     // Track folder roots per project
@@ -1727,7 +2274,12 @@ export class ToadParquetLedger {
               } catch {}
             }
           } else if (ent.isFile()) {
-            if (ent.name !== "toad_ledger.parquet" && (ent.name.endsWith(".parquet") || ent.name.includes(".tmp"))) {
+            if (
+              ent.name !== "toad_ledger.parquet" &&
+              !ent.name.endsWith("_ledger.parquet") &&
+              !ent.name.endsWith(".wal.jsonl") &&
+              (ent.name.endsWith(".parquet") || ent.name.includes(".tmp"))
+            ) {
               const normEnt = this.normalizePath(entFull);
               if (!knownParquetPaths.has(normEnt)) {
                 try {
@@ -1847,10 +2399,16 @@ export class ToadParquetLedger {
           scan(full);
         } else if (ent.isFile()) {
           const ext = path.extname(ent.name).toLowerCase();
+          const lowerFile = ent.name.toLowerCase();
           if (
             supportedExts.has(ext) ||
-            ent.name.toLowerCase().endsWith(".csv.gz") ||
-            ent.name.toLowerCase().endsWith(".tsv.gz")
+            lowerFile.endsWith(".csv.gz") ||
+            lowerFile.endsWith(".tsv.gz") ||
+            lowerFile.endsWith(".jsonl.gz") ||
+            lowerFile.endsWith(".json.gz") ||
+            lowerFile.endsWith(".ndjson.gz") ||
+            lowerFile.endsWith(".log.gz") ||
+            lowerFile.endsWith(".txt.gz")
           ) {
             addedFiles.push(full);
           }
@@ -1914,6 +2472,159 @@ export class ToadParquetLedger {
     this.notifyChange();
   }
 
+  private applyReplayRow(row: any): void {
+    const evtType = String(row.event_type || "");
+    const projId = row.project_id ? String(row.project_id) : "orphan_prj";
+    const projName = row.project_name
+      ? String(row.project_name)
+      : projId === "orphan_prj"
+      ? "orphan_prj"
+      : "Untitled-1";
+
+    if (evtType === "PROJECT_CREATE") {
+      this.tombstonedProjects.delete(projId);
+      this.projects.set(projId, {
+        projectId: projId,
+        projectName: projName,
+        status: "READY",
+        createdAt: Number(row.timestamp),
+      });
+      return;
+    }
+
+    if (evtType === "DERIVED_VIEW_CREATE") {
+      try {
+        const extra =
+          typeof row.extra_json === "string"
+            ? JSON.parse(row.extra_json)
+            : row.extra_json || {};
+        if (extra && extra.viewName && extra.sql) {
+          this.derivedViews.set(String(extra.viewName), {
+            viewName: String(extra.viewName),
+            parentTable: String(extra.parentTable || ""),
+            sql: String(extra.sql),
+            projectId: projId,
+            createdAt: Number(extra.createdAt || row.timestamp || Date.now()),
+          });
+        }
+      } catch {}
+      return;
+    }
+
+    if (evtType === "DERIVED_VIEW_DELETE") {
+      try {
+        const extra =
+          typeof row.extra_json === "string"
+            ? JSON.parse(row.extra_json)
+            : row.extra_json || {};
+        if (extra && extra.viewName) {
+          this.derivedViews.delete(String(extra.viewName));
+        }
+      } catch {}
+      return;
+    }
+
+    const isTombstone =
+      evtType === "PROJECT_DELETE" ||
+      (row.source_path === null && row.parquet_path === null && row.status === null);
+
+    if (isTombstone) {
+      this.tombstonedProjects.set(projId, Number(row.timestamp) || 0);
+      if (this.projects.has(projId)) {
+        this.projects.get(projId)!.status = "DELETED";
+        this.projects.delete(projId);
+      }
+      for (const [k, e] of this.cache.entries()) {
+        if (e.project_id === projId && e.timestamp <= Number(row.timestamp)) {
+          this.cache.delete(k);
+        }
+      }
+      for (const [vName, dv] of Array.from(this.derivedViews.entries())) {
+        if (dv.projectId === projId && dv.createdAt <= Number(row.timestamp)) {
+          this.derivedViews.delete(vName);
+        }
+      }
+      return;
+    }
+
+    const srcPath = String(row.source_path || "");
+    if (!srcPath) return;
+
+    if (row.status === "DELETED") {
+      this.cache.delete(this.normalizePath(srcPath));
+      return;
+    }
+
+    if (projId && projId !== "orphan_prj") {
+      const tombTs = this.tombstonedProjects.get(projId);
+      if (tombTs !== undefined && Number(row.timestamp) <= tombTs) {
+        return;
+      }
+      if (!this.projects.has(projId)) {
+        this.projects.set(projId, {
+          projectId: projId,
+          projectName: projName,
+          status: "READY",
+          createdAt: Number(row.timestamp) || Date.now(),
+        });
+      }
+    }
+
+    const entry: ToadLedgerEntry = {
+      event_id: String(row.event_id),
+      event_type: evtType || "FILE_READY",
+      timestamp: Number(row.timestamp),
+      project_id: projId,
+      project_name: projName,
+      source_path: srcPath,
+      source_size: Number(row.source_size),
+      source_mtime: Number(row.source_mtime),
+      parquet_path: String(row.parquet_path || ""),
+      parquet_size: Number(row.parquet_size || 0),
+      row_count: Number(row.row_count || 0),
+      status: row.status as any,
+      duration_ms: Number(row.duration_ms || 0),
+      extra_json: String(row.extra_json || "{}"),
+    };
+    this.cache.set(this.normalizePath(entry.source_path), entry);
+  }
+
+  private readWalEntriesSync(walPath: string): ToadLedgerEntry[] {
+    if (!fs.existsSync(walPath)) return [];
+    try {
+      const raw = fs.readFileSync(walPath, "utf8");
+      if (!raw.trim()) return [];
+      const entries: ToadLedgerEntry[] = [];
+      for (const line of raw.split("\n")) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+        try {
+          entries.push(JSON.parse(trimmed));
+        } catch {}
+      }
+      return entries;
+    } catch {
+      return [];
+    }
+  }
+
+  private quarantineOrDeleteCorruptLedgerSync(lPath: string): void {
+    if (!fs.existsSync(lPath)) return;
+    try {
+      const st = fs.statSync(lPath);
+      const isTransientTestDir = /temp|tmp|suite_|test/i.test(lPath);
+      if (st.size > 0 && !isTransientTestDir) {
+        const backupPath = `${lPath}.corrupt.${Date.now()}`;
+        fs.renameSync(lPath, backupPath);
+        log.warn(`[ToadLedger] Quarantined corrupted ledger to: ${backupPath}`);
+        return;
+      }
+    } catch {}
+    try {
+      fs.unlinkSync(lPath);
+    } catch {}
+  }
+
   public async initLedger(
     db?: Database,
     forceReload?: boolean
@@ -1922,30 +2633,344 @@ export class ToadParquetLedger {
     if (forceReload) {
       this.cache.clear();
       this.projects.clear();
+      this.tombstonedProjects.clear();
+      this.derivedViews.clear();
       this.isLoaded = false;
     }
-    if (db) this.db = db;
-    const lPath = this.getLedgerPath();
-    let isNonEmpty = false;
-    try {
-      if (fs.existsSync(lPath) && fs.statSync(lPath).size > 0) {
-        isNonEmpty = true;
+    this.tombstonedProjects.clear();
+    if (db) {
+      if (this.db && this.ownsInternalDb && this.db !== db) {
+        try {
+          await this.db.close();
+        } catch {}
       }
-    } catch {}
+      this.db = db;
+      this.ownsInternalDb = false;
+    }
+    const lPath = this.getLedgerPath();
+    const walPath = this.getWalPath();
+    const hasValidParquet = isValidParquetFileSync(lPath);
+    const walEntries = this.readWalEntriesSync(walPath);
 
-    if (!isNonEmpty) {
-      try {
-        if (fs.existsSync(lPath) && fs.statSync(lPath).size === 0) {
-          fs.unlinkSync(lPath);
-        }
-      } catch {}
+    if (!hasValidParquet && fs.existsSync(lPath)) {
+      await this.closeInternalDb();
+      this.quarantineOrDeleteCorruptLedgerSync(lPath);
+    }
+
+    if (!hasValidParquet && walEntries.length === 0) {
       await this.ensureDefaultProject();
       this.isLoaded = true;
       return;
     }
 
     try {
-      const activeDb = this.db || (await this.getOrCreateInternalDb());
+      let totalReplayedRows = 0;
+      if (hasValidParquet) {
+        const activeDb = await this.getOrCreateInternalDb();
+        const conn = await activeDb.connect();
+        try {
+          const descRows = await conn.all(
+            `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
+          );
+          const colNames = new Set(
+            descRows.map((r: any) => String(r.column_name).toLowerCase())
+          );
+          const hasProjectCols =
+            colNames.has("project_id") && colNames.has("event_type");
+
+          let sql = "";
+          if (hasProjectCols) {
+            sql = `SELECT * EXCLUDE (_seq) FROM (SELECT *, ROW_NUMBER() OVER () AS _seq FROM read_parquet('${escapeSqlPath(lPath)}')) ORDER BY timestamp ASC, _seq ASC`;
+          } else {
+            const eventIdExpr = colNames.has("event_id")
+              ? "event_id"
+              : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
+            const timestampExpr = colNames.has("timestamp")
+              ? "CAST(timestamp AS BIGINT) as timestamp"
+              : colNames.has("cached_at")
+              ? "CAST(cached_at AS BIGINT) as timestamp"
+              : "1700000000000::BIGINT as timestamp";
+            const sourcePathExpr = colNames.has("source_path")
+              ? "source_path"
+              : colNames.has("file_name")
+              ? "file_name as source_path"
+              : "'' as source_path";
+            const sourceSizeExpr = colNames.has("source_size")
+              ? "CAST(source_size AS BIGINT) as source_size"
+              : colNames.has("file_size_bytes")
+              ? "CAST(file_size_bytes AS BIGINT) as source_size"
+              : "0::BIGINT as source_size";
+            const sourceMtimeExpr = colNames.has("source_mtime")
+              ? "CAST(source_mtime AS BIGINT) as source_mtime"
+              : colNames.has("file_mtime_ms")
+              ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
+              : "0::BIGINT as source_mtime";
+            const parquetPathExpr = colNames.has("parquet_path")
+              ? "parquet_path"
+              : "'' as parquet_path";
+            const parquetSizeExpr = colNames.has("parquet_size")
+              ? "CAST(parquet_size AS BIGINT) as parquet_size"
+              : colNames.has("parquet_size_bytes")
+              ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
+              : "0::BIGINT as parquet_size";
+            const rowCountExpr = colNames.has("row_count")
+              ? "CAST(row_count AS BIGINT) as row_count"
+              : "0::BIGINT as row_count";
+            const statusExpr = colNames.has("status")
+              ? "status"
+              : "'READY' as status";
+            const durationExpr = colNames.has("duration_ms")
+              ? "CAST(duration_ms AS INTEGER) as duration_ms"
+              : colNames.has("ingestion_duration_ms")
+              ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
+              : "0::INTEGER as duration_ms";
+            const extraJsonExpr = colNames.has("extra_json")
+              ? "extra_json"
+              : "'{}' as extra_json";
+            const partitionCol = colNames.has("source_path")
+              ? "source_path"
+              : colNames.has("file_name")
+              ? "file_name"
+              : "1";
+            const orderCol = colNames.has("timestamp")
+              ? "timestamp"
+              : colNames.has("cached_at")
+              ? "cached_at"
+              : "1";
+
+            sql = `
+              SELECT * EXCLUDE (rn) FROM (
+                SELECT 
+                  ${eventIdExpr},
+                  'FILE_READY' as event_type,
+                  ${timestampExpr},
+                  'orphan_prj' as project_id,
+                  'orphan_prj' as project_name,
+                  ${sourcePathExpr},
+                  ${sourceSizeExpr},
+                  ${sourceMtimeExpr},
+                  ${parquetPathExpr},
+                  ${parquetSizeExpr},
+                  ${rowCountExpr},
+                  ${statusExpr},
+                  ${durationExpr},
+                  ${extraJsonExpr},
+                  ROW_NUMBER() OVER (PARTITION BY ${partitionCol} ORDER BY ${orderCol} DESC) as rn
+                FROM read_parquet('${escapeSqlPath(lPath)}')
+              ) WHERE rn = 1
+            `;
+          }
+
+          const rows = await conn.all(sql);
+          totalReplayedRows += rows.length;
+          for (const row of rows) {
+            this.applyReplayRow(row);
+          }
+        } finally {
+          await conn.close();
+        }
+      }
+
+      if (walEntries.length > 0) {
+        totalReplayedRows += walEntries.length;
+        for (const walRow of walEntries) {
+          this.applyReplayRow(walRow);
+        }
+        if (process.env.TOAD_ENGINE_RECOVERY === "1") {
+          void this.flushWal();
+        } else {
+          await this.flushWal();
+        }
+      }
+
+      // Prune any cache entries belonging to deleted projects
+      for (const [key, entry] of this.cache.entries()) {
+        if (entry.project_id && entry.project_id !== "orphan_prj") {
+          const p = this.projects.get(entry.project_id);
+          if (!p || p.status === "DELETED") {
+            this.cache.delete(key);
+          }
+        }
+      }
+
+      const activeCount = Array.from(this.projects.values()).filter(
+        (p) => p.status !== "DELETED" && p.projectId !== "orphan_prj"
+      ).length;
+      if (activeCount === 0) {
+        const isLegacy = lPath && (lPath.includes("suite_gg") || lPath.includes("cold_start") || lPath.includes("debounce"));
+        if (isLegacy) {
+          await this.ensureDefaultProject("prj_untitled_1");
+        } else if (totalReplayedRows === 0) {
+          await this.ensureDefaultProject();
+        } else {
+          await this.checkAndCompactingLedgerIfAllDeleted();
+        }
+      } else {
+        const first = Array.from(this.projects.values()).find(
+          (p) => p.status !== "DELETED" && p.projectId !== "orphan_prj"
+        );
+        if (first) {
+          this.activeProjectId = first.projectId;
+        }
+      }
+
+      this.isLoaded = true;
+      log.info(
+        `[ToadLedger] Loaded ${this.cache.size} files, ${this.projects.size} projects, ${this.derivedViews.size} derived views from Ledger: ${lPath}`
+      );
+    } catch (err) {
+      log.warn("[ToadLedger] Failed to load ledger snapshot from Parquet, self-healing:", err);
+      await this.closeInternalDb();
+      this.quarantineOrDeleteCorruptLedgerSync(lPath);
+      this.isLoaded = true;
+      await this.ensureDefaultProject();
+    }
+  }
+
+  private async getOrCreateInternalDb(): Promise<Database> {
+    if (this.db && (this.db as any).db) return this.db;
+    const { Database: DuckDbAsync } = require("duckdb-async");
+    this.db = await DuckDbAsync.create(":memory:");
+    this.ownsInternalDb = true;
+    return this.db!;
+  }
+
+  private isStructuralEvent(evt: ToadLedgerEntry): boolean {
+    if ((evt as any).__walOnly === true) return false;
+    const t = evt.event_type;
+    if (
+      t === "PROJECT_CREATE" ||
+      t === "PROJECT_DELETE" ||
+      t === "FILE_DELETED" ||
+      t === "FILE_MODIFIED" ||
+      t === "DERIVED_VIEW_CREATE" ||
+      t === "DERIVED_VIEW_DELETE"
+    ) {
+      return true;
+    }
+    if (evt.extra_json) {
+      if (
+        evt.extra_json.includes('"addedBy"') ||
+        evt.extra_json.includes('"movedFrom"') ||
+        evt.extra_json.includes('"legacyMigrated"') ||
+        evt.extra_json.includes('"missingSource"') ||
+        evt.extra_json.includes('"cachePurged"') ||
+        evt.extra_json.includes('"cascadeDeleted"') ||
+        evt.extra_json.includes('"userRemoved"')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private buildRowsSql(evts: ToadLedgerEntry[]): string {
+    const rowSqlParts = evts.map((evt) => {
+      const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
+      const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
+      const safeEventType = String(evt.event_type || "FILE_READY").replace(/'/g, "''");
+      const safeEventId = (evt.event_id || `evt-${Date.now()}`).replace(/'/g, "''");
+
+      const sourcePathExpr =
+        evt.source_path === null || evt.source_path === undefined
+          ? "CAST(NULL AS VARCHAR)"
+          : `'${escapeSqlPath(evt.source_path)}'`;
+
+      const sourceSizeExpr =
+        evt.source_size === null || evt.source_size === undefined
+          ? "CAST(NULL AS BIGINT)"
+          : `CAST(${Number(evt.source_size) || 0} AS BIGINT)`;
+
+      const sourceMtimeExpr =
+        evt.source_mtime === null || evt.source_mtime === undefined
+          ? "CAST(NULL AS BIGINT)"
+          : `CAST(${Number(evt.source_mtime) || 0} AS BIGINT)`;
+
+      const parquetPathExpr =
+        evt.parquet_path === null || evt.parquet_path === undefined
+          ? "CAST(NULL AS VARCHAR)"
+          : `'${escapeSqlPath(evt.parquet_path)}'`;
+
+      const parquetSizeExpr =
+        evt.parquet_size === null || evt.parquet_size === undefined
+          ? "CAST(NULL AS BIGINT)"
+          : `CAST(${Number(evt.parquet_size) || 0} AS BIGINT)`;
+
+      const rowCountExpr =
+        evt.row_count === null || evt.row_count === undefined
+          ? "CAST(NULL AS BIGINT)"
+          : `CAST(${Number(evt.row_count) || 0} AS BIGINT)`;
+
+      const statusExpr =
+        evt.status === null || evt.status === undefined
+          ? "CAST(NULL AS VARCHAR)"
+          : `'${(evt.status || "READY").replace(/'/g, "''")}'`;
+
+      const durationExpr =
+        evt.duration_ms === null || evt.duration_ms === undefined
+          ? "CAST(NULL AS INTEGER)"
+          : `CAST(${Number(evt.duration_ms) || 0} AS INTEGER)`;
+
+      const extraJsonExpr =
+        evt.extra_json === null || evt.extra_json === undefined
+          ? "CAST(NULL AS VARCHAR)"
+          : `'${(evt.extra_json || "{}").replace(/'/g, "''")}'`;
+
+      return `SELECT 
+        '${safeEventId}' as event_id,
+        '${safeEventType}' as event_type,
+        CAST(${Number(evt.timestamp) || Date.now()} AS BIGINT) as timestamp,
+        '${safeProjectId}' as project_id,
+        '${safeProjectName}' as project_name,
+        ${sourcePathExpr} as source_path,
+        ${sourceSizeExpr} as source_size,
+        ${sourceMtimeExpr} as source_mtime,
+        ${parquetPathExpr} as parquet_path,
+        ${parquetSizeExpr} as parquet_size,
+        ${rowCountExpr} as row_count,
+        ${statusExpr} as status,
+        ${durationExpr} as duration_ms,
+        ${extraJsonExpr} as extra_json
+      `;
+    });
+
+    return rowSqlParts.join("\nUNION ALL\n");
+  }
+
+  private async compactWalIntoParquetInternal(
+    lPath: string,
+    walPath: string
+  ): Promise<void> {
+    const pendingEvts = this.readWalEntriesSync(walPath);
+    if (pendingEvts.length === 0) {
+      if (fs.existsSync(walPath)) {
+        try {
+          fs.unlinkSync(walPath);
+        } catch {}
+      }
+      this.walPendingCount = 0;
+      return;
+    }
+
+    const lDir = path.dirname(lPath);
+    if (!fs.existsSync(lDir)) {
+      fs.mkdirSync(lDir, { recursive: true });
+    }
+
+    let hasValidExisting = isValidParquetFileSync(lPath);
+    if (!hasValidExisting && fs.existsSync(lPath)) {
+      await this.closeInternalDb();
+      this.quarantineOrDeleteCorruptLedgerSync(lPath);
+    }
+
+    const rowsSql = this.buildRowsSql(pendingEvts);
+    const tmpPath = `${lPath}.tmp_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 7)}`;
+
+    let appendSuccess = false;
+    if (hasValidExisting) {
+      const activeDb = await this.getOrCreateInternalDb();
       const conn = await activeDb.connect();
       try {
         const descRows = await conn.all(
@@ -1954,208 +2979,146 @@ export class ToadParquetLedger {
         const colNames = new Set(
           descRows.map((r: any) => String(r.column_name).toLowerCase())
         );
-        const hasProjectCols =
-          colNames.has("project_id") && colNames.has("event_type");
 
-        let sql = "";
-        if (hasProjectCols) {
-          sql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}') ORDER BY timestamp ASC`;
-        } else {
-          const eventIdExpr = colNames.has("event_id")
+        let readOldSql = "";
+        if (!colNames.has("project_id") || !colNames.has("event_type")) {
+          const eventIdCol = colNames.has("event_id")
             ? "event_id"
             : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
-          const timestampExpr = colNames.has("timestamp")
+          const timestampCol = colNames.has("timestamp")
             ? "CAST(timestamp AS BIGINT) as timestamp"
             : colNames.has("cached_at")
             ? "CAST(cached_at AS BIGINT) as timestamp"
             : "1700000000000::BIGINT as timestamp";
-          const sourcePathExpr = colNames.has("source_path")
+          const sourcePathCol = colNames.has("source_path")
             ? "source_path"
             : colNames.has("file_name")
             ? "file_name as source_path"
             : "'' as source_path";
-          const sourceSizeExpr = colNames.has("source_size")
+          const sourceSizeCol = colNames.has("source_size")
             ? "CAST(source_size AS BIGINT) as source_size"
             : colNames.has("file_size_bytes")
             ? "CAST(file_size_bytes AS BIGINT) as source_size"
             : "0::BIGINT as source_size";
-          const sourceMtimeExpr = colNames.has("source_mtime")
+          const sourceMtimeCol = colNames.has("source_mtime")
             ? "CAST(source_mtime AS BIGINT) as source_mtime"
             : colNames.has("file_mtime_ms")
             ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
             : "0::BIGINT as source_mtime";
-          const parquetPathExpr = colNames.has("parquet_path")
+          const parquetPathCol = colNames.has("parquet_path")
             ? "parquet_path"
             : "'' as parquet_path";
-          const parquetSizeExpr = colNames.has("parquet_size")
+          const parquetSizeCol = colNames.has("parquet_size")
             ? "CAST(parquet_size AS BIGINT) as parquet_size"
             : colNames.has("parquet_size_bytes")
             ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
             : "0::BIGINT as parquet_size";
-          const rowCountExpr = colNames.has("row_count")
+          const rowCountCol = colNames.has("row_count")
             ? "CAST(row_count AS BIGINT) as row_count"
             : "0::BIGINT as row_count";
-          const statusExpr = colNames.has("status")
+          const statusCol = colNames.has("status")
             ? "status"
             : "'READY' as status";
-          const durationExpr = colNames.has("duration_ms")
+          const durationCol = colNames.has("duration_ms")
             ? "CAST(duration_ms AS INTEGER) as duration_ms"
             : colNames.has("ingestion_duration_ms")
             ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
             : "0::INTEGER as duration_ms";
-          const extraJsonExpr = colNames.has("extra_json")
+          const extraJsonCol = colNames.has("extra_json")
             ? "extra_json"
             : "'{}' as extra_json";
-          const partitionCol = colNames.has("source_path")
-            ? "source_path"
-            : colNames.has("file_name")
-            ? "file_name"
-            : "1";
-          const orderCol = colNames.has("timestamp")
-            ? "timestamp"
-            : colNames.has("cached_at")
-            ? "cached_at"
-            : "1";
 
-          sql = `
-            SELECT * EXCLUDE (rn) FROM (
-              SELECT 
-                ${eventIdExpr},
-                'FILE_READY' as event_type,
-                ${timestampExpr},
-                'orphan_prj' as project_id,
-                'orphan_prj' as project_name,
-                ${sourcePathExpr},
-                ${sourceSizeExpr},
-                ${sourceMtimeExpr},
-                ${parquetPathExpr},
-                ${parquetSizeExpr},
-                ${rowCountExpr},
-                ${statusExpr},
-                ${durationExpr},
-                ${extraJsonExpr},
-                ROW_NUMBER() OVER (PARTITION BY ${partitionCol} ORDER BY ${orderCol} DESC) as rn
-              FROM read_parquet('${escapeSqlPath(lPath)}')
-            ) WHERE rn = 1
+          readOldSql = `
+            SELECT
+              ${eventIdCol},
+              ${colNames.has("event_type") ? "event_type" : "'FILE_READY' as event_type"},
+              ${timestampCol},
+              ${colNames.has("project_id") ? "project_id" : "'orphan_prj' as project_id"},
+              ${colNames.has("project_name") ? "project_name" : "'orphan_prj' as project_name"},
+              ${sourcePathCol},
+              ${sourceSizeCol},
+              ${sourceMtimeCol},
+              ${parquetPathCol},
+              ${parquetSizeCol},
+              ${rowCountCol},
+              ${statusCol},
+              ${durationCol},
+              ${extraJsonCol}
+            FROM read_parquet('${escapeSqlPath(lPath)}')
           `;
-        }
-
-        const rows = await conn.all(sql);
-        for (const row of rows) {
-          const evtType = String(row.event_type || "");
-          const projId = row.project_id ? String(row.project_id) : "orphan_prj";
-          const projName = row.project_name
-            ? String(row.project_name)
-            : projId === "orphan_prj"
-            ? "orphan_prj"
-            : "Untitled-1";
-
-          if (evtType === "PROJECT_CREATE") {
-            this.projects.set(projId, {
-              projectId: projId,
-              projectName: projName,
-              status: "READY",
-              createdAt: Number(row.timestamp),
-            });
-            continue;
-          }
-
-          const isTombstone =
-            evtType === "PROJECT_DELETE" ||
-            (row.source_path === null && row.parquet_path === null && row.status === null);
-
-          if (isTombstone) {
-            if (this.projects.has(projId)) {
-              this.projects.get(projId)!.status = "DELETED";
-              this.projects.delete(projId);
-            }
-            // Evict any files associated with this project added up to this deletion timestamp
-            for (const [k, e] of this.cache.entries()) {
-              if (e.project_id === projId && e.timestamp <= Number(row.timestamp)) {
-                this.cache.delete(k);
-              }
-            }
-            continue;
-          }
-
-          const srcPath = String(row.source_path || "");
-          if (!srcPath) continue;
-
-          if (row.status === "DELETED") {
-            this.cache.delete(this.normalizePath(srcPath));
-            continue;
-          }
-
-          const entry: ToadLedgerEntry = {
-            event_id: String(row.event_id),
-            event_type: evtType || "FILE_READY",
-            timestamp: Number(row.timestamp),
-            project_id: projId,
-            project_name: projName,
-            source_path: srcPath,
-            source_size: Number(row.source_size),
-            source_mtime: Number(row.source_mtime),
-            parquet_path: String(row.parquet_path || ""),
-            parquet_size: Number(row.parquet_size || 0),
-            row_count: Number(row.row_count || 0),
-            status: row.status as any,
-            duration_ms: Number(row.duration_ms || 0),
-            extra_json: String(row.extra_json || "{}"),
-          };
-          this.cache.set(this.normalizePath(entry.source_path), entry);
-        }
-
-        // Prune any cache entries belonging to deleted projects
-        for (const [key, entry] of this.cache.entries()) {
-          if (entry.project_id && entry.project_id !== "orphan_prj") {
-            const p = this.projects.get(entry.project_id);
-            if (!p || p.status === "DELETED") {
-              this.cache.delete(key);
-            }
-          }
-        }
-
-        const activeCount = Array.from(this.projects.values()).filter(
-          (p) => p.status !== "DELETED" && p.projectId !== "orphan_prj"
-        ).length;
-        if (activeCount === 0) {
-          const lPath = this.getLedgerPath();
-          const isLegacy = lPath && (lPath.includes("suite_gg") || lPath.includes("cold_start") || lPath.includes("debounce"));
-          if (isLegacy) {
-            await this.ensureDefaultProject("prj_untitled_1");
-          } else if (rows.length === 0) {
-            await this.ensureDefaultProject();
-          } else {
-            await this.checkAndCompactingLedgerIfAllDeleted();
-          }
         } else {
-          const first = Array.from(this.projects.values()).find(
-            (p) => p.status !== "DELETED" && p.projectId !== "orphan_prj"
-          );
-          if (first) {
-            this.activeProjectId = first.projectId;
-          }
+          readOldSql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`;
         }
 
-        this.isLoaded = true;
-        log.info(
-          `[ToadLedger] Da nap thanh cong ${this.cache.size} files, ${this.projects.size} projects tu Parquet Ledger: ${lPath}`
-        );
+        const appendSql = `COPY (
+          ${readOldSql}
+          UNION ALL
+          ${rowsSql}
+        ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
+        await conn.run(appendSql);
+        appendSuccess = true;
+      } catch (appendErr) {
+        log.warn("[ToadLedger] Error appending to existing ledger, self-healing with fresh DB:", appendErr);
+        try {
+          if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
+        } catch {}
       } finally {
-        await conn.close();
+        try {
+          await conn.close();
+        } catch {}
       }
-    } catch (err) {
-      log.warn("[ToadLedger] Khong the nap ledger snapshot tu file Parquet:", err);
-      this.isLoaded = true;
-      await this.ensureDefaultProject();
+
+      if (!appendSuccess) {
+        await this.closeInternalDb();
+        this.quarantineOrDeleteCorruptLedgerSync(lPath);
+      }
     }
+
+    if (!appendSuccess) {
+      const freshDb = await this.getOrCreateInternalDb();
+      const freshConn = await freshDb.connect();
+      try {
+        const createSql = `COPY (${rowsSql}) TO '${escapeSqlPath(
+          tmpPath
+        )}' (FORMAT PARQUET)`;
+        await freshConn.run(createSql);
+      } finally {
+        try {
+          await freshConn.close();
+        } catch {}
+      }
+    }
+
+    if (fs.existsSync(tmpPath)) {
+      try {
+        fs.renameSync(tmpPath, lPath);
+      } catch {
+        fs.copyFileSync(tmpPath, lPath);
+        try {
+          fs.unlinkSync(tmpPath);
+        } catch {}
+      }
+    }
+
+    if (fs.existsSync(walPath)) {
+      try {
+        fs.unlinkSync(walPath);
+      } catch {}
+    }
+    this.walPendingCount = 0;
   }
 
-  private async getOrCreateInternalDb(): Promise<Database> {
-    if (this.db) return this.db;
-    const { Database: DuckDbAsync } = require("duckdb-async");
-    this.db = await DuckDbAsync.create(":memory:");
-    return this.db!;
+  public async flushWal(): Promise<void> {
+    this.writeQueue = this.writeQueue.then(async () => {
+      try {
+        const lPath = this.getLedgerPath();
+        const walPath = this.getWalPath();
+        await this.compactWalIntoParquetInternal(lPath, walPath);
+      } catch (err) {
+        log.warn("[ToadLedger] Failed to flush WAL:", err);
+      }
+    });
+    return this.writeQueue;
   }
 
   public async recordEvents(evts: ToadLedgerEntry[]): Promise<void> {
@@ -2189,6 +3152,15 @@ export class ToadParquetLedger {
             : "FILE_STARTED";
       }
 
+      if (evt.event_type === "PROJECT_CREATE" && evt.project_id) {
+        this.projects.set(evt.project_id, {
+          projectId: evt.project_id,
+          projectName: evt.project_name || "Untitled-1",
+          status: "READY",
+          createdAt: Number(evt.timestamp) || Date.now(),
+        });
+      }
+
       if (evt.source_path) {
         const norm = this.normalizePath(evt.source_path);
         if (evt.status === "DELETED") {
@@ -2199,207 +3171,40 @@ export class ToadParquetLedger {
       }
     }
 
+    const batchSnapshot = evts.map((e) => ({ ...e }));
+
     this.writeQueue = this.writeQueue.then(async () => {
       try {
         const lPath = this.getLedgerPath();
+        const walPath = this.getWalPath();
         const lDir = path.dirname(lPath);
         if (!fs.existsSync(lDir)) {
           fs.mkdirSync(lDir, { recursive: true });
         }
 
-        const activeDb = this.db || (await this.getOrCreateInternalDb());
-        const conn = await activeDb.connect();
-        try {
-          const tmpPath = `${lPath}.tmp_${Date.now()}_${Math.random()
-            .toString(36)
-            .slice(2, 7)}`;
-          let isExistingNonEmpty = false;
-          try {
-            if (fs.existsSync(lPath) && fs.statSync(lPath).size > 0) {
-              isExistingNonEmpty = true;
-            }
-          } catch {}
+        // Hot-tier O(1) append to toad_ledger.wal.jsonl (< 0.3ms, crash-safe)
+        const walLines =
+          batchSnapshot
+            .map((e) => {
+              const copy: any = { ...e };
+              delete copy.__walOnly;
+              return JSON.stringify(copy);
+            })
+            .join("\n") + "\n";
+        fs.appendFileSync(walPath, walLines, "utf8");
+        this.walPendingCount += batchSnapshot.length;
 
-          const rowSqlParts = evts.map((evt) => {
-            const safeSource = escapeSqlPath(evt.source_path || "").replace(/'/g, "''");
-            const safeParquet = escapeSqlPath(evt.parquet_path || "").replace(/'/g, "''");
-            const safeExtra = (evt.extra_json || "{}").replace(/'/g, "''");
-            const safeProjectId = (evt.project_id || "prj_untitled_1").replace(/'/g, "''");
-            const safeProjectName = (evt.project_name || "Untitled-1").replace(/'/g, "''");
-            const safeEventType = (evt.event_type || "FILE_READY").replace(/'/g, "''");
-            const safeEventId = (evt.event_id || `evt-${Date.now()}`).replace(/'/g, "''");
-            const safeStatus = (evt.status || "READY").replace(/'/g, "''");
+        const hasValidParquet = isValidParquetFileSync(lPath);
+        const shouldCompactNow =
+          !hasValidParquet ||
+          this.walPendingCount >= this.walCompactionThreshold ||
+          batchSnapshot.some((e) => this.isStructuralEvent(e));
 
-            const sourcePathExpr = (evt.source_path === null || evt.source_path === undefined)
-              ? "CAST(NULL AS VARCHAR)"
-              : `'${escapeSqlPath(evt.source_path).replace(/'/g, "''")}'`;
-
-            const sourceSizeExpr = (evt.source_size === null || evt.source_size === undefined)
-              ? "CAST(NULL AS BIGINT)"
-              : `CAST(${Number(evt.source_size) || 0} AS BIGINT)`;
-
-            const sourceMtimeExpr = (evt.source_mtime === null || evt.source_mtime === undefined)
-              ? "CAST(NULL AS BIGINT)"
-              : `CAST(${Number(evt.source_mtime) || 0} AS BIGINT)`;
-
-            const parquetPathExpr = (evt.parquet_path === null || evt.parquet_path === undefined)
-              ? "CAST(NULL AS VARCHAR)"
-              : `'${escapeSqlPath(evt.parquet_path).replace(/'/g, "''")}'`;
-
-            const parquetSizeExpr = (evt.parquet_size === null || evt.parquet_size === undefined)
-              ? "CAST(NULL AS BIGINT)"
-              : `CAST(${Number(evt.parquet_size) || 0} AS BIGINT)`;
-
-            const rowCountExpr = (evt.row_count === null || evt.row_count === undefined)
-              ? "CAST(NULL AS BIGINT)"
-              : `CAST(${Number(evt.row_count) || 0} AS BIGINT)`;
-
-            const statusExpr = (evt.status === null || evt.status === undefined)
-              ? "CAST(NULL AS VARCHAR)"
-              : `'${(evt.status || "READY").replace(/'/g, "''")}'`;
-
-            const durationExpr = (evt.duration_ms === null || evt.duration_ms === undefined)
-              ? "CAST(NULL AS INTEGER)"
-              : `CAST(${Number(evt.duration_ms) || 0} AS INTEGER)`;
-
-            const extraJsonExpr = (evt.extra_json === null || evt.extra_json === undefined)
-              ? "CAST(NULL AS VARCHAR)"
-              : `'${(evt.extra_json || "{}").replace(/'/g, "''")}'`;
-
-            return `SELECT 
-              '${safeEventId}' as event_id,
-              '${safeEventType}' as event_type,
-              CAST(${Number(evt.timestamp) || Date.now()} AS BIGINT) as timestamp,
-              '${safeProjectId}' as project_id,
-              '${safeProjectName}' as project_name,
-              ${sourcePathExpr} as source_path,
-              ${sourceSizeExpr} as source_size,
-              ${sourceMtimeExpr} as source_mtime,
-              ${parquetPathExpr} as parquet_path,
-              ${parquetSizeExpr} as parquet_size,
-              ${rowCountExpr} as row_count,
-              ${statusExpr} as status,
-              ${durationExpr} as duration_ms,
-              ${extraJsonExpr} as extra_json
-            `;
-          });
-
-          const rowsSql = rowSqlParts.join("\nUNION ALL\n");
-
-          let appendSuccess = false;
-          if (isExistingNonEmpty) {
-            try {
-              const descRows = await conn.all(
-                `DESCRIBE SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`
-              );
-              const colNames = new Set(
-                descRows.map((r: any) => String(r.column_name).toLowerCase())
-              );
-
-              let readOldSql = "";
-              if (!colNames.has("project_id") || !colNames.has("event_type")) {
-                const eventIdCol = colNames.has("event_id")
-                  ? "event_id"
-                  : "('legacy-' || ROW_NUMBER() OVER ()) as event_id";
-                const timestampCol = colNames.has("timestamp")
-                  ? "CAST(timestamp AS BIGINT) as timestamp"
-                  : colNames.has("cached_at")
-                  ? "CAST(cached_at AS BIGINT) as timestamp"
-                  : "1700000000000::BIGINT as timestamp";
-                const sourcePathCol = colNames.has("source_path")
-                  ? "source_path"
-                  : colNames.has("file_name")
-                  ? "file_name as source_path"
-                  : "'' as source_path";
-                const sourceSizeCol = colNames.has("source_size")
-                  ? "CAST(source_size AS BIGINT) as source_size"
-                  : colNames.has("file_size_bytes")
-                  ? "CAST(file_size_bytes AS BIGINT) as source_size"
-                  : "0::BIGINT as source_size";
-                const sourceMtimeCol = colNames.has("source_mtime")
-                  ? "CAST(source_mtime AS BIGINT) as source_mtime"
-                  : colNames.has("file_mtime_ms")
-                  ? "CAST(file_mtime_ms AS BIGINT) as source_mtime"
-                  : "0::BIGINT as source_mtime";
-                const parquetPathCol = colNames.has("parquet_path")
-                  ? "parquet_path"
-                  : "'' as parquet_path";
-                const parquetSizeCol = colNames.has("parquet_size")
-                  ? "CAST(parquet_size AS BIGINT) as parquet_size"
-                  : colNames.has("parquet_size_bytes")
-                  ? "CAST(parquet_size_bytes AS BIGINT) as parquet_size"
-                  : "0::BIGINT as parquet_size";
-                const rowCountCol = colNames.has("row_count")
-                  ? "CAST(row_count AS BIGINT) as row_count"
-                  : "0::BIGINT as row_count";
-                const statusCol = colNames.has("status")
-                  ? "status"
-                  : "'READY' as status";
-                const durationCol = colNames.has("duration_ms")
-                  ? "CAST(duration_ms AS INTEGER) as duration_ms"
-                  : colNames.has("ingestion_duration_ms")
-                  ? "CAST(ingestion_duration_ms AS INTEGER) as duration_ms"
-                  : "0::INTEGER as duration_ms";
-                const extraJsonCol = colNames.has("extra_json")
-                  ? "extra_json"
-                  : "'{}' as extra_json";
-
-                readOldSql = `
-                  SELECT
-                    ${eventIdCol},
-                    ${colNames.has("event_type") ? "event_type" : "'FILE_READY' as event_type"},
-                    ${timestampCol},
-                    ${colNames.has("project_id") ? "project_id" : "'orphan_prj' as project_id"},
-                    ${colNames.has("project_name") ? "project_name" : "'orphan_prj' as project_name"},
-                    ${sourcePathCol},
-                    ${sourceSizeCol},
-                    ${sourceMtimeCol},
-                    ${parquetPathCol},
-                    ${parquetSizeCol},
-                    ${rowCountCol},
-                    ${statusCol},
-                    ${durationCol},
-                    ${extraJsonCol}
-                  FROM read_parquet('${escapeSqlPath(lPath)}')
-                `;
-              } else {
-                readOldSql = `SELECT * FROM read_parquet('${escapeSqlPath(lPath)}')`;
-              }
-
-              const appendSql = `COPY (
-                ${readOldSql}
-                UNION ALL
-                ${rowsSql}
-              ) TO '${escapeSqlPath(tmpPath)}' (FORMAT PARQUET)`;
-              await conn.run(appendSql);
-              appendSuccess = true;
-            } catch (appendErr) {
-              log.warn("[ToadLedger] Error appending to existing ledger, will write clean file:", appendErr);
-            }
-          }
-
-          if (!appendSuccess) {
-            const createSql = `COPY (${rowsSql}) TO '${escapeSqlPath(
-              tmpPath
-            )}' (FORMAT PARQUET)`;
-            await conn.run(createSql);
-          }
-
-          if (fs.existsSync(tmpPath)) {
-            try {
-              fs.renameSync(tmpPath, lPath);
-            } catch {
-              fs.copyFileSync(tmpPath, lPath);
-              try {
-                fs.unlinkSync(tmpPath);
-              } catch {}
-            }
-          }
-        } finally {
-          await conn.close();
+        if (shouldCompactNow) {
+          await this.compactWalIntoParquetInternal(lPath, walPath);
         }
       } catch (writeErr) {
-        log.warn("[ToadLedger] Loi khi ghi Parquet Ledger:", writeErr);
+        log.warn("[ToadLedger] Error writing Ledger WAL / Parquet compaction:", writeErr);
       }
     });
     return this.writeQueue;
@@ -2642,9 +3447,9 @@ export function checkDoubleValidCache(
     // Fallback: Legacy Parquet Cache (so sánh mtime nguồn vs parquet)
     if (srcStat.mtimeMs > parquetStat.mtimeMs) {
       log.info(
-        `[TOAD Parquet Cache] File nguon "${path.basename(
+        `[TOAD Parquet Cache] Source file "${path.basename(
           filePath
-        )}" co thay doi tren dia (mtime moi hon parquet). Sinh lai Parquet.`
+        )}" changed on disk (newer mtime than Parquet cache). Rebuilding Parquet.`
       );
       return false;
     }
@@ -2693,14 +3498,14 @@ export function checkParquetCache(
  * Escape đường dẫn cho SQL (chuyển backslash thành forward slash)
  */
 function escapeSqlPath(p: string): string {
-  return p.replace(/\\/g, "/");
+  return String(p || "").replace(/\\/g, "/").replace(/'/g, "''");
 }
 
 /**
- * Áp dụng cấu hình DuckDB từ config.ini (max_memory, threads, background_threads)
- * Hỗ trợ phân bổ tài nguyên độc lập cho Dual DuckDB Engine:
- * - isBackground = true (Ingest Engine): Dành riêng tối đa 40% RAM và N-2 CPU cores
- * - isBackground = false (Interactive UI Engine): Dành riêng tối đa 25% RAM và 2 CPU cores
+ * Apply DuckDB configuration from config.ini (max_memory, threads, background_threads)
+ * with independent resource budgets for Dual DuckDB Engine:
+ * - isBackground = true (Ingest Engine): up to 40% RAM and N-2 CPU cores
+ * - isBackground = false (Interactive UI Engine): up to 25% RAM and 2 CPU cores
  */
 export async function applyDuckDbConfig(
   dbConn: Connection,
@@ -2709,13 +3514,10 @@ export async function applyDuckDbConfig(
 ): Promise<void> {
   try {
     const totalMemMB = Math.round(os.totalmem() / (1024 * 1024));
-    if (cfg.max_memory !== "auto") {
-      await dbConn.exec(`SET max_memory = '${cfg.max_memory}'`);
+    const rawMaxMem = typeof cfg.max_memory === "string" ? cfg.max_memory.trim() : "";
+    if (rawMaxMem && rawMaxMem.toLowerCase() !== "auto") {
+      await dbConn.exec(`SET max_memory = '${rawMaxMem.replace(/'/g, "''")}'`);
     } else {
-      // Phân bổ ngân sách RAM động cho từng engine (Dynamic Memory Partitioning)
-      // Ingest Engine: max 40% RAM, trần 8GB, sàn 1GB
-      // UI Engine: max 25% RAM, trần 4GB, sàn 512MB
-      // Tổng ngân sách RAM của cả 2 nhân <= 65% RAM vật lý
       const ratio = isBackground ? 0.40 : 0.25;
       const capMB = isBackground ? 8192 : 4096;
       const minMB = isBackground ? 1024 : 512;
@@ -2725,44 +3527,46 @@ export async function applyDuckDbConfig(
 
     const totalCpus = os.cpus() ? os.cpus().length : 4;
     if (isBackground) {
-      // Cô lập luồng CPU cho Background Ingestion (CPU Thread Isolation)
       let bgThreads: number;
       if (typeof cfg.background_threads === "number" && cfg.background_threads > 0) {
         bgThreads = Math.min(totalCpus, Math.max(1, Math.floor(cfg.background_threads)));
       } else {
-        // "auto": Giữ lại tối thiểu 2 cores cho giao diện nếu máy có >= 4 cores, giữ 1 core nếu máy có <= 3 cores
         bgThreads = Math.max(1, totalCpus - 2);
       }
       log.info(`[DuckDB CPU Isolation] Background Ingestion configured with ${bgThreads}/${totalCpus} CPU threads (reserving ${totalCpus - bgThreads} cores for UI)`);
       await dbConn.exec(`SET threads = ${bgThreads}`);
     } else {
-      // Interactive UI Engine: Luôn cố định 2 cores (hoặc 1 core nếu máy <= 3 cores)
       const uiThreads = totalCpus <= 3 ? 1 : 2;
       log.info(`[DuckDB CPU Isolation] Interactive UI Engine configured with ${uiThreads}/${totalCpus} CPU threads`);
       await dbConn.exec(`SET threads = ${uiThreads}`);
     }
 
-    // Toi uu hoa I/O bang thong cao, chong troi sut giat lag cho ca SSD & HDD:
-    // preserve_insertion_order = false giup cac luong CPU doc/nen doc lap, khong bi khoa barrier dong bo
     await dbConn.exec(`SET preserve_insertion_order = false`);
   } catch (err) {
-    log.warn("Loi khi ap dung DuckDB config:", err);
+    log.warn("[DuckDB Config] Failed to apply DuckDB configuration:", err);
   }
 }
 
 /**
- * Khởi tạo cấu hình ban đầu cho một instance DuckDB Database theo vai trò Ingest hoặc UI
+ * Initialize runtime configuration for a DuckDB Database instance by role (Ingest or UI)
  */
 export async function applyEngineConfig(
   db: Database,
   isBackground: boolean = true
 ): Promise<void> {
+  let conn: Connection | null = null;
   try {
     const cfg = getIngestConfig();
-    const conn = await db.connect();
+    conn = await db.connect();
     await applyDuckDbConfig(conn, cfg, isBackground);
   } catch (err) {
-    log.warn("Loi khi ap dung engine config:", err);
+    log.warn("[DuckDB Config] Failed to apply engine configuration:", err);
+  } finally {
+    if (conn) {
+      try {
+        await (conn as any).close();
+      } catch {}
+    }
   }
 }
 
@@ -2818,6 +3622,15 @@ export function isParallelQuotedNewlineError(err: any): boolean {
  * Guarantees crash isolation: any native C++ assertion in duckdb.node is contained
  * in the child process without terminating the main Electron application.
  */
+let _workerSpawnSeq = 1;
+
+/**
+ * Spawns an isolated out-of-process worker to perform DuckDB streaming ingestion.
+ * Never sets ELECTRON_RUN_AS_NODE (compatible with Electron Fuse RunAsNode = 0):
+ * - In Electron Main: uses `electron.utilityProcess.fork`
+ * - In Electron UtilityProcess (`EngineService`): delegates via `process.parentPort` to `EngineSupervisor`
+ * - In Node.js CLI / tests: uses standard `child_process.fork` without `ELECTRON_RUN_AS_NODE`
+ */
 export function runIngestInWorker(params: {
   filePath: string;
   targetParquetPath: string;
@@ -2849,9 +3662,68 @@ export function runIngestInWorker(params: {
       }),
     ];
 
-    const env = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
+    // 1. Electron Main Process -> electron.utilityProcess.fork
+    if (electron && electron.utilityProcess && typeof electron.utilityProcess.fork === "function") {
+      try {
+        const up = electron.utilityProcess.fork(workerScript, args, {
+          stdio: "pipe",
+          serviceName: "Toad Ingest Worker",
+        });
+        let stderr = "";
+        if (up.stderr) {
+          up.stderr.on("data", (chunk: any) => {
+            stderr += chunk.toString();
+          });
+        }
+        up.on("exit", (code: number) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            const errMsg = `[Worker Guard] UtilityProcess ingest worker exited with code ${code}. ${stderr.trim()}`;
+            log.error(errMsg);
+            reject(new Error(errMsg));
+          }
+        });
+        return;
+      } catch (upErr) {
+        log.warn("[Worker Guard] utilityProcess.fork failed, falling back:", upErr);
+      }
+    }
+
+    // 2. Inside Electron UtilityProcess (EngineService) -> delegate to EngineSupervisor over parentPort
+    const parentPort = typeof process !== "undefined" ? (process as any).parentPort : null;
+    if (parentPort && typeof parentPort.postMessage === "function" && process.versions && (process.versions as any).electron) {
+      const reqId = `ingest-wrk-${Date.now()}-${_workerSpawnSeq++}`;
+      const onMsg = (evt: any) => {
+        const data = evt?.data ?? evt;
+        if (!data || data.type !== "spawn-ingest-worker-result" || data.reqId !== reqId) return;
+        if (typeof parentPort.off === "function") {
+          parentPort.off("message", onMsg);
+        } else if (typeof parentPort.removeListener === "function") {
+          parentPort.removeListener("message", onMsg);
+        }
+        if (data.ok) {
+          resolve();
+        } else {
+          reject(new Error(data.error || `[Worker Guard] Worker exited with code ${data.code}`));
+        }
+      };
+      parentPort.on("message", onMsg);
+      parentPort.postMessage({
+        type: "spawn-ingest-worker",
+        reqId,
+        workerScript,
+        args,
+      });
+      return;
+    }
+
+    // 3. Plain Node.js runtime (CLI / QA tests) -> child_process.fork WITHOUT ELECTRON_RUN_AS_NODE
+    const cleanEnv: NodeJS.ProcessEnv = { ...process.env };
+    delete cleanEnv.ELECTRON_RUN_AS_NODE;
+
     const child = child_process.fork(workerScript, args, {
-      env,
+      env: cleanEnv,
       stdio: ["ignore", "pipe", "pipe", "ipc"],
     });
 
@@ -2976,13 +3848,14 @@ export async function streamCsvToParquet(
   // Layer 1: Neu la file log phuc tap (Hayabusa, Security, EventLog, v.v.):
   // Kich hoat thang Safe Ingest Profile (all_varchar = true, parallel = false, delim = ',')
   // 100% vector vat ly la PhysicalType::VARCHAR, triet tieu tuyet doi loi assertion tai vector.cpp:1859!
-  const isCsv = filePath.toLowerCase().endsWith(".csv");
-  const isTsv = filePath.toLowerCase().endsWith(".tsv");
-  const defaultDelimClause = isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : "";
+  const { ext: effectiveExt, isGz } = getEffectiveDataExtension(filePath);
+  const isCsv = effectiveExt === ".csv";
+  const isTsv = effectiveExt === ".tsv";
+  const gzClause = isGz ? "compression = 'gzip'," : "";
+  const defaultDelimClause = `${gzClause} ${isCsv ? "delim = ','," : isTsv ? "delim = '\\t'," : ""}`.trim();
 
   if (isComplex) {
-    log.info("[Ingest Safe Profile] Kich hoat Direct Safe Profile cho file log phuc tap:", filePath);
-    // STAGE 1: Safe Profile với đầy đủ delim, all_varchar=true (RFC-4180 chuẩn, TUYỆT ĐỐI không dùng escape='')
+    log.info("[Ingest Safe Profile] Activating Direct Safe Profile for complex log file:", filePath);
     const safeQuery = `
       COPY (
         SELECT * FROM read_csv(
@@ -3008,7 +3881,7 @@ export async function streamCsvToParquet(
         : "0.00";
       const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
       profileScannerTier(tierSafeName, "success", elapsedMs, rowCount, rssDeltaMB);
-      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 Auto-Detect)!");
+      log.info("[Ingest Safe Profile] Streaming Parquet completed (Stage 1 Auto-Detect).");
       return;
     } catch (safeErr: any) {
       const elapsedMs = performance.now() - t0_safe;
@@ -3029,7 +3902,7 @@ export async function streamCsvToParquet(
             : "0.00";
           const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
           profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
-          log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 1 parallel=false)!");
+          log.info("[Ingest Safe Profile] Streaming Parquet completed (Stage 1 parallel=false).");
           return;
         } catch (retryErr) {
           const elapsedMsR = performance.now() - t0_retry;
@@ -3040,10 +3913,9 @@ export async function streamCsvToParquet(
           log.warn("[Ingest Safe Profile] Retry parallel=false failed, proceeding to Stage 2:", retryErr);
         }
       }
-      log.warn("[Ingest Safe Profile] Stage 1 auto_detect gap loi, chuyen sang Stage 2 Force Header:", safeErr);
+      log.warn("[Ingest Safe Profile] Stage 1 auto_detect failed, switching to Stage 2 Force Header:", safeErr);
     }
 
-    // STAGE 2: Cưỡng chế đọc dòng 1 làm Header (triệt tiêu 100% lỗi sniffer trên file MFT/forensic)
     const forceHeaderQuery = `
       COPY (
         SELECT * FROM read_csv(
@@ -3067,7 +3939,7 @@ export async function streamCsvToParquet(
         : "0.00";
       const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
       profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
-      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Comma)!");
+      log.info("[Ingest Safe Profile] Streaming Parquet completed (Stage 2 Force Header Comma).");
       return;
     } catch (errStage2) {
       const elapsedMs = performance.now() - t0_hdr;
@@ -3075,14 +3947,14 @@ export async function streamCsvToParquet(
         ? ((process.memoryUsage().rss - rss0_hdr) / (1024 * 1024)).toFixed(2)
         : "0.00";
       profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
-      log.warn("[Ingest Safe Profile] Stage 2 Force Header (comma) gap loi, thu tab delimiter:", errStage2);
+      log.warn("[Ingest Safe Profile] Stage 2 Force Header (comma) failed, retrying with tab delimiter:", errStage2);
     }
 
-    // STAGE 2b: Thử delimiter Tab nếu là TSV
     const tabHeaderQuery = `
       COPY (
         SELECT * FROM read_csv(
           '${safeSrc}',
+          ${gzClause}
           header = true,
           delim = '\\t',
           ignore_errors = true,
@@ -3102,7 +3974,7 @@ export async function streamCsvToParquet(
         : "0.00";
       const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
       profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
-      log.info("[Ingest Safe Profile] Streaming Parquet thanh cong (Stage 2 Force Header Tab)!");
+      log.info("[Ingest Safe Profile] Streaming Parquet completed (Stage 2 Force Header Tab).");
       return;
     } catch (errTab) {
       const elapsedMs = performance.now() - t0_tab;
@@ -3110,11 +3982,10 @@ export async function streamCsvToParquet(
         ? ((process.memoryUsage().rss - rss0_tab) / (1024 * 1024)).toFixed(2)
         : "0.00";
       profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
-      log.warn("[Ingest Safe Profile] Stage 2 Force Header (tab) gap loi:", errTab);
+      log.warn("[Ingest Safe Profile] Stage 2 Force Header (tab) failed:", errTab);
     }
 
-    // Chỉ khi tất cả các nỗ lực parse CSV đều thất bại mới chuyển sang Raw Log
-    log.warn("[Ingest Safe Profile] Tat ca cac tang parse CSV deu that bai, chuyen sang Raw Event fallback:", filePath);
+    log.warn("[Ingest Safe Profile] All CSV parsing stages failed, switching to Raw Event fallback:", filePath);
     (cfg as any).isRawEventFallback = true;
     const t0_raw = performance.now();
     const rss0_raw = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
@@ -3171,7 +4042,7 @@ export async function streamCsvToParquet(
   const t0_tier0 = performance.now();
   const rss0_tier0 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
-    log.info("[Ingest Tier 0] Dang streaming CSV sang Parquet (RFC-4180)...");
+    log.info("[Ingest Tier 0] Streaming CSV to Parquet (RFC-4180)...");
     await dbConn.exec(tier0Query);
     const elapsedMs = performance.now() - t0_tier0;
     const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
@@ -3179,7 +4050,7 @@ export async function streamCsvToParquet(
       : "0.00";
     const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
     profileScannerTier("0 parallel", "success", elapsedMs, rowCount, rssDeltaMB);
-    log.info("[Ingest Tier 0] Thanh cong!");
+    log.info("[Ingest Tier 0] Completed.");
     return;
   } catch (err0: any) {
     const elapsedMs = performance.now() - t0_tier0;
@@ -3199,7 +4070,7 @@ export async function streamCsvToParquet(
           : "0.00";
         const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
         profileScannerTier("1 serial", "success", elapsedMsR, rowCount, rssDeltaMBR);
-        log.info("[Ingest Tier 0 -> parallel=false] Streaming Parquet thanh cong!");
+        log.info("[Ingest Tier 0 -> parallel=false] Streaming Parquet completed.");
         return;
       } catch (retryErr) {
         const elapsedMsR = performance.now() - t0_retry;
@@ -3210,14 +4081,14 @@ export async function streamCsvToParquet(
         log.warn("[Ingest Tier 0 -> parallel=false] Failed, falling through to Tier 2:", retryErr);
       }
     } else {
-      log.warn("[Ingest Tier 0] That bai, chuyen sang Fallback Tier 1:", err0);
+      log.warn("[Ingest Tier 0] Failed, switching to Fallback Tier 1:", err0);
     }
   }
 
   const t0_tier1 = performance.now();
   const rss0_tier1 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
-    log.info("[Ingest Tier 1] Dang thu lai voi parallel=false...");
+    log.info("[Ingest Tier 1] Retrying with parallel=false...");
     await dbConn.exec(tier1Query);
     const elapsedMs = performance.now() - t0_tier1;
     const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
@@ -3225,7 +4096,7 @@ export async function streamCsvToParquet(
       : "0.00";
     const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
     profileScannerTier("1 serial", "success", elapsedMs, rowCount, rssDeltaMB);
-    log.info("[Ingest Tier 1] Thanh cong!");
+    log.info("[Ingest Tier 1] Completed.");
     return;
   } catch (err1) {
     const elapsedMs = performance.now() - t0_tier1;
@@ -3233,10 +4104,10 @@ export async function streamCsvToParquet(
       ? ((process.memoryUsage().rss - rss0_tier1) / (1024 * 1024)).toFixed(2)
       : "0.00";
     profileScannerTier("1 serial", "failed", elapsedMs, 0, rssDeltaMB);
-    log.warn("[Ingest Tier 1] That bai, chuyen sang Fallback Tier 2:", err1);
+    log.warn("[Ingest Tier 1] Failed, switching to Fallback Tier 2:", err1);
   }
 
-  // Tier 2: all_varchar=true (100% cột là VARCHAR, triệt tiêu hoàn toàn PhysicalType::VARCHAR assertion)
+  // Tier 2: all_varchar=true
   const tier2Query = `
     COPY (
       SELECT * FROM read_csv(
@@ -3255,7 +4126,7 @@ export async function streamCsvToParquet(
   const t0_tier2 = performance.now();
   const rss0_tier2 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
-    log.info("[Ingest Tier 2] Dang thu lai voi all_varchar=true...");
+    log.info("[Ingest Tier 2] Retrying with all_varchar=true...");
     await dbConn.exec(tier2Query);
     const elapsedMs = performance.now() - t0_tier2;
     const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
@@ -3263,7 +4134,7 @@ export async function streamCsvToParquet(
       : "0.00";
     const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
     profileScannerTier("2 all_varchar", "success", elapsedMs, rowCount, rssDeltaMB);
-    log.info("[Ingest Tier 2] Thanh cong (100% guaranteed)!");
+    log.info("[Ingest Tier 2] Completed (all_varchar=true).");
     return;
   } catch (err2) {
     const elapsedMs = performance.now() - t0_tier2;
@@ -3271,10 +4142,10 @@ export async function streamCsvToParquet(
       ? ((process.memoryUsage().rss - rss0_tier2) / (1024 * 1024)).toFixed(2)
       : "0.00";
     profileScannerTier("2 all_varchar", "failed", elapsedMs, 0, rssDeltaMB);
-    log.warn("[Ingest Tier 2] That bai, chuyen sang Fallback Tier 2b (Force Header):", err2);
+    log.warn("[Ingest Tier 2] Failed, switching to Fallback Tier 2b (Force Header):", err2);
   }
 
-  // Tier 2b: Force Header Fallback cho standard CSV trước khi rơi vào Raw Event
+  // Tier 2b: Force Header Fallback
   const forceHeaderTier = `
     COPY (
       SELECT * FROM read_csv(
@@ -3291,7 +4162,7 @@ export async function streamCsvToParquet(
   const t0_tier2b = performance.now();
   const rss0_tier2b = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
-    log.info("[Ingest Tier 2b] Dang thu lai voi Force Header (header=true)...");
+    log.info("[Ingest Tier 2b] Retrying with Force Header (header=true)...");
     await dbConn.exec(forceHeaderTier);
     const elapsedMs = performance.now() - t0_tier2b;
     const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
@@ -3299,7 +4170,7 @@ export async function streamCsvToParquet(
       : "0.00";
     const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
     profileScannerTier("2b force header", "success", elapsedMs, rowCount, rssDeltaMB);
-    log.info("[Ingest Tier 2b] Force Header Thanh cong!");
+    log.info("[Ingest Tier 2b] Force Header completed.");
     return;
   } catch (err2b) {
     const elapsedMs = performance.now() - t0_tier2b;
@@ -3307,11 +4178,11 @@ export async function streamCsvToParquet(
       ? ((process.memoryUsage().rss - rss0_tier2b) / (1024 * 1024)).toFixed(2)
       : "0.00";
     profileScannerTier("2b force header", "failed", elapsedMs, 0, rssDeltaMB);
-    log.warn("[Ingest Tier 2b] Force Header that bai, chuyen sang Fallback Tier 3 (Raw Event Mode):", err2b);
+    log.warn("[Ingest Tier 2b] Force Header failed, switching to Fallback Tier 3 (Raw Event Mode):", err2b);
   }
 
-  // Tier 3: Fallback cuối cùng: nạp nguyên dòng thô (Raw Event Mode) - không bao giờ thất bại
-  log.info("[Ingest Tier 3] Nạp file duoi dang Raw Event...");
+  // Tier 3: Raw Event Mode
+  log.info("[Ingest Tier 3] Ingesting file in Raw Event Mode...");
   const t0_tier3 = performance.now();
   const rss0_tier3 = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
   try {
@@ -3322,7 +4193,7 @@ export async function streamCsvToParquet(
       : "0.00";
     const rowCount = await getParquetRowCountSafe(dbConn, parquetPath);
     profileScannerTier("3 raw event", "success", elapsedMs, rowCount, rssDeltaMB);
-    log.info("[Ingest Tier 3] Raw Event Ingest Thanh cong!");
+    log.info("[Ingest Tier 3] Raw Event Ingest completed.");
   } catch (err3) {
     const elapsedMs = performance.now() - t0_tier3;
     const rssDeltaMB = typeof process !== "undefined" && process.memoryUsage
@@ -3377,11 +4248,14 @@ async function streamRawLogToParquet(
   const safeDst = escapeSqlPath(parquetPath);
   const compression = cfg.compression.toUpperCase();
   const rowGroupSize = cfg.row_group_size;
+  const { isGz } = getEffectiveDataExtension(filePath);
+  const gzClause = isGz ? "compression = 'gzip'," : "";
 
   const query = `
     COPY (
       SELECT * FROM read_csv(
         '${safeSrc}',
+        ${gzClause}
         auto_detect = false,
         header = false,
         columns = {'raw_event': 'VARCHAR'},
@@ -3392,9 +4266,105 @@ async function streamRawLogToParquet(
     ) TO '${safeDst}' (FORMAT PARQUET, COMPRESSION ${compression}, ROW_GROUP_SIZE ${rowGroupSize});
   `;
 
-  log.info("[Ingest Raw Log] Dang streaming raw event giu nguyen dong sang Parquet...");
+  log.info("[Ingest Raw Log] Streaming raw log lines to Parquet...");
   await dbConn.exec(query);
-  log.info("[Ingest Raw Log] Thanh cong (1 cot duy nhat raw_event)!");
+  log.info("[Ingest Raw Log] Completed (single raw_event column).");
+}
+
+const SAFE_STATIC_EVTX_POWERSHELL_SCRIPT = `
+$ErrorActionPreference = 'Stop'
+$inPath = $env:TOAD_EVTX_INPUT
+$outPath = $env:TOAD_EVTX_OUTPUT
+if ([string]::IsNullOrWhiteSpace($inPath) -or [string]::IsNullOrWhiteSpace($outPath)) {
+  throw 'Missing TOAD_EVTX_INPUT or TOAD_EVTX_OUTPUT environment variable.'
+}
+if (-not (Test-Path -LiteralPath $inPath -PathType Leaf)) {
+  throw "EVTX input file does not exist: $inPath"
+}
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+$writer = New-Object System.IO.StreamWriter($outPath, $false, $utf8NoBom)
+try {
+  Get-WinEvent -LiteralPath $inPath -ErrorAction Stop | ForEach-Object {
+    $xml = [xml]$_.ToXml()
+    $h = [ordered]@{
+      'RecordID'    = [int64]$_.RecordId
+      'EventID'     = [int64]$_.Id
+      'Level'       = [string]$_.LevelDisplayName
+      'TimeCreated' = $_.TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.ffffffZ')
+      'Provider'    = [string]$_.ProviderName
+      'Channel'     = [string]$_.LogName
+      'Computer'    = [string]$_.MachineName
+      'UserId'      = [string]$_.UserId
+    }
+    $p1 = ''; $p2 = ''; $p3 = ''; $i = 0
+    $ed = [ordered]@{}
+    if ($xml.Event.EventData.Data) {
+      foreach ($d in $xml.Event.EventData.Data) {
+        $val = if ($d.'#text') { [string]$d.'#text' } else { [string]$d }
+        if ($i -eq 0) { $p1 = $val } elseif ($i -eq 1) { $p2 = $val } elseif ($i -eq 2) { $p3 = $val }
+        if ($d.Name) {
+          $h[$d.Name] = $val; $ed[$d.Name] = $val
+          if ($d.Name -eq 'param1') { $p1 = $val } elseif ($d.Name -eq 'param2') { $p2 = $val } elseif ($d.Name -eq 'param3') { $p3 = $val }
+        } else {
+          $k = 'param_' + ($i + 1)
+          $h[$k] = $val; $ed[$k] = $val
+        }
+        $i++
+      }
+    }
+    if ($xml.Event.EventData.param1) { $p1 = [string]$xml.Event.EventData.param1; $ed['param1'] = $p1 }
+    if ($xml.Event.EventData.param2) { $p2 = [string]$xml.Event.EventData.param2; $ed['param2'] = $p2 }
+    if ($xml.Event.EventData.param3) { $p3 = [string]$xml.Event.EventData.param3; $ed['param3'] = $p3 }
+    $bin = if ($xml.Event.EventData.Binary) { [string]$xml.Event.EventData.Binary } else { '' }
+    if ($bin) { $ed['Binary'] = $bin }
+    $h['param1'] = $p1; $h['param2'] = $p2; $h['param3'] = $p3; $h['Binary'] = $bin
+    $h['EventData'] = ($ed | ConvertTo-Json -Compress)
+    $h['RawEvent'] = $_.ToXml()
+    $writer.WriteLine(($h | ConvertTo-Json -Compress))
+  }
+} finally {
+  $writer.Flush()
+  $writer.Dispose()
+}
+`.trim();
+
+/**
+ * Command-injection-proof PowerShell EVTX fallback.
+ * Uses `child_process.execFile("powershell.exe", ...)` with a 100% static script literal
+ * and passes untrusted file paths exclusively via environment variables + `-LiteralPath`.
+ */
+export function runSafePowerShellEvtxFallback(
+  evtxFilePath: string,
+  outputJsonlPath: string,
+  timeoutMs: number = 180000
+): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    child_process.execFile(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        SAFE_STATIC_EVTX_POWERSHELL_SCRIPT,
+      ],
+      {
+        windowsHide: true,
+        maxBuffer: 50 * 1024 * 1024,
+        timeout: timeoutMs,
+        env: {
+          ...process.env,
+          TOAD_EVTX_INPUT: evtxFilePath,
+          TOAD_EVTX_OUTPUT: outputJsonlPath,
+        },
+      },
+      (err) => {
+        if (err) reject(err);
+        else resolve();
+      }
+    );
+  });
 }
 
 // =============================================================================
@@ -3533,10 +4503,12 @@ export const nativeCSVImport = async (
                   fs.unlinkSync(parquetPath);
                 } catch {}
               }
-              if ((global as any)._toadTableRowCountCache) {
-                delete (global as any)._toadTableRowCountCache[tableName];
-                delete (global as any)._toadTableRowCountCache[parquetPath];
-              }
+              emitCacheInvalidate({
+                tableName,
+                sourcePath: filePath,
+                parquetPath,
+                reason: isOneColRawEvent ? "corrupted_1col_raw_event_cache" : "corrupted_delim_sniffer_cache",
+              });
               ToadParquetLedger.getInstance()
                 .recordEvent({
                   event_id: `evict-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -3554,14 +4526,14 @@ export const nativeCSVImport = async (
                 .catch(() => {});
             }
           } catch (descErr) {
-            log.warn("[TOAD Ingest Cache] Loi describe view khi kiem tra cache:", descErr);
+            log.warn("[TOAD Ingest Cache] Error describing cached view during validation:", descErr);
           }
         }
 
         if (!isCorruptedFallbackCache) {
           const importTime = process.hrtime(importStart);
           log.info(
-            `[TOAD Ingest Cache] Hoan tat tai su dung Parquet trong ${prettyHRTime(
+            `[TOAD Ingest Cache] Reused Parquet cache in ${prettyHRTime(
               importTime
             )} -> VIEW: ${tableName}`
           );
@@ -3569,10 +4541,11 @@ export const nativeCSVImport = async (
         }
       }
 
-      // ===== CHẾ ĐỘ STREAMING PARQUET (5 giai đoạn đầy đủ - sinh mới hoặc reopen) =====
+      // ===== STREAMING PARQUET PIPELINE (5 stages - cold import or reopen) =====
       const targetParquetPath = tmpPath;
       let progressTimer: any = null;
       let ioWatcherProc: child_process.ChildProcess | null = null;
+      let transcodedCleanupPath: string | null = null;
       let srcBytes = 1024 * 1024;
       let srcMtime = Date.now();
       try {
@@ -3584,7 +4557,8 @@ export const nativeCSVImport = async (
       } catch { }
 
       try {
-        const ext = path.extname(filePath).toLowerCase();
+        const { ext: effectiveExt } = getEffectiveDataExtension(filePath);
+        const ext = effectiveExt || path.extname(filePath).toLowerCase();
 
         // Start progress monitoring
         const fileName = path.basename(filePath);
@@ -3594,7 +4568,7 @@ export const nativeCSVImport = async (
         let smoothedSpeedMBs = 0;
         let initialReadBytes: number | null = null;
 
-        // Ghi nhận sự kiện STARTED vào Parquet State Ledger
+        // Record STARTED event into Ledger WAL (hot-tier O(1))
         ToadParquetLedger.getInstance()
           .recordEvent({
             event_id: `start-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -3627,9 +4601,11 @@ export const nativeCSVImport = async (
           statusText: "Starting multi-threaded streaming to Parquet...",
         });
 
-        // 1. Uu tien dung Native Process IO Watcher (Toad Core Rust)
+        const addon = loadToadCoreAddon();
         const toadCore = findToadCoreBinary();
-        if (toadCore && process.platform === "win32") {
+
+        // 1. Prefer zero-spawn N-API `getProcessIoBytes()` polling; fallback to CLI `watch-io` or dst file size
+        if (!addon?.getProcessIoBytes && toadCore && process.platform === "win32") {
           try {
             ioWatcherProc = child_process.spawn(
               toadCore,
@@ -3664,19 +4640,15 @@ export const nativeCSVImport = async (
 
                   if (dt >= 0.5) {
                     const instantSpeed = ((deltaReadFromStart - lastBytes) / (1024 * 1024)) / dt;
-                    if (smoothedSpeedMBs === 0) {
-                      smoothedSpeedMBs = instantSpeed;
-                    } else {
-                      smoothedSpeedMBs = smoothedSpeedMBs * 0.7 + instantSpeed * 0.3;
-                    }
+                    smoothedSpeedMBs =
+                      smoothedSpeedMBs === 0
+                        ? instantSpeed
+                        : smoothedSpeedMBs * 0.7 + instantSpeed * 0.3;
                     lastBytes = deltaReadFromStart;
                     lastTime = now;
                   }
 
-                  // Tiêu chí người dùng: Đọc % kích thước file input được xử lý
-                  // Con số hiển thị mặc định trừ đi 10% (0% - 90%) để người dùng không bị overthinking
-                  // và dành 10% cuối cho giai đoạn finalize Parquet
-                  const readRatio = Math.min(1.0, Math.max(0, deltaReadFromStart / srcBytes));
+                  const readRatio = Math.min(1.0, Math.max(0, deltaReadFromStart / Math.max(1, srcBytes)));
                   const percent = Math.min(90, Math.max(2, Math.round(readRatio * 90)));
 
                   let etaSec = 0;
@@ -3708,10 +4680,55 @@ export const nativeCSVImport = async (
           }
         }
 
-        // 2. Fallback timer neu khong co IO watcher
         progressTimer = setInterval(() => {
+          if (addon && typeof addon.getProcessIoBytes === "function") {
+            try {
+              const io = addon.getProcessIoBytes(process.pid);
+              if (io) {
+                const currentTotalRead = Number(io.readBytes) || 0;
+                if (initialReadBytes === null) {
+                  initialReadBytes = currentTotalRead;
+                  lastBytes = 0;
+                  lastTime = Date.now();
+                  return;
+                }
+                const deltaRead = Math.max(0, currentTotalRead - initialReadBytes);
+                const now = Date.now();
+                const dt = (now - lastTime) / 1000;
+                if (dt >= 0.5) {
+                  const instantSpeed = ((deltaRead - lastBytes) / (1024 * 1024)) / dt;
+                  smoothedSpeedMBs =
+                    smoothedSpeedMBs === 0
+                      ? instantSpeed
+                      : smoothedSpeedMBs * 0.7 + instantSpeed * 0.3;
+                  lastBytes = deltaRead;
+                  lastTime = now;
+                }
+                const readRatio = Math.min(1.0, Math.max(0, deltaRead / Math.max(1, srcBytes)));
+                const percent = Math.min(90, Math.max(2, Math.round(readRatio * 90)));
+                let etaSec = 0;
+                if (smoothedSpeedMBs > 0.1) {
+                  const remaining = Math.max(0, srcBytes - deltaRead);
+                  etaSec = Math.round((remaining / (1024 * 1024)) / smoothedSpeedMBs);
+                }
+                broadcastIngestProgress({
+                  isOpen: true,
+                  fileName,
+                  percent,
+                  speedMBs: smoothedSpeedMBs,
+                  etaSec,
+                  statusText:
+                    percent < 90
+                      ? `Reading input: ${formatSize(deltaRead)} / ${formatSize(srcBytes)}`
+                      : "Finalizing Parquet index & loading dataset...",
+                });
+                return;
+              }
+            } catch {}
+          }
+
           if (initialReadBytes !== null) {
-            return; // IO watcher dang hoat dong tot
+            return;
           }
           try {
             if (fs.existsSync(targetParquetPath)) {
@@ -3749,9 +4766,8 @@ export const nativeCSVImport = async (
           } catch { }
         }, 1000);
 
-        // Giai đoạn 4: Streaming sang Parquet
+        // Stage 4: Stream input into Parquet
         if (ext === ".evtx") {
-          const toadCore = findToadCoreBinary();
           const tempJsonl = path.join(
             cfg.temp_dir!,
             `evtx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.jsonl`
@@ -3766,8 +4782,11 @@ export const nativeCSVImport = async (
             statusText: "Extracting EVTX records with TOAD Core Engine...",
           });
 
-          if (toadCore) {
-            log.info(`[TOAD Ingest] Chuyen doi EVTX -> JSONL bang TOAD Rust Core (Async): ${filePath}`);
+          if (addon && typeof addon.evtxToJsonl === "function" && srcBytes <= 16 * 1024 * 1024) {
+            log.info(`[TOAD Ingest] Converting EVTX -> JSONL via in-process N-API addon: ${filePath}`);
+            addon.evtxToJsonl(filePath, tempJsonl, null);
+          } else if (toadCore) {
+            log.info(`[TOAD Ingest] Converting EVTX -> JSONL via TOAD Rust Core CLI: ${filePath}`);
             let evtxLastBytes = 0;
             let evtxLastTime = Date.now();
             let evtxSmoothedSpeed = 0;
@@ -3827,19 +4846,12 @@ export const nativeCSVImport = async (
             } finally {
               clearInterval(evtxProgressTimer);
             }
+          } else if (addon && typeof addon.evtxToJsonl === "function") {
+            log.info(`[TOAD Ingest] Converting EVTX -> JSONL via N-API addon: ${filePath}`);
+            addon.evtxToJsonl(filePath, tempJsonl, null);
           } else {
-            log.info(`[TOAD Ingest] Chuyen doi EVTX qua PowerShell fallback: ${filePath}`);
-            const psScript = `$ErrorActionPreference = 'SilentlyContinue'; Get-WinEvent -Path '${filePath}' | ForEach-Object { $xml = [xml]$_.ToXml(); $h = [ordered]@{'RecordID'=[int64]$_.RecordId;'EventID'=[int64]$_.Id;'Level'=[string]$_.LevelDisplayName;'TimeCreated'=$_.TimeCreated.ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.ffffffZ');'Provider'=[string]$_.ProviderName;'Channel'=[string]$_.LogName;'Computer'=[string]$_.MachineName;'UserId'=[string]$_.UserId}; $p1=''; $p2=''; $p3=''; $i=0; $ed=[ordered]@{}; if ($xml.Event.EventData.Data) { foreach ($d in $xml.Event.EventData.Data) { $val = if ($d.'#text') { [string]$d.'#text' } else { [string]$d }; if ($i -eq 0) { $p1 = $val } elseif ($i -eq 1) { $p2 = $val } elseif ($i -eq 2) { $p3 = $val }; if ($d.Name) { $h[$d.Name] = $val; $ed[$d.Name] = $val; if ($d.Name -eq 'param1') { $p1 = $val } elseif ($d.Name -eq 'param2') { $p2 = $val } elseif ($d.Name -eq 'param3') { $p3 = $val } } else { $k = 'param_' + ($i+1); $h[$k] = $val; $ed[$k] = $val }; $i++ } }; if ($xml.Event.EventData.param1) { $p1 = [string]$xml.Event.EventData.param1; $ed['param1'] = $p1 }; if ($xml.Event.EventData.param2) { $p2 = [string]$xml.Event.EventData.param2; $ed['param2'] = $p2 }; if ($xml.Event.EventData.param3) { $p3 = [string]$xml.Event.EventData.param3; $ed['param3'] = $p3 }; $bin = if ($xml.Event.EventData.Binary) { [string]$xml.Event.EventData.Binary } else { '' }; if ($bin) { $ed['Binary'] = $bin }; $h['param1'] = $p1; $h['param2'] = $p2; $h['param3'] = $p3; $h['Binary'] = $bin; $h['EventData'] = ($ed | ConvertTo-Json -Compress); $h['RawEvent'] = $_.ToXml(); $h | ConvertTo-Json -Compress }`;
-            await new Promise<void>((resolve, reject) => {
-              child_process.exec(
-                `powershell -NoProfile -NonInteractive -Command "${psScript}" > "${tempJsonl}"`,
-                { windowsHide: true, maxBuffer: 50 * 1024 * 1024, timeout: 180000 },
-                (err) => {
-                  if (err) reject(err);
-                  else resolve();
-                }
-              );
-            });
+            log.info(`[TOAD Ingest] Converting EVTX via hardened PowerShell fallback: ${filePath}`);
+            await runSafePowerShellEvtxFallback(filePath, tempJsonl, 180000);
           }
 
           broadcastIngestProgress({
@@ -3860,23 +4872,37 @@ export const nativeCSVImport = async (
               }
             } catch { }
           }
-        } else if ([".json", ".jsonl", ".ndjson"].includes(ext)) {
-          await streamJsonToParquet(dbConn, normalizedPath, targetParquetPath, cfg);
-        } else if ([".log", ".txt"].includes(ext)) {
-          // [RAW EVENT MODE] Doi voi file log tho (.log, .txt): giu nguyen 100% raw event, khong phan tach cot
-          await streamRawLogToParquet(dbConn, normalizedPath, targetParquetPath, cfg);
         } else {
-          // CSV, TSV, va cac file text khac co cau truc
-          await streamCsvToParquet(dbConn, normalizedPath, targetParquetPath, cfg);
+          // Ensure UTF-16LE / UTF-16BE / Gzip+UTF-16 files are stream-transcoded to UTF-8 before DuckDB
+          const prepared = await ensureUtf8InputFile(filePath, cfg.temp_dir);
+          transcodedCleanupPath = prepared.cleanupPath;
+          const ingestInputPath = prepared.effectivePath.replace(/\\/g, "/");
+
+          if ([".json", ".jsonl", ".ndjson"].includes(ext)) {
+            await streamJsonToParquet(dbConn, ingestInputPath, targetParquetPath, cfg);
+          } else if ([".log", ".txt"].includes(ext)) {
+            await streamRawLogToParquet(dbConn, ingestInputPath, targetParquetPath, cfg);
+          } else {
+            await streamCsvToParquet(dbConn, ingestInputPath, targetParquetPath, cfg);
+          }
         }
 
-        // Đổi tên nguyên tử targetParquetPath -> parquetPath
+        // Atomic swap targetParquetPath -> parquetPath
+        const hadExistingParquet = fs.existsSync(parquetPath);
         try {
-          if (fs.existsSync(parquetPath)) {
+          if (hadExistingParquet) {
             fs.unlinkSync(parquetPath);
           }
         } catch { }
         fs.renameSync(targetParquetPath, parquetPath);
+        if (hadExistingParquet || options?.forceReopen) {
+          emitCacheInvalidate({
+            tableName,
+            sourcePath: filePath,
+            parquetPath,
+            reason: options?.forceReopen ? "force_reopen" : "source_updated",
+          });
+        }
 
         // Lấy số lượng dòng thực tế từ file Parquet vừa tạo
         let finalRowCount = 0;
@@ -3947,7 +4973,7 @@ export const nativeCSVImport = async (
         return tableName;
       } catch (streamErr: any) {
         log.warn(
-          "[TOAD Ingest] Streaming pipeline that bai, fallback ve in-memory import:",
+          "[TOAD Ingest] Streaming pipeline failed, falling back to in-memory import:",
           streamErr
         );
         // Ghi nhận sự kiện ERROR vào Parquet State Ledger
@@ -3976,7 +5002,8 @@ export const nativeCSVImport = async (
         } catch { }
 
         // Format-Specific Fallback Guards: Never let JSON or EVTX fall through into read_csv
-        const fileExt = path.extname(filePath).toLowerCase();
+        const { ext: effFallbackExt } = getEffectiveDataExtension(filePath);
+        const fileExt = effFallbackExt || path.extname(filePath).toLowerCase();
         const baseName = path.basename(filePath);
 
         if (fileExt === ".evtx") {
@@ -3997,8 +5024,13 @@ export const nativeCSVImport = async (
             throw new Error(`Failed to parse JSON file "${baseName}": ${streamErr?.message || streamErr}`);
           }
         }
-        // Tiếp tục với in-memory fallback bên dưới cho CSV/TSV
+        // Continue with in-memory fallback below for CSV/TSV
       } finally {
+        if (transcodedCleanupPath && fs.existsSync(transcodedCleanupPath)) {
+          try {
+            fs.unlinkSync(transcodedCleanupPath);
+          } catch {}
+        }
         if (ioWatcherProc) {
           try {
             (ioWatcherProc as any).kill();
@@ -4019,29 +5051,31 @@ export const nativeCSVImport = async (
       }
     }
 
-    // ===== CHẾ ĐỘ IN-MEMORY FALLBACK (cải tiến với 3-tier) =====
-    const safePath = escapeSqlPath(normalizedPath);
-    const ext = path.extname(filePath).toLowerCase();
-
-    // Doi voi file log tho (.log, .txt): nap thang raw_event duy nhat
-    if ([".log", ".txt"].includes(ext)) {
-      try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=false, header=false, columns={'raw_event': 'VARCHAR'}, quote='', escape='', delim=null)`;
-        await dbConn.all(query);
-        const importTime = process.hrtime(importStart);
-        log.info(
-          "[DuckDB In-Memory Raw Log]: import completed in ",
-          prettyHRTime(importTime)
-        );
-        return tableName;
-      } catch (errRaw) {
-        log.warn("[Ingest In-Memory Raw Log] That bai:", errRaw);
+    // ===== IN-MEMORY FALLBACK (with UTF-16/Gzip normalization & 3-tier recovery) =====
+    const memPrepared = await ensureUtf8InputFile(filePath, cfg.temp_dir);
+    const safePath = escapeSqlPath(memPrepared.effectivePath);
+    const { ext: memEffExt, isGz: memIsGz } = getEffectiveDataExtension(memPrepared.effectivePath);
+    const ext = memEffExt || path.extname(filePath).toLowerCase();
+    const memGzClause = memIsGz ? "compression='gzip'," : "";
+    try {
+      if ([".log", ".txt"].includes(ext)) {
+        try {
+          const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', ${memGzClause} auto_detect=false, header=false, columns={'raw_event': 'VARCHAR'}, quote='', escape='', delim=null)`;
+          await dbConn.all(query);
+          const importTime = process.hrtime(importStart);
+          log.info(
+            "[DuckDB In-Memory Raw Log]: import completed in ",
+            prettyHRTime(importTime)
+          );
+          return tableName;
+        } catch (errRaw) {
+          log.warn("[Ingest In-Memory Raw Log] Failed:", errRaw);
+        }
       }
-    }
 
-    const isCsvFile = ext === ".csv";
-    const isTsvFile = ext === ".tsv";
-    const memDelimClause = isCsvFile ? "delim=','," : isTsvFile ? "delim='\\t'," : "";
+      const isCsvFile = ext === ".csv";
+      const isTsvFile = ext === ".tsv";
+      const memDelimClause = `${memGzClause} ${isCsvFile ? "delim=','," : isTsvFile ? "delim='\\t'," : ""}`.trim();
 
     // Direct Safe Profile cho file log phuc tap (Hayabusa, Security, EventLog, v.v.)
     if (isComplexLogFile(filePath, cfg.safe_mode_keywords)) {
@@ -4097,7 +5131,7 @@ export const nativeCSVImport = async (
             log.warn("[Ingest In-Memory Safe Profile] Retry parallel=false failed:", retryErr);
           }
         }
-        log.warn("[Ingest In-Memory Safe Profile] That bai, thu Force Header:", errSafe);
+        log.warn("[Ingest In-Memory Safe Profile] Failed, retrying with Force Header:", errSafe);
         const t0_safe_hdr = performance.now();
         const rss0_safe_hdr = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
         try {
@@ -4116,7 +5150,7 @@ export const nativeCSVImport = async (
             ? ((process.memoryUsage().rss - rss0_safe_hdr) / (1024 * 1024)).toFixed(2)
             : "0.00";
           profileScannerTier("2b force header", "failed", elapsedMsHdr, 0, rssDeltaMBHdr);
-          log.warn("[Ingest In-Memory Force Header] That bai:", errHeader);
+          log.warn("[Ingest In-Memory Force Header] Failed:", errHeader);
         }
       }
     }
@@ -4173,7 +5207,7 @@ export const nativeCSVImport = async (
           log.warn("[Ingest In-Memory Tier 0 -> parallel=false] Failed, falling through to Tier 1:", retryErr);
         }
       } else {
-        log.warn("[Ingest In-Memory Tier 0] That bai:", err0);
+        log.warn("[Ingest In-Memory Tier 0] Failed:", err0);
       }
     }
 
@@ -4201,7 +5235,7 @@ export const nativeCSVImport = async (
         ? ((process.memoryUsage().rss - rss0_mem1) / (1024 * 1024)).toFixed(2)
         : "0.00";
       profileScannerTier("1 serial", "failed", elapsedMs, 0, rssDeltaMB);
-      log.warn("[Ingest In-Memory Tier 1] That bai:", err1);
+      log.warn("[Ingest In-Memory Tier 1] Failed:", err1);
     }
 
     // Tier 2: all_varchar=true (guaranteed success)
@@ -4228,7 +5262,7 @@ export const nativeCSVImport = async (
         ? ((process.memoryUsage().rss - rss0_mem2) / (1024 * 1024)).toFixed(2)
         : "0.00";
       profileScannerTier("2 all_varchar", "failed", elapsedMs, 0, rssDeltaMB);
-      log.warn("[Ingest In-Memory Tier 2] That bai, thu Force Header (Tier 2b):", err2);
+      log.warn("[Ingest In-Memory Tier 2] Failed, retrying with Force Header (Tier 2b):", err2);
       const t0_mem2b = performance.now();
       const rss0_mem2b = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
       try {
@@ -4240,7 +5274,7 @@ export const nativeCSVImport = async (
           : "0.00";
         const rowCount = await getTableRowCountSafe(dbConn, tableName);
         profileScannerTier("2b force header", "success", elapsedMs2b, rowCount, rssDeltaMB2b);
-        log.info("[Ingest In-Memory Tier 2b Force Header] Thanh cong!");
+        log.info("[Ingest In-Memory Tier 2b Force Header] Completed.");
         return tableName;
       } catch (err2b) {
         const elapsedMs2b = performance.now() - t0_mem2b;
@@ -4248,8 +5282,15 @@ export const nativeCSVImport = async (
           ? ((process.memoryUsage().rss - rss0_mem2b) / (1024 * 1024)).toFixed(2)
           : "0.00";
         profileScannerTier("2b force header", "failed", elapsedMs2b, 0, rssDeltaMB2b);
-        log.error("[Ingest In-Memory Tier 2b] Tat ca cac tier deu that bai:", err2b);
+        log.error("[Ingest In-Memory Tier 2b] All tiers failed:", err2b);
         throw err2b;
+      }
+    }
+    } finally {
+      if (memPrepared.cleanupPath && fs.existsSync(memPrepared.cleanupPath)) {
+        try {
+          fs.unlinkSync(memPrepared.cleanupPath);
+        } catch {}
       }
     }
   } finally {
