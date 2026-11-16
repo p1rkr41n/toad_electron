@@ -1,6 +1,6 @@
 {
   "name": "toad-app",
-  "version": "2.6.0.1",
+  "version": "2.6.0.2",
   "homepage": "https://github.com/HelloKittyXamKinLung/Toad",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -9,7 +9,7 @@
     "url": "https://github.com/HelloKittyXamKinLung/Toad.git"
   },
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build:dir": "mkdirp dist",
     "build:toadviewer-assets": "recursive-copy -w node_modules/toadviewer/dist/public dist/public",
     "build:html": "recursive-copy -w html dist",
@@ -76,7 +76,6 @@
     "react-dom": "^18.2.0",
     "recursive-copy-cli": "^1.0.20",
     "resolve-url-loader": "^4.0.0",
-    "rimraf": "^5.0.5",
     "sass": "^1.80.6",
     "sass-loader": "^14.2.1",
     "source-map-loader": "^3.0.1",

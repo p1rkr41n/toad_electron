@@ -4,7 +4,7 @@
   "description": "Tabular data viewer web app",
   "main": "dist/tadweb.bundle.js",
   "scripts": {
-    "clean": "rimraf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build:dir": "mkdirp dist",
     "build:html": "cp -r html/* dist",
     "build-assets": "npm run build:dir && npm run build:html",

@@ -1,12 +1,12 @@
 {
   "name": "toadviewer",
-  "version": "2.6.0.1",
+  "version": "2.6.0.2",
   "description": "Tabular data viewer library",
   "main": "dist/toadviewer.js",
   "types": "dist/toadviewer.d.ts",
   "scripts": {
     "prepublish": "npm run build",
-    "clean": "rimraf dist",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
     "build:dir": "mkdirp dist",
     "build:html": "recursive-copy -w html dist",
     "build-assets": "npm run build:dir && npm run build:html",

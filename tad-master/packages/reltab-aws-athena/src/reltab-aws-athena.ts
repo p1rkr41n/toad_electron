@@ -1,44 +1,22 @@
-import * as log from "loglevel";
 import {
-  TableRep,
-  QueryExp,
   Schema,
   DataSourceConnection,
-  defaultEvalQueryOptions,
-  EvalQueryOptions,
   DataSourceProvider,
   registerProvider,
   DbDriver,
   SQLDialect,
   DbDataSource,
   ColumnStatsMap,
-} from "reltab";
-import {
   LeafSchemaMap,
   Row,
-  ColumnMetaMap,
   DataSourceId,
   PrestoDialect,
   DataSourceNode,
   DataSourcePath,
 } from "reltab";
-import * as aws from "aws-sdk";
-import * as path from "path";
 
-const AthenaExpress = require("athena-express");
-
-const REGION = "us-west-2";
-
-aws.config.update({ region: REGION });
-const athenaExpressConfig = { aws }; //configuring athena-express with aws sdk object
-const athenaExpress = new AthenaExpress(athenaExpressConfig);
-
-const mapIdent = (src: string): string => {
-  const ret = src.replace(/[^a-z0-9_]/gi, "_");
-  return ret;
-};
-
-const isAlpha = (ch: string): boolean => /^[A-Z]$/i.test(ch);
+const AWS_ATHENA_DEPRECATED_ERROR =
+  "AWS Athena legacy driver is deprecated; use DuckDB httpfs/S3 or Parquet instead.";
 
 export class AWSAthenaDriver implements DbDriver {
   readonly sourceId: DataSourceId;
@@ -57,70 +35,42 @@ export class AWSAthenaDriver implements DbDriver {
     return "AWS Athena";
   }
 
-  async runSqlQuery(sqlQuery: string): Promise<Row[]> {
-    const qres = await athenaExpress.query(sqlQuery);
-    const rows = qres.Items as Row[];
-    return rows;
+  async runSqlQuery(_sqlQuery: string): Promise<Row[]> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
   async importCsv(): Promise<void> {
-    throw new Error("importCsv not implemented for aws-athena");
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
-  async getTableSchema(tableName: string): Promise<Schema> {
-    const sqlQuery = `DESCRIBE ${tableName}`;
-
-    const qres = await athenaExpress.query(sqlQuery);
-    const items = qres.Items; // each item has one key (column name), mapped to its type.
-
-    const extendCMap = (cmm: ColumnMetaMap, item: any): ColumnMetaMap => {
-      const cnm = Object.keys(item)[0] as string;
-      const cType = (item[cnm] as string).toLocaleUpperCase();
-
-      const cmd = {
-        displayName: cnm,
-        columnType: cType,
-      };
-      cmm[cnm] = cmd;
-      return cmm;
-    };
-
-    const columnIds = items.map((item: any) => Object.keys(item)[0]);
-    const cmMap = items.reduce(extendCMap, {});
-    const schema = new Schema(PrestoDialect, columnIds, cmMap);
-    return schema;
+  async getTableSchema(_tableName: string): Promise<Schema> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
-  async getSqlQuerySchema(sqlQuery: string): Promise<Schema> {
-    throw new Error(
-      "AWSAthenaDriver.getSqlQuerySchema: base sql queries not supported"
-    );
+  async getSqlQuerySchema(_sqlQuery: string): Promise<Schema> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
-  async getSqlQueryColumnStatsMap(sqlQuery: string): Promise<ColumnStatsMap> {
-    return {};
+  async getSqlQueryColumnStatsMap(_sqlQuery: string): Promise<ColumnStatsMap> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
   async getRootNode(): Promise<DataSourceNode> {
-    throw new Error("getRootNode not yet implemented for aws-athena");
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 
-  async getChildren(dsPath: DataSourcePath): Promise<DataSourceNode[]> {
-    // TODO
-    return [];
+  async getChildren(_dsPath: DataSourcePath): Promise<DataSourceNode[]> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
-  async getTableName(dsPath: DataSourcePath): Promise<string> {
-    const { path } = dsPath;
-    if (path.length < 1) {
-      throw new Error("getTableName: empty path");
-    }
-    return path[path.length - 1];
+
+  async getTableName(_dsPath: DataSourcePath): Promise<string> {
+    throw new Error(AWS_ATHENA_DEPRECATED_ERROR);
   }
 }
 
 const awsAthenaDataSourceProvider: DataSourceProvider = {
   providerName: "aws-athena",
-  connect: async (resourceId: any): Promise<DataSourceConnection> => {
+  connect: async (_resourceId: any): Promise<DataSourceConnection> => {
     const driver = new AWSAthenaDriver();
     const dsConn = new DbDataSource(driver);
     return dsConn;
