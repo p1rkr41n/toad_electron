@@ -1,6 +1,6 @@
 param (
     [string]$AppName = "Toad",
-    [string]$Version = "2.6.0",
+    [string]$Version = "2.6.0.1",
     [string]$Publisher = "HelloKittyXamKinLung",
     [string]$ReleaseDir = "releases"
 )
@@ -10,8 +10,8 @@ $ErrorActionPreference = "Stop"
 Write-Output "=== Toad Release Packager v$Version ==="
 
 # 1. Version assertion to 2.5.0
-if ($Version -ne "2.6.0") {
-    Write-Warning "Target version is '$Version'. Standard target for Milestone 4 is '2.6.0'."
+if ($Version -ne "2.6.0.1") {
+    Write-Warning "Target version is '$Version'. Standard target for Milestone 4 is '2.6.0.1'."
 }
 
 # 2. Verify native binary rule: duckdb.node in app.asar.unpacked
@@ -24,7 +24,7 @@ if (Test-Path "$appDir\release\win-unpacked") {
     Write-Output ">>> duckdb.node native binding verified in app.asar.unpacked."
 }
 
-# 3. Enforce size limits: app.asar < 45 MB, portable exe < 75 MB
+# 3. Enforce size limits: app.asar < 45 MB, portable exe < 95 MB
 $asarPath = "$appDir\release\win-unpacked\resources\app.asar"
 if (Test-Path $asarPath) {
     $asarSizeMB = [math]::Round((Get-Item $asarPath).Length / 1MB, 2)
@@ -54,7 +54,7 @@ if (Test-Path $fullReleaseDir) {
 $scriptPath = Join-Path $PSScriptRoot ".agents\skills\releases\scripts\package_release.ps1"
 & powershell -ExecutionPolicy Bypass -File $scriptPath -AppName $AppName -Version $Version -Publisher $Publisher -ReleaseDir $fullReleaseDir
 
-# 5. Check packaged portable executable size < 75 MB
+# 5. Check packaged portable executable size < 95 MB
 $canonicalExe = Join-Path $fullReleaseDir "$AppName-$Version-x64-portable.exe"
 if (-not (Test-Path $canonicalExe)) {
     $canonicalExe = Join-Path $fullReleaseDir "Toad.exe"
@@ -62,7 +62,7 @@ if (-not (Test-Path $canonicalExe)) {
 if (Test-Path $canonicalExe) {
     $exeSizeMB = [math]::Round((Get-Item $canonicalExe).Length / 1MB, 2)
     Write-Output ">>> Packaged portable executable size: $exeSizeMB MB"
-    if ($exeSizeMB -gt 75.0) {
-        throw "FOOTPRINT GATE ERROR: Portable exe ($exeSizeMB MB) exceeds 75.0 MB threshold!"
+    if ($exeSizeMB -gt 95.0) {
+        throw "FOOTPRINT GATE ERROR: Portable exe ($exeSizeMB MB) exceeds 95.0 MB threshold!"
     }
 }

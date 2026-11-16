@@ -1,6 +1,6 @@
 {
   "name": "toad-app",
-  "version": "2.6.0",
+  "version": "2.6.0.1",
   "homepage": "https://github.com/HelloKittyXamKinLung/Toad",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",
@@ -64,7 +64,7 @@
     "babel-plugin-flow-to-typescript": "^0.6.0",
     "css-loader": "^6.5.1",
     "duplicate-package-checker-webpack-plugin": "^3.0.0",
-    "electron": "31.0.1",
+    "electron": "42.11.16",
     "electron-builder": "^24.13.3",
     "file-loader": "^6.2.0",
     "image-webpack-loader": "^8.0.1",
@@ -89,6 +89,7 @@
   },
   "build": {
     "appId": "io.github.hellokittyxamkinlung.toad",
+    "electronVersion": "42.11.16",
     "compression": "maximum",
     "asarUnpack": [
       "**/*.node"

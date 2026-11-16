@@ -1,11 +1,29 @@
 {
   "name": "tad",
-  "version": "2.6.0",
+  "version": "2.6.0.1",
   "description": "Lerna monorepo for Tabular data viewer libraries and apps",
   "overrides": {
     "ws": "8.18.1",
     "duckdb": "1.0.0",
-    "duckdb-async": "1.0.0"
+    "duckdb-async": "1.0.0",
+    "form-data": "^2.5.6",
+    "handlebars": "^4.7.10",
+    "parse-url": "^9.2.0",
+    "parse-path": "^7.0.0",
+    "brace-expansion": "^2.1.7",
+    "browserslist": "^4.28.7",
+    "decode-uri-component": "^0.5.1",
+    "ip-address": "^10.7.1",
+    "js-yaml": "^3.15.2",
+    "lodash": "^4.17.23",
+    "picomatch": "^2.3.2",
+    "qs": "^6.16.1",
+    "tar": "^7.5.18",
+    "tmp": "^0.2.6",
+    "tough-cookie": "^4.1.4",
+    "uuid": "^11.1.1",
+    "@babel/core": "^7.29.6",
+    "@tootallnate/once": "^2.0.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

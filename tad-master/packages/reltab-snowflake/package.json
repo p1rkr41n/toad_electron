@@ -21,7 +21,7 @@
   "license": "MIT",
   "dependencies": {
     "loglevel": "^1.8.0",
-    "snowflake-sdk": "^1.6.6"
+    "snowflake-sdk": "^3.3.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

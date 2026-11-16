@@ -85,7 +85,8 @@ function main() {
   // 0. Rust core Cargo.toml
   if (fs.existsSync(path.join(ROOT_DIR, "tad-master/packages/toad-core-rust/Cargo.toml"))) {
     updateFile("tad-master/packages/toad-core-rust/Cargo.toml", (content) => {
-      return content.replace(/^version\s*=\s*"[^"]+"/m, `version = "${targetVersion}"`);
+      const cargoVersion = vParts.length > 3 ? `${vParts[0]}.${vParts[1]}.${vParts[2]}` : targetVersion;
+      return content.replace(/^version\s*=\s*"[^"]+"/m, `version = "${cargoVersion}"`);
     });
   }
 

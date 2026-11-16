@@ -29,12 +29,14 @@ function readElectronFuses(exePath) {
   const version = buf[idx + SENTINEL.length];
   const length = buf[idx + SENTINEL.length + 1];
   const fusesOffset = idx + SENTINEL.length + 2;
-  const fuses = buf.subarray(fusesOffset, fusesOffset + length).toString("ascii");
+  const rawFuses = buf.subarray(fusesOffset, fusesOffset + length).toString("ascii");
+  const fuses = rawFuses.slice(0, TARGET_FUSES.length);
   return {
     sentinelOffset: idx,
     version,
     length,
     fusesOffset,
+    rawFuses,
     fuses,
     flags: {
       runAsNode: fuses[0] === "1",

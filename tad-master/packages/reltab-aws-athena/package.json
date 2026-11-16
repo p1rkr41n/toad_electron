@@ -23,7 +23,7 @@
   "license": "MIT",
   "dependencies": {
     "athena-express": "^7.1.2",
-    "aws-sdk": "^2.1050.0",
+    "aws-sdk": "^2.1692.0",
     "loglevel": "^1.8.0"
   },
   "devDependencies": {

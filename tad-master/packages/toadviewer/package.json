@@ -1,6 +1,6 @@
 {
   "name": "toadviewer",
-  "version": "2.6.0",
+  "version": "2.6.0.1",
   "description": "Tabular data viewer library",
   "main": "dist/toadviewer.js",
   "types": "dist/toadviewer.d.ts",
@@ -40,7 +40,7 @@
     "react-select": "^5.2.1",
     "slickgrid-es6": "^3.0.3",
     "url-loader": "^4.1.1",
-    "url-regex": "5.0.0",
+    "url-regex": "npm:url-regex-safe@^4.0.0",
     "use-deep-compare": "1.1.0",
     "victory": "^36.6.10"
   },
