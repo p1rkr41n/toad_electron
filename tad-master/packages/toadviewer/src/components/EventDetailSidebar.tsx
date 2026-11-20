@@ -21,6 +21,7 @@ export interface EventDetailSidebarProps {
   onClose: () => void;
   clipboard?: SimpleClipboard;
   onAddFilter?: (cid: string, value: any, displayName: string) => void;
+  fetchFullRow?: () => Promise<DataRow | null>;
 }
 
 interface FieldEntry {
@@ -63,6 +64,7 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
   onClose,
   clipboard,
   onAddFilter,
+  fetchFullRow,
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState<number>(440);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -71,6 +73,43 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
   const [addedFilterCid, setAddedFilterCid] = useState<string | null>(null);
   const [activeDecoded, setActiveDecoded] = useState<{ [cid: string]: DecodeResult }>({});
   const [copiedDecodedCid, setCopiedDecodedCid] = useState<string | null>(null);
+  const [fullRowOverride, setFullRowOverride] = useState<DataRow | null>(null);
+  const [isLoadingFullRow, setIsLoadingFullRow] = useState<boolean>(false);
+  const [showEmptyFields, setShowEmptyFields] = useState<boolean>(
+    () => (schema?.columns?.length || 0) <= 50
+  );
+
+  // On-demand single-row fetch for projected wide tables (e.g., 1,656 cols)
+  useEffect(() => {
+    let cancelled = false;
+    setFullRowOverride(null);
+    if (!fetchFullRow || !rowData) {
+      setIsLoadingFullRow(false);
+      return;
+    }
+    const visibleKeys = Object.keys(rowData).filter((k) => !k.startsWith("_")).length;
+    const totalSchemaCols = (schema?.columns || []).filter((c) => !c.startsWith("_") && c !== "Rec").length;
+    if (totalSchemaCols <= visibleKeys) {
+      setIsLoadingFullRow(false);
+      return;
+    }
+    setIsLoadingFullRow(true);
+    fetchFullRow()
+      .then((fetched) => {
+        if (!cancelled && fetched) {
+          setFullRowOverride({ ...rowData, ...fetched });
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsLoadingFullRow(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchFullRow, rowData, rowIndex, globalRowIndex, schema]);
+
+  const effectiveRowData = fullRowOverride || rowData;
 
   const handleDecode = useCallback(
     (
@@ -183,7 +222,7 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
 
   // Extract all fields in event row
   const fieldEntries: FieldEntry[] = useMemo(() => {
-    if (!rowData || !schema) return [];
+    if (!effectiveRowData || !schema) return [];
     const entries: FieldEntry[] = [];
     const seen = new Set<string>();
 
@@ -198,11 +237,11 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
           try {
             rawType = schema.columnType(cid);
           } catch {
-            rawType = typeof rowData[cid];
+            rawType = typeof effectiveRowData[cid];
           }
         }
         if (!rawType) {
-          rawType = typeof rowData[cid];
+          rawType = typeof effectiveRowData[cid];
         }
         const colType =
           typeof rawType === "string"
@@ -212,19 +251,19 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
           cid,
           displayName: md?.displayName || cid,
           type: colType,
-          value: rowData[cid],
+          value: effectiveRowData[cid],
         });
       }
     }
 
     // 2. Any other data keys in rowData not in schema.columns (excluding '_' internal props)
-    for (const key of Object.keys(rowData)) {
+    for (const key of Object.keys(effectiveRowData)) {
       if (key.startsWith("_") || seen.has(key)) continue;
       entries.push({
         cid: key,
         displayName: key,
-        type: typeof rowData[key],
-        value: rowData[key],
+        type: typeof effectiveRowData[key],
+        value: effectiveRowData[key],
       });
     }
 
@@ -257,15 +296,29 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
     entries.push(...jsonUnpacked);
 
     return entries;
-  }, [schema, rowData]);
+  }, [schema, effectiveRowData]);
 
-  // Filter fields based on search term (with slash and backslash normalization)
+  const nonEmptyCount = useMemo(
+    () =>
+      fieldEntries.filter(
+        (e) => e.value !== null && e.value !== undefined && e.value !== ""
+      ).length,
+    [fieldEntries]
+  );
+
+  // Filter fields based on search term and empty-field visibility toggle
   const filteredEntries = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-    if (!q) return fieldEntries;
+    const baseList =
+      showEmptyFields || q.length > 0
+        ? fieldEntries
+        : fieldEntries.filter(
+            (e) => e.value !== null && e.value !== undefined && e.value !== ""
+          );
+    if (!q) return baseList;
     const qNorm = q.replace(/[\\\/]+/g, "/");
 
-    return fieldEntries.filter((entry) => {
+    return baseList.filter((entry) => {
       const nameLower = entry.displayName.toLowerCase();
       const cidLower = entry.cid.toLowerCase();
       const matchName =
@@ -283,7 +336,7 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
       }
       return matchName || matchVal;
     });
-  }, [fieldEntries, searchTerm]);
+  }, [fieldEntries, searchTerm, showEmptyFields]);
 
 
   // Copy text helper
@@ -448,8 +501,23 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
           small
         />
         <span className="event-detail-count-badge">
-          {filteredEntries.length} / {fieldEntries.length}
+          {isLoadingFullRow ? "Loading..." : `${filteredEntries.length} / ${fieldEntries.length}`}
         </span>
+        {fieldEntries.length > nonEmptyCount && (
+          <Button
+            minimal
+            small
+            onClick={() => setShowEmptyFields((prev) => !prev)}
+            title={
+              showEmptyFields
+                ? "Hide empty/NULL fields"
+                : `Show all ${fieldEntries.length} fields (including ${fieldEntries.length - nonEmptyCount} empty)`
+            }
+            style={{ fontSize: "11px", marginLeft: "4px", whiteSpace: "nowrap" }}
+          >
+            {showEmptyFields ? "Hide empty" : `+${fieldEntries.length - nonEmptyCount} empty`}
+          </Button>
+        )}
       </div>
 
       {/* Table Body */}

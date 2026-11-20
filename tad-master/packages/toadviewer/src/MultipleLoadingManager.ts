@@ -908,25 +908,25 @@ export class MultipleLoadingManager {
         const totalRowCount = await processingItem.dsc.rowCount(baseQuery);
         let preloadLimit: number;
         let bufferPages = 3;
+        let previewQuery = baseQuery;
 
-        if (colCount <= 50) {
+        if (colCount > 100 && schema && schema.columns) {
+          // Projection Pushdown for wide tables: pre-warm first 100 display columns for full page 1
+          previewQuery = baseQuery.project(schema.columns.slice(0, 100));
+          bufferPages = 1;
+          preloadLimit = Math.min(totalRowCount, pSize);
+        } else if (colCount <= 50) {
           bufferPages = 3;
           preloadLimit = Math.min(totalRowCount, pSize * 3);
-        } else if (colCount <= 200) {
-          bufferPages = 1;
-          preloadLimit = Math.min(totalRowCount, pSize * 1);
         } else {
           bufferPages = 1;
-          preloadLimit = Math.min(
-            totalRowCount,
-            Math.max(100, Math.floor(150000 / colCount))
-          );
+          preloadLimit = Math.min(totalRowCount, pSize * 1);
         }
 
-        const tableRep = await processingItem.dsc.evalQuery(baseQuery, 0, preloadLimit);
+        const tableRep = await processingItem.dsc.evalQuery(previewQuery, 0, preloadLimit);
         const cacheEntry: FirstPageCacheEntry = {
           tableName,
-          schema: tableRep.schema,
+          schema: schema || tableRep.schema,
           tableRep,
           totalRowCount,
           pageSize: pSize,
@@ -1084,18 +1084,18 @@ export class MultipleLoadingManager {
 
         let limit: number;
         let bufferPages = 3;
-        if (colCount <= 50) {
+        let previewQuery = baseQuery;
+        const fullSchema = existing?.schema;
+        if (colCount > 100 && fullSchema && fullSchema.columns) {
+          previewQuery = baseQuery.project(fullSchema.columns.slice(0, 100));
+          bufferPages = 1;
+          limit = Math.min(totalRowCount, newSize);
+        } else if (colCount <= 50) {
           bufferPages = 3;
           limit = Math.min(totalRowCount, newSize * 3);
-        } else if (colCount <= 200) {
-          bufferPages = 1;
-          limit = Math.min(totalRowCount, newSize * 1);
         } else {
           bufferPages = 1;
-          limit = Math.min(
-            totalRowCount,
-            Math.max(100, Math.floor(150000 / colCount))
-          );
+          limit = Math.min(totalRowCount, newSize * 1);
         }
 
         if (
@@ -1106,7 +1106,7 @@ export class MultipleLoadingManager {
           continue;
         }
 
-        const tableRep = await it.dsc.evalQuery(baseQuery, 0, limit);
+        const tableRep = await it.dsc.evalQuery(previewQuery, 0, limit);
 
         if (this.currentRewarmSize !== newSize) {
           return;
@@ -1114,7 +1114,7 @@ export class MultipleLoadingManager {
 
         const updated: FirstPageCacheEntry = {
           tableName,
-          schema: tableRep.schema,
+          schema: fullSchema || tableRep.schema,
           tableRep,
           totalRowCount,
           pageSize: newSize,

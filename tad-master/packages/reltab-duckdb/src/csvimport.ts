@@ -609,6 +609,7 @@ export interface IngestConfig {
   temp_dir: string | null;
   ledger_path: string;
   temp_cleanup: boolean;
+  max_cache_gb: number;
   safe_mode_keywords: string[];
   safe_mode_parallel: boolean;
 }
@@ -683,6 +684,10 @@ export function getIngestConfig(): IngestConfig {
           ? path.join(env.appDataDir, "toad_ledger.parquet")
           : path.join(env.tempDir || os.tmpdir(), "toad_ledger.parquet")),
       temp_cleanup: env.config.system.temp_cleanup ?? false,
+      max_cache_gb:
+        typeof env.config.system.max_cache_gb === "number" && env.config.system.max_cache_gb >= 0
+          ? env.config.system.max_cache_gb
+          : 10,
       safe_mode_keywords,
       safe_mode_parallel,
     };
@@ -721,6 +726,7 @@ export function getIngestConfig(): IngestConfig {
     temp_dir: fallbackTempDir,
     ledger_path: path.join(fallbackTempDir, "toad_ledger.parquet"),
     temp_cleanup: false,
+    max_cache_gb: 10,
     safe_mode_keywords: fallbackKeywords,
     safe_mode_parallel: fallbackParallel,
   };
@@ -3833,6 +3839,138 @@ export async function getTableRowCountSafe(
  *   Tier 1: + parallel=false (xử lý dòng quá dài vỡ chunk đa luồng)
  *   Tier 2: + all_varchar=true (xử lý xung đột kiểu dữ liệu giữa các dòng)
  */
+export interface CsvHeaderProbeResult {
+  estimatedColCount: number;
+  hasUtf8Bom: boolean;
+}
+
+/**
+ * Fast <1ms synchronous probe of the first 64KB of a CSV/TSV file
+ * to estimate column count (for ultra-wide adaptive Parquet tuning) and detect UTF-8 BOM.
+ */
+export function probeCsvHeaderMeta(filePath: string): CsvHeaderProbeResult {
+  try {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return { estimatedColCount: 0, hasUtf8Bom: false };
+    }
+    const { isGz } = getEffectiveDataExtension(filePath);
+    if (isGz) {
+      return { estimatedColCount: 0, hasUtf8Bom: false };
+    }
+    const fd = fs.openSync(filePath, "r");
+    try {
+      const buf = Buffer.alloc(65536);
+      const n = fs.readSync(fd, buf, 0, buf.length, 0);
+      if (n === 0) return { estimatedColCount: 0, hasUtf8Bom: false };
+      const hasUtf8Bom = n >= 3 && buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf;
+      const start = hasUtf8Bom ? 3 : 0;
+      const slice = buf.subarray(start, n).toString("utf8");
+      const nlIdx = slice.indexOf("\n");
+      const headerLine = (nlIdx >= 0 ? slice.slice(0, nlIdx) : slice).replace(/\r$/, "");
+      if (!headerLine.trim()) return { estimatedColCount: 0, hasUtf8Bom };
+
+      // Count commas/tabs outside quotes
+      const ext = path.extname(filePath).toLowerCase();
+      const delimChar = ext === ".tsv" ? "\t" : ",";
+      let inQuotes = false;
+      let colCount = 1;
+      for (let i = 0; i < headerLine.length; i++) {
+        const ch = headerLine[i];
+        if (ch === '"') {
+          if (inQuotes && headerLine[i + 1] === '"') {
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === delimChar && !inQuotes) {
+          colCount++;
+        }
+      }
+      return { estimatedColCount: colCount, hasUtf8Bom };
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return { estimatedColCount: 0, hasUtf8Bom: false };
+  }
+}
+
+/**
+ * Enforces an LRU disk budget (in GB) on persistent Parquet caches inside tempDir.
+ * Deletes oldest *.parquet cache files when total size exceeds maxCacheGb.
+ */
+export function enforceParquetCacheLru(
+  tempDir: string,
+  maxCacheGb: number,
+  protectedPath?: string
+): { evictedFiles: number; freedBytes: number } {
+  if (!tempDir || !fs.existsSync(tempDir) || !Number.isFinite(maxCacheGb) || maxCacheGb <= 0) {
+    return { evictedFiles: 0, freedBytes: 0 };
+  }
+  const maxBytes = maxCacheGb * 1024 * 1024 * 1024;
+  const targetBytes = Math.floor(maxBytes * 0.85);
+  const protectedNorm = protectedPath
+    ? path.resolve(protectedPath).replace(/\\/g, "/").toLowerCase()
+    : "";
+
+  const entries: Array<{ fullPath: string; size: number; lastUsedMs: number }> = [];
+  const walk = (dir: string): void => {
+    let items: string[] = [];
+    try {
+      items = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const item of items) {
+      if (
+        item === "toad_ledger.parquet" ||
+        item.endsWith("_ledger.parquet") ||
+        item.endsWith(".wal.jsonl")
+      ) {
+        continue;
+      }
+      const fullPath = path.join(dir, item);
+      try {
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          walk(fullPath);
+        } else if (item.endsWith(".parquet") && !item.includes(".tmp_")) {
+          const lastUsedMs = Math.max(stat.atimeMs || 0, stat.mtimeMs || 0);
+          entries.push({ fullPath, size: stat.size, lastUsedMs });
+        }
+      } catch {}
+    }
+  };
+
+  walk(tempDir);
+
+  let totalBytes = entries.reduce((acc, e) => acc + e.size, 0);
+  if (totalBytes <= maxBytes) {
+    return { evictedFiles: 0, freedBytes: 0 };
+  }
+
+  entries.sort((a, b) => a.lastUsedMs - b.lastUsedMs);
+
+  let evictedFiles = 0;
+  let freedBytes = 0;
+  for (const entry of entries) {
+    if (totalBytes <= targetBytes) break;
+    const norm = path.resolve(entry.fullPath).replace(/\\/g, "/").toLowerCase();
+    if (protectedNorm && norm === protectedNorm) continue;
+    try {
+      fs.unlinkSync(entry.fullPath);
+      totalBytes -= entry.size;
+      freedBytes += entry.size;
+      evictedFiles++;
+      log.info(
+        `[TOAD Cache LRU] Evicted oldest Parquet cache: ${path.basename(entry.fullPath)} (${(entry.size / (1024 * 1024)).toFixed(1)} MB)`
+      );
+    } catch {}
+  }
+
+  return { evictedFiles, freedBytes };
+}
+
 export async function streamCsvToParquet(
   dbConn: Connection,
   filePath: string,
@@ -3842,7 +3980,17 @@ export async function streamCsvToParquet(
   const safeSrc = escapeSqlPath(filePath);
   const safeDst = escapeSqlPath(parquetPath);
   const compression = cfg.compression.toUpperCase();
-  const rowGroupSize = cfg.row_group_size;
+  const headerProbe = probeCsvHeaderMeta(filePath);
+  const isUltraWide = headerProbe.estimatedColCount > 200;
+  const rowGroupSize = isUltraWide
+    ? Math.max(cfg.row_group_size, 122880)
+    : cfg.row_group_size;
+  const sampleSize = isUltraWide ? 2048 : 20480;
+  if (isUltraWide) {
+    log.info(
+      `[TOAD Ingest] Ultra-wide CSV detected (~${headerProbe.estimatedColCount} cols): using adaptive ROW_GROUP_SIZE=${rowGroupSize}, sample_size=${sampleSize}`
+    );
+  }
   const isComplex = isComplexLogFile(filePath, cfg.safe_mode_keywords);
 
   // Layer 1: Neu la file log phuc tap (Hayabusa, Security, EventLog, v.v.):
@@ -3862,7 +4010,7 @@ export async function streamCsvToParquet(
           '${safeSrc}',
           ${defaultDelimClause || "delim = ',',"}
           auto_detect = true,
-          sample_size = 100000,
+          sample_size = ${sampleSize},
           ignore_errors = true,
           null_padding = true,
           parallel = ${cfg.safe_mode_parallel ? "true" : "false"},
@@ -3920,6 +4068,8 @@ export async function streamCsvToParquet(
       COPY (
         SELECT * FROM read_csv(
           '${safeSrc}',
+          auto_detect = true,
+          sample_size = ${sampleSize},
           header = true,
           ${defaultDelimClause || "delim = ',',"}
           ignore_errors = true,
@@ -3955,6 +4105,8 @@ export async function streamCsvToParquet(
         SELECT * FROM read_csv(
           '${safeSrc}',
           ${gzClause}
+          auto_detect = true,
+          sample_size = ${sampleSize},
           header = true,
           delim = '\\t',
           ignore_errors = true,
@@ -4015,7 +4167,7 @@ export async function streamCsvToParquet(
         '${safeSrc}',
         ${defaultDelimClause}
         auto_detect = true,
-        sample_size = 100000,
+        sample_size = ${sampleSize},
         ignore_errors = true,
         null_padding = true,
         all_varchar = true
@@ -4030,7 +4182,7 @@ export async function streamCsvToParquet(
         '${safeSrc}',
         ${defaultDelimClause}
         auto_detect = true,
-        sample_size = 100000,
+        sample_size = ${sampleSize},
         ignore_errors = true,
         null_padding = true,
         parallel = false,
@@ -4114,7 +4266,7 @@ export async function streamCsvToParquet(
         '${safeSrc}',
         ${defaultDelimClause}
         auto_detect = true,
-        sample_size = 100000,
+        sample_size = ${sampleSize},
         ignore_errors = true,
         null_padding = true,
         parallel = false,
@@ -4150,6 +4302,8 @@ export async function streamCsvToParquet(
     COPY (
       SELECT * FROM read_csv(
         '${safeSrc}',
+        auto_detect = true,
+        sample_size = ${sampleSize},
         header = true,
         ${defaultDelimClause || "delim = ',',"}
         ignore_errors = true,
@@ -4390,8 +4544,28 @@ export async function createViewFromParquet(
     throw new Error(`File Parquet tam rong: ${parquetPath}`);
   }
 
-  // Tạo VIEW thay vì TABLE (tiết kiệm RAM)
-  const query = `CREATE OR REPLACE VIEW ${viewName} AS SELECT * FROM parquet_scan('${safePath}')`;
+  // Tạo VIEW thay vì TABLE (tiết kiệm RAM) & loại bỏ UTF-8 BOM (\uFEFF) khỏi tên cột đầu nếu có
+  let query = `CREATE OR REPLACE VIEW ${viewName} AS SELECT * FROM parquet_scan('${safePath}')`;
+  try {
+    const descCols: any[] = await dbConn.all(
+      `DESCRIBE SELECT * FROM parquet_scan('${safePath}')`
+    );
+    if (Array.isArray(descCols) && descCols.length > 0) {
+      const rawCol0 = String(descCols[0]?.column_name || "");
+      if (rawCol0.startsWith("\uFEFF")) {
+        const cleanCol0 = rawCol0.replace(/^\uFEFF+/, "");
+        const otherNames = new Set(descCols.slice(1).map((c) => String(c?.column_name || "")));
+        if (cleanCol0.length > 0 && !otherNames.has(cleanCol0)) {
+          const escRaw = rawCol0.replace(/"/g, '""');
+          const escClean = cleanCol0.replace(/"/g, '""');
+          query = `CREATE OR REPLACE VIEW ${viewName} AS SELECT "${escRaw}" AS "${escClean}", * EXCLUDE ("${escRaw}") FROM parquet_scan('${safePath}')`;
+          log.info(`[Ingest Stage 5] Stripped UTF-8 BOM from first column: "${cleanCol0}"`);
+        }
+      }
+    }
+  } catch (bomErr) {
+    log.warn("[Ingest Stage 5] BOM check skipped:", bomErr);
+  }
   log.info("[Ingest Stage 5] Tao VIEW:", query);
   await dbConn.exec(query);
   log.info(
@@ -4895,6 +5069,11 @@ export const nativeCSVImport = async (
           }
         } catch { }
         fs.renameSync(targetParquetPath, parquetPath);
+        if (!cfg.temp_cleanup && cfg.max_cache_gb > 0 && cfg.temp_dir) {
+          try {
+            enforceParquetCacheLru(cfg.temp_dir, cfg.max_cache_gb, parquetPath);
+          } catch {}
+        }
         if (hadExistingParquet || options?.forceReopen) {
           emitCacheInvalidate({
             tableName,
@@ -5135,7 +5314,7 @@ export const nativeCSVImport = async (
         const t0_safe_hdr = performance.now();
         const rss0_safe_hdr = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
         try {
-          const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+          const queryHeader = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=2048, header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
           await dbConn.all(queryHeader);
           const elapsedMsHdr = performance.now() - t0_safe_hdr;
           const rssDeltaMBHdr = typeof process !== "undefined" && process.memoryUsage
@@ -5266,7 +5445,7 @@ export const nativeCSVImport = async (
       const t0_mem2b = performance.now();
       const rss0_mem2b = typeof process !== "undefined" && process.memoryUsage ? process.memoryUsage().rss : 0;
       try {
-        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
+        const query = `CREATE OR REPLACE TABLE ${tableName} AS SELECT * FROM read_csv('${safePath}', auto_detect=true, sample_size=2048, header=true, ${memDelimClause || "delim=',',"} ignore_errors=true, null_padding=true, parallel=false, all_varchar=true)`;
         await dbConn.all(query);
         const elapsedMs2b = performance.now() - t0_mem2b;
         const rssDeltaMB2b = typeof process !== "undefined" && process.memoryUsage

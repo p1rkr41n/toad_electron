@@ -134,6 +134,8 @@ export async function executeIngestWorkerJob(
             SELECT * FROM read_csv(
               '${safeSrc}',
               ${gzClause}
+              auto_detect = true,
+              sample_size = 2048,
               header = true,
               delim = ',',
               ignore_errors = true,
@@ -198,6 +200,8 @@ export async function executeIngestWorkerJob(
             SELECT * FROM read_csv(
               '${safeSrc}',
               ${gzClause}
+              auto_detect = true,
+              sample_size = 2048,
               header = true,
               ${defaultDelimClause || "delim = ',',"}
               ignore_errors = true,

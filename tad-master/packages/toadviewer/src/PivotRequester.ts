@@ -181,7 +181,7 @@ export function findBestTimeColumn(baseSchema: reltab.Schema): string | null {
           return c;
         }
       }
-    } catch {}
+    } catch { }
   }
 
   return null;
@@ -221,7 +221,10 @@ const requestQueryView = async (
   const effectiveFilterExp = viewParams.filterExp;
 
   let effectiveSortKey = viewParams.sortKey;
-  if (!effectiveSortKey || effectiveSortKey.length === 0) {
+  if (
+    (!effectiveSortKey || effectiveSortKey.length === 0) &&
+    baseSchema.columns.length <= 360
+  ) {
     const timeCol = findBestTimeColumn(baseSchema);
     if (timeCol) {
       effectiveSortKey = [[timeCol, false]]; // DESC sort for deterministic ordering
@@ -229,15 +232,69 @@ const requestQueryView = async (
   }
 
   const filterQuery = baseQuery.filter(effectiveFilterExp);
+
+  // SQL Projection Pushdown for non-pivoted wide tables:
+  // Only select displayed columns (+ sort columns) instead of SELECT * across 1,000+ columns.
+  let queryForPivot = filterQuery;
+  let schemaForPivot = baseSchema;
+  let aggMapForPivot = aggMap;
+  const shouldProject =
+    viewParams.vpivots.length === 0 &&
+    !viewParams.showHiddenCols &&
+    viewParams.displayColumns &&
+    viewParams.displayColumns.length > 0 &&
+    viewParams.displayColumns.length < baseSchema.columns.length;
+
+  if (shouldProject) {
+    const validBaseCols = new Set(baseSchema.columns);
+    const projectedSet = new Set<string>();
+    const projectedCols: string[] = [];
+    for (const cid of viewParams.displayColumns) {
+      if (validBaseCols.has(cid) && !projectedSet.has(cid)) {
+        projectedSet.add(cid);
+        projectedCols.push(cid);
+      }
+    }
+    if (effectiveSortKey) {
+      for (const [sortCol] of effectiveSortKey) {
+        if (validBaseCols.has(sortCol) && !projectedSet.has(sortCol)) {
+          projectedSet.add(sortCol);
+          projectedCols.push(sortCol);
+        }
+      }
+    }
+    if (showRecordCount && validBaseCols.has("Rec") && !projectedSet.has("Rec")) {
+      projectedSet.add("Rec");
+      projectedCols.push("Rec");
+    }
+
+    const sqlProjectCols = projectedCols.filter((c) => c !== "Rec");
+    if (sqlProjectCols.length > 0 && sqlProjectCols.length < baseSchema.columns.length) {
+      queryForPivot = filterQuery.project(sqlProjectCols);
+      const projMeta: reltab.ColumnMetaMap = {};
+      for (const cid of projectedCols) {
+        if (baseSchema.columnMetadata[cid]) {
+          projMeta[cid] = baseSchema.columnMetadata[cid];
+        }
+      }
+      schemaForPivot = new reltab.Schema(baseSchema.dialect, projectedCols, projMeta);
+      const nextAggMap: any = {};
+      for (const cid of projectedCols) {
+        nextAggMap[cid] = aggMap[cid];
+      }
+      aggMapForPivot = nextAggMap;
+    }
+  }
+
   const ptree = await aggtree.vpivot(
     rt,
-    filterQuery,
-    baseSchema,
+    queryForPivot,
+    schemaForPivot,
     viewParams.vpivots,
     viewParams.pivotLeafColumn,
     viewParams.showRoot,
     effectiveSortKey,
-    aggMap,
+    aggMapForPivot,
     showRecordCount
   );
   const treeQuery = await ptree.getSortedTreeQuery(viewParams.openPaths); // const t0 = performance.now()  // eslint-disable-line
@@ -320,10 +377,10 @@ const requestDataView = async (
 
 const vsUpdate =
   (f: (vs: ViewState) => ViewState) =>
-  (s: AppState): AppState =>
-    s.update("viewState", (vs: ViewState | null) =>
-      vs == null ? null : f(vs)
-    ) as AppState;
+    (s: AppState): AppState =>
+      s.update("viewState", (vs: ViewState | null) =>
+        vs == null ? null : f(vs)
+      ) as AppState;
 
 /* for debugging: */
 function getObjectDiff(obj1: any, obj2: any) {
@@ -340,7 +397,7 @@ function getObjectDiff(obj1: any, obj2: any) {
   return diff;
 }
 
-const noopSetLoadingCallback = (loading: boolean) => {};
+const noopSetLoadingCallback = (loading: boolean) => { };
 
 /**
  * A PivotRequester listens for changes on the appState and viewport and
@@ -495,6 +552,11 @@ export class PivotRequester {
         err.message,
         err.stack
       );
+      // Reset pending buffer bounds so scrolling or retry can recover instead of freezing at 100 rows
+      const latestDv = mutableGet(stateRef).viewState?.dataView;
+      this.pendingDataRequest = null;
+      this.pendingOffset = latestDv ? latestDv.offset : 0;
+      this.pendingLimit = latestDv && latestDv.rawData ? latestDv.rawData.length : 0;
       if (typeof window !== "undefined") {
         window.dispatchEvent(
           new CustomEvent("toad-query-error", {
@@ -619,7 +681,7 @@ export class PivotRequester {
           if (
             curState.viewState &&
             ((requestDsPath && JSON.stringify(curState.viewState.dsPath) !== JSON.stringify(requestDsPath)) ||
-             (requestBaseQuery && curState.viewState.baseQuery !== requestBaseQuery))
+              (requestBaseQuery && curState.viewState.baseQuery !== requestBaseQuery))
           ) {
             console.warn("PivotRequester: Bo qua QueryView cu vi nguoi dung da chuyen view.");
             return null as any;
@@ -649,10 +711,22 @@ export class PivotRequester {
           const vp = curVs?.viewParams;
           const baseSchema = curVs?.baseSchema;
           const pSize = curVs?.pageSize || this.pageSize || 1000;
-          const expectedLimit = Math.min(queryView.rowCount, pSize * 3);
+          const expectedLimit = Math.min(queryView.rowCount, pSize);
+          const hasImplicitSort =
+            (!vp?.sortKey || vp.sortKey.length === 0) &&
+            baseSchema != null &&
+            baseSchema.columns.length <= 360 &&
+            findBestTimeColumn(baseSchema) !== null;
+          const hasAnySort = (vp?.sortKey && vp.sortKey.length > 0) || hasImplicitSort;
+
+          const dvColSet = new Set(dv?.schema?.columns || []);
+          const requiredCols = vp?.displayColumns || [];
+          const dvCoversDisplayCols =
+            requiredCols.length > 0 && requiredCols.every((c: string) => dvColSet.has(c));
 
           const canReusePreloadedBuffer =
             !baseQueryChanged &&
+            !hasAnySort &&
             dv != null &&
             dv.rawData &&
             dv.rawData.length > 0 &&
@@ -661,12 +735,7 @@ export class PivotRequester {
             dv.pageSize === pSize &&
             dv.rawData.length >= expectedLimit &&
             (!vp || (vp.vpivots.length === 0 && vp.filterExp.opArgs.length === 0)) &&
-            dv.schema &&
-            baseSchema &&
-            dv.schema.columns &&
-            baseSchema.columns &&
-            dv.schema.columns.length === baseSchema.columns.length &&
-            dv.schema.columns.every((c: string, i: number) => c === baseSchema.columns[i]);
+            dvCoversDisplayCols;
 
           if (canReusePreloadedBuffer) {
             this.pendingDataRequest = null;

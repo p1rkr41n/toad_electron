@@ -188,7 +188,7 @@ export const replaceCurrentView = async (
     }
     const pSize = getDefaultPageSize();
     initialDataView = new PagedDataView(
-      baseSchema,
+      ramCache.tableRep.schema || baseSchema,
       ramCache.totalRowCount,
       0,
       rowData,

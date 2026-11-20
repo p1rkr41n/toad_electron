@@ -195,7 +195,8 @@ export class V8HostAdapter implements IHostBridge {
           row_group_size: 25000,
         },
         system: {
-          temp_cleanup: true,
+          temp_cleanup: false,
+          max_cache_gb: 10,
           binary_guard: true,
         },
       };

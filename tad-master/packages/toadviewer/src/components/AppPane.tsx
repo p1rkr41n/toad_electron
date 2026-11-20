@@ -42,6 +42,7 @@ export const getAppToaster = () => {
 import { GridPane, OpenURLFn } from "./GridPane";
 import { EventDetailSidebar } from "./EventDetailSidebar";
 import { DataRow } from "../PagedDataView";
+import { findBestTimeColumn } from "../PivotRequester";
 import { Footer, FooterControl } from "./Footer";
 import { RegexDialog } from "./RegexDialog";
 import * as actions from "../actions";
@@ -510,6 +511,39 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     return () => clearTimeout(timer);
   }, [expandedEvent]);
 
+  // Non-blocking Query Error / Timeout Toast with Retry action
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let lastErrorToastAt = 0;
+    const handleQueryError = (e: Event) => {
+      const now = Date.now();
+      if (now - lastErrorToastAt < 1500) return;
+      lastErrorToastAt = now;
+      const detailMsg = (e as CustomEvent)?.detail?.message || "Query failed or timed out";
+      try {
+        const toaster = getAppToaster();
+        if (toaster) {
+          toaster.show({
+            message: `Query warning: ${detailMsg}`,
+            intent: Intent.WARNING,
+            icon: "warning-sign",
+            timeout: 8000,
+            action: {
+              text: "Retry",
+              onClick: () => {
+                actions.reopenCurrentView(stateRef).catch(() => {});
+              },
+            },
+          });
+        }
+      } catch {}
+    };
+    window.addEventListener("toad-query-error", handleQueryError);
+    return () => {
+      window.removeEventListener("toad-query-error", handleQueryError);
+    };
+  }, [stateRef]);
+
   // Engine Auto-Recovery: BlueprintJS v4 non-blocking toast & view refresh
   useEffect(() => {
     let bridge: any = null;
@@ -672,6 +706,38 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
               onClose={handleCloseDetail}
               clipboard={clipboard}
               onAddFilter={handleAddFilterFromDetail}
+              fetchFullRow={
+                viewState.dbc &&
+                viewState.baseQuery &&
+                viewState.viewParams.vpivots.length === 0
+                  ? async () => {
+                      const targetOffset =
+                        ((viewState.currentPage || 1) - 1) *
+                          (viewState.pageSize || 1000) +
+                        expandedEvent.rowIndex;
+                      let fullQuery = viewState.baseQuery.filter(
+                        viewState.viewParams.filterExp
+                      );
+                      let effectiveSort = viewState.viewParams.sortKey;
+                      if (
+                        (!effectiveSort || effectiveSort.length === 0) &&
+                        viewState.baseSchema.columns.length <= 360
+                      ) {
+                        const tc = findBestTimeColumn(viewState.baseSchema);
+                        if (tc) effectiveSort = [[tc, false]];
+                      }
+                      if (effectiveSort && effectiveSort.length > 0) {
+                        fullQuery = fullQuery.sort(effectiveSort);
+                      }
+                      const rep = await viewState.dbc.evalQuery(
+                        fullQuery,
+                        targetOffset,
+                        1
+                      );
+                      return (rep?.rowData?.[0] as DataRow) || null;
+                    }
+                  : undefined
+              }
             />
           )}
         </div>

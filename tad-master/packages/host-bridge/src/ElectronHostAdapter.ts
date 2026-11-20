@@ -276,12 +276,17 @@ export class ElectronHostAdapter extends V8HostAdapter {
     if (this.dataPort && typeof this.dataPort.postMessage === "function") {
       try {
         const payload = this.normalizePortPayload(targetCmd, args);
-        return await this.sendOverDataPort<Uint8Array>(targetCmd, payload, true, 30000);
+        return await this.sendOverDataPort<Uint8Array>(targetCmd, payload, true, 120000);
       } catch (portErr: any) {
+        const errMsg = String(portErr?.message || "");
+        const isQueryTimeout =
+          targetCmd === "DataSourceConnection.evalQuery" &&
+          errMsg.includes("MessagePort timeout");
         if (
           !this.hasIpcFallback() ||
           portErr?.isEngineApplicationError ||
-          String(portErr?.message || "").includes("Port reset")
+          errMsg.includes("Port reset") ||
+          isQueryTimeout
         ) {
           throw portErr;
         }

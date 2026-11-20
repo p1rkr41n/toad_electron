@@ -165,7 +165,8 @@ type ColWidthMap = { [cid: string]: number };
 
 function getInitialColWidthsMap(
   getColumnFormatter: (schema: reltab.Schema, cid: string) => CellFormatter,
-  dataView: PagedDataView
+  dataView: PagedDataView,
+  displayColumns?: string[]
 ): ColWidthMap {
   // let's approximate the column width:
   var colWidths: ColWidthMap = {};
@@ -180,11 +181,18 @@ function getInitialColWidthsMap(
   if (!initRow) {
     return {};
   }
-  for (let cnm in initRow) {
+  const targetCols =
+    displayColumns && displayColumns.length > 0
+      ? displayColumns
+      : Object.keys(initRow);
+  for (let cnm of targetCols) {
     if (cnm.startsWith("_") && cnm !== "_pivot") {
       continue;
     }
     colWidths[cnm] = getColWidth(getColumnFormatter, dataView, cnm);
+  }
+  if ("_pivot" in initRow && colWidths["_pivot"] === undefined) {
+    colWidths["_pivot"] = getColWidth(getColumnFormatter, dataView, "_pivot");
   }
 
   return colWidths;
@@ -1902,7 +1910,7 @@ const createGridState = (
     return { grid: null, colWidthsMap: {}, slickColMap: {}, containerId };
   }
 
-  const colWidthsMap = getInitialColWidthsMap(getColumnFormatter, dataView);
+  const colWidthsMap = getInitialColWidthsMap(getColumnFormatter, dataView, displayColumns);
   const slickColMap = mkSlickColMap(
     dataView.schema,
     getColumnFormatter,

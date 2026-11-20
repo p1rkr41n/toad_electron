@@ -22,7 +22,7 @@ if (
 ) {
   try {
     (global as any).toadPortableEnv = JSON.parse(process.env.TOAD_PORTABLE_ENV_JSON);
-  } catch {}
+  } catch { }
 }
 
 import * as reltab from "reltab";
@@ -45,13 +45,13 @@ export function forwardEngineLogs(entries: any[]): void {
     try {
       parent.postMessage({ type: "toad:log", entries });
       return;
-    } catch {}
+    } catch { }
   }
   if (typeof process !== "undefined" && typeof process.send === "function") {
     try {
       process.send({ type: "toad:log", entries });
       return;
-    } catch {}
+    } catch { }
   }
   try {
     const ToadLogger = require("./toadLogger").ToadLogger;
@@ -59,7 +59,7 @@ export function forwardEngineLogs(entries: any[]): void {
       ToadLogger.ingestBatch(entries);
       return;
     }
-  } catch {}
+  } catch { }
 }
 
 function postToSupervisor(msg: any): void {
@@ -68,12 +68,12 @@ function postToSupervisor(msg: any): void {
     try {
       parent.postMessage(msg);
       return;
-    } catch {}
+    } catch { }
   }
   if (typeof process !== "undefined" && typeof process.send === "function") {
     try {
       process.send(msg);
-    } catch {}
+    } catch { }
   }
 }
 
@@ -145,7 +145,7 @@ export function mapLedgerFilesToProjectDto(files: any[], fallbackProjectId?: str
         folderRoot = ex.folderRoot;
         folderName = ex.folderName;
         relPath = ex.relPath;
-      } catch {}
+      } catch { }
     }
     return {
       filePath: f.source_path,
@@ -326,7 +326,7 @@ class EngineService {
           if (uiRawConn || (uiDriver && uiDriver !== primaryDriver)) {
             try {
               await runDdlOnConn(uiRawConn, uiDriver, sql, viewIdent);
-            } catch {}
+            } catch { }
           }
         };
 
@@ -354,7 +354,7 @@ class EngineService {
                     if (ex && typeof ex.view === "string" && ex.view.trim()) {
                       persistedView = ex.view.trim();
                     }
-                  } catch {}
+                  } catch { }
                 }
 
                 let baseIdent = "";
@@ -426,7 +426,7 @@ class EngineService {
               if (uiRawConn && typeof uiRawConn.exec === "function") {
                 try {
                   await uiRawConn.exec(batchSql);
-                } catch {}
+                } catch { }
               }
               batchOk = true;
               restoredCount += preparedViews.length;
@@ -454,7 +454,7 @@ class EngineService {
                   if (uiRawConn && typeof uiRawConn.exec === "function") {
                     try {
                       await uiRawConn.exec(dropAndCreateBatch);
-                    } catch {}
+                    } catch { }
                   }
                   batchOk = true;
                   restoredCount += preparedViews.length;
@@ -468,7 +468,7 @@ class EngineService {
                       }
                     }
                   }
-                } catch {}
+                } catch { }
               }
             }
           }
@@ -615,7 +615,16 @@ class EngineService {
         if (this.initPromise && !this.isInitialized) {
           await this.initPromise;
         }
-        const data = await this.executeRpcCommand(msg.cmd, msg.payload);
+        const rawData = await this.executeRpcCommand(msg.cmd, msg.payload);
+        let data = rawData;
+        if (rawData instanceof reltab.TableRep) {
+          data = {
+            schema: rawData.schema.toJSON(),
+            rowData: rawData.rowData,
+          };
+        } else if (rawData && typeof rawData.toJSON === "function" && !(rawData instanceof Uint8Array)) {
+          data = rawData.toJSON();
+        }
         replyFn({ type: "supervisor-rpc-result", rpcId: msg.rpcId, ok: true, data });
       } catch (err: any) {
         replyFn({
@@ -850,7 +859,7 @@ class EngineService {
     log.info("[EngineService] Shutting down DuckDB engine & flushing Ledger WAL...");
     try {
       await reltabDuckDB.ToadParquetLedger.getInstance().flushWal();
-    } catch {}
+    } catch { }
     if (this.unsubscribeLedger) {
       this.unsubscribeLedger();
       this.unsubscribeLedger = null;
@@ -859,7 +868,7 @@ class EngineService {
       if (p && typeof p.close === "function") {
         try {
           p.close();
-        } catch {}
+        } catch { }
       }
     }
     this.dataPorts.clear();

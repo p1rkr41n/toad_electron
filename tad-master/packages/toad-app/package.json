@@ -1,6 +1,6 @@
 {
   "name": "toad-app",
-  "version": "2.6.0.3",
+  "version": "2.6.0.4",
   "homepage": "https://github.com/HelloKittyXamKinLung/Toad",
   "description": "Tabular data viewer desktop app (Toad)",
   "main": "dist/main.bundle.js",

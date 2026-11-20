@@ -316,7 +316,11 @@ export class RemoteDataSourceConnection implements DataSourceConnection {
           return deserializeTableRepJson(unwrapped);
         }
       } catch (err: any) {
-        if (err && err.isEngineApplicationError) {
+        if (
+          err &&
+          (err.isEngineApplicationError ||
+            String(err.message || "").includes("MessagePort timeout"))
+        ) {
           throw err;
         }
         console.warn("[RemoteConnection] invokeBinary evalQuery failed, falling back:", err);

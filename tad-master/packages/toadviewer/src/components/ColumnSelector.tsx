@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import * as actions from "../actions";
 import { IndeterminateCheckbox } from "./IndeterminateCheckbox";
 import { ViewParams } from "../ViewParams";
@@ -86,15 +86,47 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
     });
   }, [searchQuery, columnIds, schema]);
 
-  const scrollToTarget = useCallback((cid: string) => {
-    setSelectedTargetCol(cid);
-    requestAnimationFrame(() => {
-      const el = document.getElementById("col-row-" + cid);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const [scrollTop, setScrollTop] = useState<number>(0);
+  const [viewportHeight, setViewportHeight] = useState<number>(360);
+  const ROW_HEIGHT = 28;
+  const OVERSCAN = 8;
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return;
+    const updateHeight = () => {
+      if (el.clientHeight > 0) {
+        setViewportHeight(el.clientHeight);
       }
-    });
+    };
+    updateHeight();
+    if (typeof ResizeObserver !== "undefined") {
+      const ro = new ResizeObserver(updateHeight);
+      ro.observe(el);
+      return () => ro.disconnect();
+    }
   }, []);
+
+  const scrollToTarget = useCallback(
+    (cid: string) => {
+      setSelectedTargetCol(cid);
+      const idx = columnIds.indexOf(cid);
+      if (idx !== -1 && bodyRef.current) {
+        const targetTop = Math.max(0, idx * ROW_HEIGHT - Math.floor(viewportHeight / 2));
+        bodyRef.current.scrollTop = targetTop;
+        setScrollTop(targetTop);
+      } else {
+        requestAnimationFrame(() => {
+          const el = document.getElementById("col-row-" + cid);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+        });
+      }
+    },
+    [columnIds, viewportHeight]
+  );
 
   useEffect(() => {
     if (matchingCols.length > 0) {
@@ -314,6 +346,29 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
     setIsDirty(false);
   };
 
+  const activeDisplaySet = useMemo(
+    () => new Set(isRealtime ? viewParams.displayColumns : stagedDisplayColumns),
+    [isRealtime, viewParams.displayColumns, stagedDisplayColumns]
+  );
+  const activePivotSet = useMemo(
+    () => new Set(isRealtime ? viewParams.vpivots : stagedVpivots),
+    [isRealtime, viewParams.vpivots, stagedVpivots]
+  );
+  const activeSortSet = useMemo(
+    () =>
+      new Set(
+        (isRealtime ? viewParams.sortKey : stagedSortKey).map((entry) => entry[0])
+      ),
+    [isRealtime, viewParams.sortKey, stagedSortKey]
+  );
+  const stagedTopRankMap = useMemo(() => {
+    const m = new Map<string, number>();
+    if (!isRealtime) {
+      stagedTopCols.forEach((cid, idx) => m.set(cid, idx + 1));
+    }
+    return m;
+  }, [isRealtime, stagedTopCols]);
+
   const renderColumnRow = (cid: string) => {
     const displayName = schema.displayName(cid);
     let colTypeName = "val";
@@ -323,20 +378,13 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
       colTypeName = "val";
     }
 
-    const isShown = isRealtime
-      ? viewParams.displayColumns.includes(cid)
-      : stagedDisplayColumns.includes(cid);
-    const isPivot = isRealtime
-      ? viewParams.vpivots.includes(cid)
-      : stagedVpivots.includes(cid);
-    const isSort = isRealtime
-      ? viewParams.sortKey.findIndex((entry) => entry[0] === cid) !== -1
-      : stagedSortKey.findIndex((entry) => entry[0] === cid) !== -1;
+    const isShown = activeDisplaySet.has(cid);
+    const isPivot = activePivotSet.has(cid);
+    const isSort = activeSortSet.has(cid);
 
     const isEditing = editingColId === cid;
-    const topIndex = stagedTopCols.indexOf(cid);
-    const isTop = !isRealtime && topIndex !== -1;
-    const topRank = isTop ? topIndex + 1 : null;
+    const topRank = stagedTopRankMap.get(cid) ?? null;
+    const isTop = topRank !== null;
     const isTarget = selectedTargetCol === cid;
 
     const rowClasses = [
@@ -447,9 +495,9 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
       : stagedDisplayColumns;
     const allShown =
       columnIds.length > 0 &&
-      columnIds.every((cid) => currentCols.includes(cid));
+      columnIds.every((cid) => activeDisplaySet.has(cid));
     const someShown =
-      currentCols.length > 0 && !allShown;
+      activeDisplaySet.size > 0 && !allShown;
 
     return (
       <tr className="all-row">
@@ -490,7 +538,20 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   };
 
   const allRow = renderAllRow();
-  const columnRows = columnIds.map((cid) => renderColumnRow(cid));
+  const shouldVirtualize = columnIds.length > 120;
+  const totalCount = columnIds.length;
+  const startIdx = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+    : 0;
+  const visibleCount = shouldVirtualize
+    ? Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2
+    : totalCount;
+  const endIdx = shouldVirtualize
+    ? Math.min(totalCount, startIdx + visibleCount)
+    : totalCount;
+  const topPad = shouldVirtualize ? startIdx * ROW_HEIGHT : 0;
+  const bottomPad = shouldVirtualize ? Math.max(0, (totalCount - endIdx) * ROW_HEIGHT) : 0;
+  const columnRows = columnIds.slice(startIdx, endIdx).map((cid) => renderColumnRow(cid));
 
   return (
     <div className="column-selector-wrapper">
@@ -604,9 +665,29 @@ export const ColumnSelector: React.FC<ColumnSelectorProps> = ({
             <tbody>{allRow}</tbody>
           </table>
         </div>
-        <div className="column-selector-body">
+        <div
+          ref={bodyRef}
+          className="column-selector-body"
+          onScroll={
+            shouldVirtualize
+              ? (e) => setScrollTop(e.currentTarget.scrollTop)
+              : undefined
+          }
+        >
           <table className="table table-condensed table-hover column-selector-table">
-            <tbody>{columnRows}</tbody>
+            <tbody>
+              {topPad > 0 && (
+                <tr aria-hidden="true" style={{ height: `${topPad}px` }}>
+                  <td colSpan={6} style={{ padding: 0, border: 0 }} />
+                </tr>
+              )}
+              {columnRows}
+              {bottomPad > 0 && (
+                <tr aria-hidden="true" style={{ height: `${bottomPad}px` }}>
+                  <td colSpan={6} style={{ padding: 0, border: 0 }} />
+                </tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>

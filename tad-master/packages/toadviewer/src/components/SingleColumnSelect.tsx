@@ -9,30 +9,31 @@ export interface SingleColumnSelectProps {
   onChange: (event: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
-export const SingleColumnSelect: React.FC<SingleColumnSelectProps> = ({
+export const SingleColumnSelect: React.FC<SingleColumnSelectProps> = React.memo(({
   schema,
   label,
   value,
   disabled,
   onChange,
 }) => {
-  const renderColOption = (cid: string): JSX.Element => (
-    <option key={cid} value={cid}>
-      {schema.displayName(cid)}
-    </option>
-  );
+  const colOptions = React.useMemo(() => {
+    const columnIds = schema.columns.slice();
+    columnIds.sort((cid1, cid2) =>
+      schema.displayName(cid1).localeCompare(schema.displayName(cid2))
+    );
+    const opts = columnIds.map((cid) => (
+      <option key={cid} value={cid}>
+        {schema.displayName(cid)}
+      </option>
+    ));
+    opts.unshift(
+      <option key="__none" value="__none">
+        none
+      </option>
+    );
+    return opts;
+  }, [schema]);
 
-  const columnIds = schema.columns.slice();
-  columnIds.sort((cid1, cid2) =>
-    schema.displayName(cid1).localeCompare(schema.displayName(cid2))
-  );
-  const colOptions = columnIds.map((cid) => renderColOption(cid));
-  const noneOption = (
-    <option key="__none" value="__none">
-      none
-    </option>
-  );
-  colOptions.unshift(noneOption);
   const propVal = value;
   const selVal = propVal === null ? "__none" : propVal;
   return (
@@ -48,4 +49,4 @@ export const SingleColumnSelect: React.FC<SingleColumnSelectProps> = ({
       </select>
     </div>
   );
-};
+});

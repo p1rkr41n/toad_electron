@@ -47,6 +47,7 @@ export interface AppConfigDTO {
   };
   system: {
     temp_cleanup: boolean;
+    max_cache_gb?: number;
     binary_guard: boolean;
   };
 }

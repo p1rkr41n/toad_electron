@@ -92,6 +92,10 @@ export const PivotSidebar: React.FC<PivotSidebarProps> = ({
     setTabResetCounter((prev) => prev + 1);
   };
 
+  if (!expanded) {
+    return <Sidebar expanded={false}>{null}</Sidebar>;
+  }
+
   return (
     <Sidebar expanded={expanded}>
       <div className="ui-block">
@@ -125,7 +129,12 @@ export const PivotSidebar: React.FC<PivotSidebarProps> = ({
       </div>
       <div className="ui-block addl-col-props">
         <h5 className="bp4-heading">Additional Properties</h5>
-        <Tabs animate={false} id="ColumnPropTabs" onChange={handleTabChange}>
+        <Tabs
+          animate={false}
+          renderActiveTabPanelOnly={true}
+          id="ColumnPropTabs"
+          onChange={handleTabChange}
+        >
           <Tab id="shownColumnsTab" title="Order" panel={displayPanel} />
           <Tab id="pivotColumnsTab" title="Pivot" panel={pivotPanel} />
           <Tab id="sortColumnsTab" title="Sort" panel={sortPanel} />

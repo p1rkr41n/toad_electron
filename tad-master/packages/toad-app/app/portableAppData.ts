@@ -46,6 +46,7 @@ export interface ToadConfig {
   };
   system: {
     temp_cleanup: boolean;
+    max_cache_gb?: number;
     binary_guard: boolean;
     uv_threadpool_size?: number | "auto";
     log_level: "info" | "trace" | "debug" | "warn" | "error";
@@ -106,7 +107,8 @@ export const DEFAULT_CONFIG: ToadConfig = {
     row_group_size: 25000,
   },
   system: {
-    temp_cleanup: true,
+    temp_cleanup: false,
+    max_cache_gb: 10,
     binary_guard: true,
     uv_threadpool_size: "auto",
     log_level: "info",
@@ -194,9 +196,14 @@ row_group_size = 25000
 
 [system]
 # Automatically clean up temporary Parquet files on exit:
-#   - true  : Clean temp folder on exit (RECOMMENDED)
-#   - false : Keep Parquet files for persistent caching
-temp_cleanup = true
+#   - false : (RECOMMENDED) Keep Parquet files for persistent caching (<1s reopen)
+#   - true  : Clean temp folder on exit
+temp_cleanup = false
+
+# Maximum persistent Parquet cache size in GB (LRU eviction of oldest files when exceeded):
+#   - 10 : (RECOMMENDED) Cap cache at 10 GB
+#   - 0  : Unlimited (manual Purge Cache only)
+max_cache_gb = 10
 
 # Protect against accidental binary file ingestion (Binary Guard):
 #   - true  : Scans first 8KB, rejects binary files (RECOMMENDED)
@@ -378,6 +385,7 @@ row_group_size = ${cfg.parquet.row_group_size}
 
 [system]
 temp_cleanup = ${cfg.system.temp_cleanup}
+max_cache_gb = ${cfg.system.max_cache_gb ?? 10}
 binary_guard = ${cfg.system.binary_guard}
 uv_threadpool_size = ${cfg.system.uv_threadpool_size ?? "auto"}
 log_level = ${cfg.system.log_level ?? "info"}
@@ -450,6 +458,7 @@ export function autoHealIniText(rawContent: string, cfg: ToadConfig): string {
     },
     system: {
       temp_cleanup: String(cfg.system.temp_cleanup),
+      max_cache_gb: String(cfg.system.max_cache_gb ?? 10),
       binary_guard: String(cfg.system.binary_guard),
       uv_threadpool_size: String(cfg.system.uv_threadpool_size ?? "auto"),
       log_level: String(cfg.system.log_level ?? "info"),
@@ -760,6 +769,19 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       ? String(parsed.system.temp_cleanup).toLowerCase() === "true"
       : DEFAULT_CONFIG.system.temp_cleanup;
 
+  let max_cache_gb = DEFAULT_CONFIG.system.max_cache_gb ?? 10;
+  if (parsed.system?.max_cache_gb !== undefined) {
+    const parsedCacheGb = Number(parsed.system.max_cache_gb);
+    if (!isNaN(parsedCacheGb) && parsedCacheGb >= 0) {
+      max_cache_gb = parsedCacheGb;
+    } else {
+      max_cache_gb = DEFAULT_CONFIG.system.max_cache_gb ?? 10;
+      needRewrite = true;
+    }
+  } else {
+    needRewrite = true;
+  }
+
   const binary_guard =
     parsed.system?.binary_guard !== undefined
       ? String(parsed.system.binary_guard).toLowerCase() === "true"
@@ -822,7 +844,7 @@ export function validateAndEnsureConfig(configPath: string): ToadConfig {
       compression: compression as ToadConfig["parquet"]["compression"],
       row_group_size,
     },
-    system: { temp_cleanup, binary_guard, uv_threadpool_size, log_level },
+    system: { temp_cleanup, max_cache_gb, binary_guard, uv_threadpool_size, log_level },
   };
 
   // Auto-Heal: rewrite config if missing keys or invalid values were repaired
@@ -1137,6 +1159,89 @@ export function purgeOrphanTempFiles(tempDir: string): number {
 // ENTRYPOINT: Portable Environment Bootstrap
 // =============================================================================
 
+/**
+ * Enforces an LRU disk budget on persistent Parquet cache files in tempDir.
+ * Deletes oldest *_cached_*.parquet files (by atimeMs/mtimeMs) until total size <= 85% of cap.
+ * Never touches ledger files (*_ledger.parquet, *.wal.jsonl) or protectedPaths.
+ */
+export function enforceCacheLruCap(
+  tempDir: string,
+  maxCacheGb: number,
+  protectedPaths?: Set<string>
+): { evictedFiles: number; freedBytes: number } {
+  if (!tempDir || !fs.existsSync(tempDir) || !Number.isFinite(maxCacheGb) || maxCacheGb <= 0) {
+    return { evictedFiles: 0, freedBytes: 0 };
+  }
+
+  const maxBytes = maxCacheGb * 1024 * 1024 * 1024;
+  const targetBytes = Math.floor(maxBytes * 0.85);
+  const protectedNorm = new Set<string>();
+  if (protectedPaths) {
+    for (const p of protectedPaths) {
+      if (p) protectedNorm.add(path.resolve(p).replace(/\\/g, "/").toLowerCase());
+    }
+  }
+
+  const entries: Array<{ fullPath: string; size: number; lastUsedMs: number }> = [];
+  const walk = (dir: string): void => {
+    let items: string[] = [];
+    try {
+      items = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+    for (const item of items) {
+      if (
+        item === "toad_ledger.parquet" ||
+        item.endsWith("_ledger.parquet") ||
+        item.endsWith(".wal.jsonl")
+      ) {
+        continue;
+      }
+      const fullPath = path.join(dir, item);
+      try {
+        const stat = fs.statSync(fullPath);
+        if (stat.isDirectory()) {
+          walk(fullPath);
+        } else if (item.endsWith(".parquet") && !item.includes(".tmp_")) {
+          const lastUsedMs = Math.max(stat.atimeMs || 0, stat.mtimeMs || 0);
+          entries.push({ fullPath, size: stat.size, lastUsedMs });
+        }
+      } catch {}
+    }
+  };
+
+  walk(tempDir);
+
+  let totalBytes = entries.reduce((acc, e) => acc + e.size, 0);
+  if (totalBytes <= maxBytes) {
+    return { evictedFiles: 0, freedBytes: 0 };
+  }
+
+  entries.sort((a, b) => a.lastUsedMs - b.lastUsedMs);
+
+  let evictedFiles = 0;
+  let freedBytes = 0;
+  for (const entry of entries) {
+    if (totalBytes <= targetBytes) break;
+    const norm = path.resolve(entry.fullPath).replace(/\\/g, "/").toLowerCase();
+    if (protectedNorm.has(norm)) continue;
+    try {
+      fs.unlinkSync(entry.fullPath);
+      totalBytes -= entry.size;
+      freedBytes += entry.size;
+      evictedFiles++;
+      log.info(
+        `[CacheLRU] Evicted oldest Parquet cache: ${path.basename(entry.fullPath)} (${(entry.size / (1024 * 1024)).toFixed(1)} MB)`
+      );
+    } catch (err: any) {
+      log.warn(`[CacheLRU] Could not evict ${path.basename(entry.fullPath)}:`, err?.message);
+    }
+  }
+
+  return { evictedFiles, freedBytes };
+}
+
 export function initPortableEnvironment(): PortableEnvironment {
   log.info("=== [PortableAppData] Initializing Portable Environment ===");
 
@@ -1171,6 +1276,15 @@ export function initPortableEnvironment(): PortableEnvironment {
     cleanTempDir(tempDir);
   } else {
     log.info("[PortableAppData] temp_cleanup = false -> Preserving Parquet cache in temp/");
+    const maxCacheGb = config.system.max_cache_gb ?? 10;
+    if (maxCacheGb > 0) {
+      const lru = enforceCacheLruCap(tempDir, maxCacheGb);
+      if (lru.evictedFiles > 0) {
+        log.info(
+          `[PortableAppData] Startup LRU cap (${maxCacheGb} GB) evicted ${lru.evictedFiles} files (${(lru.freedBytes / (1024 * 1024)).toFixed(1)} MB freed)`
+        );
+      }
+    }
   }
 
   // Export environment variables for IPC and child processes
