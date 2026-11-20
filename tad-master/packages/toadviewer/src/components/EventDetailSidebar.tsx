@@ -21,6 +21,7 @@ export interface EventDetailSidebarProps {
   onClose: () => void;
   clipboard?: SimpleClipboard;
   onAddFilter?: (cid: string, value: any, displayName: string) => void;
+  fetchKey?: string;
   fetchFullRow?: () => Promise<DataRow | null>;
 }
 
@@ -64,6 +65,7 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
   onClose,
   clipboard,
   onAddFilter,
+  fetchKey,
   fetchFullRow,
 }) => {
   const [sidebarWidth, setSidebarWidth] = useState<number>(440);
@@ -79,35 +81,64 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
     () => (schema?.columns?.length || 0) <= 50
   );
 
-  // On-demand single-row fetch for projected wide tables (e.g., 1,656 cols)
+  const fetchFullRowRef = useRef(fetchFullRow);
+  fetchFullRowRef.current = fetchFullRow;
+  const rowDataRef = useRef(rowData);
+  rowDataRef.current = rowData;
+  const schemaRef = useRef(schema);
+  schemaRef.current = schema;
+  const lastFetchedKeyRef = useRef<string | null>(null);
+
+  const effectiveFetchKey = fetchKey ?? `${rowIndex ?? ""}::${globalRowIndex ?? ""}`;
+
+  // On-demand single-row fetch for projected wide tables (e.g., 1,656 cols).
+  // Strictly keyed by effectiveFetchKey so AppPane re-renders / resize / viewport updates never re-trigger queries.
   useEffect(() => {
-    let cancelled = false;
-    setFullRowOverride(null);
-    if (!fetchFullRow || !rowData) {
+    const fn = fetchFullRowRef.current;
+    const curRow = rowDataRef.current;
+    const curSchema = schemaRef.current;
+    if (!fn || !curRow || !effectiveFetchKey) {
+      lastFetchedKeyRef.current = null;
+      setFullRowOverride(null);
       setIsLoadingFullRow(false);
       return;
     }
-    const visibleKeys = Object.keys(rowData).filter((k) => !k.startsWith("_")).length;
-    const totalSchemaCols = (schema?.columns || []).filter((c) => !c.startsWith("_") && c !== "Rec").length;
+    if (lastFetchedKeyRef.current === effectiveFetchKey) {
+      return;
+    }
+    const visibleKeys = Object.keys(curRow).filter((k) => !k.startsWith("_")).length;
+    const totalSchemaCols = (curSchema?.columns || []).filter(
+      (c) => !c.startsWith("_") && c !== "Rec"
+    ).length;
     if (totalSchemaCols <= visibleKeys) {
+      lastFetchedKeyRef.current = effectiveFetchKey;
+      setFullRowOverride(null);
       setIsLoadingFullRow(false);
       return;
     }
+
+    let cancelled = false;
+    lastFetchedKeyRef.current = effectiveFetchKey;
+    setFullRowOverride(null);
     setIsLoadingFullRow(true);
-    fetchFullRow()
+    fn()
       .then((fetched) => {
         if (!cancelled && fetched) {
-          setFullRowOverride({ ...rowData, ...fetched });
+          setFullRowOverride({ ...(rowDataRef.current || curRow), ...fetched });
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!cancelled && lastFetchedKeyRef.current === effectiveFetchKey) {
+          lastFetchedKeyRef.current = null;
+        }
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingFullRow(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [fetchFullRow, rowData, rowIndex, globalRowIndex, schema]);
+  }, [effectiveFetchKey]);
 
   const effectiveRowData = fullRowOverride || rowData;
 
@@ -339,6 +370,15 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
   }, [fieldEntries, searchTerm, showEmptyFields]);
 
 
+  // Memoize forensic capability detection per filtered entry list instead of re-running regex/Base64 decode every render
+  const capabilitiesMap = useMemo(() => {
+    const map = new Map<string, ReturnType<typeof detectForensicCapabilities>>();
+    for (const entry of filteredEntries) {
+      map.set(entry.cid, detectForensicCapabilities(entry.value));
+    }
+    return map;
+  }, [filteredEntries]);
+
   // Copy text helper
   const copyText = useCallback(
     (text: string) => {
@@ -544,7 +584,12 @@ const EventDetailSidebarInner: React.FC<EventDetailSidebarProps> = ({
                   entry.value !== null && entry.value !== undefined
                     ? String(entry.value)
                     : "";
-                const caps = detectForensicCapabilities(entry.value);
+                const caps = capabilitiesMap.get(entry.cid) || {
+                  canDecodeUtf16LE: false,
+                  canDecodeUtf8: false,
+                  canDecodeUrl: false,
+                  canDefang: false,
+                };
                 return (
                   <tr key={entry.cid} className="event-detail-row">
                     <td className="event-col-name">

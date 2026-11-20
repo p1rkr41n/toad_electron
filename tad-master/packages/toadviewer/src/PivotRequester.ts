@@ -302,11 +302,30 @@ const requestQueryView = async (
   onViewRowCount?.(baseQuery, "unfiltered");
   const baseRowCount = await rt.rowCount(baseQuery);
   onViewRowCountResolved?.(baseQuery, baseRowCount, "unfiltered");
+
+  // Optimize COUNT(*) for wide tables by projecting only columns referenced in filterExp
+  let countFilterQuery = filterQuery;
+  if (
+    effectiveFilterExp &&
+    effectiveFilterExp.opArgs &&
+    effectiveFilterExp.opArgs.length > 0 &&
+    typeof (effectiveFilterExp as any).referencedColumns === "function"
+  ) {
+    const refCols: string[] | null = (effectiveFilterExp as any).referencedColumns();
+    if (refCols && refCols.length > 0) {
+      const validBaseCols = new Set(baseSchema.columns);
+      const validRefCols = refCols.filter((c) => validBaseCols.has(c) && c !== "Rec");
+      if (validRefCols.length > 0 && validRefCols.length < baseSchema.columns.length) {
+        countFilterQuery = baseQuery.project(validRefCols).filter(effectiveFilterExp);
+      }
+    }
+  }
+
   const filterRowCount = await fastFilterRowCount(
     rt,
     baseRowCount,
     effectiveFilterExp,
-    filterQuery,
+    countFilterQuery,
     onViewRowCount,
     onViewRowCountResolved
   );
@@ -423,6 +442,9 @@ export class PivotRequester {
   pendingLimit: number;
   pendingPage: number;
   pageSize: number;
+  private isUpdatingQueryView: boolean = false;
+  private querySeq: number = 0;
+  private dataSeq: number = 0;
   errorCallback?: (e: Error) => void;
   setLoadingCallback: (loading: boolean) => void;
 
@@ -494,6 +516,7 @@ export class PivotRequester {
 
     const requestDsPath = viewState.dsPath;
     const requestBaseQuery = viewState.baseQuery;
+    const dataSeq = ++this.dataSeq;
 
     const dreq = requestDataView(
       viewState.dbc,
@@ -507,6 +530,9 @@ export class PivotRequester {
     );
     this.pendingDataRequest = dreq;
     dreq.then((dataView) => {
+      if (dataSeq !== this.dataSeq) {
+        return dataView;
+      }
       this.pendingDataRequest = null;
       oneref.update(
         stateRef,
@@ -547,6 +573,9 @@ export class PivotRequester {
       this.setLoadingCallback(false);
       return dataView;
     }).catch((err) => {
+      if (dataSeq !== this.dataSeq) {
+        return;
+      }
       console.error(
         "PivotRequester: caught error fetching data view: ",
         err.message,
@@ -660,6 +689,7 @@ export class PivotRequester {
       }
       const requestDsPath = viewState.dsPath;
       const requestBaseQuery = viewState.baseQuery;
+      const seq = ++this.querySeq;
       // NOTE!  Very important to pass queryView (latest from appState) and not
       // this.currentQueryView, which may be stale.
       // TODO:  The sequencing and control flow here is really subtle; we should rework this to make
@@ -677,6 +707,9 @@ export class PivotRequester {
       this.pendingQueryRequest = qreq;
       this.pendingDataRequest = qreq
         .then((queryView) => {
+          if (seq !== this.querySeq) {
+            return null as any;
+          }
           const curState: AppState = mutableGet(stateRef);
           if (
             curState.viewState &&
@@ -687,24 +720,29 @@ export class PivotRequester {
             return null as any;
           }
           this.currentQueryView = queryView;
-          oneref.update(
-            stateRef,
-            vsUpdate((vs: ViewState) => {
-              /*
-               * queryView.rowCount may have changed since last data request;
-               * trim viewport to ensure its in range
-               */
-              const [viewportTop, viewportBottom] = paging.clampViewport(
-                queryView.rowCount,
-                vs.viewportTop,
-                vs.viewportBottom
-              );
-              return vs
-                .set("viewportTop", viewportTop)
-                .set("viewportBottom", viewportBottom)
-                .set("queryView", queryView) as ViewState;
-            })
-          );
+          this.isUpdatingQueryView = true;
+          try {
+            oneref.update(
+              stateRef,
+              vsUpdate((vs: ViewState) => {
+                /*
+                 * queryView.rowCount may have changed since last data request;
+                 * trim viewport to ensure its in range
+                 */
+                const [viewportTop, viewportBottom] = paging.clampViewport(
+                  queryView.rowCount,
+                  vs.viewportTop,
+                  vs.viewportBottom
+                );
+                return vs
+                  .set("viewportTop", viewportTop)
+                  .set("viewportBottom", viewportBottom)
+                  .set("queryView", queryView) as ViewState;
+              })
+            );
+          } finally {
+            this.isUpdatingQueryView = false;
+          }
           // Preloaded buffer reuse - avoid duplicate DuckDB queries when opening cached table
           const curVs = curState.viewState;
           const dv = curVs?.dataView;
@@ -756,6 +794,9 @@ export class PivotRequester {
           return this.sendDataRequest(stateRef, queryView);
         })
         .catch((err) => {
+          if (seq !== this.querySeq) {
+            return;
+          }
           console.error(
             "PivotRequester: caught error updating view: ",
             err.message,
@@ -810,7 +851,11 @@ export class PivotRequester {
       const pageSizeChanged = pSize !== this.pageSize;
       this.pageSize = pSize;
 
-      if (this.currentQueryView !== null && (bufferOutOfRange || pageSizeChanged)) {
+      if (
+        !this.isUpdatingQueryView &&
+        this.currentQueryView !== null &&
+        (bufferOutOfRange || pageSizeChanged)
+      ) {
         const qv: QueryView = this.currentQueryView as any;
         this.sendDataRequest(stateRef, qv);
       }

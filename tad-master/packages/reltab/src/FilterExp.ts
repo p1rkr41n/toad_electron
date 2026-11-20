@@ -122,12 +122,12 @@ const textOpToSqlWhere = (
     const hasSlashes = inVals && inVals.some((v) => /[\\\/]/.test(String(v)));
     if (hasSlashes && dialect.dialectName === "duckdb") {
       const inNorm = inVals
-        .map((v) => sqlEscapeString(String(v).replace(/[\\\/]+/g, "/")))
+        .map((v) => sqlEscapeString(String(v).replace(/\\/g, "/")))
         .join(", ");
       ret =
-        "REGEXP_REPLACE(" +
+        "REPLACE(" +
         valExpToSqlStr(dialect, lhs) +
-        "::VARCHAR, '[\\\\/]+', '/', 'g') " +
+        "::VARCHAR, '\\', '/') " +
         negStr +
         "IN (" +
         inNorm +
@@ -143,7 +143,7 @@ const textOpToSqlWhere = (
 
     if (hasSlashes && dialect.dialectName === "duckdb") {
       const normTerm = rhsStr
-        .replace(/[\\\/]+/g, "/")
+        .replace(/\\/g, "/")
         .replace(/%/g, "\\%")
         .replace(/_/g, "\\_");
 
@@ -165,9 +165,9 @@ const textOpToSqlWhere = (
       }
 
       ret =
-        "REGEXP_REPLACE(" +
+        "REPLACE(" +
         valExpToSqlStr(dialect, lhs) +
-        "::VARCHAR, '[\\\\/]+', '/', 'g') " +
+        "::VARCHAR, '\\', '/') " +
         negStr +
         "ILIKE " +
         sqlEscapeString(matchStr) +
@@ -237,11 +237,11 @@ export class OmniSearchRelExp {
     const hasSlashes = /[\\\/]/.test(this.searchTerm);
     if (hasSlashes && dialect.dialectName === "duckdb") {
       const normSearch = this.searchTerm
-        .replace(/[\\\/]+/g, "/")
+        .replace(/\\/g, "/")
         .replace(/%/g, "\\%")
         .replace(/_/g, "\\_")
         .replace(/'/g, "''");
-      return `REGEXP_REPLACE(CONCAT_WS(' ', ${colCasts}), '[\\\\/]+', '/', 'g') ILIKE '%${normSearch}%' ESCAPE '\\'`;
+      return `REPLACE(CONCAT_WS(' ', ${colCasts}), '\\', '/') ILIKE '%${normSearch}%' ESCAPE '\\'`;
     }
 
     const sanitizedSearch = this.searchTerm
@@ -282,12 +282,12 @@ export class BinRelExp {
       const rhsValStr =
         this.rhs.expType === "ConstVal" ? String(this.rhs.val ?? "") : "";
       if (rhsValStr && /[\\\/]/.test(rhsValStr)) {
-        const normVal = rhsValStr.replace(/[\\\/]+/g, "/");
+        const normVal = rhsValStr.replace(/\\/g, "/");
         const eqOp = this.op === "EQ" ? "=" : "<>";
-        return `REGEXP_REPLACE(${valExpToSqlStr(
+        return `REPLACE(${valExpToSqlStr(
           dialect,
           this.lhs
-        )}::VARCHAR, '[\\\\/]+', '/', 'g') ${eqOp} ${sqlEscapeString(normVal)}`;
+        )}::VARCHAR, '\\', '/') ${eqOp} ${sqlEscapeString(normVal)}`;
       }
     }
 
@@ -473,6 +473,50 @@ export class FilterExp {
     }
     const opStr = " " + this.op + " ";
     return strs.join(opStr);
+  }
+
+  /**
+   * Collects all column IDs referenced by structured predicates in this FilterExp.
+   * Returns null if any sub-expression is RawSqlRelExp, OmniSearchRelExp, or unknown
+   * so callers can safely fall back to scanning all columns.
+   */
+  referencedColumns(): string[] | null {
+    const cols = new Set<string>();
+    const visit = (sub: any): boolean => {
+      if (!sub) return true;
+      if (sub.expType === "FilterExp") {
+        for (const arg of sub.opArgs || []) {
+          if (!visit(arg)) return false;
+        }
+        return true;
+      }
+      if (sub.expType === "RawSqlRelExp" || sub.expType === "OmniSearchRelExp") {
+        return false;
+      }
+      if (sub.expType === "BinRelExp") {
+        if (sub.lhs && sub.lhs.expType === "ColRef" && sub.lhs.colName) {
+          cols.add(sub.lhs.colName);
+          if (sub.rhs && sub.rhs.expType === "ColRef" && sub.rhs.colName) {
+            cols.add(sub.rhs.colName);
+          }
+          return true;
+        }
+        return false;
+      }
+      if (sub.expType === "UnaryRelExp") {
+        if (sub.arg && sub.arg.expType === "ColRef" && sub.arg.colName) {
+          cols.add(sub.arg.colName);
+          return true;
+        }
+        return false;
+      }
+      return false;
+    };
+
+    for (const arg of this.opArgs || []) {
+      if (!visit(arg)) return null;
+    }
+    return Array.from(cols);
   }
 }
 export const and = (): FilterExp => new FilterExp("AND");

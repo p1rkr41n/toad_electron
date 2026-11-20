@@ -148,6 +148,11 @@ export function calculateLineCount(
     return 1;
   }
 
+  // Fast-path cap: UI caps expanded height at 20 lines (368px). Any string > 4000 chars
+  // is guaranteed to exceed 20 lines at max column width (330px), avoiding O(N) Canvas measurement stalls.
+  const MAX_MEASURE_LINES = 22;
+  const boundedStr = rawStr.length > 4000 ? rawStr.slice(0, 4000) : rawStr;
+
   // Calculate effective width available for text content: colWidth - padding, clamped to min 20px
   const padding = options?.padding !== undefined
     ? options.padding
@@ -155,15 +160,14 @@ export function calculateLineCount(
   const effectiveWidth = Math.max(20, (Number.isFinite(colWidth) ? colWidth : 100) - padding);
 
   // Split by explicit hard newlines (\r\n, \r, \n)
-  const segments = rawStr.split(/\r\n|\r|\n/);
+  const segments = boundedStr.split(/\r\n|\r|\n/);
   let totalLines = 0;
 
   const ctx = getCanvasContext();
   if (ctx) {
     // Browser Canvas 2D measurement mode
-    const fontStr = options?.font || `${options?.fontWeight || 400} ${options?.fontSize || 12}px ${
-      options?.fontFamily || "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-    }`;
+    const fontStr = options?.font || `${options?.fontWeight || 400} ${options?.fontSize || 12}px ${options?.fontFamily || "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+      }`;
     try {
       ctx.font = fontStr;
     } catch {
@@ -171,11 +175,12 @@ export function calculateLineCount(
     }
 
     for (const segment of segments) {
+      if (totalLines >= MAX_MEASURE_LINES) break;
       if (segment.length === 0) {
         totalLines += 1;
         continue;
       }
-      totalLines += measureSegmentCanvas(ctx, segment, effectiveWidth);
+      totalLines += measureSegmentCanvas(ctx, segment, effectiveWidth, MAX_MEASURE_LINES - totalLines);
     }
   } else {
     // Headless / Node.js deterministic fallback mode
@@ -185,6 +190,7 @@ export function calculateLineCount(
     const maxCharsPerLine = Math.max(1, Math.floor(effectiveWidth / Math.max(1, charWidth)));
 
     for (const segment of segments) {
+      if (totalLines >= MAX_MEASURE_LINES) break;
       if (segment.length === 0) {
         totalLines += 1;
         continue;
@@ -199,33 +205,29 @@ export function calculateLineCount(
 function measureSegmentCanvas(
   ctx: CanvasRenderingContext2D,
   segment: string,
-  maxWidth: number
+  maxWidth: number,
+  maxLinesBudget: number = 22
 ): number {
   const totalWidth = ctx.measureText(segment).width;
   if (totalWidth <= maxWidth) {
     return 1;
   }
 
-  // Segment exceeds single line width - simulate word wrapping
+  // Segment exceeds single line width - simulate word wrapping with O(1) long-token estimation
   const words = segment.split(/(\s+)/);
   let currentLineWidth = 0;
   let lines = 1;
 
   for (const word of words) {
     if (!word) continue;
+    if (lines >= maxLinesBudget) return lines;
     const wordWidth = ctx.measureText(word).width;
 
     if (wordWidth > maxWidth) {
-      // Long unbroken token: break character by character
-      for (let i = 0; i < word.length; i++) {
-        const charWidth = ctx.measureText(word[i]).width;
-        if (currentLineWidth + charWidth > maxWidth && currentLineWidth > 0) {
-          lines++;
-          currentLineWidth = charWidth;
-        } else {
-          currentLineWidth += charWidth;
-        }
-      }
+      // Long unbroken token: O(1) estimate instead of O(N) per-char measureText loop
+      const extraLines = Math.ceil((currentLineWidth + wordWidth) / maxWidth) - 1;
+      lines += Math.max(1, extraLines);
+      currentLineWidth = (currentLineWidth + wordWidth) % maxWidth;
     } else {
       if (currentLineWidth + wordWidth > maxWidth && currentLineWidth > 0) {
         lines++;

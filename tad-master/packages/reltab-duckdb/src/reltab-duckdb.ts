@@ -22,7 +22,7 @@ import {
   TextSummaryStats,
 } from "reltab"; // eslint-disable-line
 import { initS3 } from "./s3utils";
-import { initToadLedger, emitEngineTrace } from "./csvimport";
+import { initToadLedger, emitEngineTrace, applyEngineConfig } from "./csvimport";
 
 export * from "./csvimport";
 export * from "./ingestWorker";
@@ -444,6 +444,11 @@ const duckdbDataSourceProvider: DataSourceProvider = {
     const rawFile = resourceId as string;
     const dbfile = rawFile && rawFile.startsWith(":memory:") ? ":memory:" : rawFile;
     const db = await Database.create(dbfile);
+    try {
+      await applyEngineConfig(db, false);
+    } catch (cfgErr) {
+      log.warn("[DuckDB UI Config] Failed to apply interactive UI config:", cfgErr);
+    }
     if (Boolean(process.env.AWS_ACCESS_KEY_ID)) {
       await loadHttpfsExtension(db);
     }

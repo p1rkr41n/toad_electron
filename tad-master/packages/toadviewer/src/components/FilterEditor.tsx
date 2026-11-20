@@ -2,7 +2,7 @@ import * as React from "react";
 import * as reltab from "reltab";
 import { AppState } from "../AppState";
 import { Button, Spinner, Intent } from "@blueprintjs/core";
-import { FilterEditorRow } from "./FilterEditorRow";
+import { FilterEditorRow, ColumnSelectOption } from "./FilterEditorRow";
 import { StateRef } from "oneref";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { FilterExp, SubExp, RawSqlRelExp, getDefaultDialect } from "reltab";
@@ -313,6 +313,7 @@ interface FilterGroupEditorProps {
   appState: AppState;
   stateRef: StateRef<AppState>;
   schema: reltab.Schema;
+  colOptions?: ColumnSelectOption[];
   group: FilterGroupNode;
   depth: number;
   onUpdateGroup: (nextGroup: FilterGroupNode) => void;
@@ -335,6 +336,7 @@ export const FilterGroupEditor: React.FunctionComponent<FilterGroupEditorProps> 
   appState,
   stateRef,
   schema,
+  colOptions,
   group,
   depth,
   onUpdateGroup,
@@ -615,6 +617,7 @@ export const FilterGroupEditor: React.FunctionComponent<FilterGroupEditorProps> 
                   key={child.id}
                   rowId={child.id}
                   schema={schema}
+                  colOptions={colOptions}
                   relExp={child.relExp as any}
                   onDeleteRow={() => handleDeleteChild(child.id)}
                   onUpdate={(re) =>
@@ -655,6 +658,7 @@ export const FilterGroupEditor: React.FunctionComponent<FilterGroupEditorProps> 
                     appState={appState}
                     stateRef={stateRef}
                     schema={schema}
+                    colOptions={colOptions}
                     group={child}
                     depth={depth + 1}
                     onUpdateGroup={(nextSub) =>
@@ -787,6 +791,23 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
       setRootGroup(filterExpToTree(filterExp));
     }
   }, [filterExp]);
+
+  const colOptions: ColumnSelectOption[] = useMemo(() => {
+    const columnChoices = schema && schema.columns ? schema.columns : [];
+    return columnChoices.map((cid) => {
+      let colTypeName = "";
+      try {
+        colTypeName = schema && schema.columnType ? schema.columnType(cid).sqlTypeName : "";
+      } catch {
+        colTypeName = "";
+      }
+      return {
+        value: cid,
+        label: schema && schema.displayName ? schema.displayName(cid) : cid,
+        colType: colTypeName,
+      };
+    });
+  }, [schema]);
 
   const currentFE = useMemo(() => treeToFilterExp(rootGroup), [rootGroup]);
   const incompleteCount = useMemo(() => countIncompleteRules(rootGroup), [rootGroup]);
@@ -1233,6 +1254,7 @@ export const FilterEditor: React.FunctionComponent<FilterEditorProps> = ({
             appState={appState}
             stateRef={stateRef}
             schema={schema}
+            colOptions={colOptions}
             group={rootGroup}
             depth={0}
             onUpdateGroup={handleUpdateRoot}

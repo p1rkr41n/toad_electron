@@ -55,6 +55,15 @@ export const Footer: React.FunctionComponent<FooterProps> = (
 
   const dragStartY = useRef(0);
   const startHeight = useRef(200);
+  const liveDebounceRef = useRef<any>(null);
+
+  useEffect(() => {
+    return () => {
+      if (liveDebounceRef.current) {
+        clearTimeout(liveDebounceRef.current);
+      }
+    };
+  }, []);
 
   const handleFilterButtonClicked = (event: any) => {
     event.preventDefault();
@@ -68,6 +77,10 @@ export const Footer: React.FunctionComponent<FooterProps> = (
   };
 
   const handleFilterCancel = () => {
+    if (liveDebounceRef.current) {
+      clearTimeout(liveDebounceRef.current);
+      liveDebounceRef.current = null;
+    }
     const fe = appliedFE || new reltab.FilterExp();
     if (liveUpdate) {
       actions.setFilter(fe, stateRef);
@@ -79,6 +92,10 @@ export const Footer: React.FunctionComponent<FooterProps> = (
   };
 
   const handleFilterApply = (fe: reltab.FilterExp) => {
+    if (liveDebounceRef.current) {
+      clearTimeout(liveDebounceRef.current);
+      liveDebounceRef.current = null;
+    }
     actions.setFilter(fe, stateRef);
     setAppliedFE(fe);
     setActiveFE(fe);
@@ -96,9 +113,15 @@ export const Footer: React.FunctionComponent<FooterProps> = (
     setActiveFE(nextFE);
     setDirty(true);
     if (liveUpdate) {
-      actions.setFilter(nextFE, stateRef);
-      setAppliedFE(nextFE);
-      onFilter?.(nextFE);
+      if (liveDebounceRef.current) {
+        clearTimeout(liveDebounceRef.current);
+      }
+      liveDebounceRef.current = setTimeout(() => {
+        liveDebounceRef.current = null;
+        actions.setFilter(nextFE, stateRef);
+        setAppliedFE(nextFE);
+        onFilter?.(nextFE);
+      }, 180);
     }
   };
 

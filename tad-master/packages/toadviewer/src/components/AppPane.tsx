@@ -57,6 +57,7 @@ import { useState } from "react";
 import { Activity } from "./defs";
 import { mutableGet, StateRef } from "oneref";
 import { DataSourcePath, FilterExp, ReltabConnection, resolvePath } from "reltab";
+import * as reltab from "reltab";
 import { useDeepCompareEffect } from "use-deep-compare";
 import { Timer } from "../Timer";
 import { SimpleClipboard } from "./SimpleClipboard";
@@ -457,6 +458,12 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     rowIndex: number;
   } | null>(null);
 
+  const viewStateRef = useRef(viewState);
+  viewStateRef.current = viewState;
+  const expandedEventRef = useRef(expandedEvent);
+  expandedEventRef.current = expandedEvent;
+  const fullRowCacheRef = useRef<Map<string, DataRow>>(new Map());
+
   const handleExpandEvent = useCallback(
     (rowData: DataRow, rowIndex: number, forceOpen?: boolean) => {
       setExpandedEvent({ rowData, rowIndex });
@@ -466,6 +473,106 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
 
   const handleCloseDetail = useCallback(() => {
     setExpandedEvent(null);
+  }, []);
+
+  const currentFilterSqlKey = React.useMemo(() => {
+    try {
+      return viewState?.viewParams?.filterExp?.toSqlWhere(reltab.getDefaultDialect()) || "";
+    } catch {
+      return "";
+    }
+  }, [viewState?.viewParams?.filterExp]);
+
+  const currentSortKeyStr = React.useMemo(() => {
+    try {
+      return JSON.stringify(viewState?.viewParams?.sortKey || []);
+    } catch {
+      return "";
+    }
+  }, [viewState?.viewParams?.sortKey]);
+
+  const eventDetailFetchKey = React.useMemo(() => {
+    if (!expandedEvent || !viewState) return "";
+    const dsKey = viewState.dsPath ? JSON.stringify(viewState.dsPath) : "";
+    const page = viewState.currentPage || 1;
+    const pSize = viewState.pageSize || 1000;
+    return `${dsKey}::${page}::${pSize}::${expandedEvent.rowIndex}::${currentFilterSqlKey}::${currentSortKeyStr}`;
+  }, [
+    expandedEvent?.rowIndex,
+    viewState?.dsPath,
+    viewState?.currentPage,
+    viewState?.pageSize,
+    currentFilterSqlKey,
+    currentSortKeyStr,
+  ]);
+
+  const fetchFullRowStable = useCallback(async (): Promise<DataRow | null> => {
+    const vs = viewStateRef.current;
+    const ev = expandedEventRef.current;
+    if (!vs || !ev || !vs.dbc || !vs.baseQuery || vs.viewParams.vpivots.length > 0) {
+      return null;
+    }
+
+    const dsKey = vs.dsPath ? JSON.stringify(vs.dsPath) : "";
+    const page = vs.currentPage || 1;
+    const pSize = vs.pageSize || 1000;
+    let fKey = "";
+    try {
+      fKey = vs.viewParams?.filterExp?.toSqlWhere(reltab.getDefaultDialect()) || "";
+    } catch { }
+    let sKey = "";
+    try {
+      sKey = JSON.stringify(vs.viewParams?.sortKey || []);
+    } catch { }
+    const cacheKey = `${dsKey}::${page}::${pSize}::${ev.rowIndex}::${fKey}::${sKey}`;
+
+    const cached = fullRowCacheRef.current.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    // Fast path: if unique __lp_record_id exists in schema and current rowData, fetch directly by ID
+    const recordId = ev.rowData?.["__lp_record_id"];
+    let fullQuery: reltab.QueryExp;
+    let targetOffset = (page - 1) * pSize + ev.rowIndex;
+
+    if (
+      recordId !== null &&
+      recordId !== undefined &&
+      String(recordId).length > 0 &&
+      vs.baseSchema?.columns?.includes("__lp_record_id")
+    ) {
+      const idFilter = new reltab.FilterExp("AND", [
+        new reltab.BinRelExp("EQ", reltab.col("__lp_record_id"), reltab.constVal(recordId)),
+      ]);
+      fullQuery = vs.baseQuery.filter(idFilter);
+      targetOffset = 0;
+    } else {
+      fullQuery = vs.baseQuery.filter(vs.viewParams.filterExp);
+      let effectiveSort = vs.viewParams.sortKey;
+      if (
+        (!effectiveSort || effectiveSort.length === 0) &&
+        vs.baseSchema.columns.length <= 360
+      ) {
+        const tc = findBestTimeColumn(vs.baseSchema);
+        if (tc) effectiveSort = [[tc, false]];
+      }
+      if (effectiveSort && effectiveSort.length > 0) {
+        fullQuery = fullQuery.sort(effectiveSort);
+      }
+    }
+
+    const rep = await vs.dbc.evalQuery(fullQuery, targetOffset, 1);
+    const fetchedRow = (rep?.rowData?.[0] as DataRow) || null;
+    if (fetchedRow) {
+      const cache = fullRowCacheRef.current;
+      if (cache.size >= 20) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey !== undefined) cache.delete(oldestKey);
+      }
+      cache.set(cacheKey, fetchedRow);
+    }
+    return fetchedRow;
   }, []);
 
   const footerControlRef = useRef<FooterControl | null>(null);
@@ -531,12 +638,12 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
             action: {
               text: "Retry",
               onClick: () => {
-                actions.reopenCurrentView(stateRef).catch(() => {});
+                actions.reopenCurrentView(stateRef).catch(() => { });
               },
             },
           });
         }
-      } catch {}
+      } catch { }
     };
     window.addEventListener("toad-query-error", handleQueryError);
     return () => {
@@ -549,7 +656,7 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
     let bridge: any = null;
     try {
       bridge = getHostBridge();
-    } catch {}
+    } catch { }
 
     let lastRestoreHandledAt = 0;
     const handleRestored = async () => {
@@ -706,36 +813,12 @@ export const AppPane: React.FunctionComponent<AppPaneProps> = ({
               onClose={handleCloseDetail}
               clipboard={clipboard}
               onAddFilter={handleAddFilterFromDetail}
+              fetchKey={eventDetailFetchKey}
               fetchFullRow={
                 viewState.dbc &&
-                viewState.baseQuery &&
-                viewState.viewParams.vpivots.length === 0
-                  ? async () => {
-                      const targetOffset =
-                        ((viewState.currentPage || 1) - 1) *
-                          (viewState.pageSize || 1000) +
-                        expandedEvent.rowIndex;
-                      let fullQuery = viewState.baseQuery.filter(
-                        viewState.viewParams.filterExp
-                      );
-                      let effectiveSort = viewState.viewParams.sortKey;
-                      if (
-                        (!effectiveSort || effectiveSort.length === 0) &&
-                        viewState.baseSchema.columns.length <= 360
-                      ) {
-                        const tc = findBestTimeColumn(viewState.baseSchema);
-                        if (tc) effectiveSort = [[tc, false]];
-                      }
-                      if (effectiveSort && effectiveSort.length > 0) {
-                        fullQuery = fullQuery.sort(effectiveSort);
-                      }
-                      const rep = await viewState.dbc.evalQuery(
-                        fullQuery,
-                        targetOffset,
-                        1
-                      );
-                      return (rep?.rowData?.[0] as DataRow) || null;
-                    }
+                  viewState.baseQuery &&
+                  viewState.viewParams.vpivots.length === 0
+                  ? fetchFullRowStable
                   : undefined
               }
             />

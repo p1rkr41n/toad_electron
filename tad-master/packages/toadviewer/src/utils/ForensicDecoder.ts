@@ -47,6 +47,11 @@ function findBase64Tokens(text: string): string[] {
   return matches || [];
 }
 
+const cachedUtf16Decoder =
+  typeof TextDecoder !== "undefined" ? new TextDecoder("utf-16le") : null;
+const cachedUtf8Decoder =
+  typeof TextDecoder !== "undefined" ? new TextDecoder("utf-8") : null;
+
 /**
  * Decode Base64 string as UTF-16LE (standard for PowerShell -enc / -EncodedCommand)
  */
@@ -75,9 +80,8 @@ export function decodeBase64Utf16LE(rawB64: string): DecodeResult {
     }
 
     let decoded = "";
-    if (typeof TextDecoder !== "undefined") {
-      const decoder = new TextDecoder("utf-16le");
-      decoded = decoder.decode(bytes);
+    if (cachedUtf16Decoder) {
+      decoded = cachedUtf16Decoder.decode(bytes);
     } else {
       // Fallback manual UTF-16LE decoding
       for (let i = 0; i < bytes.length - 1; i += 2) {
@@ -133,9 +137,8 @@ export function decodeBase64Utf8(rawB64: string): DecodeResult {
     }
 
     let decoded = "";
-    if (typeof TextDecoder !== "undefined") {
-      const decoder = new TextDecoder("utf-8");
-      decoded = decoder.decode(bytes);
+    if (cachedUtf8Decoder) {
+      decoded = cachedUtf8Decoder.decode(bytes);
     } else {
       decoded = String.fromCharCode.apply(null, Array.from(bytes));
     }
@@ -246,8 +249,8 @@ export function detectForensicCapabilities(text: any): ForensicCapabilities {
     };
   }
 
-  const str = text.trim();
-  if (str.length < 4) {
+  const rawTrimmed = text.trim();
+  if (rawTrimmed.length < 4) {
     return {
       canDecodeUtf16LE: false,
       canDecodeUtf8: false,
@@ -255,6 +258,8 @@ export function detectForensicCapabilities(text: any): ForensicCapabilities {
       canDefang: false,
     };
   }
+  // Bound forensic scan on giant XML/raw_log payloads (e.g. 15KB+) to keep UI renders < 1ms
+  const str = rawTrimmed.length > 4096 ? rawTrimmed.slice(0, 4096) : rawTrimmed;
 
   // 1. Check for URL encoding (%20, %2e, etc.)
   const canDecodeUrl = /%[0-9a-fA-F]{2}/.test(str);
@@ -265,8 +270,8 @@ export function detectForensicCapabilities(text: any): ForensicCapabilities {
       str
     );
 
-  // 3. Check for Base64 tokens
-  const tokens = findBase64Tokens(str);
+  // 3. Check for Base64 tokens (cap at first 20 candidate tokens to prevent CPU spikes)
+  const tokens = findBase64Tokens(str).slice(0, 20);
   let canDecodeUtf16LE = false;
   let canDecodeUtf8 = false;
   let targetToken: string | undefined = undefined;

@@ -176,10 +176,173 @@ const mkRelExp = (
   return ret;
 };
 
+export interface ColumnSelectOption {
+  value: string;
+  label: string;
+  colType: string;
+}
+
+const COL_SELECT_STYLES = {
+  control: (provided: any, state: any) => ({
+    ...provided,
+    background: "var(--md-sys-color-surface-container-low, #fff)",
+    borderColor: state.isFocused
+      ? "var(--md-sys-color-primary, #137cbd)"
+      : "var(--md-sys-color-outline-variant, #ced9e0)",
+    minHeight: "28px",
+    height: "28px",
+    fontSize: "12px",
+    boxShadow: state.isFocused
+      ? "0 0 0 1px var(--md-sys-color-primary, #137cbd)"
+      : "none",
+    "&:hover": {
+      borderColor: "var(--md-sys-color-primary, #137cbd)",
+    },
+  }),
+  valueContainer: (provided: any) => ({
+    ...provided,
+    minHeight: "28px",
+    height: "28px",
+    padding: "0 6px",
+  }),
+  input: (provided: any) => ({
+    ...provided,
+    margin: "0px",
+    padding: "0px",
+    fontSize: "12px",
+    color: "var(--md-sys-color-on-surface, inherit)",
+  }),
+  singleValue: (provided: any) => ({
+    ...provided,
+    fontSize: "12px",
+    color: "var(--md-sys-color-on-surface, #182026)",
+  }),
+  placeholder: (provided: any) => ({
+    ...provided,
+    fontSize: "12px",
+    color: "var(--md-sys-color-on-surface-variant, #8a9ba8)",
+  }),
+  indicatorSeparator: () => ({
+    display: "none",
+  }),
+  indicatorsContainer: (provided: any) => ({
+    ...provided,
+    height: "28px",
+  }),
+  menu: (provided: any) => ({
+    ...provided,
+    zIndex: 9999,
+    fontSize: "12px",
+    minWidth: "220px",
+    backgroundColor: "var(--md-sys-color-surface-container, #fff)",
+    boxShadow:
+      "0 0 0 1px var(--md-sys-color-outline-variant, rgba(16, 22, 26, 0.1)), 0 4px 8px rgba(0, 0, 0, 0.2)",
+  }),
+  option: (provided: any, state: any) => ({
+    ...provided,
+    padding: "5px 8px",
+    backgroundColor: state.isSelected
+      ? "var(--md-sys-color-primary, #137cbd)"
+      : state.isFocused
+        ? "var(--md-sys-color-surface-container-high, #ebf1f5)"
+        : "transparent",
+    color: state.isSelected
+      ? "var(--md-sys-color-on-primary, #fff)"
+      : "var(--md-sys-color-on-surface, #182026)",
+    cursor: "pointer",
+  }),
+};
+
+const COL_SELECT_FILTER = createFilter({ ignoreCase: true, matchFrom: "any" });
+
+const formatColOptionLabel = (opt: ColumnSelectOption) => (
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+    }}
+  >
+    <span
+      style={{
+        fontWeight: 500,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {opt.label}
+    </span>
+    {opt.colType && (
+      <span
+        style={{
+          fontSize: "10px",
+          color: "#8a9ba8",
+          marginLeft: "8px",
+          textTransform: "uppercase",
+          flexShrink: 0,
+        }}
+      >
+        {opt.colType}
+      </span>
+    )}
+  </div>
+);
+
+// Pure-React virtualized MenuList for react-select so 1,656+ column dropdowns only mount ~20 visible options
+const MENU_ITEM_HEIGHT = 28;
+const MENU_OVERSCAN = 6;
+const VirtualizedMenuList: React.FC<any> = (props) => {
+  const { children, maxHeight = 260, innerRef, innerProps } = props;
+  const [scrollTop, setScrollTop] = useState(0);
+  const items = React.Children.toArray(children);
+
+  if (items.length <= 60) {
+    return (
+      <div
+        ref={innerRef}
+        {...innerProps}
+        style={{ maxHeight, overflowY: "auto" }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  const totalHeight = items.length * MENU_ITEM_HEIGHT;
+  const visibleCount = Math.ceil(maxHeight / MENU_ITEM_HEIGHT);
+  const startIdx = Math.max(0, Math.floor(scrollTop / MENU_ITEM_HEIGHT) - MENU_OVERSCAN);
+  const endIdx = Math.min(items.length, startIdx + visibleCount + MENU_OVERSCAN * 2);
+  const topPad = startIdx * MENU_ITEM_HEIGHT;
+  const bottomPad = Math.max(0, (items.length - endIdx) * MENU_ITEM_HEIGHT);
+
+  return (
+    <div
+      ref={innerRef}
+      {...innerProps}
+      style={{ maxHeight, overflowY: "auto", position: "relative" }}
+      onScroll={(e) => {
+        setScrollTop(e.currentTarget.scrollTop);
+        if (innerProps && typeof innerProps.onScroll === "function") {
+          innerProps.onScroll(e);
+        }
+      }}
+    >
+      <div style={{ height: topPad }} />
+      {items.slice(startIdx, endIdx)}
+      <div style={{ height: bottomPad }} />
+    </div>
+  );
+};
+
+const COL_SELECT_COMPONENTS = { MenuList: VirtualizedMenuList };
+
 export interface FilterEditorRowProps {
   appState: AppState;
   stateRef: StateRef<AppState>;
   schema: reltab.Schema;
+  colOptions?: ColumnSelectOption[];
   relExp: reltab.RelExp | null;
   onDeleteRow: () => void;
   onUpdate: (fe: reltab.RelExp | null) => void;
@@ -232,6 +395,7 @@ export interface MultiTagPillInputProps {
   placeholder?: string;
   disabled?: boolean;
   distinctSuggestions?: string[];
+  onFocusRequestDistinct?: () => void;
   onChange: (nextValue: Option[]) => void;
 }
 
@@ -240,6 +404,7 @@ export const MultiTagPillInput: React.FC<MultiTagPillInputProps> = ({
   placeholder = "+ Type or paste list...",
   disabled = false,
   distinctSuggestions = [],
+  onFocusRequestDistinct,
   onChange,
 }) => {
   const [inputText, setInputText] = useState("");
@@ -369,7 +534,10 @@ export const MultiTagPillInput: React.FC<MultiTagPillInputProps> = ({
               setShowMenu(true);
             }
           }}
-          onFocus={() => setShowMenu(true)}
+          onFocus={() => {
+            setShowMenu(true);
+            onFocusRequestDistinct?.();
+          }}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           onBlur={handleBlur}
@@ -401,6 +569,7 @@ export interface SingleValueSuggestInputProps {
   placeholder?: string;
   disabled?: boolean;
   distinctSuggestions?: string[];
+  onFocusRequestDistinct?: () => void;
   onChange: (val: string) => void;
 }
 
@@ -409,6 +578,7 @@ export const SingleValueSuggestInput: React.FC<SingleValueSuggestInputProps> = (
   placeholder = "Value",
   disabled = false,
   distinctSuggestions = [],
+  onFocusRequestDistinct,
   onChange,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
@@ -447,7 +617,10 @@ export const SingleValueSuggestInput: React.FC<SingleValueSuggestInputProps> = (
           onChange(v);
           setShowMenu(true);
         }}
-        onFocus={() => setShowMenu(true)}
+        onFocus={() => {
+          setShowMenu(true);
+          onFocusRequestDistinct?.();
+        }}
         onBlur={() => setTimeout(() => setShowMenu(false), 200)}
         dir="auto"
       />
@@ -473,10 +646,11 @@ export const SingleValueSuggestInput: React.FC<SingleValueSuggestInputProps> = (
 };
 
 
-export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
+const FilterEditorRowInner: React.FunctionComponent<FilterEditorRowProps> = ({
   appState,
   stateRef,
   schema,
+  colOptions: propColOptions,
   relExp,
   onDeleteRow,
   onUpdate,
@@ -527,37 +701,54 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
   const [distinctSuggestions, setDistinctSuggestions] = useState<string[]>([]);
   const dbc = appState.viewState?.dbc;
   const dsPath = appState.viewState?.dsPath;
+  const distinctLoadedColRef = useRef<string | null>(null);
+  const isMountedRef = useRef<boolean>(true);
 
   useEffect(() => {
-    if (!columnId || !dbc || !dsPath) {
-      setDistinctSuggestions([]);
-      return;
-    }
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
-    let isMounted = true;
+  // Reset distinct suggestions when selected column or dataset changes (do NOT auto-query until Value input focus)
+  useEffect(() => {
+    distinctLoadedColRef.current = null;
+    setDistinctSuggestions([]);
+  }, [columnId, dbc, dsPath]);
+
+  const requestDistinctValues = React.useCallback(() => {
+    if (!columnId || !dbc || !dsPath) return;
+    const reqKey = `${JSON.stringify(dsPath)}::${columnId}`;
+    if (distinctLoadedColRef.current === reqKey) return;
+    distinctLoadedColRef.current = reqKey;
+
     (async () => {
       try {
         const tblName = await dbc.getTableName(dsPath);
-        if (!isMounted) return;
+        if (!isMountedRef.current || distinctLoadedColRef.current !== reqKey) return;
         const vals = await getOrLoadDistinctValues(
           dbc,
           tblName,
           columnId,
           (updatedVals) => {
-            if (isMounted) setDistinctSuggestions(updatedVals);
+            if (isMountedRef.current && distinctLoadedColRef.current === reqKey) {
+              setDistinctSuggestions(updatedVals);
+            }
           }
         );
-        if (isMounted && vals && vals.length > 0) {
+        if (
+          isMountedRef.current &&
+          distinctLoadedColRef.current === reqKey &&
+          vals &&
+          vals.length > 0
+        ) {
           setDistinctSuggestions(vals);
         }
-      } catch (err) {
+      } catch {
         // ignore
       }
     })();
-
-    return () => {
-      isMounted = false;
-    };
   }, [columnId, dbc, dsPath]);
 
   /* validate row and notify if valid */
@@ -635,34 +826,36 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
     }
   };
 
-  interface ColumnSelectOption {
-    value: string;
-    label: string;
-    colType: string;
-  }
-
-  const columnChoices = schema && schema.columns ? schema.columns : [];
-  const colOptions: ColumnSelectOption[] = columnChoices.map((cid) => {
-    let colTypeName = "";
-    try {
-      colTypeName = schema && schema.columnType ? schema.columnType(cid).sqlTypeName : "";
-    } catch {
-      colTypeName = "";
+  const colOptions: ColumnSelectOption[] = useMemo(() => {
+    if (propColOptions && propColOptions.length > 0) {
+      return propColOptions;
     }
-    return {
-      value: cid,
-      label: schema && schema.displayName ? schema.displayName(cid) : cid,
-      colType: colTypeName,
-    };
-  });
+    const columnChoices = schema && schema.columns ? schema.columns : [];
+    return columnChoices.map((cid) => {
+      let colTypeName = "";
+      try {
+        colTypeName = schema && schema.columnType ? schema.columnType(cid).sqlTypeName : "";
+      } catch {
+        colTypeName = "";
+      }
+      return {
+        value: cid,
+        label: schema && schema.displayName ? schema.displayName(cid) : cid,
+        colType: colTypeName,
+      };
+    });
+  }, [propColOptions, schema]);
 
-  const selectedColOpt =
-    colOptions.find((opt) => opt.value === columnId) ||
-    colOptions.find(
-      (opt) =>
-        columnId && opt.value.toLowerCase() === columnId.toLowerCase()
-    ) ||
-    null;
+  const selectedColOpt = useMemo(
+    () =>
+      colOptions.find((opt) => opt.value === columnId) ||
+      colOptions.find(
+        (opt) =>
+          columnId && opt.value.toLowerCase() === columnId.toLowerCase()
+      ) ||
+      null,
+    [colOptions, columnId]
+  );
 
   const handleColSelectChange = (selected: ColumnSelectOption | null) => {
     const nextColId = selected ? selected.value : null;
@@ -670,77 +863,6 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
     setOp(null);
     setValue(null);
     handleUpdate(nextColId, null, null);
-  };
-
-  const colSelectStyles = {
-    control: (provided: any, state: any) => ({
-      ...provided,
-      background: "var(--md-sys-color-surface-container-low, #fff)",
-      borderColor: state.isFocused
-        ? "var(--md-sys-color-primary, #137cbd)"
-        : "var(--md-sys-color-outline-variant, #ced9e0)",
-      minHeight: "28px",
-      height: "28px",
-      fontSize: "12px",
-      boxShadow: state.isFocused
-        ? "0 0 0 1px var(--md-sys-color-primary, #137cbd)"
-        : "none",
-      "&:hover": {
-        borderColor: "var(--md-sys-color-primary, #137cbd)",
-      },
-    }),
-    valueContainer: (provided: any) => ({
-      ...provided,
-      minHeight: "28px",
-      height: "28px",
-      padding: "0 6px",
-    }),
-    input: (provided: any) => ({
-      ...provided,
-      margin: "0px",
-      padding: "0px",
-      fontSize: "12px",
-      color: "var(--md-sys-color-on-surface, inherit)",
-    }),
-    singleValue: (provided: any) => ({
-      ...provided,
-      fontSize: "12px",
-      color: "var(--md-sys-color-on-surface, #182026)",
-    }),
-    placeholder: (provided: any) => ({
-      ...provided,
-      fontSize: "12px",
-      color: "var(--md-sys-color-on-surface-variant, #8a9ba8)",
-    }),
-    indicatorSeparator: () => ({
-      display: "none",
-    }),
-    indicatorsContainer: (provided: any) => ({
-      ...provided,
-      height: "28px",
-    }),
-    menu: (provided: any) => ({
-      ...provided,
-      zIndex: 9999,
-      fontSize: "12px",
-      minWidth: "220px",
-      backgroundColor: "var(--md-sys-color-surface-container, #fff)",
-      boxShadow:
-        "0 0 0 1px var(--md-sys-color-outline-variant, rgba(16, 22, 26, 0.1)), 0 4px 8px rgba(0, 0, 0, 0.2)",
-    }),
-    option: (provided: any, state: any) => ({
-      ...provided,
-      padding: "5px 8px",
-      backgroundColor: state.isSelected
-        ? "var(--md-sys-color-primary, #137cbd)"
-        : state.isFocused
-          ? "var(--md-sys-color-surface-container-high, #ebf1f5)"
-          : "transparent",
-      color: state.isSelected
-        ? "var(--md-sys-color-on-primary, #fff)"
-        : "var(--md-sys-color-on-surface, #182026)",
-      cursor: "pointer",
-    }),
   };
 
   const colSelect = (
@@ -757,42 +879,10 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
         placeholder="Search column..."
         isClearable={false}
         isSearchable={true}
-        filterOption={createFilter({ ignoreCase: true, matchFrom: "any" })}
-        formatOptionLabel={(opt) => (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "100%",
-            }}
-          >
-            <span
-              style={{
-                fontWeight: 500,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {opt.label}
-            </span>
-            {opt.colType && (
-              <span
-                style={{
-                  fontSize: "10px",
-                  color: "#8a9ba8",
-                  marginLeft: "8px",
-                  textTransform: "uppercase",
-                  flexShrink: 0,
-                }}
-              >
-                {opt.colType}
-              </span>
-            )}
-          </div>
-        )}
-        styles={colSelectStyles}
+        filterOption={COL_SELECT_FILTER}
+        formatOptionLabel={formatColOptionLabel}
+        components={COL_SELECT_COMPONENTS}
+        styles={COL_SELECT_STYLES}
       />
     </div>
   );
@@ -878,6 +968,7 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
             value={compVal}
             disabled={valDisabled}
             distinctSuggestions={distinctSuggestions}
+            onFocusRequestDistinct={requestDistinctValues}
             onChange={(nextPills) => handleSelectChange(nextPills)}
           />
         );
@@ -887,6 +978,7 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
             value={String(compVal)}
             disabled={valDisabled}
             distinctSuggestions={distinctSuggestions}
+            onFocusRequestDistinct={requestDistinctValues}
             onChange={(nextVal) => handleValueChange(nextVal)}
           />
         );
@@ -943,3 +1035,5 @@ export const FilterEditorRow: React.FunctionComponent<FilterEditorRowProps> = ({
     </div>
   );
 };
+
+export const FilterEditorRow = React.memo(FilterEditorRowInner);
