@@ -11,18 +11,33 @@
 *.sln.docstates
 
 # ==============================================================================
-# AI Assistants, Prompts & Multi-Agent Metadata (DO NOT UPLOAD)
+# Local Tooling, Assistant Rules & Internal Workspace Artifacts (Untracked)
 # ==============================================================================
+AGENTS.md
+CLAUDE.md
+GEMINI.md
 .agents/
 **/.agents/
 .gemini/
 **/.gemini/
 .claude/
 **/.claude/
+ponytail/
+instructions/
+mockup/
 *prompt*
 *_prompt*.md
 prompt_*.md
 *.prompt
+
+# ==============================================================================
+# Local Test Suites, QA Fixtures & Reports (Keep Local Only)
+# ==============================================================================
+run_tests.js
+tests/
+qa_test_folder/
+releases/qa_reports/
+tools/challenger_verify_all.cjs
 
 # ==============================================================================
 # Project Meta, Telegram Bridge & Temporary QA/Dev Scratch
@@ -115,6 +130,5 @@ __pycache__/
 tools/jj/jj.exe
 !tauri/
 !tauri/project/
-ponytail/
 .git_tadmaster_bak/
 **/.git_tadmaster_bak/

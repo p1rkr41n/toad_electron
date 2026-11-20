@@ -2,7 +2,7 @@
 
 > **Cơ sở lập đề xuất**: Kiểm toán tĩnh toàn bộ mã nguồn workspace `tad-master/`, phân tích artifact đã đóng gói (`v2.5.2.2` EXE / `win-unpacked` / `app.asar` / PE headers / Electron Fuses), và thực thi trực tiếp các bộ kiểm thử `--smoke`, `--unit`, `--qa` và `cargo test`.
 >
-> **Lưu ý về Phạm vi Ngôn ngữ (the workspace policy)**: Tài liệu đề xuất nội bộ này được trình bày bằng tiếng Việt để phục vụ đánh giá kỹ thuật trong nhóm phát triển. Theo quy định *English-Only Public Language Policy* trong the workspace policy, mọi commit public, tag, GitHub Release, release notes, log runtime, và tài liệu công khai phải sử dụng **100% tiếng Anh**.
+> **Lưu ý về Phạm vi Ngôn ngữ**: Tài liệu đề xuất nội bộ này được trình bày bằng tiếng Việt để phục vụ đánh giá kỹ thuật trong nhóm phát triển. Theo quy định *English-Only Public Language Policy*, mọi commit public, tag, GitHub Release, release notes, log runtime, và tài liệu công khai phải sử dụng **100% tiếng Anh**.
 
 ---
 
@@ -16,7 +16,7 @@ Tuy nhiên, phân tích ngược artifact phát hành cùng kiểm toán mã ngu
 2. **Lỗi Toàn vẹn Ledger (`GG.11` FAIL) & Độ phức tạp Ghi $O(N^2)$**: Kiểm thử QA trực tiếp ghi nhận test `GG.11 Corrupted Ledger File Append Resilience & Self-Healing` **thất bại** do DuckDB `conn` giữ trạng thái transaction lỗi khi fallback sang `createSql` (`TransactionContext Error: cannot start a transaction within a transaction`). Ngoài ra, mỗi sự kiện trạng thái file đều rewrite toàn bộ `toad_ledger.parquet`.
 3. **Bề mặt Bảo mật & Binary Hardening Yếu**: Lỗ hổng **Command Injection** trong nhánh fallback PowerShell EVTX (`csvimport.ts:3832-3842`), `shell.openExternal` chưa lọc scheme URL (`preload.js`), `quickStart.ts` bật `nodeIntegration: true`, toàn bộ 4 thành phần nhị phân (`Toad.exe` SFX 32-bit, `win-unpacked\Toad.exe`, `toad-core.exe`, `duckdb.node`) đều **unsigned** và **tắt Electron Integrity Fuses** (`RunAsNode=1`, `NodeOptions=1`, `AsarIntegrityValidation=0`).
 4. **Hợp đồng Config & Pipeline Bị Đứt Gãy**: `ingestWorker.ts` đọc snake_case (`row_group_size`, `max_memory`) trong khi `csvimport.ts` truyền camelCase (`rowGroupSize`, `maxMemory`, `threads`), khiến tham số tối ưu worker bị bỏ qua; `filters_preset.json` được tạo sẵn mẫu DFIR nhưng **không có bất kỳ module UI nào đọc**.
-5. **Phình to Đóng gói (ASAR Bloat) & Stack EOL**: `app.asar` chứa **5.568 file / 54,68 MB** (chưa nén) gồm hàng loạt package UI đã được Webpack gộp sẵn (`lodash`, `@apache-arrow`, `flatpickr`, `ajv`, `@emotion/*`, `react-select`, `react-dnd`, `node-addon-api`), tồn tại file trùng lặp `tad-master/packages/toad-app/release/Toad 2.5.2.2.exe` vi phạm the workspace policy, và runtime phụ thuộc Node `18.20.4` (EOL) + TypeScript `4.8.3` + DuckDB `1.0.0`.
+5. **Phình to Đóng gói (ASAR Bloat) & Stack EOL**: `app.asar` chứa **5.568 file / 54,68 MB** (chưa nén) gồm hàng loạt package UI đã được Webpack gộp sẵn (`lodash`, `@apache-arrow`, `flatpickr`, `ajv`, `@emotion/*`, `react-select`, `react-dnd`, `node-addon-api`), tồn tại file trùng lặp `tad-master/packages/toad-app/release/Toad 2.5.2.2.exe` vi phạm chính sách Zero-Duplicate Binary, và runtime phụ thuộc Node `18.20.4` (EOL) + TypeScript `4.8.3` + DuckDB `1.0.0`.
 
 | Chỉ số / Trạng thái | Hiện trạng (v2.5.2.2 — Quan sát) | Mục tiêu đề xuất (v2.6 → v3.0) |
 | :--- | :--- | :--- |
@@ -37,12 +37,12 @@ Tuy nhiên, phân tích ngược artifact phát hành cùng kiểm toán mã ngu
 
 Quá trình phân tích trực tiếp các nhị phân đang tồn tại trong workspace ghi nhận các dữ kiện sau:
 
-#### A. Bảng Kiểm kê Nhị phân & Chuẩn Bị Trùng lặp (the workspace policy Compliance)
+#### A. Bảng Kiểm kê Nhị phân & Chuẩn Bị Trùng lặp (Zero-Duplicate Policy)
 | Đường dẫn Artifact | Kích thước | SHA-256 / Kiến trúc PE | Cờ Hardening (`DllCharacteristics`) | Vấn đề Ghi nhận |
 | :--- | :--- | :--- | :--- | :--- |
 | `Toad.exe` (root) | 75.919.256 B (72,40 MB) | `6F93F10D...8E9` / PE32 (`0x014c`) | `0x8540` (`HIGH_ENTROPY_VA=False`, `GUARD_CF=False`) | SFX wrapper 32-bit, Unsigned (`SecDir=0`) |
 | `releases/Toad-2.5.2.2-x64-portable.exe` | 75.919.256 B (72,40 MB) | `6F93F10D...8E9` (Trùng khớp root) | `0x8540` | Canonical portable release |
-| `tad-master/packages/toad-app/release/Toad 2.5.2.2.exe` | 75.919.256 B (72,40 MB) | `6F93F10D...8E9` (**Trùng lặp**) | `0x8540` | **Vi phạm Zero-Duplicate Binary (the workspace policy)** |
+| `tad-master/packages/toad-app/release/Toad 2.5.2.2.exe` | 75.919.256 B (72,40 MB) | `6F93F10D...8E9` (**Trùng lặp**) | `0x8540` | **Vi phạm Zero-Duplicate Binary** |
 | `release/win-unpacked/Toad.exe` | 180.267.520 B | PE32+ (`0x8664`), Unsigned | `0xc160` (`GUARD_CF=True`, `HIGH_ENTROPY_VA=True`) | Electron 31.0.1 runtime |
 | `win-unpacked/resources/bin/toad-core.exe` | 815.104 B | PE32+ (`0x8664`), Unsigned | `0x8160` (**`GUARD_CF=False`**) | Imports: `ntdll`, `KERNEL32`, `msvcrt`, `synch`, `bcryptprimitives` |
 | `app.asar.unpacked/.../duckdb.node` | 26.427.392 B | PE32+ (`0x8664`), Unsigned | `0x0160` (**`GUARD_CF=False`**) | DuckDB 1.0.0 N-API native addon |
@@ -153,7 +153,7 @@ flowchart LR
 ## Phần 3: Lộ trình Đề xuất Nâng cấp (P0 → P3)
 
 ### Giai đoạn P0: Khẩn cấp — Vá Lỗi Đỏ, Bảo mật & Vệ sinh Bản dựng (`v2.5.3` / `v2.6.0-alpha`)
-*Mục tiêu: Đưa bộ test QA về 100% PASS, bịt lỗ hổng Command Injection & URI leak, chuẩn hóa thông tin phát hành theo the workspace policy.*
+*Mục tiêu: Đưa bộ kiểm thử về 100% PASS, bịt lỗ hổng Command Injection & URI leak, chuẩn hóa thông tin phát hành theo quy chuẩn dự án.*
 
 1. **[P0.1] Vá triệt để lỗi `GG.11` và đồng bộ `ingestWorker.ts`**
    * **Ledger Error Recovery (`csvimport.ts:2369-2398`)**: Khi `appendSql` ném lỗi, thực hiện `try { await conn.run("ROLLBACK;"); } catch {}` (hoặc đóng `conn` cũ và mở connection mới sạch sẽ) trước khi chạy recovery. Không bao giờ chạy `createSql` ghi đè `toad_ledger.parquet` nếu file gốc > 0 bytes bị lỗi đọc tạm thời; thay vào đó, sao lưu file gốc sang `toad_ledger.parquet.corrupt.<ts>` trước khi tạo ledger mới (tránh xóa nhầm dữ liệu điều tra).
@@ -164,11 +164,11 @@ flowchart LR
    * `preload.js:360-365, 426-434`: Bổ sung `isSafeExternalUrl(raw)` chỉ cho phép `protocol === "http:" || protocol === "https:"` trước khi gọi `shell.openExternal`.
    * `quickStart.ts:62-63`: Chuyển sang `nodeIntegration: false, contextIsolation: true`, dùng preload whitelist chung thay vì lộ API Node trong cửa sổ Welcome.
    * `appWindow.ts:176-180`: Thay `if (idx) delete mainWindows[idx]` bằng `const idx = mainWindows.indexOf(win); if (idx !== -1) mainWindows.splice(idx, 1);`.
-4. **[P0.4] Vệ sinh Metadata, Duplicate Binary & Ngôn ngữ Công khai (the workspace policy)**
+4. **[P0.4] Vệ sinh Metadata, Duplicate Binary & Ngôn ngữ Công khai**
    * Sửa `toad-app/package.json`: cập nhật `homepage`, `repository.url`, `appId` (`io.github.hellokittyxamkinlung.toad`), `electron-updater` config (hoặc gỡ bỏ nếu chỉ phân phối portable).
    * Sửa `main.ts:488-490`: đọc version động từ `app.getVersion()` thay vì hardcoded `"2.4.8"`. Cập nhật `reltab-duckdb/package.json` mô tả đúng DuckDB.
    * Xóa bản sao dư thừa `tad-master/packages/toad-app/release/Toad 2.5.2.2.exe` và hai DLL mồ côi `duckdb.dll`, `WebView2Loader.dll` ở thư mục gốc; cập nhật `dist_package.ps1` / `package_release.ps1` dọn file tạm `release\Toad *.exe` sau khi xuất ra `releases/`.
-   * Chuyển đổi toàn bộ log/chuỗi hướng tới người dùng cuối sang tiếng Anh chuẩn theo the workspace policy: `binary_guard.rs:66,93`, `csvimport.ts:2402`, và `# Tu khoa che do an toan...` trong `portableAppData.ts:176-180`.
+   * Chuyển đổi toàn bộ log/chuỗi hướng tới người dùng cuối sang tiếng Anh chuẩn: `binary_guard.rs:66,93`, `csvimport.ts:2402`, và `# Tu khoa che do an toan...` trong `portableAppData.ts:176-180`.
 
 ---
 
@@ -240,7 +240,7 @@ flowchart LR
    * **TypeScript `4.8.3` → `5.6+`**: Chuẩn hóa phiên bản đồng nhất cho mọi package trong workspace, bật `strictNullChecks` từng bước cho `reltab` và `toadviewer`.
    * **DuckDB `duckdb-async 1.0.0` → DuckDB `1.2+` (hoặc `@duckdb/node-api` chính thức)**: Khai thác cải tiến CSV sniffer, `read_json` recovery và giảm rò rỉ bộ nhớ trên bảng rộng hàng trăm cột (như Windows EVTX/Sysmon sau flatten).
    * **Webpack `5.65` → `esbuild` / Vite**: Giảm thời gian build phát triển từ hàng chục giây xuống < 2 giây.
-2. **[P3.2] Hợp nhất Build, Smoke Test & Phân phối Không Ma sát (`package_release.ps1`)**
+2. **[P3.2] Hợp nhất Build, Smoke Test & Phân phối Chuẩn (`package_release.ps1`)**
    * **Hợp nhất Script Build (`fastbuild.ps1`, `dist_package.ps1`, `build_all.ps1`)**:
      * Chỉ định 1 script build chuẩn (`tools/build.ps1`) đảm bảo biên dịch theo đúng đồ thị phụ thuộc (`reltab` → `reltab-fs` / `aggtree` / `reltab-duckdb` → `host-bridge` → `toadviewer` → `toad-core` Rust → `toad-app`), khắc phục việc `dist_package.ps1` bỏ quên build các package nền và `fastbuild.ps1` bỏ qua `toad-core-rust`.
      * Đồng bộ hóa phiên bản toàn monorepo thông qua `tools/bump_version.js` (tránh tình trạng `0.14.0` vs `2.5.2.2` vs `1.2.0`).

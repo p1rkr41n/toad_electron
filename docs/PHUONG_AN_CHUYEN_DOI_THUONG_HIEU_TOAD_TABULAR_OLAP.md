@@ -1,8 +1,8 @@
 # Phương Án Chi Tiết: Chuyển Đổi Toàn Bộ "TAD" Sang "TOAD" (Tabular OLAP Analytics Desktop)
 
-**Phiên bản mục tiêu**: `v2.4.6.1` (Áp dụng chuẩn Auto 4th-Digit Patch theo the workspace policy)  
+**Phiên bản mục tiêu**: `v2.4.6.1` (Áp dụng chuẩn Auto 4th-Digit Patch)  
 **Tên sản phẩm chuẩn hóa**: **TOAD - Tabular OLAP Analytics Desktop**  
-**Trạng thái**: Đã thống nhất toàn diện qua phỏng vấn thiết kế (`/grill-me`), sẵn sàng thực thi.
+**Trạng thái**: Đã thống nhất toàn diện về mặt thiết kế, sẵn sàng thực thi.
 
 ---
 
@@ -62,7 +62,7 @@ flowchart TD
 3. **Định dạng file cấu hình/view**: Mặc định lưu đuôi `.toad` với key `toadFileFormatVersion: 2`, đồng thời hỗ trợ đọc mượt mà định dạng `.tad` cũ (`tadFileFormatVersion: 1`).
 4. **Phong cách hiển thị Titlebar**: Tối giản & tinh tế (`<Tên file/Project> - TOAD`). Chuỗi đầy đủ *"TOAD - Tabular OLAP Analytics Desktop"* hiển thị trong Help > About, metadata và CLI `--help`.
 5. **Định danh nội bộ**: Đổi triệt để 100% cả CSS classes (`.toad-*`), SCSS selectors, SQL Temporary Views (`toad_tmpView_*`) và Webpack bundle name (`toadapp.bundle.js`).
-6. **Phiên bản ấn định**: `v2.4.6.1` tuân thủ tiêu chuẩn auto 4th-digit patch trong the workspace policy.
+6. **Phiên bản ấn định**: `v2.4.6.1` tuân thủ tiêu chuẩn auto 4th-digit patch.
 
 ---
 

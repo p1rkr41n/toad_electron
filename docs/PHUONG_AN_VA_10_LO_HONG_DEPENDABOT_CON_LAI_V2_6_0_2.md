@@ -107,7 +107,7 @@ flowchart LR
    - Kiểm tra trực tiếp `node_modules/lodash/package.json` trích xuất từ `release/win-unpacked/resources/app.asar` đạt phiên bản **`>= 4.18.1`**.
    - Kiểm tra `reltab-aws-athena/package.json` không chứa `aws-sdk` v2.
    - Chạy `npm audit --json` trong test suite (hoặc pre-release gate trong `dist_package.ps1`) khẳng định `vulnerabilities.total === 0`.
-2. **Đóng gói & Phát hành `v2.6.0.2`** (theo the workspace policy & the release guide):
+2. **Đóng gói & Phát hành `v2.6.0.2`** (theo quy chuẩn phát hành nội bộ HelloKittyXamKinLung):
    - Lưu ý: Toàn bộ commit message, tag, `releases/v2.6.0.2_NOTES.md`, Winget manifest `HelloKittyXamKinLung.Toad.yaml` phải viết **100% tiếng Anh**. (Không đẩy tài liệu nội bộ tiếng Việt nếu chuẩn hóa repo công khai, hoặc giữ đồng bộ quy chuẩn `docs/` hiện hữu).
    - Chạy `node tools/bump_version.js 2.6.0.2`.
    - Chạy `dist_package.ps1` → `package_release.ps1 -Version "2.6.0.2"` (xuất `Toad-2.6.0.2-x64-portable.exe`, `.zip`, `SHA256SUMS.txt`).

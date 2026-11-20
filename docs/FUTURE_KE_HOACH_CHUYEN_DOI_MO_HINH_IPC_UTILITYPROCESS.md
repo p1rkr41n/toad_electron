@@ -78,7 +78,7 @@ flowchart TD
 
 ## 4. Open Questions
 
-Toàn bộ các nhánh rẽ trong cây thiết kế đã được giải quyết triệt để . Không còn câu hỏi mở nào tồn đọng trước khi triển khai.
+Toàn bộ các nhánh rẽ trong cây thiết kế đã được giải quyết triệt để. Không còn câu hỏi mở nào tồn đọng trước khi triển khai.
 
 ---
 
